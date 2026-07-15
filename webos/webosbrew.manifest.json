@@ -1,0 +1,15 @@
+{
+  "id": "com.nuvio.clearkey.app",
+  "version": "1.0.0",
+  "type": "web",
+  "title": "Nuvio ClearKey",
+  "appDescription": "Nuvio with on-device ClearKey DASH/HLS decryption (Shaka Player / EME) — no server-side proxy.",
+  "iconUri": "https://raw.githubusercontent.com/retrocodes12/nuvioweb-clearkey/main/webos/largeIcon.png",
+  "sourceUrl": "https://github.com/retrocodes12/nuvioweb-clearkey",
+  "rootRequired": false,
+  "ipkUrl": "https://github.com/retrocodes12/nuvioweb-clearkey/releases/download/webos-v1.0.0/com.nuvio.clearkey.app_1.0.0_all.ipk",
+  "ipkHash": {
+    "sha256": "25c96a48f5e0f5763d52df2b55317f4413f32b2594042bf344ceec32355c747b"
+  },
+  "ipkSize": 7915894
+}
