@@ -7,172 +7,342 @@
 <script src="./shaka-player.compiled.js"></script>
 <style>
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: #000; color: #eee;
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-  #video { position: fixed; inset: 0; width: 100%; height: 100%; background: #000; z-index: 0; }
-  #panel { position: fixed; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center;
-    background: rgba(0,0,0,0.82); padding: 4vh 4vw; }
-  #panel.hidden { display: none; }
-  .card { width: min(900px, 92vw); }
-  h1 { color: #E50914; margin: 0 0 1.4rem; font-size: 2rem; }
-  label { display: block; margin: 1rem 0 .35rem; font-size: 1.05rem; color: #cbd5e1; }
-  input { width: 100%; font-size: 1.3rem; padding: .7rem .9rem; border-radius: 8px;
-    border: 2px solid #333; background: #111; color: #fff; outline: none; }
-  input:focus { border-color: #E50914; background: #161616; }
-  .row { display: flex; gap: 1rem; }
-  .row > div { flex: 1; }
-  .hint { color: #8b93a1; font-size: .95rem; margin-top: .35rem; }
-  .buttons { display: flex; gap: 1rem; margin-top: 1.6rem; flex-wrap: wrap; }
-  button { font-size: 1.3rem; font-weight: 700; padding: .8rem 2rem; border-radius: 10px; border: 2px solid transparent;
+  html, body { margin: 0; height: 100%; background: #0b0b0b; color: #eee;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; overflow: hidden; }
+  #video { position: fixed; inset: 0; width: 100%; height: 100%; background: #000; z-index: 0; display: none; }
+  .view { position: fixed; inset: 0; z-index: 2; padding: 3vh 4vw; overflow-y: auto; display: none; }
+  .view.active { display: block; }
+  h1 { color: #E50914; margin: 0 0 .4rem; font-size: 1.9rem; }
+  h2 { color: #fff; margin: 1.2rem 0 .6rem; font-size: 1.3rem; font-weight: 600; }
+  .sub { color: #9aa3af; margin: 0 0 1.2rem; }
+  input { width: 100%; font-size: 1.2rem; padding: .7rem .9rem; border-radius: 8px;
+    border: 2px solid #333; background: #141414; color: #fff; outline: none; }
+  input:focus { border-color: #E50914; }
+  .focusable { outline: none; }
+  .focusable:focus { border-color: #fff !important; box-shadow: 0 0 0 3px rgba(229,9,20,.7); transform: scale(1.01); }
+  button { font-size: 1.1rem; padding: .6rem 1.2rem; border-radius: 8px; border: 2px solid transparent;
     background: #E50914; color: #fff; cursor: pointer; }
-  button.secondary { background: #222; }
-  button:focus { border-color: #fff; transform: scale(1.03); }
-  #status { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3; padding: .6rem 1rem;
-    font-size: 1.1rem; background: rgba(0,0,0,0.7); }
+  button.sec { background: #26262b; }
+  .row { display: flex; gap: .7rem; flex-wrap: wrap; align-items: center; margin: .6rem 0; }
+  .list { display: flex; flex-direction: column; gap: .5rem; margin-top: .6rem; }
+  .item { text-align: left; width: 100%; background: #17171b; border: 2px solid #26262b; border-radius: 10px;
+    padding: .8rem 1rem; color: #eee; font-size: 1.15rem; display: flex; gap: .8rem; align-items: center; }
+  .item small { color: #9aa3af; font-weight: 400; }
+  .chip { font-size: .95rem; padding: .35rem .8rem; border-radius: 999px; background: #26262b; border: 2px solid #26262b; color: #cfd3da; }
+  .chip.on { background: #E50914; border-color: #E50914; color: #fff; }
+  #status { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; padding: .55rem 1rem; font-size: 1.05rem;
+    background: rgba(0,0,0,.78); }
   #status.err { color: #ff6b6b; } #status.ok { color: #7CFC7C; } #status.info { color: #cbd5e1; }
-  .toggle { position: fixed; top: 12px; right: 16px; z-index: 3; }
+  .backhint { color: #7b8290; font-size: .95rem; margin-top: 1rem; }
+  .poster { width: 46px; height: 46px; border-radius: 6px; object-fit: cover; background:#000; flex: 0 0 auto; }
 </style>
 </head>
 <body>
   <video id="video" controls autoplay playsinline></video>
 
-  <button id="editBtn" class="toggle secondary hidden">Edit</button>
+  <!-- HOME: add-ons + manual URL -->
+  <div id="view-home" class="view active">
+    <h1>Nuvio ClearKey Player</h1>
+    <p class="sub">Add a Stremio add-on that provides streams, then browse and play. Handles HLS, DASH, and DASH+ClearKey.</p>
+    <h2>Add an add-on</h2>
+    <input id="addonUrl" class="focusable" type="url" placeholder="https://your-addon/…/manifest.json" autocomplete="off" />
+    <div class="row">
+      <button id="addAddonBtn" class="focusable">Add add-on</button>
+      <button id="manualBtn" class="focusable sec">Play a URL manually</button>
+    </div>
+    <h2>Your add-ons</h2>
+    <div id="addonList" class="list"></div>
+  </div>
 
-  <div id="panel">
-    <div class="card">
-      <h1>Nuvio ClearKey Player</h1>
-
-      <label for="url">Stream URL (DASH .mpd or HLS .m3u8)</label>
-      <input id="url" type="url" placeholder="https://host/manifest.mpd" autocomplete="off" />
-      <div class="hint">Tip: you can put the key right in the URL as <code>#clearkey=&lt;kidHex&gt;:&lt;keyHex&gt;</code> and leave the fields below blank.</div>
-
-      <div class="row">
-        <div>
-          <label for="kid">Key ID (hex, optional)</label>
-          <input id="kid" type="text" placeholder="32 hex chars" autocomplete="off" />
-        </div>
-        <div>
-          <label for="key">Key (hex, optional)</label>
-          <input id="key" type="text" placeholder="32 hex chars" autocomplete="off" />
-        </div>
-      </div>
-
-      <div class="buttons">
-        <button id="playBtn">▶  Play</button>
-        <button id="clearBtn" class="secondary">Clear</button>
-      </div>
+  <!-- MANUAL URL + KEY -->
+  <div id="view-manual" class="view">
+    <h1>Play a URL</h1>
+    <p class="sub">Paste a DASH/HLS URL. Put a key on it as <code>#clearkey=kidHex:keyHex</code>, or fill the fields.</p>
+    <input id="mUrl" class="focusable" type="url" placeholder="https://host/manifest.mpd" autocomplete="off" />
+    <div class="row">
+      <input id="mKid" class="focusable" type="text" placeholder="Key ID (hex, optional)" style="flex:1" />
+      <input id="mKey" class="focusable" type="text" placeholder="Key (hex, optional)" style="flex:1" />
+    </div>
+    <div class="row">
+      <button id="mPlay" class="focusable">▶ Play</button>
+      <button class="focusable sec" data-back="home">Back</button>
     </div>
   </div>
 
-  <div id="status" class="info">Ready. Enter a stream URL and press Play.</div>
+  <!-- CATALOG -->
+  <div id="view-catalog" class="view">
+    <h1 id="catTitle">Catalog</h1>
+    <div id="genreRow" class="row"></div>
+    <div id="catList" class="list"></div>
+    <p class="backhint">Press Back on the remote to return.</p>
+  </div>
+
+  <!-- STREAMS -->
+  <div id="view-streams" class="view">
+    <h1 id="streamsTitle">Streams</h1>
+    <div id="streamList" class="list"></div>
+    <p class="backhint">Press Back on the remote to return.</p>
+  </div>
+
+  <div id="status" class="info">Ready.</div>
 
 <script>
 (function () {
   var video = document.getElementById('video');
-  var panel = document.getElementById('panel');
-  var editBtn = document.getElementById('editBtn');
   var statusEl = document.getElementById('status');
-  var urlEl = document.getElementById('url');
-  var kidEl = document.getElementById('kid');
-  var keyEl = document.getElementById('key');
-  var player = null;
+  var LS = window.localStorage;
+  var player = null, viewStack = ['home'], ctx = {};
 
-  function setStatus(msg, kind) { statusEl.textContent = msg; statusEl.className = kind || 'info'; }
+  function setStatus(m, k){ statusEl.textContent = m; statusEl.className = k||'info'; }
+  function hex(v){ return (v||'').trim().replace(/[^0-9a-fA-F]/g,'').toLowerCase(); }
 
-  // Restore last-used values
-  try {
-    urlEl.value = localStorage.getItem('ck_url') || '';
-    kidEl.value = localStorage.getItem('ck_kid') || '';
-    keyEl.value = localStorage.getItem('ck_key') || '';
-  } catch (e) {}
+  // ---------- view + focus management ----------
+  function show(name, push){
+    document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
+    var el = document.getElementById('view-'+name);
+    if (el){ el.classList.add('active'); el.scrollTop = 0; }
+    video.style.display = (name==='player') ? 'block' : 'none';
+    if (push !== false){ if (viewStack[viewStack.length-1] !== name) viewStack.push(name); }
+    setTimeout(focusFirst, 30);
+  }
+  function focusFirst(){
+    var v = document.querySelector('.view.active'); if(!v) return;
+    var f = v.querySelector('.focusable'); if (f) f.focus();
+  }
+  function focusables(){
+    var v = document.querySelector('.view.active'); if(!v) return [];
+    return Array.prototype.slice.call(v.querySelectorAll('.focusable')).filter(function(e){ return e.offsetParent !== null; });
+  }
+  function moveFocus(dir){
+    var list = focusables(); if(!list.length) return;
+    var i = list.indexOf(document.activeElement);
+    i = (i < 0) ? 0 : Math.min(list.length-1, Math.max(0, i+dir));
+    list[i].focus();
+    list[i].scrollIntoView({block:'nearest'});
+  }
+  function goBack(){
+    if (player && video.style.display==='block'){ stopPlayer(); }
+    if (viewStack.length > 1){ viewStack.pop(); show(viewStack[viewStack.length-1], false); }
+    else show('home', false);
+  }
 
-  function hex(v) { return (v || '').trim().replace(/[^0-9a-fA-F]/g, '').toLowerCase(); }
+  document.addEventListener('keydown', function(e){
+    var k = e.keyCode;
+    if (k===40){ moveFocus(1); e.preventDefault(); }           // down
+    else if (k===38){ moveFocus(-1); e.preventDefault(); }     // up
+    else if (k===461 || k===8 || e.key==='GoBack' || e.key==='BrowserBack'){ goBack(); e.preventDefault(); } // back
+    else if (k===13 && document.activeElement && document.activeElement.tagName==='INPUT'){
+      // Enter in an input triggers the nearest primary action
+      var v = document.querySelector('.view.active');
+      if (v.id==='view-home') addAddon();
+      else if (v.id==='view-manual') playManual();
+    }
+  });
 
-  // Returns { url, clearKeys } — clearKeys is {kidHex: keyHex} or null.
-  function parseInputs() {
-    var raw = (urlEl.value || '').trim();
-    var clearKeys = {};
-    // 1) key(s) embedded in the URL fragment: #clearkey=kid:key,kid:key
-    var hashIdx = raw.indexOf('#clearkey=');
-    var url = raw;
-    if (hashIdx !== -1) {
-      var frag = raw.slice(hashIdx + '#clearkey='.length);
-      url = raw.slice(0, hashIdx);
-      decodeURIComponent(frag).split(',').forEach(function (pair) {
-        var i = pair.indexOf(':'); if (i <= 0) return;
-        var k = hex(pair.slice(0, i)), v = hex(pair.slice(i + 1));
-        if (k.length === 32 && v.length === 32) clearKeys[k] = v;
+  // ---------- add-on storage ----------
+  function getAddons(){ try { return JSON.parse(LS.getItem('addons')||'[]'); } catch(e){ return []; } }
+  function saveAddons(a){ try { LS.setItem('addons', JSON.stringify(a)); } catch(e){} }
+  function baseOf(manifestUrl){ return manifestUrl.replace(/\/manifest\.json.*$/,''); }
+  async function getJson(url){
+    var r = await fetch(url, { headers: { 'Accept':'application/json' } });
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  }
+
+  function renderAddons(){
+    var wrap = document.getElementById('addonList'); wrap.innerHTML='';
+    var addons = getAddons();
+    if (!addons.length){ wrap.innerHTML = '<div class="sub">No add-ons yet. Paste your manifest URL above.</div>'; return; }
+    addons.forEach(function(a, idx){
+      var b = document.createElement('button');
+      b.className = 'item focusable';
+      b.innerHTML = '<span>'+ (a.name||a.url) +'</span>';
+      b.onclick = function(){ openAddon(a); };
+      var del = document.createElement('button');
+      del.className='chip focusable'; del.textContent='Remove'; del.style.marginLeft='auto';
+      del.onclick = function(ev){ ev.stopPropagation(); var arr=getAddons(); arr.splice(idx,1); saveAddons(arr); renderAddons(); focusFirst(); };
+      b.appendChild(del);
+      wrap.appendChild(b);
+    });
+  }
+
+  async function addAddon(){
+    var url = (document.getElementById('addonUrl').value||'').trim();
+    if (!/manifest\.json/.test(url)){ setStatus('Enter the add-on manifest URL (ends in /manifest.json).', 'err'); return; }
+    setStatus('Fetching add-on…', 'info');
+    try {
+      var m = await getJson(url);
+      var addons = getAddons();
+      if (!addons.some(function(a){ return a.url===url; })){
+        addons.push({ url:url, name:m.name||'Add-on', base:baseOf(url) });
+        saveAddons(addons);
+      }
+      document.getElementById('addonUrl').value='';
+      renderAddons(); setStatus('Added '+(m.name||'add-on')+'.', 'ok'); focusFirst();
+    } catch(err){ setStatus('Could not load add-on: '+err.message, 'err'); }
+  }
+
+  // ---------- catalog ----------
+  async function openAddon(a){
+    setStatus('Loading catalogs…','info');
+    try {
+      var m = await getJson(a.url);
+      ctx.addon = a; ctx.manifest = m;
+      ctx.catalogs = (m.catalogs||[]).filter(function(c){ return (m.resources||[]).indexOf('catalog')>=0 || true; });
+      if (!ctx.catalogs.length){ setStatus('This add-on has no catalogs to browse.', 'err'); return; }
+      ctx.catalog = ctx.catalogs[0];
+      document.getElementById('catTitle').textContent = a.name || 'Catalog';
+      renderGenres();
+      show('catalog');
+      loadCatalog();
+    } catch(err){ setStatus('Failed: '+err.message, 'err'); }
+  }
+
+  function currentGenres(){
+    var extra = (ctx.catalog.extra||[]);
+    var g = extra.filter(function(x){ return x.name==='genre'; })[0];
+    return g && g.options ? g.options : [];
+  }
+  function renderGenres(){
+    var row = document.getElementById('genreRow'); row.innerHTML='';
+    // catalog switcher (if multiple)
+    if (ctx.catalogs.length > 1){
+      ctx.catalogs.forEach(function(c){
+        var b=document.createElement('button'); b.className='chip focusable'+(c===ctx.catalog?' on':'');
+        b.textContent = c.name || c.id;
+        b.onclick=function(){ ctx.catalog=c; ctx.genre=null; renderGenres(); loadCatalog(); };
+        row.appendChild(b);
       });
     }
-    // 2) separate fields
-    var fk = hex(kidEl.value), fv = hex(keyEl.value);
-    if (fk.length === 32 && fv.length === 32) clearKeys[fk] = fv;
-    return { url: url, clearKeys: Object.keys(clearKeys).length ? clearKeys : null };
+    currentGenres().slice(0,14).forEach(function(gn){
+      var b=document.createElement('button'); b.className='chip focusable'+(ctx.genre===gn?' on':'');
+      b.textContent=gn;
+      b.onclick=function(){ ctx.genre = (ctx.genre===gn?null:gn); renderGenres(); loadCatalog(); };
+      row.appendChild(b);
+    });
   }
 
-  function initShaka() {
-    if (!window.shaka) { setStatus('Shaka Player failed to load (bundled file missing).', 'err'); return false; }
+  function catalogUrl(){
+    var u = ctx.addon.base + '/catalog/' + encodeURIComponent(ctx.catalog.type) + '/' + encodeURIComponent(ctx.catalog.id);
+    if (ctx.genre) u += '/genre=' + encodeURIComponent(ctx.genre);
+    return u + '.json';
+  }
+  async function loadCatalog(){
+    var list = document.getElementById('catList'); list.innerHTML='<div class="sub">Loading…</div>';
+    setStatus('Loading items…','info');
+    try {
+      var d = await getJson(catalogUrl());
+      var metas = d.metas||[];
+      list.innerHTML='';
+      if (!metas.length){ list.innerHTML='<div class="sub">No items.</div>'; }
+      metas.slice(0,200).forEach(function(meta){
+        var b=document.createElement('button'); b.className='item focusable';
+        var img = meta.poster ? '<img class="poster" src="'+meta.poster+'" onerror="this.style.display=\'none\'">' : '';
+        b.innerHTML = img + '<span>'+(meta.name||meta.id)+'</span>';
+        b.onclick=function(){ openItem(meta); };
+        list.appendChild(b);
+      });
+      setStatus(metas.length+' item(s). Select one.','ok');
+      focusFirst();
+    } catch(err){ list.innerHTML=''; setStatus('Failed to load catalog: '+err.message,'err'); }
+  }
+
+  // ---------- streams ----------
+  async function openItem(meta){
+    ctx.item = meta;
+    document.getElementById('streamsTitle').textContent = meta.name || 'Streams';
+    var list = document.getElementById('streamList'); list.innerHTML='<div class="sub">Loading streams…</div>';
+    show('streams');
+    setStatus('Loading streams…','info');
+    try {
+      var url = ctx.addon.base + '/stream/' + encodeURIComponent(meta.type||ctx.catalog.type) + '/' + encodeURIComponent(meta.id) + '.json';
+      var d = await getJson(url);
+      var streams = (d.streams||[]).filter(function(s){ return s.url; });
+      list.innerHTML='';
+      if (!streams.length){ list.innerHTML='<div class="sub">No playable streams right now (event may be offline).</div>'; setStatus('No streams.','err'); return; }
+      streams.forEach(function(s){
+        var b=document.createElement('button'); b.className='item focusable';
+        var label = (s.name?('<b>'+s.name+'</b> '):'') + '<small>'+((s.title||'').replace(/\n/g,' · '))+'</small>';
+        b.innerHTML = '<span>'+label+'</span>';
+        b.onclick=function(){ playStream(s); };
+        list.appendChild(b);
+      });
+      setStatus(streams.length+' stream(s). Select to play.','ok');
+      focusFirst();
+    } catch(err){ list.innerHTML=''; setStatus('Failed to load streams: '+err.message,'err'); }
+  }
+
+  // ---------- playback ----------
+  function extractClearKeys(stream){
+    var keys = {};
+    // 1) from URL fragment  #clearkey=kid:key,kid:key
+    var u = stream.url||'', hi = u.indexOf('#clearkey=');
+    if (hi !== -1){
+      decodeURIComponent(u.slice(hi+10)).split(',').forEach(function(p){
+        var i=p.indexOf(':'); if(i<=0) return;
+        var k=hex(p.slice(0,i)), v=hex(p.slice(i+1)); if(k.length===32&&v.length===32) keys[k]=v;
+      });
+    }
+    // 2) from common object fields
+    var src = stream.clearKeys || stream.keys || (stream.behaviorHints && stream.behaviorHints.clearKeys);
+    if (src && typeof src === 'object'){
+      Object.keys(src).forEach(function(k){ var kk=hex(k), vv=hex(src[k]); if(kk.length===32&&vv.length===32) keys[kk]=vv; });
+    }
+    return Object.keys(keys).length ? keys : null;
+  }
+  function cleanUrl(u){ var i=u.indexOf('#clearkey='); return i===-1?u:u.slice(0,i); }
+
+  function initShaka(){
+    if (!window.shaka){ setStatus('Shaka failed to load.','err'); return false; }
     shaka.polyfill.installAll();
-    if (!shaka.Player.isBrowserSupported()) { setStatus('This TV browser is not supported by Shaka Player.', 'err'); return false; }
+    if (!shaka.Player.isBrowserSupported()){ setStatus('This TV is not supported by Shaka Player.','err'); return false; }
     return true;
   }
+  async function stopPlayer(){ if (player){ try{ await player.destroy(); }catch(e){} player=null; } video.style.display='none'; }
 
-  async function play() {
-    var cfg = parseInputs();
-    if (!cfg.url) { setStatus('Enter a stream URL first.', 'err'); return; }
-    try {
-      localStorage.setItem('ck_url', urlEl.value.trim());
-      localStorage.setItem('ck_kid', kidEl.value.trim());
-      localStorage.setItem('ck_key', keyEl.value.trim());
-    } catch (e) {}
-
+  async function playUrl(rawUrl, clearKeys){
     if (!initShaka()) return;
-    if (player) { try { await player.destroy(); } catch (e) {} player = null; }
-
-    setStatus('Loading… ' + cfg.url, 'info');
+    await stopPlayer();
+    show('player');
+    setStatus('Loading… '+rawUrl.slice(0,90),'info');
     player = new shaka.Player();
-    try { await player.attach(video); } catch (e) {}
-
-    player.addEventListener('error', function (ev) {
-      var d = ev && ev.detail ? ev.detail : {};
-      setStatus('Playback error ' + (d.code || '?') + (d.data ? ' — ' + JSON.stringify(d.data).slice(0,160) : ''), 'err');
-    });
-
-    if (cfg.clearKeys) player.configure({ drm: { clearKeys: cfg.clearKeys } });
-
+    try { await player.attach(video); } catch(e){}
+    player.addEventListener('error', function(ev){ var d=ev.detail||{}; setStatus('Playback error '+(d.code||'?'),'err'); });
+    if (clearKeys) player.configure({ drm: { clearKeys: clearKeys } });
     try {
-      await player.load(cfg.url);
-      panel.classList.add('hidden');
-      editBtn.classList.remove('hidden');
-      setStatus('Playing.', 'ok');
-      try { await video.play(); } catch (e) {}
-      editBtn.focus();
-    } catch (err) {
-      var code = (err && (err.code || err.message)) || 'unknown';
-      var extra = err && err.data ? ' — ' + JSON.stringify(err.data).slice(0, 200) : '';
-      setStatus('Failed to load (' + code + ')' + extra, 'err');
+      await player.load(cleanUrl(rawUrl));
+      setStatus('Playing.','ok');
+      try { await video.play(); } catch(e){}
+    } catch(err){
+      var code=(err&&(err.code||err.message))||'unknown';
+      var extra=err&&err.data?(' — '+JSON.stringify(err.data).slice(0,180)):'';
+      setStatus('Failed to load ('+code+')'+extra,'err');
     }
   }
+  function playStream(s){ playUrl(s.url, extractClearKeys(s)); }
 
-  document.getElementById('playBtn').addEventListener('click', play);
-  document.getElementById('clearBtn').addEventListener('click', function () {
-    urlEl.value = ''; kidEl.value = ''; keyEl.value = ''; urlEl.focus();
-  });
-  editBtn.addEventListener('click', function () {
-    panel.classList.remove('hidden'); editBtn.classList.add('hidden'); urlEl.focus();
-  });
+  // ---------- manual ----------
+  function playManual(){
+    var url=(document.getElementById('mUrl').value||'').trim(); if(!url){ setStatus('Enter a URL.','err'); return; }
+    var keys={};
+    var fk=hex(document.getElementById('mKid').value), fv=hex(document.getElementById('mKey').value);
+    if (fk.length===32&&fv.length===32) keys[fk]=fv;
+    var frag = url.indexOf('#clearkey=');
+    if (frag!==-1){ decodeURIComponent(url.slice(frag+10)).split(',').forEach(function(p){var i=p.indexOf(':');if(i>0){var k=hex(p.slice(0,i)),v=hex(p.slice(i+1));if(k.length===32&&v.length===32)keys[k]=v;}}); }
+    try { LS.setItem('m_url',url); } catch(e){}
+    playUrl(url, Object.keys(keys).length?keys:null);
+  }
 
-  // Enter key on any field starts playback; Back/Return re-opens the panel.
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && !panel.classList.contains('hidden')) { play(); }
-    // webOS Back key = 461
-    if (e.keyCode === 461 || e.key === 'GoBack' || e.key === 'BrowserBack') {
-      if (panel.classList.contains('hidden')) { editBtn.click(); e.preventDefault(); }
-    }
-  });
+  // ---------- wire up ----------
+  document.getElementById('addAddonBtn').onclick = addAddon;
+  document.getElementById('manualBtn').onclick = function(){ show('manual'); };
+  document.getElementById('mPlay').onclick = playManual;
+  document.querySelectorAll('[data-back]').forEach(function(b){ b.onclick=function(){ goBack(); }; });
+  try { document.getElementById('mUrl').value = LS.getItem('m_url')||''; } catch(e){}
 
-  urlEl.focus();
-  setStatus('Ready. Enter a stream URL and press Play.', 'info');
+  renderAddons();
+  setStatus('Ready. Add your add-on to begin.','info');
+  focusFirst();
 })();
 </script>
 </body>
