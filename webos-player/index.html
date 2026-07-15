@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Nuvio ClearKey Player</title>
+<script src="./shaka-player.compiled.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; color: #eee;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  #video { position: fixed; inset: 0; width: 100%; height: 100%; background: #000; z-index: 0; }
+  #panel { position: fixed; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.82); padding: 4vh 4vw; }
+  #panel.hidden { display: none; }
+  .card { width: min(900px, 92vw); }
+  h1 { color: #E50914; margin: 0 0 1.4rem; font-size: 2rem; }
+  label { display: block; margin: 1rem 0 .35rem; font-size: 1.05rem; color: #cbd5e1; }
+  input { width: 100%; font-size: 1.3rem; padding: .7rem .9rem; border-radius: 8px;
+    border: 2px solid #333; background: #111; color: #fff; outline: none; }
+  input:focus { border-color: #E50914; background: #161616; }
+  .row { display: flex; gap: 1rem; }
+  .row > div { flex: 1; }
+  .hint { color: #8b93a1; font-size: .95rem; margin-top: .35rem; }
+  .buttons { display: flex; gap: 1rem; margin-top: 1.6rem; flex-wrap: wrap; }
+  button { font-size: 1.3rem; font-weight: 700; padding: .8rem 2rem; border-radius: 10px; border: 2px solid transparent;
+    background: #E50914; color: #fff; cursor: pointer; }
+  button.secondary { background: #222; }
+  button:focus { border-color: #fff; transform: scale(1.03); }
+  #status { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3; padding: .6rem 1rem;
+    font-size: 1.1rem; background: rgba(0,0,0,0.7); }
+  #status.err { color: #ff6b6b; } #status.ok { color: #7CFC7C; } #status.info { color: #cbd5e1; }
+  .toggle { position: fixed; top: 12px; right: 16px; z-index: 3; }
+</style>
+</head>
+<body>
+  <video id="video" controls autoplay playsinline></video>
+
+  <button id="editBtn" class="toggle secondary hidden">Edit</button>
+
+  <div id="panel">
+    <div class="card">
+      <h1>Nuvio ClearKey Player</h1>
+
+      <label for="url">Stream URL (DASH .mpd or HLS .m3u8)</label>
+      <input id="url" type="url" placeholder="https://host/manifest.mpd" autocomplete="off" />
+      <div class="hint">Tip: you can put the key right in the URL as <code>#clearkey=&lt;kidHex&gt;:&lt;keyHex&gt;</code> and leave the fields below blank.</div>
+
+      <div class="row">
+        <div>
+          <label for="kid">Key ID (hex, optional)</label>
+          <input id="kid" type="text" placeholder="32 hex chars" autocomplete="off" />
+        </div>
+        <div>
+          <label for="key">Key (hex, optional)</label>
+          <input id="key" type="text" placeholder="32 hex chars" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="buttons">
+        <button id="playBtn">▶  Play</button>
+        <button id="clearBtn" class="secondary">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="status" class="info">Ready. Enter a stream URL and press Play.</div>
+
+<script>
+(function () {
+  var video = document.getElementById('video');
+  var panel = document.getElementById('panel');
+  var editBtn = document.getElementById('editBtn');
+  var statusEl = document.getElementById('status');
+  var urlEl = document.getElementById('url');
+  var kidEl = document.getElementById('kid');
+  var keyEl = document.getElementById('key');
+  var player = null;
+
+  function setStatus(msg, kind) { statusEl.textContent = msg; statusEl.className = kind || 'info'; }
+
+  // Restore last-used values
+  try {
+    urlEl.value = localStorage.getItem('ck_url') || '';
+    kidEl.value = localStorage.getItem('ck_kid') || '';
+    keyEl.value = localStorage.getItem('ck_key') || '';
+  } catch (e) {}
+
+  function hex(v) { return (v || '').trim().replace(/[^0-9a-fA-F]/g, '').toLowerCase(); }
+
+  // Returns { url, clearKeys } — clearKeys is {kidHex: keyHex} or null.
+  function parseInputs() {
+    var raw = (urlEl.value || '').trim();
+    var clearKeys = {};
+    // 1) key(s) embedded in the URL fragment: #clearkey=kid:key,kid:key
+    var hashIdx = raw.indexOf('#clearkey=');
+    var url = raw;
+    if (hashIdx !== -1) {
+      var frag = raw.slice(hashIdx + '#clearkey='.length);
+      url = raw.slice(0, hashIdx);
+      decodeURIComponent(frag).split(',').forEach(function (pair) {
+        var i = pair.indexOf(':'); if (i <= 0) return;
+        var k = hex(pair.slice(0, i)), v = hex(pair.slice(i + 1));
+        if (k.length === 32 && v.length === 32) clearKeys[k] = v;
+      });
+    }
+    // 2) separate fields
+    var fk = hex(kidEl.value), fv = hex(keyEl.value);
+    if (fk.length === 32 && fv.length === 32) clearKeys[fk] = fv;
+    return { url: url, clearKeys: Object.keys(clearKeys).length ? clearKeys : null };
+  }
+
+  function initShaka() {
+    if (!window.shaka) { setStatus('Shaka Player failed to load (bundled file missing).', 'err'); return false; }
+    shaka.polyfill.installAll();
+    if (!shaka.Player.isBrowserSupported()) { setStatus('This TV browser is not supported by Shaka Player.', 'err'); return false; }
+    return true;
+  }
+
+  async function play() {
+    var cfg = parseInputs();
+    if (!cfg.url) { setStatus('Enter a stream URL first.', 'err'); return; }
+    try {
+      localStorage.setItem('ck_url', urlEl.value.trim());
+      localStorage.setItem('ck_kid', kidEl.value.trim());
+      localStorage.setItem('ck_key', keyEl.value.trim());
+    } catch (e) {}
+
+    if (!initShaka()) return;
+    if (player) { try { await player.destroy(); } catch (e) {} player = null; }
+
+    setStatus('Loading… ' + cfg.url, 'info');
+    player = new shaka.Player();
+    try { await player.attach(video); } catch (e) {}
+
+    player.addEventListener('error', function (ev) {
+      var d = ev && ev.detail ? ev.detail : {};
+      setStatus('Playback error ' + (d.code || '?') + (d.data ? ' — ' + JSON.stringify(d.data).slice(0,160) : ''), 'err');
+    });
+
+    if (cfg.clearKeys) player.configure({ drm: { clearKeys: cfg.clearKeys } });
+
+    try {
+      await player.load(cfg.url);
+      panel.classList.add('hidden');
+      editBtn.classList.remove('hidden');
+      setStatus('Playing.', 'ok');
+      try { await video.play(); } catch (e) {}
+      editBtn.focus();
+    } catch (err) {
+      var code = (err && (err.code || err.message)) || 'unknown';
+      var extra = err && err.data ? ' — ' + JSON.stringify(err.data).slice(0, 200) : '';
+      setStatus('Failed to load (' + code + ')' + extra, 'err');
+    }
+  }
+
+  document.getElementById('playBtn').addEventListener('click', play);
+  document.getElementById('clearBtn').addEventListener('click', function () {
+    urlEl.value = ''; kidEl.value = ''; keyEl.value = ''; urlEl.focus();
+  });
+  editBtn.addEventListener('click', function () {
+    panel.classList.remove('hidden'); editBtn.classList.add('hidden'); urlEl.focus();
+  });
+
+  // Enter key on any field starts playback; Back/Return re-opens the panel.
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !panel.classList.contains('hidden')) { play(); }
+    // webOS Back key = 461
+    if (e.keyCode === 461 || e.key === 'GoBack' || e.key === 'BrowserBack') {
+      if (panel.classList.contains('hidden')) { editBtn.click(); e.preventDefault(); }
+    }
+  });
+
+  urlEl.focus();
+  setStatus('Ready. Enter a stream URL and press Play.', 'info');
+})();
+</script>
+</body>
+</html>

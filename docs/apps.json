@@ -1,9 +1,33 @@
 {
   "paging": {
-    "count": 1,
+    "count": 2,
     "next": null
   },
   "packages": [
+    {
+      "id": "com.nuvio.clearkey.player",
+      "title": "ClearKey Player",
+      "iconUri": "https://raw.githubusercontent.com/retrocodes12/nuvioweb-clearkey/main/webos/largeIcon.png",
+      "manifestUrl": "https://github.com/retrocodes12/nuvioweb-clearkey/releases/download/player-v1.0.0/webosbrew.manifest.json",
+      "manifest": {
+        "id": "com.nuvio.clearkey.player",
+        "version": "1.0.0",
+        "type": "web",
+        "title": "ClearKey Player",
+        "appDescription": "Standalone webOS ClearKey DASH/HLS player (Shaka Player / EME). Paste a stream URL + key and play on-device — no proxy, no catalogs.",
+        "iconUri": "https://raw.githubusercontent.com/retrocodes12/nuvioweb-clearkey/main/webos/largeIcon.png",
+        "sourceUrl": "https://github.com/retrocodes12/nuvioweb-clearkey",
+        "rootRequired": false,
+        "ipkUrl": "https://github.com/retrocodes12/nuvioweb-clearkey/releases/download/player-v1.0.0/com.nuvio.clearkey.player_1.0.0_all.ipk",
+        "ipkHash": {
+          "sha256": "2da44885d94a29bc19ee6f4da0f240ccd2f808077c535cebe307badfdf072d3e"
+        },
+        "ipkSize": 257560
+      },
+      "pool": "main",
+      "shortDescription": "Standalone ClearKey DASH/HLS player — paste a URL + key, plays on-device.",
+      "fullDescriptionUrl": ""
+    },
     {
       "id": "com.nuvio.clearkey.app",
       "title": "Nuvio ClearKey",
@@ -14,7 +38,7 @@
         "version": "1.0.0",
         "type": "web",
         "title": "Nuvio ClearKey",
-        "appDescription": "Nuvio with on-device ClearKey DASH/HLS decryption (Shaka Player / EME) — no server-side proxy.",
+        "appDescription": "Full Nuvio UI with on-device ClearKey decryption (needs the TV to reach TMDB/Stremio add-ons).",
         "iconUri": "https://raw.githubusercontent.com/retrocodes12/nuvioweb-clearkey/main/webos/largeIcon.png",
         "sourceUrl": "https://github.com/retrocodes12/nuvioweb-clearkey",
         "rootRequired": false,
@@ -25,7 +49,7 @@
         "ipkSize": 7915894
       },
       "pool": "main",
-      "shortDescription": "Nuvio with on-device ClearKey DASH/HLS decryption — no proxy.",
+      "shortDescription": "Full Nuvio UI with on-device ClearKey decryption.",
       "fullDescriptionUrl": ""
     }
   ]

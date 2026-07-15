@@ -1,0 +1,15 @@
+{
+  "id": "com.nuvio.clearkey.player",
+  "version": "1.0.0",
+  "type": "web",
+  "title": "ClearKey Player",
+  "appDescription": "Standalone webOS ClearKey DASH/HLS player (Shaka Player / EME). Paste a stream URL + key and play on-device — no proxy, no catalogs.",
+  "iconUri": "https://raw.githubusercontent.com/retrocodes12/nuvioweb-clearkey/main/webos/largeIcon.png",
+  "sourceUrl": "https://github.com/retrocodes12/nuvioweb-clearkey",
+  "rootRequired": false,
+  "ipkUrl": "https://github.com/retrocodes12/nuvioweb-clearkey/releases/download/player-v1.0.0/com.nuvio.clearkey.player_1.0.0_all.ipk",
+  "ipkHash": {
+    "sha256": "2da44885d94a29bc19ee6f4da0f240ccd2f808077c535cebe307badfdf072d3e"
+  },
+  "ipkSize": 257560
+}
