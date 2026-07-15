@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nuvio ClearKey — webOS Homebrew Repo</title>
+<style>
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#141414; color:#eee; margin:0; padding:2rem 1.25rem; }
+  main { max-width: 680px; margin: 0 auto; }
+  h1 { color:#E50914; }
+  code, .url { background:#000; color:#4ade80; padding:.15rem .4rem; border-radius:4px; font-family: ui-monospace, monospace; word-break: break-all; }
+  .url { display:block; padding:.7rem .9rem; margin:.6rem 0 1.4rem; font-size:1.05rem; }
+  ol { line-height:1.7; }
+  a { color:#60a5fa; }
+  .muted { color:#9ca3af; font-size:.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Nuvio ClearKey — webOS</h1>
+  <p>A webOS build of Nuvio that decrypts <strong>ClearKey</strong> DASH/HLS streams on-device (Shaka Player / EME) with no server-side proxy.</p>
+
+  <h2>Install via Homebrew Channel</h2>
+  <p>Add this repository URL in <strong>Homebrew Channel → Settings → Add repository</strong>:</p>
+  <span class="url">https://retrocodes12.github.io/nuvioweb-clearkey/apps.json</span>
+  <ol>
+    <li>Install the <a href="https://github.com/webosbrew/webos-homebrew-channel">Homebrew Channel</a> on your LG TV (dev mode).</li>
+    <li>Open it → <strong>Settings</strong> → <strong>Add repository</strong> → paste the URL above.</li>
+    <li>Go back to the app list, find <strong>Nuvio ClearKey</strong>, and press <strong>Install</strong>.</li>
+  </ol>
+
+  <p class="muted">Direct <code>.ipk</code>:
+    <a href="https://github.com/retrocodes12/nuvioweb-clearkey/releases/tag/webos-v1.0.0">releases/webos-v1.0.0</a>
+    &middot; Source: <a href="https://github.com/retrocodes12/nuvioweb-clearkey">retrocodes12/nuvioweb-clearkey</a></p>
+  <p class="muted">Play a ClearKey stream by pointing a URL at <code>manifest.mpd#clearkey=&lt;kidHex&gt;:&lt;keyHex&gt;</code>.</p>
+</main>
+</body>
+</html>
