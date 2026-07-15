@@ -1,0 +1,13 @@
+{
+  "id": "com.nuvio.clearkey.app",
+  "version": "1.0.0",
+  "vendor": "Nuvio ClearKey",
+  "type": "web",
+  "main": "index.html",
+  "title": "Nuvio ClearKey",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "iconColor": "#141414",
+  "bgColor": "#141414",
+  "disableBackHistoryAPI": false
+}

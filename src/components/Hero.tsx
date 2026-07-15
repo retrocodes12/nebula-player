@@ -371,7 +371,7 @@ const Hero: React.FC = () => {
     
     if (heroContent.type === 'series') {
       // For series, navigate to details page where they can select episodes
-      router.push(`/details/${heroContent.type}/${heroContent.id}`);
+      router.push(`/details?type=${encodeURIComponent(heroContent.type)}&id=${encodeURIComponent(heroContent.id)}`);
     } else {
       // For movies, open the stream dialog directly
       setStreamContentType(heroContent.type);
@@ -391,7 +391,7 @@ const Hero: React.FC = () => {
     if (!heroContent) return;
     
     // Navigate to the details page for this content
-    router.push(`/details/${heroContent.type}/${heroContent.id}`);
+    router.push(`/details?type=${encodeURIComponent(heroContent.type)}&id=${encodeURIComponent(heroContent.id)}`);
   };
 
   // Add handler to restart rotation when dialog closes

@@ -1,0 +1,30 @@
+name: Build webOS IPK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build static export + package .ipk
+        run: npm run package:webos
+
+      - name: Upload IPK
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuvio-clearkey-webos-ipk
+          path: dist-webos/*.ipk
+          if-no-files-found: error

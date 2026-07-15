@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
+// webOS ships as a self-contained package of static web assets (no Node server),
+// so `WEBOS=1 npm run build` produces a static export with unoptimized images.
+// The default (SSR) build is unchanged.
+const isWebOS = process.env.WEBOS === "1" || process.env.WEBOS === "true";
+
 const nextConfig: NextConfig = {
+  ...(isWebOS ? { output: "export" as const, trailingSlash: true } : {}),
   // The upstream codebase does not pass next lint (many pre-existing @ts-ignore /
   // explicit-any usages). Skip lint during production builds; TypeScript type
   // checking still runs and will fail the build on real type errors.
@@ -8,6 +14,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
+    unoptimized: isWebOS,
     remotePatterns: [
       {
         protocol: 'https',

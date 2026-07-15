@@ -67,7 +67,7 @@ const MediaRow: React.FC<MediaRowProps> = ({ title, items, addonId, disableBotto
   const handleItemClick = (item: MediaItem) => {
     // Navigate to the details page with the item ID and addon ID (if available)
     const type = item.type || 'movie'; // Default to movie if type is not provided
-    router.push(`/details/${type}/${item.id}?${addonId ? `addonId=${addonId}` : ''}`);
+    router.push(`/details?type=${encodeURIComponent(type)}&id=${encodeURIComponent(item.id)}${addonId ? `&addonId=${addonId}` : ''}`);
   };
 
   const isBackdrop = imageType === 'backdrop';

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -16,7 +16,7 @@ import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import Divider from '@mui/material/Divider';
-import StreamDialog from '../../../../components/StreamDialog';
+import StreamDialog from '@/components/StreamDialog';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import EpisodeItem from './EpisodeItem';
 import Fade from '@mui/material/Fade';
@@ -283,11 +283,11 @@ interface Meta {
     trailer?: string;
 }
 
-export default function DetailsPage() {
-  const params = useParams();
+function DetailsPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { type: routeType, id: rawId } = params;
+  const routeType = searchParams.get('type');
+  const rawId = searchParams.get('id');
   const sourceAddonId = searchParams.get('addonId');
   const { 
     installedAddons, 
@@ -1324,5 +1324,19 @@ export default function DetailsPage() {
         </div>
       </Grow>
     </Box>
+  );
+}
+
+export default function DetailsPage() {
+  return (
+    <Suspense
+      fallback={
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#141414' }}>
+          <CircularProgress sx={{ color: 'red' }} />
+        </Box>
+      }
+    >
+      <DetailsPageContent />
+    </Suspense>
   );
 } 

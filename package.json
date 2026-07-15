@@ -6,7 +6,10 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "icons:webos": "node scripts/gen-webos-icons.mjs",
+    "build:webos": "WEBOS=1 next build",
+    "package:webos": "npm run build:webos && node scripts/package-webos.mjs"
   },
   "dependencies": {
     "@emotion/cache": "^11.14.0",
@@ -27,6 +30,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@webosose/ares-cli": "^2.4.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
     "typescript": "^5"
