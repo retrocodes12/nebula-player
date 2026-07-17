@@ -8,21 +8,21 @@
       "id": "com.nuvio.clearkey.player",
       "title": "Nebula",
       "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
-      "manifestUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.9.1/webosbrew.manifest.json",
+      "manifestUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.9.2/webosbrew.manifest.json",
       "manifest": {
         "id": "com.nuvio.clearkey.player",
-        "version": "1.9.1",
+        "version": "1.9.2",
         "type": "web",
         "title": "Nebula",
         "appDescription": "Stremio add-on browser + ClearKey player. Add via phone (QR), browse, play HLS/DASH/DASH+ClearKey.",
         "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
         "sourceUrl": "https://github.com/retrocodes12/nebula-player",
         "rootRequired": false,
-        "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.9.1/com.nuvio.clearkey.player_1.9.1_all.ipk",
+        "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.9.2/com.nuvio.clearkey.player_1.9.2_all.ipk",
         "ipkHash": {
-          "sha256": "73c3cb250b4c21adbc247bfb896ca938ea3e2419065ac5eca912acc65317bc6d"
+          "sha256": "2bec9e94460761d72a08f9ca2dd4b200d524486f714d3c276b186a9f215ee231"
         },
-        "ipkSize": 264274
+        "ipkSize": 264406
       },
       "pool": "main",
       "shortDescription": "Add-on browser + ClearKey. Add an add-on by scanning a QR with your phone.",
