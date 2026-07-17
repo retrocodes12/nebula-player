@@ -3,36 +3,405 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nuvio ClearKey — webOS Homebrew Repo</title>
+<title>Nebula — Download</title>
+<meta name="description" content="Nebula plays your Stremio add-on's streams — including DASH ClearKey, decrypted on-device — on Windows, Android, Android TV, LG webOS and the web.">
+<meta name="theme-color" content="#0a0a0c">
+<meta property="og:title" content="Nebula — Download">
+<meta property="og:description" content="Add your Stremio add-on, browse it, press play. HLS · DASH · DASH ClearKey, decrypted on-device. Windows · Android · Android TV · LG webOS · Web.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://retrocodes12.github.io/nuvioweb-clearkey/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0a0c'/%3E%3Cpath d='M32 12 52 32 32 52 12 32Z' fill='%23E50914'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400..900&display=swap">
 <style>
-  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#141414; color:#eee; margin:0; padding:2rem 1.25rem; }
-  main { max-width: 680px; margin: 0 auto; }
-  h1 { color:#E50914; }
-  code, .url { background:#000; color:#4ade80; padding:.15rem .4rem; border-radius:4px; font-family: ui-monospace, monospace; word-break: break-all; }
-  .url { display:block; padding:.7rem .9rem; margin:.6rem 0 1.4rem; font-size:1.05rem; }
-  ol { line-height:1.7; }
-  a { color:#60a5fa; }
-  .muted { color:#9ca3af; font-size:.9rem; }
+  :root {
+    --red:#E50914; --ember:#7a060d;
+    --bg:#0a0a0c; --surface:#141419; --surface2:#1b1b21;
+    --line:#26262e; --text:#f2f2f4; --muted:#9aa3af;
+    --disp:"Archivo", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --body:system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono:ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:var(--body);
+         line-height:1.6; -webkit-font-smoothing:antialiased; }
+  a { color:inherit; }
+  :focus-visible { outline:2px solid var(--red); outline-offset:3px; border-radius:4px; }
+
+  .wrap { max-width:1060px; margin:0 auto; padding:0 20px; }
+
+  /* ---------- header ---------- */
+  header { position:relative; z-index:2; }
+  .nav { display:flex; align-items:center; justify-content:space-between; padding:22px 0; }
+  .brand { display:flex; align-items:center; gap:10px; text-decoration:none;
+           font-family:var(--disp); font-stretch:115%; font-weight:800; font-size:1.05rem; letter-spacing:.14em; }
+  .dia { color:var(--red); font-size:.85em; }
+  .nav a.gh { color:var(--muted); text-decoration:none; font-size:.9rem; display:flex; align-items:center; gap:8px; }
+  .nav a.gh:hover { color:var(--text); }
+  .nav svg { width:18px; height:18px; fill:currentColor; }
+
+  /* ---------- hero ---------- */
+  .hero { position:relative; text-align:center; padding:72px 0 84px; overflow:hidden; }
+  .glow { position:absolute; inset:-40% -20% auto; height:130%; z-index:-1; pointer-events:none;
+    background:
+      radial-gradient(42% 55% at 50% 30%, rgba(229,9,20,.22), transparent 70%),
+      radial-gradient(28% 40% at 66% 22%, rgba(229,9,20,.10), transparent 70%),
+      radial-gradient(60% 70% at 50% 0%, rgba(122,6,13,.18), transparent 75%);
+    filter:saturate(1.1);
+  }
+  .eyebrow { display:inline-flex; gap:10px 14px; align-items:center; justify-content:center; flex-wrap:wrap;
+    color:var(--muted); font-size:.78rem; letter-spacing:.22em; text-transform:uppercase; }
+  .eyebrow em { font-style:normal; color:#c9ced6; white-space:nowrap; }
+  .eyebrow .dot { color:var(--red); }
+  h1.mark { margin:.35em 0 .1em; font-family:var(--disp); font-stretch:125%; font-weight:900;
+    font-size:clamp(3rem, 12vw, 7.2rem); letter-spacing:.06em; line-height:1;
+    text-wrap:balance; }
+  h1 .dia { display:block; font-size:.32em; margin-bottom:.5em; }
+  .tag { max-width:34em; margin:18px auto 0; color:#cfd4db; font-size:1.06rem; text-wrap:balance; }
+  .tag b { color:#fff; font-weight:600; }
+  .cta { margin-top:34px; display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+  .btn { display:inline-flex; align-items:center; gap:10px; padding:.85rem 1.5rem; border-radius:10px;
+    font-size:1rem; font-weight:600; text-decoration:none; border:2px solid transparent;
+    transition:transform .14s ease, box-shadow .14s ease, background .14s, border-color .14s; }
+  .btn.red { background:linear-gradient(135deg, var(--red), #b1060f); color:#fff; }
+  .btn.red:hover { transform:translateY(-2px); box-shadow:0 10px 30px rgba(229,9,20,.35); }
+  .btn.ghost { background:var(--surface); border-color:var(--line); color:#e8e8ea; }
+  .btn.ghost:hover { border-color:#3a3a44; transform:translateY(-2px); }
+  .btn small { font-weight:400; opacity:.75; }
+  .btn svg { width:18px; height:18px; fill:currentColor; flex:0 0 auto; }
+  .hero .hint { margin-top:14px; color:var(--muted); font-size:.85rem; }
+
+  /* ---------- platform cards ---------- */
+  .sect { padding:8px 0 30px; }
+  .sect > .wrap > h2 { font-family:var(--disp); font-stretch:118%; font-weight:800; letter-spacing:.04em;
+    font-size:1.5rem; margin:0 0 4px; }
+  .sect .sub { color:var(--muted); margin:0 0 26px; font-size:.95rem; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap:18px; }
+  .card { position:relative; background:linear-gradient(180deg, var(--surface), #101014);
+    border:1px solid var(--line); border-radius:16px; padding:24px 22px 20px;
+    display:flex; flex-direction:column; gap:14px; }
+  .card.you { border-color:rgba(229,9,20,.55); box-shadow:0 0 0 1px rgba(229,9,20,.25), 0 12px 40px rgba(229,9,20,.08); }
+  .youtag { display:none; position:absolute; top:-11px; right:16px; background:var(--red); color:#fff;
+    font-size:.7rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+    padding:.2rem .6rem; border-radius:999px; }
+  .card.you .youtag { display:inline-block; }
+  .chead { display:flex; align-items:center; gap:14px; }
+  .cico { width:46px; height:46px; flex:0 0 auto; border-radius:12px; display:grid; place-items:center;
+    background:linear-gradient(150deg, #23232b, #101015); border:1px solid var(--line); }
+  .cico svg { width:24px; height:24px; fill:none; stroke:#e7e9ee; stroke-width:1.7;
+    stroke-linecap:round; stroke-linejoin:round; }
+  .chead h3 { margin:0; font-family:var(--disp); font-stretch:112%; font-weight:800; font-size:1.12rem; letter-spacing:.03em; }
+  .chead .meta { color:var(--muted); font-size:.82rem; }
+  .ver { display:inline-block; margin-left:8px; padding:.05rem .5rem; border-radius:999px;
+    background:var(--surface2); border:1px solid var(--line); color:#cfd3da;
+    font-size:.72rem; font-weight:600; letter-spacing:.05em; font-variant-numeric:tabular-nums; }
+  .dls { display:flex; flex-direction:column; gap:10px; }
+  .dl { display:flex; align-items:center; justify-content:space-between; gap:12px; text-decoration:none;
+    background:var(--surface2); border:1px solid var(--line); border-radius:10px; padding:.7rem .95rem;
+    transition:border-color .14s, transform .14s ease; }
+  .dl:hover { border-color:#41414c; transform:translateY(-1px); }
+  .dl.main { background:linear-gradient(135deg, var(--red), #a30810); border-color:transparent; }
+  .dl.main:hover { box-shadow:0 8px 26px rgba(229,9,20,.3); }
+  .dl .l { display:flex; align-items:center; gap:10px; font-weight:600; font-size:.95rem; }
+  .dl svg { width:17px; height:17px; fill:currentColor; flex:0 0 auto; }
+  .dl .sz { color:rgba(255,255,255,.72); font-size:.8rem; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .dl:not(.main) .sz { color:var(--muted); }
+  .copyrow { display:flex; gap:8px; align-items:stretch; }
+  .copyrow code { flex:1; min-width:0; display:block; background:#000; color:#7CFC7C; border:1px solid var(--line);
+    border-radius:10px; padding:.65rem .8rem; font-family:var(--mono); font-size:.78rem;
+    overflow-x:auto; white-space:nowrap; }
+  .copybtn { flex:0 0 auto; border:1px solid var(--line); background:var(--surface2); color:#e8e8ea;
+    border-radius:10px; padding:0 .9rem; font:600 .85rem var(--body); cursor:pointer; transition:border-color .14s; }
+  .copybtn:hover { border-color:#41414c; }
+  .card details { border-top:1px solid var(--line); padding-top:10px; margin-top:auto; }
+  .card summary { cursor:pointer; color:var(--muted); font-size:.86rem; font-weight:600; list-style:none; display:flex; align-items:center; gap:8px; }
+  .card summary::-webkit-details-marker { display:none; }
+  .card summary::before { content:"▸"; color:var(--red); transition:transform .15s; }
+  .card details[open] summary::before { transform:rotate(90deg); }
+  .card details ol { margin:.6rem 0 .2rem; padding-left:1.2rem; color:#c9ced6; font-size:.88rem; line-height:1.65; }
+  .card details li + li { margin-top:.25rem; }
+  .card details code { background:#000; color:#7CFC7C; padding:.08rem .4rem; border-radius:5px; font-family:var(--mono); font-size:.8em; }
+  .card details a { color:#8ab4ff; }
+  .note { color:var(--muted); font-size:.82rem; margin:0; }
+
+  /* ---------- features ---------- */
+  .feats { padding:44px 0 20px; }
+  .feats .grid3 { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:26px; }
+  .feat h4 { margin:0 0 6px; font-family:var(--disp); font-stretch:112%; font-weight:800; font-size:1rem; letter-spacing:.03em; }
+  .feat h4::before { content:"◆ "; color:var(--red); font-size:.8em; }
+  .feat p { margin:0; color:var(--muted); font-size:.92rem; }
+
+  /* ---------- footer ---------- */
+  footer { border-top:1px solid var(--line); margin-top:56px; padding:28px 0 40px; color:var(--muted); font-size:.86rem; }
+  footer .wrap { display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  footer a { color:#c9ced6; text-decoration:none; }
+  footer a:hover { color:#fff; }
+  footer nav { display:flex; gap:18px; flex-wrap:wrap; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior:auto; }
+    .btn, .dl, .card summary::before { transition:none; }
+    .btn:hover, .dl:hover { transform:none; }
+  }
+  @media (max-width:560px) {
+    .hero { padding:52px 0 60px; }
+    .cta .btn { width:100%; justify-content:center; }
+  }
 </style>
 </head>
 <body>
+
+<header class="wrap">
+  <div class="nav">
+    <a class="brand" href="#"><span class="dia">◆</span>NEBULA</a>
+    <a class="gh" href="https://github.com/retrocodes12/nuvioweb-clearkey" aria-label="Source on GitHub">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      Source
+    </a>
+  </div>
+</header>
+
 <main>
-  <h1>Nuvio ClearKey — webOS</h1>
-  <p>A webOS build of Nuvio that decrypts <strong>ClearKey</strong> DASH/HLS streams on-device (Shaka Player / EME) with no server-side proxy.</p>
+  <section class="hero">
+    <div class="glow" aria-hidden="true"></div>
+    <div class="wrap">
+      <p class="eyebrow"><em>Free</em><span class="dot">◆</span><em>Open source</em><span class="dot">◆</span><em>No account</em></p>
+      <h1 class="mark"><span class="dia" aria-hidden="true">◆</span>NEBULA</h1>
+      <p class="tag">Add your Stremio add-on, browse its catalogs, press play.
+        <b>HLS, DASH and DASH&nbsp;ClearKey</b> — decrypted right on the device, no proxy server.</p>
+      <div class="cta">
+        <a class="btn red" id="smartdl" href="#platforms">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3h0zm-7 15h14v2H5v-2z"/></svg>
+          <span id="smartlabel">Download Nebula</span>
+        </a>
+        <a class="btn ghost" href="#platforms">All platforms</a>
+      </div>
+      <p class="hint">Windows · Android · Android&nbsp;TV · LG&nbsp;webOS · Web</p>
+    </div>
+  </section>
 
-  <h2>Install via Homebrew Channel</h2>
-  <p>Add this repository URL in <strong>Homebrew Channel → Settings → Add repository</strong>:</p>
-  <span class="url">https://retrocodes12.github.io/nuvioweb-clearkey/apps.json</span>
-  <ol>
-    <li>Install the <a href="https://github.com/webosbrew/webos-homebrew-channel">Homebrew Channel</a> on your LG TV (dev mode).</li>
-    <li>Open it → <strong>Settings</strong> → <strong>Add repository</strong> → paste the URL above.</li>
-    <li>Go back to the app list, find <strong>Nuvio ClearKey</strong>, and press <strong>Install</strong>.</li>
-  </ol>
+  <section class="sect" id="platforms">
+    <div class="wrap">
+      <h2>Get Nebula</h2>
+      <p class="sub">Pick your device. Installing over an older version keeps your add-ons and updates in place.</p>
+      <div class="grid">
 
-  <p class="muted">Direct <code>.ipk</code>:
-    <a href="https://github.com/retrocodes12/nuvioweb-clearkey/releases/tag/webos-v1.0.0">releases/webos-v1.0.0</a>
-    &middot; Source: <a href="https://github.com/retrocodes12/nuvioweb-clearkey">retrocodes12/nuvioweb-clearkey</a></p>
-  <p class="muted">Play a ClearKey stream by pointing a URL at <code>manifest.mpd#clearkey=&lt;kidHex&gt;:&lt;keyHex&gt;</code>.</p>
+        <!-- Windows -->
+        <article class="card" id="card-windows">
+          <span class="youtag">Your device</span>
+          <div class="chead">
+            <span class="cico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12.5" rx="1.6"/><path d="M9 21h6M12 17v4"/></svg></span>
+            <div>
+              <h3>Windows<span class="ver" data-ver="desktop">v1.2.0</span></h3>
+              <div class="meta">Windows 10 / 11 · 64-bit</div>
+            </div>
+          </div>
+          <div class="dls">
+            <a class="dl main" data-dl="portable" href="https://github.com/retrocodes12/nuvio-clearkey-desktop/releases/download/v1.2.0/Nebula-Portable-1.2.0.exe">
+              <span class="l"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Portable — just run it</span>
+              <span class="sz">75 MB</span>
+            </a>
+            <a class="dl" data-dl="setup" href="https://github.com/retrocodes12/nuvio-clearkey-desktop/releases/download/v1.2.0/Nebula-Setup-1.2.0.exe">
+              <span class="l"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Installer</span>
+              <span class="sz">75 MB</span>
+            </a>
+          </div>
+          <details>
+            <summary>Install notes</summary>
+            <ol>
+              <li><b>Portable</b> needs no install — download and double-click.</li>
+              <li>The app is unsigned, so SmartScreen may warn once: click <b>More info → Run anyway</b>.</li>
+            </ol>
+          </details>
+        </article>
+
+        <!-- Android -->
+        <article class="card" id="card-android">
+          <span class="youtag">Your device</span>
+          <div class="chead">
+            <span class="cico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/></svg></span>
+            <div>
+              <h3>Android<span class="ver" data-ver="android">v1.2.0</span></h3>
+              <div class="meta">One APK — phones, tablets &amp; Android&nbsp;TV</div>
+            </div>
+          </div>
+          <div class="dls">
+            <a class="dl main" data-dl="apk" href="https://github.com/retrocodes12/nuvio-clearkey-android/releases/download/v1.2.0/Nebula-1.2.0.apk">
+              <span class="l"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Download APK</span>
+              <span class="sz">17 MB</span>
+            </a>
+          </div>
+          <details>
+            <summary>Install notes</summary>
+            <ol>
+              <li><b>Phone / tablet:</b> open the APK, allow <b>Install unknown apps</b> for your browser, install.</li>
+              <li><b>Android TV:</b> sideload with the <b>Downloader</b> app (enter this page's address) or <code>adb install</code>.</li>
+              <li>Native player (ExoPlayer) with a fullscreen button; appears in the TV launcher row too.</li>
+            </ol>
+          </details>
+        </article>
+
+        <!-- LG webOS -->
+        <article class="card" id="card-webos">
+          <span class="youtag">Your device</span>
+          <div class="chead">
+            <span class="cico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="12" rx="1.6"/><path d="M8 20.5h8"/></svg></span>
+            <div>
+              <h3>LG TV — webOS<span class="ver" data-ver="webos">v1.9.0</span></h3>
+              <div class="meta">Via Homebrew Channel, or direct <code style="font-family:var(--mono)">.ipk</code></div>
+            </div>
+          </div>
+          <div class="copyrow">
+            <code id="repourl">https://retrocodes12.github.io/nuvioweb-clearkey/apps.json</code>
+            <button class="copybtn" id="copyrepo" type="button">Copy</button>
+          </div>
+          <div class="dls">
+            <a class="dl" data-dl="ipk" href="https://github.com/retrocodes12/nuvioweb-clearkey/releases/download/player-v1.9.0/com.nuvio.clearkey.player_1.9.0_all.ipk">
+              <span class="l"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Direct .ipk</span>
+              <span class="sz">270 KB</span>
+            </a>
+          </div>
+          <details>
+            <summary>Install notes</summary>
+            <ol>
+              <li>Install the <a href="https://github.com/webosbrew/webos-homebrew-channel">Homebrew Channel</a> on your LG TV (dev mode).</li>
+              <li>Homebrew Channel → <b>Settings → Add repository</b> → paste the URL above.</li>
+              <li>Back in the app list, open <b>Nebula</b> and press <b>Install</b>. Updates show up there too.</li>
+            </ol>
+          </details>
+        </article>
+
+        <!-- Web -->
+        <article class="card" id="card-web">
+          <span class="youtag">Your device</span>
+          <div class="chead">
+            <span class="cico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.4 3.8 5.6 3.8 9S14.5 18.6 12 21c-2.5-2.4-3.8-5.6-3.8-9S9.5 5.4 12 3z"/></svg></span>
+            <div>
+              <h3>Web — nothing to install</h3>
+              <div class="meta">Runs in your browser, same player</div>
+            </div>
+          </div>
+          <div class="dls">
+            <a class="dl main" href="https://retrocodes12.github.io/nuvioweb-clearkey/player/">
+              <span class="l"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Open the web player</span>
+              <span class="sz">instant</span>
+            </a>
+          </div>
+          <p class="note">Best in Chrome or Edge (they ship the ClearKey decryption module). Add-ons you add are saved in the browser.</p>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <section class="feats">
+    <div class="wrap">
+      <div class="grid3">
+        <div class="feat">
+          <h4>ClearKey, on-device</h4>
+          <p>DASH ClearKey streams decrypt locally through the platform's own DRM pipeline — no server-side decryption, no re-streaming proxy.</p>
+        </div>
+        <div class="feat">
+          <h4>Your Stremio add-ons</h4>
+          <p>Paste any add-on's <code style="font-family:var(--mono); font-size:.85em">manifest.json</code> once, then browse its catalogs and streams like a real streaming app.</p>
+        </div>
+        <div class="feat">
+          <h4>Pair from your phone</h4>
+          <p>On a TV, adding an add-on is one QR scan — open the pairing page on your phone, paste the URL there, done. No typing with the remote.</p>
+        </div>
+      </div>
+    </div>
+  </section>
 </main>
+
+<footer>
+  <div class="wrap">
+    <span><span class="dia" style="color:var(--red)">◆</span> Nebula · open source (GPL-3.0)</span>
+    <nav>
+      <a href="https://github.com/retrocodes12/nuvioweb-clearkey">webOS + web</a>
+      <a href="https://github.com/retrocodes12/nuvio-clearkey-android">Android</a>
+      <a href="https://github.com/retrocodes12/nuvio-clearkey-desktop">Windows</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var ua = navigator.userAgent;
+  var os = /Windows/i.test(ua) ? "windows"
+         : /Android/i.test(ua) ? "android"
+         : /Web0S|webOS|NetCast/i.test(ua) ? "webos"
+         : null;
+
+  // Highlight the visitor's platform + point the hero button at it
+  var smart = document.getElementById("smartdl");
+  var label = document.getElementById("smartlabel");
+  if (os) {
+    var card = document.getElementById("card-" + os);
+    if (card) card.classList.add("you");
+    if (os === "windows") {
+      smart.href = document.querySelector('[data-dl="portable"]').href;
+      label.textContent = "Download for Windows";
+    } else if (os === "android") {
+      smart.href = document.querySelector('[data-dl="apk"]').href;
+      label.textContent = "Download for Android";
+    } else if (os === "webos") {
+      smart.href = "#card-webos";
+      label.textContent = "Install on this TV";
+    }
+  } else {
+    document.getElementById("card-web").classList.add("you");
+    smart.href = "https://retrocodes12.github.io/nuvioweb-clearkey/player/";
+    label.textContent = "Open the web player";
+  }
+
+  // Copy the Homebrew repo URL
+  var copyBtn = document.getElementById("copyrepo");
+  copyBtn.addEventListener("click", function () {
+    var url = document.getElementById("repourl").textContent;
+    function done() {
+      copyBtn.textContent = "Copied!";
+      setTimeout(function () { copyBtn.textContent = "Copy"; }, 1600);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done, function () { window.prompt("Copy this URL:", url); });
+    } else {
+      window.prompt("Copy this URL:", url);
+    }
+  });
+
+  // Keep versions + links fresh from GitHub releases (fallback: the hard-coded links above)
+  function fmtMB(bytes) {
+    return bytes >= 1048576 ? Math.round(bytes / 1048576) + " MB" : Math.round(bytes / 1024) + " KB";
+  }
+  function refresh(repo, verKey, picks) {
+    fetch("https://api.github.com/repos/retrocodes12/" + repo + "/releases/latest")
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (rel) {
+        var ver = document.querySelector('[data-ver="' + verKey + '"]');
+        if (ver && rel.tag_name) ver.textContent = rel.tag_name.replace(/^player-/, "");
+        (rel.assets || []).forEach(function (a) {
+          Object.keys(picks).forEach(function (key) {
+            if (picks[key].test(a.name)) {
+              var el = document.querySelector('[data-dl="' + key + '"]');
+              if (el) {
+                el.href = a.browser_download_url;
+                var sz = el.querySelector(".sz");
+                if (sz) sz.textContent = fmtMB(a.size);
+                if (key === "portable" && os === "windows") smart.href = a.browser_download_url;
+                if (key === "apk" && os === "android") smart.href = a.browser_download_url;
+              }
+            }
+          });
+        });
+      })
+      .catch(function () { /* offline or rate-limited — keep the built-in links */ });
+  }
+  refresh("nuvio-clearkey-desktop", "desktop", { portable: /Portable.*\.exe$/i, setup: /Setup.*\.exe$/i });
+  refresh("nuvio-clearkey-android", "android", { apk: /\.apk$/i });
+  refresh("nuvioweb-clearkey", "webos", { ipk: /\.ipk$/i });
+})();
+</script>
 </body>
 </html>
