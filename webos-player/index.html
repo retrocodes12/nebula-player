@@ -434,7 +434,25 @@
       setStatus('Fetching DRM key…','info');
       clearKeys = await resolveLaurlKeys(rawUrl);
     }
-    if (clearKeys) player.configure({ drm: { clearKeys: clearKeys } });
+    if (clearKeys){
+      // Shaka rejects this manifest (error 4008) because the ClearKey ContentProtection
+      // (dashif:laurl, scheme e2719d58) has no KID/pssh and sits apart from the cenc
+      // default_KID. Strip that element from every manifest fetch so Shaka sees clean
+      // cenc + default_KID, and drive decryption with the key we resolved.
+      player.getNetworkingEngine().registerResponseFilter(function(type, response){
+        if (type === shaka.net.NetworkingEngine.RequestType.MANIFEST){
+          try {
+            var t = new TextDecoder().decode(response.data);
+            if (t.indexOf('e2719d58') !== -1){
+              response.data = new TextEncoder().encode(
+                t.replace(/<ContentProtection[^>]*e2719d58[\s\S]*?<\/ContentProtection>/gi, '')
+              ).buffer;
+            }
+          } catch(e){}
+        }
+      });
+      player.configure({ drm: { clearKeys: clearKeys } });
+    }
     try {
       await player.load(cleanUrl(rawUrl));
       setStatus('Playing.','ok');
