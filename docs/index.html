@@ -111,6 +111,7 @@
   .copyrow code { flex:1; min-width:0; display:block; background:#000; color:#7CFC7C; border:1px solid var(--line);
     border-radius:10px; padding:.65rem .8rem; font-family:var(--mono); font-size:.78rem;
     overflow-x:auto; white-space:nowrap; }
+  .copyrow code.tvcode { font-size:1.05rem; letter-spacing:.06em; color:#fff; text-align:center; }
   .copybtn { flex:0 0 auto; border:1px solid var(--line); background:var(--surface2); color:#e8e8ea;
     border-radius:10px; padding:0 .9rem; font:600 .85rem var(--body); cursor:pointer; transition:border-color .14s; }
   .copybtn:hover { border-color:#41414c; }
@@ -227,16 +228,21 @@
             </div>
           </div>
           <div class="dls">
-            <a class="dl main" data-dl="apk" href="https://github.com/retrocodes12/nuvio-clearkey-android/releases/download/v1.2.0/Nebula-1.2.0.apk">
+            <a class="dl main" data-dl="apk" href="https://github.com/retrocodes12/nuvio-clearkey-android/releases/latest/download/Nebula.apk">
               <span class="l"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Download APK</span>
               <span class="sz">17 MB</span>
             </a>
+          </div>
+          <p class="note"><b style="color:#e7e9ee">Android TV:</b> open the <b style="color:#e7e9ee">Downloader</b> app and type this short address — it fetches the same APK:</p>
+          <div class="copyrow">
+            <code class="tvcode" id="tvcode">da.gd/nebulaapk</code>
+            <button class="copybtn" data-copy="tvcode" type="button">Copy</button>
           </div>
           <details>
             <summary>Install notes</summary>
             <ol>
               <li><b>Phone / tablet:</b> open the APK, allow <b>Install unknown apps</b> for your browser, install.</li>
-              <li><b>Android TV:</b> sideload with the <b>Downloader</b> app (enter this page's address) or <code>adb install</code>.</li>
+              <li><b>Android TV:</b> install <b>Downloader</b> from the Play Store, enter <code>da.gd/nebulaapk</code>, then allow it to install unknown apps when prompted. (<code>adb install</code> works too.)</li>
               <li>Native player (ExoPlayer) with a fullscreen button; appears in the TV launcher row too.</li>
             </ol>
           </details>
@@ -254,7 +260,7 @@
           </div>
           <div class="copyrow">
             <code id="repourl">https://retrocodes12.github.io/nuvioweb-clearkey/apps.json</code>
-            <button class="copybtn" id="copyrepo" type="button">Copy</button>
+            <button class="copybtn" data-copy="repourl" type="button">Copy</button>
           </div>
           <div class="dls">
             <a class="dl" data-dl="ipk" href="https://github.com/retrocodes12/nuvioweb-clearkey/releases/download/player-v1.9.0/com.nuvio.clearkey.player_1.9.0_all.ipk">
@@ -356,19 +362,20 @@
     label.textContent = "Open the web player";
   }
 
-  // Copy the Homebrew repo URL
-  var copyBtn = document.getElementById("copyrepo");
-  copyBtn.addEventListener("click", function () {
-    var url = document.getElementById("repourl").textContent;
-    function done() {
-      copyBtn.textContent = "Copied!";
-      setTimeout(function () { copyBtn.textContent = "Copy"; }, 1600);
-    }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(done, function () { window.prompt("Copy this URL:", url); });
-    } else {
-      window.prompt("Copy this URL:", url);
-    }
+  // Copy buttons (Homebrew repo URL, Android TV short code)
+  document.querySelectorAll(".copybtn[data-copy]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var text = document.getElementById(btn.getAttribute("data-copy")).textContent;
+      function done() {
+        btn.textContent = "Copied!";
+        setTimeout(function () { btn.textContent = "Copy"; }, 1600);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { window.prompt("Copy this:", text); });
+      } else {
+        window.prompt("Copy this:", text);
+      }
+    });
   });
 
   // Keep versions + links fresh from GitHub releases (fallback: the hard-coded links above)
@@ -399,7 +406,7 @@
       .catch(function () { /* offline or rate-limited — keep the built-in links */ });
   }
   refresh("nuvio-clearkey-desktop", "desktop", { portable: /Portable.*\.exe$/i, setup: /Setup.*\.exe$/i });
-  refresh("nuvio-clearkey-android", "android", { apk: /\.apk$/i });
+  refresh("nuvio-clearkey-android", "android", { apk: /^Nebula\.apk$/i });
   refresh("nuvioweb-clearkey", "webos", { ipk: /\.ipk$/i });
 })();
 </script>
