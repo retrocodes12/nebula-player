@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Nuvio ClearKey Player</title>
 <script src="./shaka-player.compiled.js"></script>
+<script src="./qrcode.js"></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: #0b0b0b; color: #eee;
@@ -35,6 +36,12 @@
   #status.err { color: #ff6b6b; } #status.ok { color: #7CFC7C; } #status.info { color: #cbd5e1; }
   .backhint { color: #7b8290; font-size: .95rem; margin-top: 1rem; }
   .poster { width: 46px; height: 46px; border-radius: 6px; object-fit: cover; background:#000; flex: 0 0 auto; }
+  #qrbox { background:#fff; padding: 16px; border-radius: 12px; display:inline-block; }
+  #qrbox svg { width: 300px; height: 300px; display:block; }
+  .pairwrap { display:flex; gap:2.5rem; align-items:center; flex-wrap:wrap; }
+  .pairsteps { max-width: 520px; }
+  .pairsteps li { margin:.5rem 0; line-height:1.5; }
+  .pairurl { color:#7b8290; font-size:.9rem; word-break:break-all; margin-top:.8rem; }
 </style>
 </head>
 <body>
@@ -47,11 +54,30 @@
     <h2>Add an add-on</h2>
     <input id="addonUrl" class="focusable" type="url" placeholder="https://your-addon/…/manifest.json" autocomplete="off" />
     <div class="row">
-      <button id="addAddonBtn" class="focusable">Add add-on</button>
+      <button id="phoneBtn" class="focusable">📱 Add via phone</button>
+      <button id="addAddonBtn" class="focusable sec">Add typed URL</button>
       <button id="manualBtn" class="focusable sec">Play a URL manually</button>
     </div>
     <h2>Your add-ons</h2>
     <div id="addonList" class="list"></div>
+  </div>
+
+  <!-- ADD VIA PHONE (QR pairing) -->
+  <div id="view-pair" class="view">
+    <h1>Add add-on with your phone</h1>
+    <div class="pairwrap">
+      <div id="qrbox"></div>
+      <ol class="pairsteps">
+        <li>On your phone, open the <b>Camera</b> and point it at this QR code.</li>
+        <li>Tap the link that appears — it opens a small page.</li>
+        <li>Paste your add-on's <b>manifest URL</b> there and tap <b>Send to TV</b>.</li>
+        <li>It shows up here automatically. Waiting…</li>
+        <div class="pairurl" id="pairUrlText"></div>
+      </ol>
+    </div>
+    <div class="row" style="margin-top:1.4rem">
+      <button class="focusable sec" data-back="home">Cancel</button>
+    </div>
   </div>
 
   <!-- MANUAL URL + KEY -->
@@ -121,6 +147,7 @@
     list[i].scrollIntoView({block:'nearest'});
   }
   function goBack(){
+    stopPairing();
     if (player && video.style.display==='block'){ stopPlayer(); }
     if (viewStack.length > 1){ viewStack.pop(); show(viewStack[viewStack.length-1], false); }
     else show('home', false);
@@ -166,20 +193,91 @@
     });
   }
 
+  async function addAddonFromUrl(url){
+    url = (url||'').trim();
+    if (!/manifest\.json/.test(url)) throw new Error('Not a manifest URL');
+    var m = await getJson(url);
+    var addons = getAddons();
+    if (!addons.some(function(a){ return a.url===url; })){
+      addons.push({ url:url, name:m.name||'Add-on', base:baseOf(url) });
+      saveAddons(addons);
+    }
+    return m;
+  }
   async function addAddon(){
     var url = (document.getElementById('addonUrl').value||'').trim();
     if (!/manifest\.json/.test(url)){ setStatus('Enter the add-on manifest URL (ends in /manifest.json).', 'err'); return; }
     setStatus('Fetching add-on…', 'info');
     try {
-      var m = await getJson(url);
-      var addons = getAddons();
-      if (!addons.some(function(a){ return a.url===url; })){
-        addons.push({ url:url, name:m.name||'Add-on', base:baseOf(url) });
-        saveAddons(addons);
-      }
+      var m = await addAddonFromUrl(url);
       document.getElementById('addonUrl').value='';
       renderAddons(); setStatus('Added '+(m.name||'add-on')+'.', 'ok'); focusFirst();
     } catch(err){ setStatus('Could not load add-on: '+err.message, 'err'); }
+  }
+
+  // ---------- add via phone (QR + ntfy relay) ----------
+  var PAIR_PAGE = 'https://retrocodes12.github.io/nuvioweb-clearkey/pair.html';
+  var NTFY = 'https://ntfy.sh/';
+  var pairTimer = null, pairDeadline = 0;
+
+  function randStr(n, chars){
+    var out='', arr=null;
+    try { arr=new Uint8Array(n); (window.crypto||window.msCrypto).getRandomValues(arr); } catch(e){ arr=null; }
+    for (var i=0;i<n;i++){ var r = arr ? arr[i] : Math.floor(Math.random()*256); out += chars[r % chars.length]; }
+    return out;
+  }
+  function xorDec(b64, key){
+    var s; try { s = atob((b64||'').trim()); } catch(e){ return null; }
+    var o=''; for (var i=0;i<s.length;i++){ o += String.fromCharCode(s.charCodeAt(i) ^ key.charCodeAt(i % key.length)); }
+    return o;
+  }
+
+  function stopPairing(){
+    if (pairTimer){ clearInterval(pairTimer); pairTimer = null; }
+  }
+  function startPairing(){
+    stopPairing();
+    var topic = 'nuvio' + randStr(16, '0123456789abcdef');
+    var key = randStr(24, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789');
+    var pairUrl = PAIR_PAGE + '#t=' + topic + '&k=' + key;
+
+    var box = document.getElementById('qrbox'); box.innerHTML='';
+    try {
+      var qr = qrcode(0, 'M'); qr.addData(pairUrl); qr.make();
+      box.innerHTML = qr.createSvgTag({ cellSize: 6, margin: 0 });
+    } catch(e){ box.innerHTML = '<div style="color:#000">QR error</div>'; }
+    document.getElementById('pairUrlText').textContent = 'Or open on your phone: ' + pairUrl;
+
+    show('pair');
+    setStatus('Waiting for your phone…','info');
+    pairDeadline = Date.now() + 180000;
+
+    pairTimer = setInterval(async function(){
+      if (Date.now() > pairDeadline){ stopPairing(); setStatus('Pairing timed out. Try again.','err'); return; }
+      try {
+        var r = await fetch(NTFY + topic + '/json?poll=1', { cache:'no-store' });
+        if (!r.ok) return;
+        var text = await r.text();
+        var lines = text.split('\n');
+        for (var i=0;i<lines.length;i++){
+          var ln = lines[i].trim(); if(!ln) continue;
+          var msg; try { msg = JSON.parse(ln); } catch(e){ continue; }
+          if (msg.event !== 'message' || !msg.message) continue;
+          var url = xorDec(msg.message, key);
+          if (url && /manifest\.json/.test(url)){
+            stopPairing();
+            setStatus('Received add-on. Adding…','info');
+            try {
+              var m = await addAddonFromUrl(url);
+              renderAddons();
+              show('home', false); viewStack = ['home'];
+              setStatus('Added ' + (m.name || 'add-on') + ' from your phone.','ok');
+            } catch(err){ setStatus('Add-on from phone failed: ' + err.message,'err'); show('home', false); viewStack=['home']; }
+            return;
+          }
+        }
+      } catch(e){ /* keep polling */ }
+    }, 2500);
   }
 
   // ---------- catalog ----------
@@ -334,6 +432,7 @@
   }
 
   // ---------- wire up ----------
+  document.getElementById('phoneBtn').onclick = startPairing;
   document.getElementById('addAddonBtn').onclick = addAddon;
   document.getElementById('manualBtn').onclick = function(){ show('manual'); };
   document.getElementById('mPlay').onclick = playManual;

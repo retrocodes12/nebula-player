@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Send add-on to TV — Nuvio ClearKey</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin:0; min-height:100%; background:#0b0b0b; color:#eee;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  main { max-width: 560px; margin: 0 auto; padding: 6vh 6vw; }
+  h1 { color:#E50914; font-size:1.5rem; margin:0 0 .3rem; }
+  p.sub { color:#9aa3af; margin:0 0 1.6rem; }
+  label { display:block; margin:1rem 0 .4rem; color:#cbd5e1; }
+  input { width:100%; font-size:1.15rem; padding:.9rem 1rem; border-radius:10px;
+    border:2px solid #333; background:#141414; color:#fff; outline:none; }
+  input:focus { border-color:#E50914; }
+  button { width:100%; margin-top:1.2rem; font-size:1.2rem; font-weight:700; padding:1rem;
+    border-radius:12px; border:0; background:#E50914; color:#fff; }
+  button:disabled { opacity:.5; }
+  #msg { margin-top:1.2rem; font-size:1.05rem; min-height:1.4em; }
+  #msg.ok { color:#7CFC7C; } #msg.err { color:#ff6b6b; } #msg.info { color:#cbd5e1; }
+  .bad { color:#ff6b6b; }
+  code { color:#7b8290; word-break:break-all; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Send add-on to your TV</h1>
+  <p class="sub">Paste your Stremio add-on's <b>manifest URL</b> and tap Send. It appears on the TV automatically.</p>
+
+  <div id="form">
+    <label for="url">Add-on manifest URL</label>
+    <input id="url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
+      placeholder="https://…/manifest.json" />
+    <button id="send">Send to TV</button>
+    <div id="msg" class="info"></div>
+  </div>
+
+  <p id="nopair" class="bad" style="display:none">
+    This page must be opened from the QR code on your TV. Open the ClearKey Player on the TV,
+    choose <b>Add via phone</b>, and scan the code.
+  </p>
+</main>
+
+<script>
+(function(){
+  var params = {};
+  (location.hash.replace(/^#/,'')).split('&').forEach(function(p){
+    var i=p.indexOf('='); if(i>0) params[p.slice(0,i)] = decodeURIComponent(p.slice(i+1));
+  });
+  var topic = params.t, key = params.k;
+  var msg = document.getElementById('msg');
+  function setMsg(t,k){ msg.textContent=t; msg.className=k||'info'; }
+
+  if (!topic || !key){
+    document.getElementById('form').style.display='none';
+    document.getElementById('nopair').style.display='block';
+    return;
+  }
+
+  function xorEnc(text, key){
+    var o=''; for (var i=0;i<text.length;i++){ o += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length)); }
+    return btoa(o);
+  }
+
+  var btn = document.getElementById('send');
+  btn.onclick = async function(){
+    var url = (document.getElementById('url').value||'').trim();
+    if (!/manifest\.json/.test(url)){ setMsg('Enter a full manifest URL (ends in /manifest.json).','err'); return; }
+    btn.disabled = true; setMsg('Sending…','info');
+    try {
+      var body = xorEnc(url, key);
+      var r = await fetch('https://ntfy.sh/' + topic, { method:'POST', body: body });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      setMsg('✓ Sent! Check your TV — it should appear now.','ok');
+    } catch(e){
+      setMsg('Could not send: ' + e.message + '. Check your connection and try again.','err');
+    } finally { btn.disabled = false; }
+  };
+  document.getElementById('url').addEventListener('keydown', function(e){ if(e.key==='Enter') btn.click(); });
+})();
+</script>
+</body>
+</html>
