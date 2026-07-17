@@ -1,6 +1,6 @@
-{ "id":"com.nuvio.clearkey.player","version":"1.7.0","type":"web","title":"ClearKey Player",
-  "appDescription":"Stremio add-on browser + ClearKey player for webOS (add via phone QR, DASH/HLS/ClearKey via Shaka, DASH Range fix).",
+{ "id":"com.nuvio.clearkey.player","version":"1.8.0","type":"web","title":"ClearKey Player",
+  "appDescription":"Stremio add-on browser + ClearKey player for webOS (redesigned poster-grid UI). DASH/HLS/ClearKey via Shaka.",
   "iconUri":"https://raw.githubusercontent.com/retrocodes12/nuvioweb-clearkey/main/webos/largeIcon.png",
   "sourceUrl":"https://github.com/retrocodes12/nuvioweb-clearkey","rootRequired":false,
-  "ipkUrl":"https://github.com/retrocodes12/nuvioweb-clearkey/releases/download/player-v1.7.0/com.nuvio.clearkey.player_1.7.0_all.ipk",
-  "ipkHash":{"sha256":"e689fe8ae46f703091a2d4cf532cdf1c21cce66ba878a61903d765e32180077c"},"ipkSize":274352 }
+  "ipkUrl":"https://github.com/retrocodes12/nuvioweb-clearkey/releases/download/player-v1.8.0/com.nuvio.clearkey.player_1.8.0_all.ipk",
+  "ipkHash":{"sha256":"c4ec14c65df45b16c7a14a272e52ebf677adba1cd96ad6c3d2cd3165bbfe4f5d"},"ipkSize":276038 }
