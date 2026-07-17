@@ -390,6 +390,30 @@
   }
   function cleanUrl(u){ var i=u.indexOf('#clearkey='); return i===-1?u:u.slice(0,i); }
 
+  function b64urlToHex(s){
+    s=(s||'').replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4) s+='=';
+    var bin; try{ bin=atob(s); }catch(e){ return ''; }
+    var h=''; for(var i=0;i<bin.length;i++){ h+=('0'+bin.charCodeAt(i).toString(16)).slice(-2); }
+    return h;
+  }
+  // DASH ClearKey delivered via a license URL (dashif:laurl): fetch the key ourselves
+  // and pass Shaka explicit clearKeys. Shaka won't auto-build a key system when the
+  // laurl and default_KID sit on different elements (fails with error 4008).
+  async function resolveLaurlKeys(mpdUrl){
+    try {
+      var xml = await (await fetch(cleanUrl(mpdUrl), { cache:'no-store' })).text();
+      var m = xml.match(/<(?:\w+:)?laurl[^>]*>([^<]+)<\/(?:\w+:)?laurl>/i);
+      if (!m) return null;
+      var lic = await (await fetch(m[1].trim(), { cache:'no-store' })).json();
+      var keys = {};
+      (lic.keys||[]).forEach(function(K){
+        var kid=b64urlToHex(K.kid), kk=b64urlToHex(K.k);
+        if (kid.length===32 && kk.length===32) keys[kid]=kk;
+      });
+      return Object.keys(keys).length ? keys : null;
+    } catch(e){ return null; }
+  }
+
   function initShaka(){
     if (!window.shaka){ setStatus('Shaka failed to load.','err'); return false; }
     shaka.polyfill.installAll();
@@ -406,6 +430,10 @@
     player = new shaka.Player();
     try { await player.attach(video); } catch(e){}
     player.addEventListener('error', function(ev){ var d=ev.detail||{}; setStatus('Playback error '+(d.code||'?'),'err'); });
+    if (!clearKeys && /\.mpd(\?|#|$)/i.test(rawUrl)){
+      setStatus('Fetching DRM key…','info');
+      clearKeys = await resolveLaurlKeys(rawUrl);
+    }
     if (clearKeys) player.configure({ drm: { clearKeys: clearKeys } });
     try {
       await player.load(cleanUrl(rawUrl));
