@@ -7,22 +7,22 @@
     {
       "id": "com.nuvio.clearkey.player",
       "title": "Nebula",
-      "iconUri": "https://raw.githubusercontent.com/retrocodes12/nuvioweb-clearkey/main/webos/largeIcon.png",
-      "manifestUrl": "https://github.com/retrocodes12/nuvioweb-clearkey/releases/download/player-v1.9.0/webosbrew.manifest.json",
+      "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
+      "manifestUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.9.1/webosbrew.manifest.json",
       "manifest": {
         "id": "com.nuvio.clearkey.player",
-        "version": "1.9.0",
+        "version": "1.9.1",
         "type": "web",
         "title": "Nebula",
         "appDescription": "Stremio add-on browser + ClearKey player. Add via phone (QR), browse, play HLS/DASH/DASH+ClearKey.",
-        "iconUri": "https://raw.githubusercontent.com/retrocodes12/nuvioweb-clearkey/main/webos/largeIcon.png",
-        "sourceUrl": "https://github.com/retrocodes12/nuvioweb-clearkey",
+        "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
+        "sourceUrl": "https://github.com/retrocodes12/nebula-player",
         "rootRequired": false,
-        "ipkUrl": "https://github.com/retrocodes12/nuvioweb-clearkey/releases/download/player-v1.9.0/com.nuvio.clearkey.player_1.9.0_all.ipk",
+        "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.9.1/com.nuvio.clearkey.player_1.9.1_all.ipk",
         "ipkHash": {
-          "sha256": "e4fa4d26668f8b1c2bf752964b2516be89b9bf55b5a40a4ec9fba9b2ff5fdd17"
+          "sha256": "73c3cb250b4c21adbc247bfb896ca938ea3e2419065ac5eca912acc65317bc6d"
         },
-        "ipkSize": 276042
+        "ipkSize": 264274
       },
       "pool": "main",
       "shortDescription": "Add-on browser + ClearKey. Add an add-on by scanning a QR with your phone.",
@@ -31,18 +31,18 @@
     {
       "id": "com.nuvio.clearkey.app",
       "title": "Nuvio ClearKey",
-      "iconUri": "https://raw.githubusercontent.com/retrocodes12/nuvioweb-clearkey/main/webos/largeIcon.png",
-      "manifestUrl": "https://github.com/retrocodes12/nuvioweb-clearkey/releases/download/webos-v1.0.0/webosbrew.manifest.json",
+      "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
+      "manifestUrl": "https://github.com/retrocodes12/nebula-player/releases/download/webos-v1.0.0/webosbrew.manifest.json",
       "manifest": {
         "id": "com.nuvio.clearkey.app",
         "version": "1.0.0",
         "type": "web",
         "title": "Nuvio ClearKey",
         "appDescription": "Full Nuvio UI with on-device ClearKey decryption (needs the TV to reach TMDB/Stremio add-ons).",
-        "iconUri": "https://raw.githubusercontent.com/retrocodes12/nuvioweb-clearkey/main/webos/largeIcon.png",
-        "sourceUrl": "https://github.com/retrocodes12/nuvioweb-clearkey",
+        "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
+        "sourceUrl": "https://github.com/retrocodes12/nebula-player",
         "rootRequired": false,
-        "ipkUrl": "https://github.com/retrocodes12/nuvioweb-clearkey/releases/download/webos-v1.0.0/com.nuvio.clearkey.app_1.0.0_all.ipk",
+        "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/webos-v1.0.0/com.nuvio.clearkey.app_1.0.0_all.ipk",
         "ipkHash": {
           "sha256": "25c96a48f5e0f5763d52df2b55317f4413f32b2594042bf344ceec32355c747b"
         },

@@ -1,6 +1,6 @@
-{ "id":"com.nuvio.clearkey.player","version":"1.9.0","type":"web","title":"Nebula",
+{ "id":"com.nuvio.clearkey.player","version":"1.9.1","type":"web","title":"Nebula",
   "appDescription":"Nebula — Stremio add-on browser + ClearKey player for webOS (poster-grid UI). DASH/HLS/ClearKey via Shaka.",
-  "iconUri":"https://raw.githubusercontent.com/retrocodes12/nuvioweb-clearkey/main/webos/largeIcon.png",
-  "sourceUrl":"https://github.com/retrocodes12/nuvioweb-clearkey","rootRequired":false,
-  "ipkUrl":"https://github.com/retrocodes12/nuvioweb-clearkey/releases/download/player-v1.9.0/com.nuvio.clearkey.player_1.9.0_all.ipk",
-  "ipkHash":{"sha256":"e4fa4d26668f8b1c2bf752964b2516be89b9bf55b5a40a4ec9fba9b2ff5fdd17"},"ipkSize":276042 }
+  "iconUri":"https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
+  "sourceUrl":"https://github.com/retrocodes12/nebula-player","rootRequired":false,
+  "ipkUrl":"https://github.com/retrocodes12/nebula-player/releases/download/player-v1.9.1/com.nuvio.clearkey.player_1.9.1_all.ipk",
+  "ipkHash":{"sha256":"73c3cb250b4c21adbc247bfb896ca938ea3e2419065ac5eca912acc65317bc6d"},"ipkSize":264274 }
