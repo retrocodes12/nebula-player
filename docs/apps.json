@@ -8,21 +8,21 @@
       "id": "com.nuvio.clearkey.player",
       "title": "ClearKey Player",
       "iconUri": "https://raw.githubusercontent.com/retrocodes12/nuvioweb-clearkey/main/webos/largeIcon.png",
-      "manifestUrl": "https://github.com/retrocodes12/nuvioweb-clearkey/releases/download/player-v1.6.0/webosbrew.manifest.json",
+      "manifestUrl": "https://github.com/retrocodes12/nuvioweb-clearkey/releases/download/player-v1.7.0/webosbrew.manifest.json",
       "manifest": {
         "id": "com.nuvio.clearkey.player",
-        "version": "1.6.0",
+        "version": "1.7.0",
         "type": "web",
         "title": "ClearKey Player",
         "appDescription": "Stremio add-on browser + ClearKey player. Add via phone (QR), browse, play HLS/DASH/DASH+ClearKey.",
         "iconUri": "https://raw.githubusercontent.com/retrocodes12/nuvioweb-clearkey/main/webos/largeIcon.png",
         "sourceUrl": "https://github.com/retrocodes12/nuvioweb-clearkey",
         "rootRequired": false,
-        "ipkUrl": "https://github.com/retrocodes12/nuvioweb-clearkey/releases/download/player-v1.6.0/com.nuvio.clearkey.player_1.6.0_all.ipk",
+        "ipkUrl": "https://github.com/retrocodes12/nuvioweb-clearkey/releases/download/player-v1.7.0/com.nuvio.clearkey.player_1.7.0_all.ipk",
         "ipkHash": {
-          "sha256": "1c13cac59cb22b58a955645d85bc4d385f7497046a954e49f8f37ce5ad96fe31"
+          "sha256": "e689fe8ae46f703091a2d4cf532cdf1c21cce66ba878a61903d765e32180077c"
         },
-        "ipkSize": 274130
+        "ipkSize": 274352
       },
       "pool": "main",
       "shortDescription": "Add-on browser + ClearKey. Add an add-on by scanning a QR with your phone.",

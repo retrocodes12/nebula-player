@@ -430,6 +430,15 @@
     player = new shaka.Player();
     try { await player.attach(video); } catch(e){}
     player.addEventListener('error', function(ev){ var d=ev.detail||{}; setStatus('Playback error '+(d.code||'?'),'err'); });
+    // Some CDNs (this add-on's DASH segments on aiv-cdn) reject segment requests
+    // that lack a Range header with HTTP 400. The SegmentTemplate has no byte
+    // ranges, so Shaka would fetch without Range -> 400 -> error 1001. Force an
+    // open Range so segments return 206 instead of 400. (Harmless where not needed.)
+    player.getNetworkingEngine().registerRequestFilter(function(type, request){
+      if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT){
+        if (!request.headers['Range'] && !request.headers['range']){ request.headers['Range'] = 'bytes=0-'; }
+      }
+    });
     if (!clearKeys && /\.mpd(\?|#|$)/i.test(rawUrl)){
       setStatus('Fetching DRM key…','info');
       clearKeys = await resolveLaurlKeys(rawUrl);
