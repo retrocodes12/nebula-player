@@ -429,30 +429,7 @@
     setStatus('Loading… '+rawUrl.slice(0,90),'info');
     player = new shaka.Player();
     try { await player.attach(video); } catch(e){}
-    // Live streams (slow/occasionally-failing CDN) throw network error 1001; be resilient
-    // with generous retries and auto-reconnect to the live edge instead of giving up.
-    player.configure({
-      streaming: {
-        retryParameters: { maxAttempts: 12, baseDelay: 800, backoffFactor: 1.4, fuzzFactor: 0.5, timeout: 45000, connectionTimeout: 20000, stallTimeout: 20000 },
-        failureCallback: function(){
-          if (player && player.isLive && player.isLive()){
-            setStatus('Reconnecting…','info');
-            try { player.retryStreaming(); } catch(e){}
-          }
-        }
-      },
-      manifest: { retryParameters: { maxAttempts: 12, baseDelay: 800, backoffFactor: 1.4, timeout: 45000, connectionTimeout: 20000 } }
-    });
-    player.addEventListener('error', function(ev){
-      var d = ev.detail || {};
-      if (d.category === 1 && player && player.isLive && player.isLive()){
-        setStatus('Reconnecting…','info');
-        try { player.retryStreaming(); } catch(e){}
-        return;
-      }
-      var extra = d.data ? (' ' + JSON.stringify(d.data).slice(0,140)) : '';
-      setStatus('Playback error ' + (d.code||'?') + extra, 'err');
-    });
+    player.addEventListener('error', function(ev){ var d=ev.detail||{}; setStatus('Playback error '+(d.code||'?'),'err'); });
     if (!clearKeys && /\.mpd(\?|#|$)/i.test(rawUrl)){
       setStatus('Fetching DRM key…','info');
       clearKeys = await resolveLaurlKeys(rawUrl);
