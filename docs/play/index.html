@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Open in Nebula Player</title>
+<style>
+  :root{
+    --ink:#0a0a0c; --surface:#141419; --line:#26262e;
+    --red:#E50914; --ember:#7a060d; --text:#f2f2f4; --muted:#9aa3af;
+    --disp:"Archivo","Segoe UI",system-ui,-apple-system,sans-serif;
+    --body:system-ui,-apple-system,"Segoe UI",sans-serif;
+    --mono:"SFMono-Regular",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(120% 90% at 50% -10%,#17171d 0%,var(--ink) 60%);
+    color:var(--text);font-family:var(--body);
+    display:flex;align-items:center;justify-content:center;padding:24px;
+    -webkit-font-smoothing:antialiased;text-align:center;
+  }
+  .card{width:100%;max-width:440px}
+  .brand{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:26px}
+  .mark{width:30px;height:30px;border-radius:50%;border:2px solid var(--text);position:relative}
+  .mark::after{content:"";position:absolute;width:7px;height:7px;border-radius:50%;background:var(--red);top:4px;right:4px}
+  .brand b{font-family:var(--disp);font-weight:800;font-size:1.15rem;letter-spacing:.02em}
+  h1{font-family:var(--disp);font-weight:800;font-size:1.55rem;line-height:1.2;margin:0 0 8px}
+  p{color:var(--muted);font-size:.95rem;line-height:1.5;margin:0 auto 22px;max-width:34ch}
+  .chan{color:var(--text);font-weight:600}
+  .spinner{width:34px;height:34px;margin:6px auto 22px;border-radius:50%;
+    border:3px solid var(--line);border-top-color:var(--red);animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .btns{display:flex;flex-direction:column;gap:11px}
+  a.btn,button.btn{
+    display:flex;align-items:center;justify-content:center;gap:9px;
+    font-family:var(--disp);font-weight:700;font-size:1rem;
+    padding:14px 18px;border-radius:13px;border:1px solid transparent;
+    text-decoration:none;cursor:pointer;width:100%;
+  }
+  .btn.primary{background:linear-gradient(180deg,var(--red),var(--ember));color:#fff;border:none}
+  .btn.ghost{background:var(--surface);color:var(--text);border-color:var(--line)}
+  .btn.link{background:transparent;color:var(--muted);font-weight:600;font-size:.9rem;padding:8px}
+  .hidden{display:none}
+  .fine{margin-top:20px;font-size:.78rem;color:#6b6b74}
+  .fine code{font-family:var(--mono);color:var(--muted)}
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand"><span class="mark"></span><b>Nebula</b></div>
+
+    <!-- opening state -->
+    <section id="opening">
+      <div class="spinner"></div>
+      <h1>Opening Nebula Player…</h1>
+      <p id="openingSub">Launching your stream<span id="chanWrap" class="hidden">: <span class="chan" id="chan"></span></span></p>
+    </section>
+
+    <!-- fallback state -->
+    <section id="fallback" class="hidden">
+      <h1 id="fbTitle">Play in the Nebula Player</h1>
+      <p id="fbSub">The Nebula app plays this ClearKey 4K/FHD stream. Open it, or install it below — it takes a few seconds.</p>
+      <div class="btns">
+        <button class="btn primary" id="retry">▶ Open in Nebula Player</button>
+        <a class="btn ghost" id="apk" href="https://github.com/retrocodes12/nebula-android/releases/latest/download/Nebula.apk">Download for Android / TV</a>
+        <a class="btn link" href="https://retrocodes12.github.io/nebula-player/">All platforms &amp; TV install code →</a>
+      </div>
+      <p class="fine" id="tvfine">On Android TV: open <b>Downloader</b> and enter code <code>7664693</code>.</p>
+    </section>
+  </main>
+
+<script>
+(function(){
+  var q = new URLSearchParams(location.search);
+  var mpd = (q.get('mpd') || '').trim();
+  var title = (q.get('t') || q.get('title') || '').trim();
+
+  var opening = document.getElementById('opening');
+  var fallback = document.getElementById('fallback');
+
+  if (title) {
+    var chan = document.getElementById('chan');
+    chan.textContent = title;
+    document.getElementById('chanWrap').classList.remove('hidden');
+    document.getElementById('fbTitle').textContent = 'Play "' + title + '"';
+  }
+
+  function deeplink(){
+    if (!mpd) return null;
+    var l = 'nebula://play?mpd=' + encodeURIComponent(mpd);
+    if (title) l += '&t=' + encodeURIComponent(title);
+    return l;
+  }
+
+  function showFallback(){
+    opening.classList.add('hidden');
+    fallback.classList.remove('hidden');
+  }
+
+  function tryOpen(){
+    var l = deeplink();
+    if (!l) { showFallback(); return; }
+    try { window.location.href = l; } catch (e) {}
+  }
+
+  // If the app takes over, the page is backgrounded — cancel the fallback.
+  var timer = null;
+  function armFallback(ms){
+    clearTimeout(timer);
+    timer = setTimeout(showFallback, ms);
+  }
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden) clearTimeout(timer);
+  });
+
+  document.getElementById('retry').addEventListener('click', function(){
+    tryOpen();
+    armFallback(2500);
+  });
+
+  if (mpd) {
+    tryOpen();
+    armFallback(1600);
+  } else {
+    // No stream context — just offer the app.
+    document.getElementById('fbSub').textContent =
+      'Get the Nebula Player to watch ClearKey 4K/FHD sports streams.';
+    showFallback();
+  }
+})();
+</script>
+</body>
+</html>
