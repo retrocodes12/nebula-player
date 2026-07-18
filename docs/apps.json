@@ -14,7 +14,7 @@
         "version": "1.9.2",
         "type": "web",
         "title": "Nebula",
-        "appDescription": "Add-on browser + ClearKey player. Add via phone (QR), browse, play HLS/DASH/DASH+ClearKey.",
+        "appDescription": "Add-on browser + player. Add via phone (QR), browse, and play — plays and decrypts every format.",
         "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
         "sourceUrl": "https://github.com/retrocodes12/nebula-player",
         "rootRequired": false,
@@ -25,7 +25,7 @@
         "ipkSize": 264406
       },
       "pool": "main",
-      "shortDescription": "Add-on browser + ClearKey. Add an add-on by scanning a QR with your phone.",
+      "shortDescription": "Add-on browser + player. Add an add-on by scanning a QR with your phone.",
       "fullDescriptionUrl": ""
     },
     {
@@ -38,7 +38,7 @@
         "version": "1.0.0",
         "type": "web",
         "title": "Nuvio ClearKey",
-        "appDescription": "Full Nuvio UI with on-device ClearKey decryption (needs the TV to reach TMDB / add-ons).",
+        "appDescription": "Full Nuvio UI that decrypts every format on-device (needs the TV to reach TMDB / add-ons).",
         "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
         "sourceUrl": "https://github.com/retrocodes12/nebula-player",
         "rootRequired": false,
@@ -49,7 +49,7 @@
         "ipkSize": 7915894
       },
       "pool": "main",
-      "shortDescription": "Full Nuvio UI with on-device ClearKey decryption.",
+      "shortDescription": "Full Nuvio UI that decrypts every format on-device.",
       "fullDescriptionUrl": ""
     }
   ]
