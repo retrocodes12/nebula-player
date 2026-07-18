@@ -1,5 +1,5 @@
 {
-  "version": "2026.07.18",
+  "version": "2026.07.19",
   "url": "https://retrocodes12.github.io/nebula-player/",
-  "notes": "adds catalog search"
+  "notes": "adds a quality picker for multi-quality streams"
 }
