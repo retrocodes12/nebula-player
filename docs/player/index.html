@@ -23,6 +23,8 @@
   .view.cols.active { display:flex; flex-direction:column; overflow:hidden; }
   .view.cols .topbar { flex:0 0 auto; padding: var(--padt) var(--pad) 12px; }
   .view.cols .chips { flex:0 0 auto; margin:0; padding: 2px var(--pad) 12px; }
+  .view.cols .searchrow { flex:0 0 auto; display:flex; gap:8px; align-items:center; padding: 2px var(--pad) 10px; }
+  .searchrow .field { flex:1; width:auto; margin:0; }
   .scroller { flex:1 1 auto; min-height:0; overflow-y:auto;
     padding: 8px var(--pad) var(--pad); scrollbar-width:thin; scrollbar-color:#333 transparent; }
   .scroller::-webkit-scrollbar { width:8px; } .scroller::-webkit-scrollbar-thumb { background:#333; border-radius:4px; }
@@ -180,6 +182,10 @@
   <!-- CATALOG -->
   <div id="view-catalog" class="view cols">
     <div class="topbar"><button class="focusable iconbtn" data-back>‹</button><div class="topbar-title" id="catTitle">Catalog</div></div>
+    <div class="searchrow" id="searchRow" style="display:none">
+      <input id="catSearch" class="focusable field" type="search" placeholder="Search" autocomplete="off" />
+      <button id="catSearchClear" class="focusable iconbtn" title="Clear search" style="display:none">×</button>
+    </div>
     <div id="genreRow" class="chips"></div>
     <div class="scroller"><div id="catList" class="grid"></div></div>
   </div>
@@ -374,7 +380,7 @@
       ctx.addon = a; ctx.manifest = m;
       ctx.catalogs = (m.catalogs||[]);
       if (!ctx.catalogs.length){ setStatus('This add-on has no catalogs to browse.', 'err'); return; }
-      ctx.catalog = ctx.catalogs[0]; ctx.genre = null;
+      ctx.catalog = ctx.catalogs[0]; ctx.genre = null; clearSearchInput();
       document.getElementById('catTitle').textContent = a.name || 'Catalog';
       renderGenres(); show('catalog'); loadCatalog();
     } catch(err){ setStatus('Failed: '+err.message, 'err'); }
@@ -384,28 +390,53 @@
     var g = extra.filter(function(x){ return x.name==='genre'; })[0];
     return g && g.options ? g.options : [];
   }
+  function catalogSupportsSearch(c){
+    if (!c) return false;
+    if ((c.extra||[]).some(function(x){ return x.name==='search'; })) return true;
+    return (c.extraSupported||[]).indexOf('search') !== -1;
+  }
+  function searchCatalog(){
+    if (catalogSupportsSearch(ctx.catalog)) return ctx.catalog;
+    return (ctx.catalogs||[]).filter(catalogSupportsSearch)[0] || null;
+  }
+  function clearSearchInput(){
+    ctx.query='';
+    var i=document.getElementById('catSearch'); if(i) i.value='';
+    var c=document.getElementById('catSearchClear'); if(c) c.style.display='none';
+  }
   function renderGenres(){
     var row = document.getElementById('genreRow'); row.innerHTML='';
     if (ctx.catalogs.length > 1){
       ctx.catalogs.forEach(function(c){
-        var b=document.createElement('button'); b.className='chip focusable'+(c===ctx.catalog?' on':'');
+        var b=document.createElement('button'); b.className='chip focusable'+(c===ctx.catalog && !ctx.query?' on':'');
         b.textContent = c.name || c.id;
-        b.onclick=function(){ ctx.catalog=c; ctx.genre=null; renderGenres(); loadCatalog(); };
+        b.onclick=function(){ ctx.catalog=c; ctx.genre=null; clearSearchInput(); renderGenres(); loadCatalog(); };
         row.appendChild(b);
       });
     }
-    currentGenres().slice(0,20).forEach(function(gn){
+    if (!ctx.query) currentGenres().slice(0,20).forEach(function(gn){
       var b=document.createElement('button'); b.className='chip focusable'+(ctx.genre===gn?' on':'');
       b.textContent=gn;
       b.onclick=function(){ ctx.genre = (ctx.genre===gn?null:gn); renderGenres(); loadCatalog(); };
       row.appendChild(b);
     });
+    document.getElementById('searchRow').style.display = (ctx.catalogs||[]).some(catalogSupportsSearch) ? 'flex' : 'none';
   }
   function catalogUrl(){
-    var u = ctx.addon.base + '/catalog/' + encodeURIComponent(ctx.catalog.type) + '/' + encodeURIComponent(ctx.catalog.id);
-    if (ctx.genre) u += '/genre=' + encodeURIComponent(ctx.genre);
+    var c = (ctx.query && searchCatalog()) ? searchCatalog() : ctx.catalog;
+    var u = ctx.addon.base + '/catalog/' + encodeURIComponent(c.type) + '/' + encodeURIComponent(c.id);
+    if (ctx.query) u += '/search=' + encodeURIComponent(ctx.query);
+    else if (ctx.genre) u += '/genre=' + encodeURIComponent(ctx.genre);
     return u + '.json';
   }
+  (function initSearch(){
+    var input = document.getElementById('catSearch');
+    var clear = document.getElementById('catSearchClear');
+    if (!input || !clear) return;
+    function submit(){ ctx.query = input.value.trim(); clear.style.display = ctx.query ? '' : 'none'; renderGenres(); loadCatalog(); }
+    input.addEventListener('keydown', function(e){ if (e.key==='Enter' || e.keyCode===13){ e.preventDefault(); submit(); } });
+    clear.addEventListener('click', function(){ clearSearchInput(); renderGenres(); loadCatalog(); });
+  })();
   function skeletons(n){
     var s=''; for(var i=0;i<n;i++) s+='<div class="card skel"><div class="thumb"></div><div class="card-label sk"></div></div>';
     return s;
