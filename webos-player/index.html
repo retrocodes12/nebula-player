@@ -136,6 +136,23 @@
   h1 { font-size:1.7rem; font-weight:800; margin:0 0 .3rem; }
   .sub { color:var(--muted); margin:.2rem 0 1.2rem; }
   code { background:#000; color:#7CFC7C; padding:.1rem .35rem; border-radius:4px; }
+
+  /* ---- quality picker (over the video during playback) ---- */
+  #qWrap { position:fixed; top:16px; right:16px; z-index:5; display:none; }
+  .qbtn { display:flex; align-items:center; gap:7px; font-size:1rem; font-weight:600; padding:.5rem .95rem;
+    border-radius:999px; border:2px solid var(--line); background:rgba(16,16,20,.85); color:#fff; cursor:pointer; }
+  .qbtn .qgear { font-size:1.1rem; line-height:1; }
+  .qbtn.focusable:focus, .qbtn:hover { border-color:#fff; box-shadow:0 0 0 3px rgba(229,9,20,.5); }
+  .qmenu { display:none; position:absolute; top:52px; right:0; min-width:170px; max-height:60vh; overflow-y:auto;
+    background:rgba(14,14,18,.98); border:1px solid var(--line); border-radius:12px; padding:6px;
+    box-shadow:0 12px 34px rgba(0,0,0,.6); scrollbar-width:thin; scrollbar-color:#333 transparent; }
+  .qmenu.open { display:block; }
+  .qtitle { color:var(--muted); font-size:.74rem; text-transform:uppercase; letter-spacing:.08em; padding:.3rem .8rem .4rem; }
+  .qopt { display:block; width:100%; text-align:left; padding:.55rem .8rem; border-radius:8px; border:0;
+    background:transparent; color:#e8e8ea; font-size:1rem; cursor:pointer; white-space:nowrap; }
+  .qopt.focusable:focus, .qopt:hover { background:var(--surface2); }
+  .qopt.on { color:var(--red); font-weight:700; }
+  .qopt.on::after { content:' ✓'; }
 </style>
 </head>
 <body>
@@ -145,6 +162,12 @@
     <span id="updText"></span>
     <a id="updGet" class="focusable" target="_blank" rel="noopener">Get it</a>
     <button id="updX" class="focusable" title="Dismiss">×</button>
+  </div>
+
+  <!-- quality picker (shown only while playing a multi-quality stream) -->
+  <div id="qWrap">
+    <button id="qBtn" class="focusable qbtn" title="Quality"><span class="qgear">⚙</span><span id="qCur">Auto</span></button>
+    <div id="qMenu" class="qmenu"><div class="qtitle">Quality</div></div>
   </div>
 
   <!-- HOME -->
@@ -218,7 +241,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.07.18';
+  var PLAYER_VERSION = '2026.07.19';
 
   var statusTimer = null;
   function setStatus(m, k){
@@ -273,6 +296,21 @@
 
   document.addEventListener('keydown', function(e){
     var k = e.keyCode, inInput = document.activeElement && document.activeElement.tagName==='INPUT';
+    // While playing, the quality overlay owns D-pad/keys (so it's reachable on TV).
+    if (video.style.display==='block'){
+      var isBack = (k===461 || k===8 || e.key==='GoBack' || e.key==='BrowserBack');
+      if (isBack){ if(qOpen){ closeQMenu(); } else { goBack(); } e.preventDefault(); return; }
+      if (qOpen){
+        if (k===38){ moveQMenu(-1); e.preventDefault(); return; }
+        if (k===40){ moveQMenu(1); e.preventDefault(); return; }
+        if (k===13){ var a=document.activeElement; if(a&&a.classList.contains('qopt')) a.click(); e.preventDefault(); return; }
+        if (k===37||k===39){ e.preventDefault(); return; }
+        return;
+      }
+      // menu closed: Up or Enter opens the quality menu when available
+      if ((k===38||k===13) && qWrap && qWrap.style.display!=='none'){ openQMenu(); e.preventDefault(); return; }
+      return; // otherwise let native video controls handle the key
+    }
     if (k===37){ if(!inInput){ moveFocus2D(-1,0); e.preventDefault(); } }
     else if (k===39){ if(!inInput){ moveFocus2D(1,0); e.preventDefault(); } }
     else if (k===38){ moveFocus2D(0,-1); e.preventDefault(); }
@@ -566,7 +604,7 @@
     if (!shaka.Player.isBrowserSupported()){ setStatus('This device is not supported by Shaka Player.','err'); return false; }
     return true;
   }
-  async function stopPlayer(){ if (player){ try{ await player.destroy(); }catch(e){} player=null; } video.style.display='none'; }
+  async function stopPlayer(){ if (player){ try{ await player.destroy(); }catch(e){} player=null; } video.style.display='none'; hideQuality(); }
   async function playUrl(rawUrl, clearKeys){
     if (!initShaka()) return;
     await stopPlayer();
@@ -575,6 +613,8 @@
     player = new shaka.Player();
     try { await player.attach(video); } catch(e){}
     player.addEventListener('error', function(ev){ var d=ev.detail||{}; setStatus('Playback error '+(d.code||'?'),'err'); });
+    player.addEventListener('adaptation', function(){ if(!qOpen) buildQualityMenu(); });
+    player.addEventListener('trackschanged', function(){ if(!qOpen) buildQualityMenu(); });
     player.getNetworkingEngine().registerRequestFilter(function(type, request){
       if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT){
         if (!request.headers['Range'] && !request.headers['range']){ request.headers['Range'] = 'bytes=0-'; }
@@ -594,10 +634,67 @@
       });
       player.configure({ drm: { clearKeys: clearKeys } });
     }
-    try { await player.load(cleanUrl(rawUrl)); setStatus('Playing.','ok'); try { await video.play(); } catch(e){} }
+    try { await player.load(cleanUrl(rawUrl)); setStatus('Playing.','ok'); try { await video.play(); } catch(e){} buildQualityMenu(); }
     catch(err){ var code=(err&&(err.code||err.message))||'unknown'; var extra=err&&err.data?(' — '+JSON.stringify(err.data).slice(0,180)):''; setStatus('Failed to load ('+code+')'+extra,'err'); }
   }
   function playStream(s){ playUrl(s.url, extractClearKeys(s)); }
+
+  // ---------- quality picker ----------
+  var qWrap = document.getElementById('qWrap');
+  var qBtn = document.getElementById('qBtn');
+  var qMenu = document.getElementById('qMenu');
+  var qCur = document.getElementById('qCur');
+  var qOpen = false;
+  function heightLabel(h){ return h ? (h + 'p') : 'Auto'; }
+  function videoTracks(){ try { return (player.getVariantTracks()||[]).filter(function(t){ return t.height; }); } catch(e){ return []; } }
+  function distinctHeights(tracks){
+    var seen={}, out=[];
+    tracks.forEach(function(t){ if(!seen[t.height]){ seen[t.height]=1; out.push(t.height); } });
+    out.sort(function(a,b){ return b-a; }); return out;
+  }
+  function hideQuality(){ qOpen=false; if(qMenu) qMenu.classList.remove('open'); if(qWrap) qWrap.style.display='none'; }
+  function buildQualityMenu(){
+    if (!player || !qWrap){ hideQuality(); return; }
+    var tracks = videoTracks(), heights = distinctHeights(tracks);
+    if (heights.length < 2){ hideQuality(); return; }   // nothing worth choosing
+    var abrOn = true; try { abrOn = player.getConfiguration().abr.enabled; } catch(e){}
+    var activeH = 0; if (!abrOn) tracks.forEach(function(t){ if(t.active) activeH = t.height; });
+    qWrap.style.display = 'block';
+    qCur.textContent = abrOn ? 'Auto' : heightLabel(activeH);
+    // rebuild list
+    qMenu.innerHTML = '<div class="qtitle">Quality</div>';
+    function addOpt(label, height, selected){
+      var b=document.createElement('button'); b.className='qopt focusable'+(selected?' on':''); b.tabIndex=0;
+      b.textContent=label; b.onclick=function(){ selectQuality(height); };
+      b.onkeydown=function(ev){ if(ev.keyCode===13){ selectQuality(height); ev.preventDefault(); } };
+      qMenu.appendChild(b);
+    }
+    addOpt('Auto', 0, abrOn);
+    heights.forEach(function(h){ addOpt(heightLabel(h), h, !abrOn && h===activeH); });
+  }
+  function selectQuality(height){
+    if (!player) return;
+    try {
+      if (!height){ player.configure({ abr: { enabled: true } }); }
+      else {
+        player.configure({ abr: { enabled: false } });
+        var pick=null;
+        videoTracks().forEach(function(t){ if(t.height===height && (!pick || t.bandwidth>pick.bandwidth)) pick=t; });
+        if (pick) player.selectVariantTrack(pick, true);
+      }
+    } catch(e){}
+    setStatus('Quality: '+(height?heightLabel(height):'Auto'),'ok');
+    closeQMenu(); buildQualityMenu();
+  }
+  function openQMenu(){ if(!qWrap || qWrap.style.display==='none') return; buildQualityMenu(); qMenu.classList.add('open'); qOpen=true;
+    var on=qMenu.querySelector('.qopt.on')||qMenu.querySelector('.qopt'); if(on) setTimeout(function(){ on.focus(); },10); }
+  function closeQMenu(){ if(qMenu) qMenu.classList.remove('open'); qOpen=false; if(qBtn) qBtn.focus(); }
+  function toggleQMenu(){ if(qOpen) closeQMenu(); else openQMenu(); }
+  function moveQMenu(dir){
+    var opts=Array.prototype.slice.call(qMenu.querySelectorAll('.qopt')); if(!opts.length) return;
+    var i=opts.indexOf(document.activeElement); i=(i<0?0:i+dir); if(i<0)i=0; if(i>=opts.length)i=opts.length-1; opts[i].focus();
+  }
+  if (qBtn) qBtn.onclick = toggleQMenu;
 
   // ---------- manual ----------
   function playManual(){
