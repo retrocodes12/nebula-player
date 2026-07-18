@@ -25,6 +25,14 @@
   .view.cols .chips { flex:0 0 auto; margin:0; padding: 2px var(--pad) 12px; }
   .view.cols .searchrow { flex:0 0 auto; display:flex; gap:8px; align-items:center; padding: 2px var(--pad) 10px; }
   .searchrow .field { flex:1; width:auto; margin:0; }
+  #updBanner { display:none; position:fixed; top:0; left:0; right:0; z-index:200; align-items:center;
+    gap:12px; padding:10px 16px; background:var(--red); color:#fff; font-size:.95rem;
+    box-shadow:0 2px 12px rgba(0,0,0,.4); }
+  #updBanner.show { display:flex; }
+  #updBanner #updText { flex:1; }
+  #updBanner a, #updBanner button { color:#fff; background:rgba(0,0,0,.28); border:0; border-radius:8px;
+    padding:.4rem .8rem; font-weight:700; cursor:pointer; text-decoration:none; font-size:.9rem; }
+  #updBanner .focusable:focus { outline:2px solid #fff; }
   .scroller { flex:1 1 auto; min-height:0; overflow-y:auto;
     padding: 8px var(--pad) var(--pad); scrollbar-width:thin; scrollbar-color:#333 transparent; }
   .scroller::-webkit-scrollbar { width:8px; } .scroller::-webkit-scrollbar-thumb { background:#333; border-radius:4px; }
@@ -133,6 +141,12 @@
 <body>
   <video id="video" controls autoplay playsinline></video>
 
+  <div id="updBanner">
+    <span id="updText"></span>
+    <a id="updGet" class="focusable" target="_blank" rel="noopener">Get it</a>
+    <button id="updX" class="focusable" title="Dismiss">×</button>
+  </div>
+
   <!-- HOME -->
   <div id="view-home" class="view active">
     <div class="hero">
@@ -204,6 +218,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
+  var PLAYER_VERSION = '2026.07.18';
 
   var statusTimer = null;
   function setStatus(m, k){
@@ -279,6 +294,30 @@
     if (!r.ok) throw new Error('HTTP '+r.status);
     return r.json();
   }
+
+  // Update nudge: compare our build tag to the one published on the download site.
+  // Shows a dismissible banner (per-version) when a newer player has shipped.
+  (function checkPlayerUpdate(){
+    try {
+      if (typeof fetch !== 'function') return;
+      fetch('https://retrocodes12.github.io/nebula-player/player-version.json', { cache:'no-store' })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(j){
+          if (!j || !j.version || j.version === PLAYER_VERSION) return;
+          if (LS && LS.getItem('nebulaUpdDismiss') === j.version) return;
+          var banner = document.getElementById('updBanner');
+          document.getElementById('updText').textContent =
+            'Nebula update available' + (j.notes ? ' — ' + j.notes : '') + '.';
+          document.getElementById('updGet').href = j.url || 'https://retrocodes12.github.io/nebula-player/';
+          document.getElementById('updX').onclick = function(){
+            try { if (LS) LS.setItem('nebulaUpdDismiss', j.version); } catch(e){}
+            banner.classList.remove('show');
+          };
+          banner.classList.add('show');
+        })
+        .catch(function(){});
+    } catch(e){}
+  })();
 
   function renderAddons(){
     var wrap = document.getElementById('addonList'); wrap.innerHTML='';
