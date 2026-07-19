@@ -241,7 +241,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.07.19';
+  var PLAYER_VERSION = '2026.07.19.2';
 
   var statusTimer = null;
   function setStatus(m, k){
@@ -324,8 +324,107 @@
   });
 
   // ---------- add-on storage ----------
+  // localStorage is the primary store, but webOS TVs periodically wipe web-app
+  // storage (overnight cleanup / full power-off), which made added add-ons vanish.
+  // So every save is mirrored to IndexedDB AND to webOS's system database (DB8,
+  // which lives outside the webkit profile), and boot restores from a mirror
+  // whenever localStorage comes up empty. On web/desktop the DB8 calls no-op.
   function getAddons(){ try { return JSON.parse(LS.getItem('addons')||'[]'); } catch(e){ return []; } }
-  function saveAddons(a){ try { LS.setItem('addons', JSON.stringify(a)); } catch(e){} }
+  function saveAddons(a){
+    var json = JSON.stringify(a);
+    try { LS.setItem('addons', json); } catch(e){}
+    mirrorAddons(json);
+  }
+  function mirrorAddons(json){ try { idbSave('addons', json); } catch(e){} db8Save('addons', json); }
+
+  function idbOpen(){
+    return new Promise(function(res){
+      try {
+        var rq = indexedDB.open('nebula-store', 1);
+        rq.onupgradeneeded = function(){ rq.result.createObjectStore('kv'); };
+        rq.onsuccess = function(){ res(rq.result); };
+        rq.onerror = function(){ res(null); };
+      } catch(e){ res(null); }
+    });
+  }
+  function idbSave(key, val){
+    return idbOpen().then(function(db){
+      if (!db) return;
+      try { db.transaction('kv','readwrite').objectStore('kv').put(val, key); } catch(e){}
+    });
+  }
+  function idbLoad(key){
+    return idbOpen().then(function(db){
+      return new Promise(function(res){
+        if (!db) return res(null);
+        try {
+          var rq = db.transaction('kv').objectStore('kv').get(key);
+          rq.onsuccess = function(){ res(rq.result || null); };
+          rq.onerror = function(){ res(null); };
+        } catch(e){ res(null); }
+      });
+    });
+  }
+
+  var DB8_KIND = 'com.nuvio.clearkey.player:1';
+  var db8Ready = null;
+  function lunaCall(path, params){
+    return new Promise(function(res){
+      try {
+        var B = window.WebOSServiceBridge || window.PalmServiceBridge;
+        if (!B) return res(null);
+        var b = new B(), done = false;
+        var to = setTimeout(function(){ if(!done){ done=true; res(null); } }, 4000);
+        b.onservicecallback = function(raw){
+          if (done) return; done = true; clearTimeout(to);
+          var r = null; try { r = JSON.parse(raw); } catch(e){}
+          res(r);
+        };
+        b.call('luna://' + path, JSON.stringify(params || {}));
+      } catch(e){ res(null); }
+    });
+  }
+  function db8Init(){
+    if (!window.WebOSServiceBridge && !window.PalmServiceBridge) return Promise.resolve(false);
+    if (!db8Ready) db8Ready = lunaCall('com.webos.service.db/putKind', {
+      id: DB8_KIND, owner: 'com.nuvio.clearkey.player',
+      indexes: [{ name:'key', props:[{ name:'key' }] }]
+    }).then(function(r){ return !!(r && r.returnValue); });
+    return db8Ready;
+  }
+  function db8Save(key, json){
+    db8Init().then(function(ok){
+      if (!ok) return;
+      lunaCall('com.webos.service.db/find', { query:{ from: DB8_KIND, where:[{ prop:'key', op:'=', val:key }] } }).then(function(r){
+        var hit = r && r.results && r.results[0];
+        if (hit) lunaCall('com.webos.service.db/merge', { objects:[{ _id: hit._id, value: json }] });
+        else lunaCall('com.webos.service.db/put', { objects:[{ _kind: DB8_KIND, key: key, value: json }] });
+      });
+    });
+  }
+  function db8Load(key){
+    return db8Init().then(function(ok){
+      if (!ok) return null;
+      return lunaCall('com.webos.service.db/find', { query:{ from: DB8_KIND, where:[{ prop:'key', op:'=', val:key }] } }).then(function(r){
+        var hit = r && r.results && r.results[0];
+        return hit ? hit.value : null;
+      });
+    });
+  }
+  function initPersistentAddons(){
+    var cur = getAddons();
+    if (cur.length){ mirrorAddons(JSON.stringify(cur)); return; }  // seed mirrors from a healthy LS
+    idbLoad('addons')
+      .then(function(v){ if (v) return v; return db8Load('addons'); })
+      .then(function(v){
+        if (!v) return;
+        var arr = null; try { arr = JSON.parse(v); } catch(e){}
+        if (arr && arr.length){
+          saveAddons(arr); renderAddons();
+          setStatus('Restored your saved add-ons.','ok'); focusFirst();
+        }
+      });
+  }
   function baseOf(manifestUrl){ return manifestUrl.replace(/\/manifest\.json.*$/,''); }
   async function getJson(url){
     var r = await fetch(url, { headers: { 'Accept':'application/json' } });
@@ -717,6 +816,7 @@
   try { document.getElementById('mUrl').value = LS.getItem('m_url')||''; } catch(e){}
 
   renderAddons();
+  initPersistentAddons();
   setStatus('Ready. Add your add-on to begin.','info');
   focusFirst();
 })();

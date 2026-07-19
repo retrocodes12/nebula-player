@@ -1,5 +1,5 @@
 {
-  "version": "2026.07.19",
+  "version": "2026.07.19.2",
   "url": "https://retrocodes12.github.io/nebula-player/",
-  "notes": "adds a quality picker for multi-quality streams"
+  "notes": "your add-ons no longer disappear after TV storage cleanup"
 }
