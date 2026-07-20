@@ -153,6 +153,36 @@
   .qopt.focusable:focus, .qopt:hover { background:var(--surface2); }
   .qopt.on { color:var(--red); font-weight:700; }
   .qopt.on::after { content:' ✓'; }
+
+  /* ---- TV mode (webOS): 10-foot sizing — bigger type, targets, and focus ----
+     Enabled by JS when running on webOS (or with ?tv=1 for previewing). */
+  html.tv { font-size: 22px; }
+  html.tv body { --pad: clamp(40px,3.6vw,64px); --padt: clamp(28px,2.8vw,42px); }
+  html.tv .panel { max-width:1000px; padding:28px; border-radius:20px; }
+  html.tv .addons { grid-template-columns:repeat(auto-fill,minmax(400px,1fr)); gap:20px; }
+  html.tv .addon { padding:20px; border-radius:18px; }
+  html.tv .addon-logo { width:76px; height:76px; border-radius:14px; }
+  html.tv .addon-del { width:46px; height:46px; font-size:1.05rem; border-radius:10px; }
+  html.tv .grid { grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:clamp(16px,1.6vw,26px); }
+  html.tv .iconbtn { width:64px; height:64px; font-size:2rem; }
+  html.tv .btn { padding:.85rem 1.6rem; border-radius:12px; }
+  html.tv .chip { padding:.55rem 1.25rem; }
+  html.tv .field { padding:1rem 1.2rem; border-radius:12px; }
+  html.tv .stream { padding:18px 22px; border-radius:16px; gap:18px; }
+  html.tv .stream-play { width:56px; height:56px; font-size:1.3rem; }
+  html.tv .streams { max-width:1200px; gap:14px; }
+  html.tv #qrbox svg { width:380px; height:380px; }
+  html.tv .qbtn { padding:.6rem 1.2rem; }
+  html.tv .qmenu { min-width:250px; top:66px; }
+  html.tv .qopt { padding:.7rem 1rem; }
+  html.tv #updBanner { padding:14px 22px; }
+  html.tv #status { font-size:1.05rem; padding:.75rem 1.4rem; bottom:28px; }
+  /* fatter, brighter focus so the selection is obvious from the couch */
+  html.tv .addon.focusable:focus, html.tv .stream.focusable:focus, html.tv .chip.focusable:focus,
+  html.tv .btn.focusable:focus, html.tv .iconbtn.focusable:focus, html.tv .field:focus {
+    box-shadow:0 0 0 5px rgba(229,9,20,.65); transform:scale(1.04); }
+  html.tv .card.focusable:focus {
+    transform:scale(1.08); box-shadow:0 16px 44px rgba(0,0,0,.65), 0 0 0 4px rgba(229,9,20,.7); }
 </style>
 </head>
 <body>
@@ -241,7 +271,14 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.07.19.2';
+  var PLAYER_VERSION = '2026.07.20';
+
+  // TV mode: 10-foot sizing on webOS (PalmSystem/ServiceBridge only exist there);
+  // ?tv=1 forces it anywhere for previewing.
+  var IS_TV = !!(window.PalmSystem || window.WebOSServiceBridge || window.PalmServiceBridge ||
+    /web0s|webos|smarttv|smart-tv|netcast/i.test(navigator.userAgent || '') ||
+    /[?&#]tv=1/.test(location.href));
+  if (IS_TV) document.documentElement.className += ' tv';
 
   var statusTimer = null;
   function setStatus(m, k){

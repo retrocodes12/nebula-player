@@ -8,21 +8,21 @@
       "id": "com.nuvio.clearkey.player",
       "title": "Nebula",
       "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
-      "manifestUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.9.6/webosbrew.manifest.json",
+      "manifestUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.9.7/webosbrew.manifest.json",
       "manifest": {
         "id": "com.nuvio.clearkey.player",
-        "version": "1.9.6",
+        "version": "1.9.7",
         "type": "web",
         "title": "Nebula",
-        "appDescription": "Add-on browser + player. Add via phone (QR), browse, and play — plays and decrypts every format. Quality picker for multi-quality streams. Add-ons now survive TV storage cleanup.",
+        "appDescription": "Add-on browser + player with a TV-sized UI (big buttons + focus). Browse, search, and play \u2014 plays and decrypts every format.",
         "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
         "sourceUrl": "https://github.com/retrocodes12/nebula-player",
         "rootRequired": false,
-        "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.9.6/com.nuvio.clearkey.player_1.9.6_all.ipk",
+        "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.9.7/com.nuvio.clearkey.player_1.9.7_all.ipk",
         "ipkHash": {
-          "sha256": "8665819018d92021ae43aa5eb64facf6fdaf03fdba2a096c324f24ee6b63baa2"
+          "sha256": "22c0ac74a8247334af455e76f602f6ab779895b85e2a2a3243f5f35f19107a77"
         },
-        "ipkSize": 280044
+        "ipkSize": 280690
       },
       "pool": "main",
       "shortDescription": "Add-on browser + player. Add an add-on by scanning a QR with your phone.",

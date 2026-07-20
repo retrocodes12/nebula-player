@@ -1,5 +1,5 @@
 {
-  "version": "2026.07.19.2",
+  "version": "2026.07.20",
   "url": "https://retrocodes12.github.io/nebula-player/",
-  "notes": "your add-ons no longer disappear after TV storage cleanup"
+  "notes": "TV-sized UI on webOS — bigger buttons, text, and focus"
 }
