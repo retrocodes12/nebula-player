@@ -1,5 +1,5 @@
 {
-  "version": "2026.07.22",
+  "version": "2026.07.22.2",
   "url": "https://retrocodes12.github.io/nebula-player/",
-  "notes": "Cleaner, flatter design \u2014 less glow, more content"
+  "notes": "Stream add-ons now work \u2014 opening an item asks every add-on that serves streams"
 }

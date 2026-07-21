@@ -171,6 +171,8 @@
 
   /* ---- streams ---- */
   .streams { display:grid; grid-template-columns:1fr; gap:10px; max-width:900px; }
+  .streamsec { display:grid; grid-template-columns:1fr; gap:10px; }
+  .streamsec:empty { display:none; }
   .stream { display:flex; align-items:center; text-align:left; cursor:pointer;
     background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:14px 16px; color:#fff;
     transition:background .12s, border-color .12s; }
@@ -179,8 +181,8 @@
     display:flex; align-items:center; justify-content:center; font-size:.95rem; }
   .stream:hover { background:var(--surface2); }
   .stream.focusable:focus { border-color:#fff; box-shadow:0 0 0 1px #fff; }
-  .stream-name { font-size:1.05rem; font-weight:600; }
-  .stream-sub { color:var(--muted); font-size:.86rem; margin-top:3px; }
+  .stream-name { display:block; font-size:1.05rem; font-weight:600; }
+  .stream-sub { display:block; color:var(--muted); font-size:.86rem; margin-top:3px; }
 
   /* focus base */
   .focusable { outline:none; }
@@ -277,6 +279,7 @@
   html.tv .stream > * + * { margin-left:17px; }
   html.tv .stream-play { width:56px; height:56px; font-size:1.25rem; }
   html.tv .streams { max-width:1200px; gap:14px; }
+  html.tv .streamsec { gap:14px; }
   html.tv .page-title { font-size:1.85rem; }
   html.tv #qrbox svg { width:380px; height:380px; }
   html.tv .qbtn { padding:.6rem 1.2rem; }
@@ -407,7 +410,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.07.22';
+  var PLAYER_VERSION = '2026.07.22.2';
 
   // TV mode: 10-foot sizing on webOS (PalmSystem/ServiceBridge only exist there);
   // ?tv=1 forces it anywhere for previewing.
@@ -944,26 +947,90 @@
   }
 
   // ---------- streams ----------
-  async function openItem(meta){
+  // Stremio semantics: catalog add-ons and stream add-ons are separate things.
+  // Opening an item asks EVERY installed add-on whose manifest says it serves
+  // streams for this type/id, not just the add-on the item came from.
+  function streamSupport(m){
+    var rs = (m && m.resources) || [];
+    for (var i=0;i<rs.length;i++){
+      var r = rs[i];
+      if (r === 'stream') return { types: m.types||null, idPrefixes: m.idPrefixes||null };
+      if (r && r.name === 'stream') return { types: r.types||m.types||null, idPrefixes: r.idPrefixes||m.idPrefixes||null };
+    }
+    return null;
+  }
+  function canStream(m, type, id){
+    var r = streamSupport(m); if (!r) return false;
+    if (r.types && r.types.length && r.types.indexOf(type) === -1) return false;
+    if (r.idPrefixes && r.idPrefixes.length){
+      for (var i=0;i<r.idPrefixes.length;i++){ if (id.indexOf(r.idPrefixes[i]) === 0) return true; }
+      return false;
+    }
+    return true;
+  }
+  function streamCard(s){
+    var card=document.createElement('button'); card.className='stream focusable';
+    card.innerHTML = '<span class="stream-play">▶</span><span><span class="stream-name">'+esc(s.name||'Stream')+'</span><span class="stream-sub">'+esc((s.title||'').replace(/\n/g,' · '))+'</span></span>';
+    card.onclick=function(){ playStream(s); };
+    return card;
+  }
+  var openSeq = 0;
+  function openItem(meta){
     ctx.item = meta;
+    var seq = ++openSeq;
+    var type = meta.type || (ctx.catalog && ctx.catalog.type) || 'tv';
     document.getElementById('streamsTitle').textContent = meta.name || 'Streams';
-    var list = document.getElementById('streamList'); list.innerHTML='<div class="empty">Loading streams…</div>';
+    var list = document.getElementById('streamList');
+    list.innerHTML = '<div class="empty" id="streamsLoading">Loading streams…</div>';
     list.parentNode.scrollTop = 0;
     show('streams'); setStatus('Loading streams…','info');
-    try {
-      var url = ctx.addon.base + '/stream/' + encodeURIComponent(meta.type||ctx.catalog.type) + '/' + encodeURIComponent(meta.id) + '.json';
-      var d = await getJson(url);
-      var streams = (d.streams||[]).filter(function(s){ return s.url; });
-      list.innerHTML='';
-      if (!streams.length){ list.innerHTML='<div class="empty">No playable streams right now (the event may be offline).</div>'; setStatus('No streams.','info'); return; }
-      streams.forEach(function(s){
-        var card=document.createElement('button'); card.className='stream focusable';
-        card.innerHTML = '<span class="stream-play">▶</span><span><span class="stream-name">'+esc(s.name||'Stream')+'</span><span class="stream-sub">'+esc((s.title||'').replace(/\n/g,' · '))+'</span></span>';
-        card.onclick=function(){ playStream(s); };
-        list.appendChild(card);
-      });
-      setStatus(streams.length+' stream'+(streams.length>1?'s':''),'ok'); focusFirst();
-    } catch(err){ list.innerHTML='<div class="empty">Failed to load streams: '+esc(err.message)+'</div>'; setStatus('Failed to load streams.','err'); }
+
+    var origin = ctx.addon || null;
+    var order = origin ? [origin] : [];
+    getAddons().forEach(function(a){ if (!origin || a.url !== origin.url) order.push(a); });
+    if (!order.length){ list.innerHTML = '<div class="empty">No add-ons.</div>'; return; }
+
+    var pending = order.length, total = 0, sections = 0, failures = 0;
+    function removeLoading(){
+      var el = document.getElementById('streamsLoading');
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    }
+    function done(){
+      if (seq !== openSeq) return;
+      pending--;
+      if (pending) return;
+      removeLoading();
+      if (!total){
+        list.innerHTML = failures === order.length
+          ? '<div class="empty">Failed to load streams — check your connection and try again.</div>'
+          : '<div class="empty">No playable streams right now (the event may be offline).</div>';
+        setStatus('No streams.','info');
+      } else {
+        setStatus(total+' stream'+(total>1?'s':'')+(sections>1?' from '+sections+' add-ons':''),'ok');
+      }
+    }
+    // one placeholder per add-on, filled as answers arrive, so order is stable
+    order.forEach(function(a){
+      var box = document.createElement('div'); box.className='streamsec'; list.appendChild(box);
+      getManifest(a.url).then(function(m){
+        // the origin add-on is always asked; others only when their manifest
+        // says they serve streams for this item's type/id
+        if (!(origin && a.url === origin.url) && !canStream(m, type, meta.id)) return;
+        var u = a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(meta.id) + '.json';
+        return getJson(u).then(function(d){
+          if (seq !== openSeq) return;
+          var streams = (d.streams||[]).filter(function(s){ return s.url; });
+          if (!streams.length) return;
+          removeLoading();
+          sections++;
+          if (order.length > 1){
+            box.innerHTML = '<div class="rowhead"><span class="row-title">'+esc(a.name||'Add-on')+'</span></div>';
+          }
+          streams.forEach(function(s){ total++; box.appendChild(streamCard(s)); });
+          if (sections === 1) focusFirst();
+        });
+      }).catch(function(){ failures++; }).then(done);
+    });
   }
 
   // ---------- playback ----------
