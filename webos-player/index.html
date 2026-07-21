@@ -497,7 +497,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.07.23';
+  var PLAYER_VERSION = '2026.07.23.2';
 
   // TV mode: 10-foot sizing on webOS (PalmSystem/ServiceBridge only exist there);
   // ?tv=1 forces it anywhere for previewing.
@@ -513,13 +513,14 @@
     if (k !== 'err') statusTimer = setTimeout(function(){ statusEl.classList.remove('show'); }, 3500);
   }
   function hex(v){ return (v||'').trim().replace(/[^0-9a-fA-F]/g,'').toLowerCase(); }
-  function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
 
   // ---------- view + focus ----------
   function show(name, push){
+    var back = (push === false);
     document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
     var el = document.getElementById('view-'+name);
-    if (el){ el.classList.add('active'); el.scrollTop = 0; }
+    if (el){ el.classList.add('active'); if (!back) el.scrollTop = 0; }
     video.style.display = (name==='player') ? 'block' : 'none';
     document.body.classList.toggle('playing', name==='player');
     if (push !== false){ if (viewStack[viewStack.length-1] !== name) viewStack.push(name); }
@@ -528,11 +529,12 @@
     Object.keys(tabs).forEach(function(t){
       var b = document.getElementById(tabs[t]); if (b) b.classList.toggle('on', viewStack[0]===t);
     });
-    setTimeout(focusFirst, 30);
+    setTimeout(function(){ focusFirst(back); }, 30);
   }
-  function focusFirst(){
+  function focusFirst(preserveScroll){
     var v = document.querySelector('.view.active'); if(!v) return;
-    var f = v.querySelector('.focusable'); if (f) f.focus();
+    var f = v.querySelector('.focusable'); if (!f) return;
+    try { f.focus(preserveScroll ? { preventScroll: true } : undefined); } catch(e){ f.focus(); }
   }
   function focusables(){
     if (document.body.className.indexOf('playing') !== -1){
@@ -575,6 +577,7 @@
     else show('home', false);
   }
   function setTab(t){
+    stopPairing();
     viewStack = [t];
     show(t, false);
     if (t === 'home') buildHomeRows(false);
@@ -623,7 +626,7 @@
     else if (k===39){ if(!inInput){ moveFocus2D(1,0); e.preventDefault(); } }
     else if (k===38){ moveFocus2D(0,-1); e.preventDefault(); }
     else if (k===40){ moveFocus2D(0,1); e.preventDefault(); }
-    else if (k===461 || k===8 || e.key==='GoBack' || e.key==='BrowserBack'){ goBack(); e.preventDefault(); }
+    else if (k===461 || e.key==='GoBack' || e.key==='BrowserBack' || (k===8 && !inInput)){ goBack(); e.preventDefault(); }
     else if (k===13 && inInput){
       var v = document.querySelector('.view.active');
       if (v.id==='view-addons' && document.activeElement.id==='addonUrl') addAddon();
@@ -642,6 +645,7 @@
     var json = JSON.stringify(a);
     try { LS.setItem('addons', json); } catch(e){}
     mirrorAddons(json);
+    manifestCache = {};                        // a changed add-on list invalidates cached manifests
     try { buildHomeRows(true); } catch(e){}   // any add-on change reshapes Home
   }
   function mirrorAddons(json){ try { idbSave('addons', json); } catch(e){} db8Save('addons', json); }
@@ -942,19 +946,25 @@
     };
     return card;
   }
+  var catSeq = 0;
   async function loadCatalog(){
+    var seq = ++catSeq;
     var list = document.getElementById('catList');
     list.innerHTML = skeletons(18);
     list.parentNode.scrollTop = 0;
     setStatus('Loading…','info');
     try {
       var d = await getJson(catalogUrl());
+      if (seq !== catSeq) return;
       var metas = d.metas||[];
       list.innerHTML='';
       if (!metas.length){ list.innerHTML='<div class="empty">No items in this catalog.</div>'; setStatus('No items.','info'); return; }
       metas.slice(0,300).forEach(function(meta){ list.appendChild(cardEl(meta)); });
       setStatus(metas.length+' items','ok'); focusFirst();
-    } catch(err){ list.innerHTML='<div class="empty">Failed to load catalog: '+esc(err.message)+'</div>'; setStatus('Failed to load catalog.','err'); }
+    } catch(err){
+      if (seq !== catSeq) return;
+      list.innerHTML='<div class="empty">Failed to load catalog: '+esc(err.message)+'</div>'; setStatus('Failed to load catalog.','err');
+    }
   }
 
   // ---------- home rows + global search (Stremio-style) ----------
@@ -968,7 +978,7 @@
     document.getElementById('catTitle').textContent = a.name || m.name || 'Catalog';
     renderGenres(); show('catalog'); loadCatalog();
   }
-  var homeSig = null, homeBuiltAt = 0;
+  var homeSig = null, homeBuiltAt = 0, homeSeq = 0;
   function buildHomeRows(force){
     var wrap = document.getElementById('homeRows'); if (!wrap) return;
     var addons = getAddons();
@@ -976,6 +986,7 @@
     // keep what's on screen unless the add-on list changed or the rows are stale
     if (!force && sig === homeSig && (Date.now() - homeBuiltAt) < 300000) return;
     homeSig = sig; homeBuiltAt = Date.now();
+    var seq = ++homeSeq;
     if (!addons.length){
       wrap.innerHTML = '<div class="panel" id="homeEmpty">' +
         '<div class="brand" style="font-size:1.9rem"><span class="brand-mark">◆</span><span class="brand-name">NEBULA</span></div>' +
@@ -985,18 +996,18 @@
       return;
     }
     wrap.innerHTML = '';
-    var manifestsLeft = addons.length;
-    function manifestDone(){
-      manifestsLeft--;
-      if (!manifestsLeft && !wrap.childNodes.length){
-        wrap.innerHTML = '<div class="empty">Couldn’t reach your add-ons right now. ' +
-          '<button class="seeall focusable" id="homeRetry" style="margin-left:8px">Retry</button></div>';
-        document.getElementById('homeRetry').onclick = function(){ buildHomeRows(true); };
-      }
+    var manifestsLeft = addons.length, catsLeft = 0, rowsShown = 0;
+    function settle(){
+      if (seq !== homeSeq || manifestsLeft || catsLeft || rowsShown) return;
+      wrap.innerHTML = '<div class="empty">Couldn’t reach your add-ons right now. ' +
+        '<button class="seeall focusable" id="homeRetry" style="margin-left:8px">Retry</button></div>';
+      document.getElementById('homeRetry').onclick = function(){ buildHomeRows(true); };
     }
     addons.forEach(function(a){
       getManifest(a.url).then(function(m){
+        if (seq !== homeSeq) return;
         var cats = (m.catalogs||[]).slice(0,3);
+        catsLeft += cats.length;
         cats.forEach(function(c){
           var head = document.createElement('div'); head.className='rowhead';
           var sub = (c.name||c.id||'') + (c.type ? ' · ' + c.type.charAt(0).toUpperCase()+c.type.slice(1) : '');
@@ -1010,19 +1021,26 @@
           wrap.appendChild(head); wrap.appendChild(row);
           var u = a.base + '/catalog/' + encodeURIComponent(c.type) + '/' + encodeURIComponent(c.id) + '.json';
           getJson(u).then(function(d){
+            if (seq !== homeSeq) return;
             var metas = (d.metas||[]).slice(0,15);
             row.innerHTML = '';
             if (!metas.length){ head.style.display='none'; row.style.display='none'; return; }
+            rowsShown++;
             metas.forEach(function(meta){ row.appendChild(cardEl(meta, a, m, c)); });
             // boot on TV: give the first loaded row focus if nothing has it yet
             if (document.activeElement === document.body) focusFirst();
-          }).catch(function(){ head.style.display='none'; row.style.display='none'; });
+          }).catch(function(){
+            if (seq !== homeSeq) return;
+            head.style.display='none'; row.style.display='none';
+          }).then(function(){ catsLeft--; settle(); });
         });
-        manifestDone();
-      }).catch(function(){ manifestDone(); });
+        manifestsLeft--; settle();
+      }).catch(function(){ manifestsLeft--; settle(); });
     });
   }
+  var searchSeq = 0;
   function runGlobalSearch(){
+    var seq = ++searchSeq;
     var input = document.getElementById('globalSearch');
     var q = (input.value||'').trim();
     document.getElementById('globalSearchClear').style.display = q ? '' : 'none';
@@ -1040,6 +1058,7 @@
         if (!sc) return;
         var u = a.base + '/catalog/' + encodeURIComponent(sc.type) + '/' + encodeURIComponent(sc.id) + '/search=' + encodeURIComponent(q) + '.json';
         return getJson(u).then(function(d){
+          if (seq !== searchSeq) return;
           var metas = d.metas||[];
           if (!metas.length) return;
           any = true;
@@ -1052,7 +1071,7 @@
         });
       }).catch(function(){}).then(function(){
         pending--;
-        if (!pending){
+        if (!pending && seq === searchSeq){
           if (!any) wrap.innerHTML = '<div class="empty">No matches for “'+esc(q)+'”.</div>';
           setStatus(any ? 'Here\'s what matched.' : 'No matches.', any ? 'ok' : 'info');
         }
@@ -1189,14 +1208,18 @@
   }
   async function stopPlayer(){
     clearInterval(puiState.tick);
+    clearTimeout(puiState.idleTimer);
     closePuiMenu(false);
     if (player){ try{ await player.destroy(); }catch(e){} player=null; }
     video.style.display='none';
     try { video.playbackRate = 1; } catch(e){}
   }
+  var playSeq = 0;
   async function playUrl(rawUrl, clearKeys, title, subtitles){
     if (!initShaka()) return;
+    var seq = ++playSeq;
     await stopPlayer();
+    if (seq !== playSeq) return;
     show('player');
     puiReset(title || '');
     setStatus('Loading…','info');
@@ -1212,6 +1235,7 @@
       }
     });
     if (!clearKeys && /\.mpd(\?|#|$)/i.test(rawUrl)){ setStatus('Fetching DRM key…','info'); clearKeys = await resolveLaurlKeys(rawUrl); }
+    if (seq !== playSeq) return;
     if (clearKeys){
       player.getNetworkingEngine().registerResponseFilter(function(type, response){
         if (type === shaka.net.NetworkingEngine.RequestType.MANIFEST){
@@ -1227,6 +1251,7 @@
     }
     try {
       await player.load(cleanUrl(rawUrl));
+      if (seq !== playSeq) return;
       setStatus('Playing.','ok');
       try { await video.play(); } catch(e){}
       $id('puiSpin').style.display = 'none';
@@ -1241,7 +1266,11 @@
         } catch(e){}
       });
     }
-    catch(err){ var code=(err&&(err.code||err.message))||'unknown'; var extra=err&&err.data?(' — '+JSON.stringify(err.data).slice(0,180)):''; setStatus('Failed to load ('+code+')'+extra,'err'); $id('puiSpin').style.display='none'; }
+    catch(err){
+      if (seq !== playSeq) return;
+      var code=(err&&(err.code||err.message))||'unknown'; var extra=err&&err.data?(' — '+JSON.stringify(err.data).slice(0,180)):'';
+      setStatus('Failed to load ('+code+')'+extra,'err'); $id('puiSpin').style.display='none';
+    }
   }
   function playStream(s){
     playUrl(s.url, extractClearKeys(s), (ctx.item && ctx.item.name) || s.name || 'Nebula', s.subtitles || []);

@@ -1,15 +1,15 @@
 {
   "id": "com.nuvio.clearkey.player",
-  "version": "1.11.0",
+  "version": "1.11.1",
   "type": "web",
   "title": "Nebula",
   "appDescription": "Nebula \u2014 add-on browser + player for webOS. TV-sized UI (big buttons + focus), poster grid, catalog search, quality picker. Plays and decrypts every format.",
   "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
   "sourceUrl": "https://github.com/retrocodes12/nebula-player",
   "rootRequired": false,
-  "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.11.0/com.nuvio.clearkey.player_1.11.0_all.ipk",
+  "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.11.1/com.nuvio.clearkey.player_1.11.1_all.ipk",
   "ipkHash": {
-    "sha256": "82c5ebe70401f41f1fac2c73641771490b695b013ec37d15f2b674d288e902d0"
+    "sha256": "7e15cff509b129283c767027c493541f353236823cffa5049a3996aca7f989af"
   },
-  "ipkSize": 288504
+  "ipkSize": 288802
 }

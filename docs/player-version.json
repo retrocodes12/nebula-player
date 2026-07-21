@@ -1,5 +1,5 @@
 {
-  "version": "2026.07.23",
+  "version": "2026.07.23.2",
   "url": "https://retrocodes12.github.io/nebula-player/",
-  "notes": "A real player UI \u2014 subtitles, audio tracks, quality, speed, and a proper seek bar"
+  "notes": "Stability fixes \u2014 smoother search, back navigation, and playback"
 }
