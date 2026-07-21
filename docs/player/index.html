@@ -44,6 +44,7 @@
   #updBanner .focusable:focus { outline:2px solid #fff; }
   body.upd .view { top:54px; }
   body.upd #rail { top:54px; }
+  body.playing #updBanner { display:none; }
   .scroller { flex:1 1 auto; min-height:0; overflow-y:auto;
     padding: 8px var(--pad) var(--pad); scrollbar-width:thin; scrollbar-color:#33333c transparent; }
   .scroller::-webkit-scrollbar { width:8px; } .scroller::-webkit-scrollbar-thumb { background:#33333c; border-radius:4px; }
@@ -218,12 +219,56 @@
   .sub { color:var(--muted); margin:.2rem 0 1.2rem; }
   code { background:#000; color:#46D369; padding:.1rem .35rem; border-radius:4px; }
 
-  /* ---- quality picker (over the video during playback) ---- */
-  #qWrap { position:fixed; top:16px; right:16px; z-index:5; display:none; }
-  .qbtn { display:flex; align-items:center; font-size:.95rem; font-weight:600; padding:.5rem 1rem; border-radius:999px;
-    border:0; background:rgba(12,12,16,.85); color:#fff; cursor:pointer; }
-  .qbtn svg { width:1.05em; height:1.05em; margin-right:7px; display:block; }
-  .qbtn.focusable:focus, .qbtn:hover { box-shadow:0 0 0 2px #fff; }
+  /* ---- custom player controls (over the video during playback) ---- */
+  #pui { position:fixed; top:0; left:0; right:0; bottom:0; z-index:5; display:none; }
+  body.playing #pui { display:block; }
+  #pui.idle { cursor:none; }
+  #pui .pui-chrome { transition:opacity .2s ease; }
+  #pui.idle .pui-chrome, #pui.idle .pui-shade { opacity:0; pointer-events:none; }
+  .pui-shade { position:absolute; left:0; right:0; height:130px; pointer-events:none; transition:opacity .2s ease; }
+  .pui-shade-top { top:0; background:linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,0)); }
+  .pui-shade-bot { bottom:0; height:170px; background:linear-gradient(0deg, rgba(0,0,0,.75), rgba(0,0,0,0)); }
+  .pui-top { position:absolute; top:0; left:0; right:0; display:flex; align-items:center; padding:16px 18px; }
+  .pui-top > * + * { margin-left:14px; }
+  .pui-title { font-size:1.15rem; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    min-width:0; flex:1; text-shadow:0 1px 2px rgba(0,0,0,.6); }
+  .pui-live { flex:0 0 auto; background:var(--red); color:#fff; font-size:.72rem; font-weight:800;
+    letter-spacing:.06em; padding:.25rem .6rem; border-radius:5px; }
+  .pui-round { display:flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:50%;
+    border:0; background:rgba(12,12,16,.6); color:#fff; font-size:1.4rem; line-height:1; cursor:pointer;
+    transition:background .12s; }
+  .pui-round svg { width:22px; height:22px; }
+  .pui-round:hover { background:rgba(40,40,48,.8); }
+  .pui-round.focusable:focus { box-shadow:0 0 0 2px #fff; }
+  .pui-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:flex; align-items:center; }
+  .pui-center > * + * { margin-left:34px; }
+  .pui-skip { position:relative; width:56px; height:56px; }
+  .pui-skip svg { width:26px; height:26px; }
+  .pui-skipnum { position:absolute; bottom:8px; font-size:.55rem; font-weight:700; }
+  .pui-playpause { width:72px; height:72px; }
+  .pui-playpause svg { width:34px; height:34px; }
+  .pui-bottom { position:absolute; left:0; right:0; bottom:0; padding:0 18px 14px; }
+  .pui-seek { position:relative; padding:10px 0; cursor:pointer; outline:none; }
+  .pui-rail { position:relative; height:4px; border-radius:2px; background:rgba(255,255,255,.22); }
+  .pui-buf { position:absolute; top:0; left:0; bottom:0; width:0; border-radius:2px; background:rgba(255,255,255,.35); }
+  .pui-fill { position:absolute; top:0; left:0; bottom:0; width:0; border-radius:2px; background:var(--red); }
+  .pui-knob { position:absolute; top:50%; left:0; width:13px; height:13px; margin:-6.5px 0 0 -6.5px; border-radius:50%;
+    background:var(--red); transform:scale(0); transition:transform .12s; }
+  .pui-seek:hover .pui-knob, .pui-seek:focus .pui-knob { transform:scale(1); }
+  .pui-seek:focus .pui-rail { box-shadow:0 0 0 2px #fff; }
+  .pui-row { display:flex; align-items:center; margin-top:2px; }
+  .pui-row > * + * { margin-left:10px; }
+  .pui-flex { flex:1; }
+  .pui-time { font-size:.9rem; color:#e0e0e4; font-variant-numeric:tabular-nums; text-shadow:0 1px 2px rgba(0,0,0,.6); }
+  .pui-btn { font-size:.88rem; font-weight:600; padding:.45rem 1rem; border-radius:999px; border:0;
+    background:rgba(12,12,16,.6); color:#fff; cursor:pointer; transition:background .12s; }
+  .pui-btn:hover { background:rgba(40,40,48,.8); }
+  .pui-btn.focusable:focus { box-shadow:0 0 0 2px #fff; }
+  #puiMenu { position:absolute; bottom:64px; right:18px; top:auto; }
+  .pui-spin { position:absolute; top:50%; left:50%; width:52px; height:52px; margin:-26px 0 0 -26px;
+    border:4px solid rgba(255,255,255,.25); border-top-color:#fff; border-radius:50%;
+    animation:puispin .9s linear infinite; pointer-events:none; }
+  @keyframes puispin { to { transform:rotate(360deg); } }
   .qmenu { display:none; position:absolute; top:50px; right:0; min-width:170px; max-height:60vh; overflow-y:auto;
     background:#16161C; border:1px solid var(--line2); border-radius:10px; padding:6px;
     box-shadow:0 12px 32px rgba(0,0,0,.55); scrollbar-width:thin; scrollbar-color:#33333c transparent; }
@@ -282,9 +327,20 @@
   html.tv .streamsec { gap:14px; }
   html.tv .page-title { font-size:1.85rem; }
   html.tv #qrbox svg { width:380px; height:380px; }
-  html.tv .qbtn { padding:.6rem 1.2rem; }
-  html.tv .qmenu { min-width:255px; top:66px; }
+  html.tv .qmenu { min-width:255px; }
   html.tv .qopt { padding:.7rem 1rem; }
+  html.tv .pui-top { padding:24px 30px; }
+  html.tv .pui-bottom { padding:0 30px 22px; }
+  html.tv .pui-round { width:56px; height:56px; }
+  html.tv .pui-skip { width:68px; height:68px; }
+  html.tv .pui-playpause { width:86px; height:86px; }
+  html.tv .pui-playpause svg { width:40px; height:40px; }
+  html.tv .pui-btn { font-size:.95rem; padding:.55rem 1.2rem; }
+  html.tv .pui-rail { height:6px; }
+  html.tv .pui-knob { width:17px; height:17px; margin:-8.5px 0 0 -8.5px; }
+  html.tv .pui-seek:focus .pui-rail { box-shadow:0 0 0 3px #fff; }
+  html.tv .pui-round.focusable:focus, html.tv .pui-btn.focusable:focus { box-shadow:0 0 0 3px #fff; }
+  html.tv #puiMenu { bottom:78px; right:30px; }
   html.tv #updBanner { padding:14px 22px; }
   html.tv #status { font-size:1.02rem; padding:.75rem 1.4rem .75rem 2.2rem; bottom:30px; }
   /* focus from the couch: a clear white ring, nothing else */
@@ -297,7 +353,7 @@
 </style>
 </head>
 <body>
-  <video id="video" controls autoplay playsinline></video>
+  <video id="video" autoplay playsinline></video>
 
   <div id="updBanner">
     <span id="updText"></span>
@@ -305,10 +361,41 @@
     <button id="updX" class="focusable" title="Dismiss">×</button>
   </div>
 
-  <!-- quality picker (shown only while playing a multi-quality stream) -->
-  <div id="qWrap">
-    <button id="qBtn" class="focusable qbtn" title="Quality"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'/></svg><span id="qCur">Auto</span></button>
-    <div id="qMenu" class="qmenu"><div class="qtitle">Quality</div></div>
+  <!-- custom player controls (shown during playback) -->
+  <div id="pui">
+    <div class="pui-shade pui-shade-top"></div>
+    <div class="pui-shade pui-shade-bot"></div>
+    <div class="pui-top pui-chrome">
+      <button id="puiBack" class="focusable pui-round" title="Back">‹</button>
+      <div id="puiTitle" class="pui-title"></div>
+      <span id="puiLiveBadge" class="pui-live" style="display:none">LIVE</span>
+    </div>
+    <div class="pui-center pui-chrome">
+      <button id="puiRew" class="focusable pui-round pui-skip" title="Back 10 seconds">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 17a5 5 0 1 0 0-10H5"/><path d="m8 4-3 3 3 3"/></svg>
+        <span class="pui-skipnum">10</span></button>
+      <button id="puiPlay" class="focusable pui-round pui-playpause" title="Play/Pause">
+        <svg id="puiIconPlay" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="puiIconPause" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+      <button id="puiFwd" class="focusable pui-round pui-skip" title="Forward 10 seconds">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 17A5 5 0 1 1 13 7h6"/><path d="m16 4 3 3-3 3"/></svg>
+        <span class="pui-skipnum">10</span></button>
+    </div>
+    <div class="pui-bottom pui-chrome">
+      <div id="puiSeek" class="focusable pui-seek" tabindex="0" title="Seek">
+        <div class="pui-rail"><div id="puiBuf" class="pui-buf"></div><div id="puiFill" class="pui-fill"></div><div id="puiKnob" class="pui-knob"></div></div>
+      </div>
+      <div class="pui-row">
+        <span id="puiTime" class="pui-time">0:00 / 0:00</span>
+        <span class="pui-flex"></span>
+        <button id="puiSubs" class="focusable pui-btn" style="display:none">Subtitles</button>
+        <button id="puiAudio" class="focusable pui-btn" style="display:none">Audio</button>
+        <button id="puiQual" class="focusable pui-btn" style="display:none">Quality</button>
+        <button id="puiSpeed" class="focusable pui-btn">1×</button>
+      </div>
+    </div>
+    <div id="puiMenu" class="qmenu"></div>
+    <div id="puiSpin" class="pui-spin" style="display:none"></div>
   </div>
 
   <!-- nav rail (Home / Search / Add-ons) -->
@@ -410,7 +497,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.07.22.2';
+  var PLAYER_VERSION = '2026.07.23';
 
   // TV mode: 10-foot sizing on webOS (PalmSystem/ServiceBridge only exist there);
   // ?tv=1 forces it anywhere for previewing.
@@ -448,6 +535,11 @@
     var f = v.querySelector('.focusable'); if (f) f.focus();
   }
   function focusables(){
+    if (document.body.className.indexOf('playing') !== -1){
+      if (!pui || pui.className === 'idle') return [];
+      var scope = puiState.menu ? puiMenuEl : pui;
+      return Array.prototype.slice.call(scope.querySelectorAll('.focusable')).filter(function(el){ return el.offsetParent !== null; });
+    }
     var v = document.querySelector('.view.active');
     var list = v ? Array.prototype.slice.call(v.querySelectorAll('.focusable')) : [];
     // the nav rail is reachable by D-pad whenever we're not in playback
@@ -493,17 +585,39 @@
     // While playing, the quality overlay owns D-pad/keys (so it's reachable on TV).
     if (video.style.display==='block'){
       var isBack = (k===461 || k===8 || e.key==='GoBack' || e.key==='BrowserBack');
-      if (isBack){ if(qOpen){ closeQMenu(); } else { goBack(); } e.preventDefault(); return; }
-      if (qOpen){
-        if (k===38){ moveQMenu(-1); e.preventDefault(); return; }
-        if (k===40){ moveQMenu(1); e.preventDefault(); return; }
-        if (k===13){ var a=document.activeElement; if(a&&a.classList.contains('qopt')) a.click(); e.preventDefault(); return; }
-        if (k===37||k===39){ e.preventDefault(); return; }
+      if (isBack){
+        if (puiState.menu){ closePuiMenu(true); }
+        else if (pui.className !== 'idle'){ puiIdle(); }
+        else { goBack(); }
+        e.preventDefault(); return;
+      }
+      if (puiState.menu){
+        if (k===38){ movePuiMenu(-1); e.preventDefault(); }
+        else if (k===40){ movePuiMenu(1); e.preventDefault(); }
+        else if (k===13){ var a=document.activeElement; if(a&&a.classList.contains('qopt')) a.click(); e.preventDefault(); }
+        else if (k===37||k===39){ e.preventDefault(); }
         return;
       }
-      // menu closed: Up or Enter opens the quality menu when available
-      if ((k===38||k===13) && qWrap && qWrap.style.display!=='none'){ openQMenu(); e.preventDefault(); return; }
-      return; // otherwise let native video controls handle the key
+      if (pui.className === 'idle'){
+        // controls hidden: arrows seek straight away, anything else wakes the UI
+        puiShow();
+        if (k===37){ seekBy(-10); }
+        else if (k===39){ seekBy(10); }
+        else if (k===32){ togglePlay(); }
+        else if (k===13){ setTimeout(function(){ $id('puiPlay').focus(); }, 30); }
+        e.preventDefault(); return;
+      }
+      // controls visible: arrows move focus (left/right on the seek bar seek)
+      puiShow();
+      var ae = document.activeElement;
+      if (ae && ae.id==='puiSeek' && (k===37||k===39)){ seekBy(k===37?-10:10); e.preventDefault(); return; }
+      if (k===37){ moveFocus2D(-1,0); e.preventDefault(); }
+      else if (k===39){ moveFocus2D(1,0); e.preventDefault(); }
+      else if (k===38){ moveFocus2D(0,-1); e.preventDefault(); }
+      else if (k===40){ moveFocus2D(0,1); e.preventDefault(); }
+      else if (k===32){ togglePlay(); e.preventDefault(); }
+      else if (k===13 && (!ae || ae===document.body || ae===pui)){ togglePlay(); e.preventDefault(); }
+      return;
     }
     if (k===37){ if(!inInput){ moveFocus2D(-1,0); e.preventDefault(); } }
     else if (k===39){ if(!inInput){ moveFocus2D(1,0); e.preventDefault(); } }
@@ -1073,17 +1187,25 @@
     if (!shaka.Player.isBrowserSupported()){ setStatus('This device is not supported by Shaka Player.','err'); return false; }
     return true;
   }
-  async function stopPlayer(){ if (player){ try{ await player.destroy(); }catch(e){} player=null; } video.style.display='none'; hideQuality(); }
-  async function playUrl(rawUrl, clearKeys){
+  async function stopPlayer(){
+    clearInterval(puiState.tick);
+    closePuiMenu(false);
+    if (player){ try{ await player.destroy(); }catch(e){} player=null; }
+    video.style.display='none';
+    try { video.playbackRate = 1; } catch(e){}
+  }
+  async function playUrl(rawUrl, clearKeys, title, subtitles){
     if (!initShaka()) return;
     await stopPlayer();
     show('player');
+    puiReset(title || '');
     setStatus('Loading…','info');
     player = new shaka.Player();
     try { await player.attach(video); } catch(e){}
     player.addEventListener('error', function(ev){ var d=ev.detail||{}; setStatus('Playback error '+(d.code||'?'),'err'); });
-    player.addEventListener('adaptation', function(){ if(!qOpen) buildQualityMenu(); });
-    player.addEventListener('trackschanged', function(){ if(!qOpen) buildQualityMenu(); });
+    player.addEventListener('adaptation', function(){ if(!puiState.menu) puiRefreshButtons(); });
+    player.addEventListener('trackschanged', function(){ if(!puiState.menu) puiRefreshButtons(); });
+    player.addEventListener('buffering', function(ev){ $id('puiSpin').style.display = ev.buffering ? 'block' : 'none'; });
     player.getNetworkingEngine().registerRequestFilter(function(type, request){
       if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT){
         if (!request.headers['Range'] && !request.headers['range']){ request.headers['Range'] = 'bytes=0-'; }
@@ -1103,17 +1225,34 @@
       });
       player.configure({ drm: { clearKeys: clearKeys } });
     }
-    try { await player.load(cleanUrl(rawUrl)); setStatus('Playing.','ok'); try { await video.play(); } catch(e){} buildQualityMenu(); }
-    catch(err){ var code=(err&&(err.code||err.message))||'unknown'; var extra=err&&err.data?(' — '+JSON.stringify(err.data).slice(0,180)):''; setStatus('Failed to load ('+code+')'+extra,'err'); }
+    try {
+      await player.load(cleanUrl(rawUrl));
+      setStatus('Playing.','ok');
+      try { await video.play(); } catch(e){}
+      $id('puiSpin').style.display = 'none';
+      puiRefreshButtons(); puiTick();
+      // add-on-provided subtitle files become selectable text tracks
+      (subtitles||[]).forEach(function(sub){
+        if (!sub || !sub.url || !player.addTextTrackAsync) return;
+        var mime = /\.srt(\?|#|$)/i.test(sub.url) ? 'text/srt' : 'text/vtt';
+        try {
+          player.addTextTrackAsync(sub.url, sub.lang || 'und', 'subtitles', mime, '', sub.lang || 'Subtitles')
+            .then(function(){ puiRefreshButtons(); }).catch(function(){});
+        } catch(e){}
+      });
+    }
+    catch(err){ var code=(err&&(err.code||err.message))||'unknown'; var extra=err&&err.data?(' — '+JSON.stringify(err.data).slice(0,180)):''; setStatus('Failed to load ('+code+')'+extra,'err'); $id('puiSpin').style.display='none'; }
   }
-  function playStream(s){ playUrl(s.url, extractClearKeys(s)); }
+  function playStream(s){
+    playUrl(s.url, extractClearKeys(s), (ctx.item && ctx.item.name) || s.name || 'Nebula', s.subtitles || []);
+  }
 
-  // ---------- quality picker ----------
-  var qWrap = document.getElementById('qWrap');
-  var qBtn = document.getElementById('qBtn');
-  var qMenu = document.getElementById('qMenu');
-  var qCur = document.getElementById('qCur');
-  var qOpen = false;
+  // ---------- player UI (custom controls: transport, seek, subtitles, audio, quality, speed) ----------
+  var pui = document.getElementById('pui');
+  var puiMenuEl = document.getElementById('puiMenu');
+  var puiState = { menu:null, opener:null, idleTimer:null, tick:null };
+  function $id(x){ return document.getElementById(x); }
+
   function heightLabel(h){ return h ? (h + 'p') : 'Auto'; }
   function videoTracks(){ try { return (player.getVariantTracks()||[]).filter(function(t){ return t.height; }); } catch(e){ return []; } }
   function distinctHeights(tracks){
@@ -1121,25 +1260,143 @@
     tracks.forEach(function(t){ if(!seen[t.height]){ seen[t.height]=1; out.push(t.height); } });
     out.sort(function(a,b){ return b-a; }); return out;
   }
-  function hideQuality(){ qOpen=false; if(qMenu) qMenu.classList.remove('open'); if(qWrap) qWrap.style.display='none'; }
-  function buildQualityMenu(){
-    if (!player || !qWrap){ hideQuality(); return; }
-    var tracks = videoTracks(), heights = distinctHeights(tracks);
-    if (heights.length < 2){ hideQuality(); return; }   // nothing worth choosing
-    var abrOn = true; try { abrOn = player.getConfiguration().abr.enabled; } catch(e){}
-    var activeH = 0; if (!abrOn) tracks.forEach(function(t){ if(t.active) activeH = t.height; });
-    qWrap.style.display = 'block';
-    qCur.textContent = abrOn ? 'Auto' : heightLabel(activeH);
-    // rebuild list
-    qMenu.innerHTML = '<div class="qtitle">Quality</div>';
-    function addOpt(label, height, selected){
-      var b=document.createElement('button'); b.className='qopt focusable'+(selected?' on':''); b.tabIndex=0;
-      b.textContent=label; b.onclick=function(){ selectQuality(height); };
-      b.onkeydown=function(ev){ if(ev.keyCode===13){ selectQuality(height); ev.preventDefault(); } };
-      qMenu.appendChild(b);
+  function langName(code){
+    if (!code || code === 'und') return 'Unknown';
+    try { var dn = new Intl.DisplayNames(['en'], { type:'language' }); return dn.of(code) || code; }
+    catch(e){ return code; }
+  }
+  function fmtT(s){
+    if (!isFinite(s) || s < 0) s = 0;
+    s = Math.floor(s);
+    var h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+    function p(n){ return (n<10?'0':'')+n; }
+    return h ? (h+':'+p(m)+':'+p(sec)) : (m+':'+p(sec));
+  }
+  function puiRange(){
+    try { var r = player.seekRange(); if (r && isFinite(r.start) && isFinite(r.end) && r.end > r.start) return r; } catch(e){}
+    var d = video.duration; return { start:0, end:(isFinite(d)&&d>0)?d:0 };
+  }
+  function puiIsLive(){ try { return !!(player && player.isLive()); } catch(e){ return false; } }
+  function seekBy(delta){
+    var r = puiRange(); if (r.end <= r.start) return;
+    var t = video.currentTime + delta;
+    if (t < r.start) t = r.start; if (t > r.end) t = r.end;
+    video.currentTime = t; puiTick(); puiShow();
+  }
+  function puiSeekPct(p){
+    var r = puiRange(); if (r.end <= r.start) return;
+    if (p<0) p=0; if (p>1) p=1;
+    video.currentTime = r.start + (r.end-r.start)*p; puiTick();
+  }
+  function puiTick(){
+    if (!player) return;
+    var r = puiRange(), t = video.currentTime;
+    var span = r.end - r.start, pct = span>0 ? (t-r.start)/span : 0;
+    if (pct<0) pct=0; if (pct>1) pct=1;
+    $id('puiFill').style.width = (pct*100)+'%';
+    $id('puiKnob').style.left = (pct*100)+'%';
+    var buf = 0;
+    try { var b = video.buffered; if (b && b.length && span>0) buf = (b.end(b.length-1)-r.start)/span; } catch(e){}
+    if (buf<0) buf=0; if (buf>1) buf=1;
+    $id('puiBuf').style.width = (buf*100)+'%';
+    var live = puiIsLive();
+    $id('puiLiveBadge').style.display = live ? '' : 'none';
+    $id('puiTime').textContent = live
+      ? (r.end - t > 12 ? '-'+fmtT(r.end - t)+' behind live' : 'At the live edge')
+      : (fmtT(t - r.start) + ' / ' + fmtT(span));
+  }
+  function puiSyncPlayIcon(){
+    var paused = video.paused;
+    $id('puiIconPlay').style.display = paused ? '' : 'none';
+    $id('puiIconPause').style.display = paused ? 'none' : '';
+  }
+  function puiShow(){
+    if (!pui) return;
+    pui.className = '';
+    clearTimeout(puiState.idleTimer);
+    puiState.idleTimer = setTimeout(function(){
+      if (!video.paused && !puiState.menu) puiIdle();
+    }, 3500);
+  }
+  function puiIdle(){
+    closePuiMenu(false);
+    if (document.activeElement && pui.contains(document.activeElement)) document.activeElement.blur();
+    pui.className = 'idle';
+  }
+  function togglePlay(){
+    if (!player) return;
+    if (video.paused){ try { video.play(); } catch(e){} } else { video.pause(); }
+    puiShow();
+  }
+
+  // ---- shared menu (quality / subtitles / audio / speed) ----
+  function menuOpt(label, selected, fn){
+    var b=document.createElement('button'); b.className='qopt focusable'+(selected?' on':''); b.tabIndex=0;
+    b.textContent=label;
+    b.onclick=function(){ fn(); };
+    b.onkeydown=function(ev){ if(ev.keyCode===13){ fn(); ev.preventDefault(); ev.stopPropagation(); } };
+    puiMenuEl.appendChild(b);
+  }
+  function openPuiMenu(kind, opener){
+    if (!player) return;
+    puiMenuEl.innerHTML = '';
+    var t=document.createElement('div'); t.className='qtitle';
+    t.textContent = { quality:'Quality', subs:'Subtitles', audio:'Audio', speed:'Speed' }[kind];
+    puiMenuEl.appendChild(t);
+    if (kind==='quality'){
+      var tracks = videoTracks(), heights = distinctHeights(tracks);
+      var abrOn=true; try { abrOn = player.getConfiguration().abr.enabled; } catch(e){}
+      var activeH=0; if(!abrOn) tracks.forEach(function(v){ if(v.active) activeH=v.height; });
+      menuOpt('Auto', abrOn, function(){ selectQuality(0); });
+      heights.forEach(function(h){ menuOpt(heightLabel(h), !abrOn&&h===activeH, function(){ selectQuality(h); }); });
+    } else if (kind==='subs'){
+      var tt=[]; try { tt = player.getTextTracks()||[]; } catch(e){}
+      var visible=false; try { visible = player.isTextTrackVisible(); } catch(e){}
+      menuOpt('Off', !visible, function(){
+        try { player.setTextTrackVisibility(false); } catch(e){}
+        setStatus('Subtitles off.','ok'); closePuiMenu(true);
+      });
+      tt.forEach(function(tr){
+        var label = tr.label || langName(tr.language) || ('Track '+tr.id);
+        menuOpt(label, visible && tr.active, function(){
+          try { player.selectTextTrack(tr); player.setTextTrackVisibility(true); } catch(e){}
+          setStatus('Subtitles: '+label,'ok'); closePuiMenu(true);
+        });
+      });
+    } else if (kind==='audio'){
+      var langs=[]; try { langs = player.getAudioLanguagesAndRoles()||[]; } catch(e){}
+      var curLang=''; try { (player.getVariantTracks()||[]).forEach(function(v){ if(v.active) curLang=v.language; }); } catch(e){}
+      langs.forEach(function(l){
+        var label = l.label || (langName(l.language) + (l.role ? ' ('+l.role+')' : ''));
+        menuOpt(label, l.language===curLang, function(){
+          try { player.selectAudioLanguage(l.language, l.role); } catch(e){}
+          setStatus('Audio: '+label,'ok'); closePuiMenu(true);
+        });
+      });
+    } else if (kind==='speed'){
+      [0.5,0.75,1,1.25,1.5,2].forEach(function(rate){
+        menuOpt(rate+'×', video.playbackRate===rate, function(){
+          video.playbackRate = rate;
+          $id('puiSpeed').textContent = rate+'×';
+          setStatus('Speed: '+rate+'×','ok'); closePuiMenu(true);
+        });
+      });
     }
-    addOpt('Auto', 0, abrOn);
-    heights.forEach(function(h){ addOpt(heightLabel(h), h, !abrOn && h===activeH); });
+    puiMenuEl.classList.add('open');
+    puiState.menu = kind; puiState.opener = opener || null;
+    var on = puiMenuEl.querySelector('.qopt.on') || puiMenuEl.querySelector('.qopt');
+    if (on) setTimeout(function(){ on.focus(); }, 10);
+    puiShow();
+  }
+  function closePuiMenu(refocus){
+    if (puiMenuEl) puiMenuEl.classList.remove('open');
+    var op = puiState.opener;
+    puiState.menu = null; puiState.opener = null;
+    if (refocus && op) op.focus();
+  }
+  function movePuiMenu(dir){
+    var opts=Array.prototype.slice.call(puiMenuEl.querySelectorAll('.qopt')); if(!opts.length) return;
+    var i=opts.indexOf(document.activeElement); i=(i<0?0:i+dir); if(i<0)i=0; if(i>=opts.length)i=opts.length-1; opts[i].focus();
   }
   function selectQuality(height){
     if (!player) return;
@@ -1153,17 +1410,66 @@
       }
     } catch(e){}
     setStatus('Quality: '+(height?heightLabel(height):'Auto'),'ok');
-    closeQMenu(); buildQualityMenu();
+    closePuiMenu(true);
   }
-  function openQMenu(){ if(!qWrap || qWrap.style.display==='none') return; buildQualityMenu(); qMenu.classList.add('open'); qOpen=true;
-    var on=qMenu.querySelector('.qopt.on')||qMenu.querySelector('.qopt'); if(on) setTimeout(function(){ on.focus(); },10); }
-  function closeQMenu(){ if(qMenu) qMenu.classList.remove('open'); qOpen=false; if(qBtn) qBtn.focus(); }
-  function toggleQMenu(){ if(qOpen) closeQMenu(); else openQMenu(); }
-  function moveQMenu(dir){
-    var opts=Array.prototype.slice.call(qMenu.querySelectorAll('.qopt')); if(!opts.length) return;
-    var i=opts.indexOf(document.activeElement); i=(i<0?0:i+dir); if(i<0)i=0; if(i>=opts.length)i=opts.length-1; opts[i].focus();
+  function puiRefreshButtons(){
+    if (!player) return;
+    $id('puiQual').style.display = distinctHeights(videoTracks()).length >= 2 ? '' : 'none';
+    var tt=[]; try { tt = player.getTextTracks()||[]; } catch(e){}
+    $id('puiSubs').style.display = tt.length ? '' : 'none';
+    var langs=[]; try { langs = player.getAudioLanguagesAndRoles()||[]; } catch(e){}
+    $id('puiAudio').style.display = langs.length >= 2 ? '' : 'none';
   }
-  if (qBtn) qBtn.onclick = toggleQMenu;
+  function puiReset(title){
+    $id('puiTitle').textContent = title || '';
+    $id('puiSpeed').textContent = '1×';
+    closePuiMenu(false);
+    $id('puiSpin').style.display = 'block';
+    $id('puiFill').style.width='0%'; $id('puiBuf').style.width='0%'; $id('puiKnob').style.left='0%';
+    $id('puiSubs').style.display='none'; $id('puiAudio').style.display='none'; $id('puiQual').style.display='none';
+    puiSyncPlayIcon();
+    puiShow();
+    clearInterval(puiState.tick);
+    puiState.tick = setInterval(function(){ if (player && video.style.display==='block') puiTick(); }, 500);
+    // TV: land focus on play/pause so OK works immediately
+    setTimeout(function(){
+      if (document.body.className.indexOf('playing') !== -1 && pui.className !== 'idle') $id('puiPlay').focus();
+    }, 60);
+  }
+
+  // ---- wiring ----
+  $id('puiBack').onclick = function(){ goBack(); };
+  $id('puiPlay').onclick = togglePlay;
+  $id('puiRew').onclick = function(){ seekBy(-10); };
+  $id('puiFwd').onclick = function(){ seekBy(10); };
+  $id('puiQual').onclick = function(){ if (puiState.menu==='quality') closePuiMenu(true); else openPuiMenu('quality', this); };
+  $id('puiSubs').onclick = function(){ if (puiState.menu==='subs') closePuiMenu(true); else openPuiMenu('subs', this); };
+  $id('puiAudio').onclick = function(){ if (puiState.menu==='audio') closePuiMenu(true); else openPuiMenu('audio', this); };
+  $id('puiSpeed').onclick = function(){ if (puiState.menu==='speed') closePuiMenu(true); else openPuiMenu('speed', this); };
+  video.addEventListener('play', function(){ puiSyncPlayIcon(); puiShow(); });
+  video.addEventListener('pause', function(){ puiSyncPlayIcon(); puiShow(); });
+  pui.addEventListener('mousemove', function(){ if (document.body.className.indexOf('playing') !== -1) puiShow(); });
+  pui.addEventListener('click', function(e){
+    var cls = e.target && e.target.className ? String(e.target.className) : '';
+    if (e.target === pui || cls.indexOf('pui-shade') !== -1){
+      if (pui.className === 'idle') puiShow(); else togglePlay();
+    }
+  });
+  // seek bar: click + drag (mouse and touch)
+  (function(){
+    var bar = $id('puiSeek'), dragging = false;
+    function pctFromEvent(ev){
+      var rect = bar.getBoundingClientRect();
+      var cx = (ev.touches && ev.touches[0]) ? ev.touches[0].clientX : ev.clientX;
+      return rect.width > 0 ? (cx - rect.left) / rect.width : 0;
+    }
+    bar.addEventListener('mousedown', function(ev){ dragging=true; puiSeekPct(pctFromEvent(ev)); ev.preventDefault(); });
+    document.addEventListener('mousemove', function(ev){ if (dragging) puiSeekPct(pctFromEvent(ev)); });
+    document.addEventListener('mouseup', function(){ dragging=false; });
+    bar.addEventListener('touchstart', function(ev){ dragging=true; puiSeekPct(pctFromEvent(ev)); }, {passive:true});
+    bar.addEventListener('touchmove', function(ev){ if (dragging) puiSeekPct(pctFromEvent(ev)); }, {passive:true});
+    bar.addEventListener('touchend', function(){ dragging=false; });
+  })();
 
   // ---------- manual ----------
   function playManual(){
@@ -1174,7 +1480,7 @@
     var frag = url.indexOf('#clearkey=');
     if (frag!==-1){ decodeURIComponent(url.slice(frag+10)).split(',').forEach(function(p){var i=p.indexOf(':');if(i>0){var k=hex(p.slice(0,i)),v=hex(p.slice(i+1));if(k.length===32&&v.length===32)keys[k]=v;}}); }
     try { LS.setItem('m_url',url); } catch(e){}
-    playUrl(url, Object.keys(keys).length?keys:null);
+    playUrl(url, Object.keys(keys).length?keys:null, 'Custom URL', []);
   }
 
   // ---------- wire up ----------

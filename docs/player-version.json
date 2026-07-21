@@ -1,5 +1,5 @@
 {
-  "version": "2026.07.22.2",
+  "version": "2026.07.23",
   "url": "https://retrocodes12.github.io/nebula-player/",
-  "notes": "Stream add-ons now work \u2014 opening an item asks every add-on that serves streams"
+  "notes": "A real player UI \u2014 subtitles, audio tracks, quality, speed, and a proper seek bar"
 }
