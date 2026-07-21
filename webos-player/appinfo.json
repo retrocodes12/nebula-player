@@ -1,3 +1,13 @@
-{ "id":"com.nuvio.clearkey.player","version":"1.9.7","vendor":"Nebula","type":"web",
-  "main":"index.html","title":"Nebula","icon":"icon.png","largeIcon":"largeIcon.png",
-  "iconColor":"#141414","bgColor":"#000000","disableBackHistoryAPI":true }
+{
+  "id": "com.nuvio.clearkey.player",
+  "version": "1.9.8",
+  "vendor": "Nebula",
+  "type": "web",
+  "main": "index.html",
+  "title": "Nebula",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "iconColor": "#141414",
+  "bgColor": "#000000",
+  "disableBackHistoryAPI": true
+}
