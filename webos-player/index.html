@@ -248,6 +248,62 @@
   .qopt.on { color:#ff4b55; font-weight:700; }
   .qopt.on::after { content:' ✓'; }
 
+  /* ---- nav rail (Stremio-style structure) ---- */
+  :root { --railw:86px; }
+  #rail { position:fixed; top:0; left:0; bottom:0; width:var(--railw); z-index:4; display:flex; flex-direction:column;
+    align-items:center; padding:14px 0; background:rgba(255,255,255,.03); border-right:1px solid var(--line); }
+  body.upd #rail { top:54px; }
+  body.playing #rail { display:none; }
+  .rail-brand { color:var(--red); font-size:1.7rem; font-weight:900; margin-bottom:14px;
+    text-shadow:0 0 18px rgba(229,9,20,.85), 0 0 40px rgba(229,9,20,.45); }
+  .navitem { display:flex; flex-direction:column; align-items:center; justify-content:center; width:64px; height:60px;
+    margin:4px 0; border:1px solid transparent; border-radius:14px; background:transparent; color:#9aa3af; cursor:pointer;
+    transition:background .15s, color .15s, box-shadow .15s, border-color .15s; }
+  .navitem svg { width:22px; height:22px; display:block; }
+  .navitem span { font-size:.62rem; font-weight:700; letter-spacing:.04em; margin-top:4px; }
+  .navitem:hover, .navitem.focusable:focus { color:#fff; background:rgba(255,255,255,.08); border-color:var(--line2);
+    box-shadow:0 0 0 2px rgba(229,9,20,.45); }
+  .navitem.on { color:#fff; background:rgba(229,9,20,.16); border-color:rgba(229,9,20,.4); }
+  .navitem.on svg { filter:drop-shadow(0 0 6px rgba(229,9,20,.8)); }
+  .view { left:var(--railw); }
+  .page-title { font-size:1.6rem; font-weight:800; letter-spacing:-.02em; margin:0 0 16px; }
+
+  /* ---- home rows ---- */
+  .rowhead { display:flex; align-items:center; margin:20px 0 10px; }
+  .rowhead:first-child { margin-top:2px; }
+  .row-title { font-size:1.1rem; font-weight:800; letter-spacing:.01em; flex:1; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row-sub { color:var(--muted); font-weight:600; font-size:.85rem; margin-left:8px; }
+  .seeall { flex:0 0 auto; font-size:.85rem; font-weight:700; color:#cfd3da; background:rgba(255,255,255,.07);
+    border:1px solid var(--line); border-radius:999px; padding:.38rem .95rem; cursor:pointer; white-space:nowrap;
+    margin-left:12px; transition:box-shadow .14s, border-color .14s, color .14s; }
+  .seeall:hover, .seeall.focusable:focus { color:#fff; border-color:rgba(255,255,255,.5); box-shadow:0 0 0 2px rgba(229,9,20,.45); }
+  .hrow { display:flex; overflow-x:auto; padding:6px 2px 10px; scrollbar-width:none; }
+  .hrow::-webkit-scrollbar { display:none; }
+  .hrow .card { flex:0 0 168px; margin-right:14px; }
+  .hrow .card.shape-landscape { flex-basis:250px; }
+  .hrow .card.shape-square { flex-basis:168px; }
+  #homeEmpty { text-align:center; margin:9vh auto 0; }
+
+  /* ---- global search view ---- */
+  #view-search .searchrow { display:flex; align-items:center; margin:0 0 8px; }
+  #view-search .searchrow > * + * { margin-left:10px; }
+  #view-search .searchrow .field { flex:1; margin:0; }
+  #searchResults .grid { margin-bottom:20px; }
+
+  /* ---- phones: rail becomes a bottom tab bar ---- */
+  @media (max-width:700px){
+    :root { --railw:0px; }
+    .view { left:0; bottom:64px; }
+    #rail { top:auto; left:0; right:0; bottom:0; width:auto; height:64px; flex-direction:row;
+      justify-content:space-around; padding:5px 10px; border-right:0; border-top:1px solid var(--line);
+      background:rgba(10,10,14,.94); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px); }
+    body.upd #rail { top:auto; }
+    .rail-brand { display:none; }
+    .navitem { margin:0; height:54px; width:76px; }
+    #status { bottom:78px; }
+  }
+
   /* ---- TV mode (webOS): 10-foot sizing — bigger type, targets, and focus ----
      Enabled by JS when running on webOS (or with ?tv=1 for previewing). */
   html.tv { font-size: 22px; }
@@ -282,6 +338,18 @@
   html.tv .card.focusable:focus { transform:translateY(-6px) scale(1.07); }
   html.tv .card.focusable:focus .thumb {
     box-shadow:0 20px 50px rgba(0,0,0,.65), 0 0 0 4px #fff, 0 0 36px rgba(229,9,20,.65); }
+  html.tv { --railw:104px; }
+  html.tv body.upd #rail { top:70px; }
+  html.tv .rail-brand { font-size:2rem; }
+  html.tv .navitem { width:78px; height:74px; border-radius:16px; }
+  html.tv .navitem svg { width:28px; height:28px; }
+  html.tv .navitem span { font-size:.6rem; }
+  html.tv .navitem.focusable:focus { box-shadow:0 0 0 4px rgba(255,60,70,.7); }
+  html.tv .hrow .card { flex-basis:220px; }
+  html.tv .hrow .card.shape-landscape { flex-basis:310px; }
+  html.tv .hrow .card.shape-square { flex-basis:220px; }
+  html.tv .seeall { padding:.5rem 1.25rem; }
+  html.tv .page-title { font-size:1.9rem; }
 </style>
 </head>
 <body>
@@ -299,12 +367,40 @@
     <div id="qMenu" class="qmenu"><div class="qtitle">Quality</div></div>
   </div>
 
-  <!-- HOME -->
+  <!-- nav rail (Home / Search / Add-ons) -->
+  <div id="rail">
+    <div class="rail-brand">◆</div>
+    <button id="navHome" class="navitem focusable on" data-tab="home" title="Home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+      <span>Home</span></button>
+    <button id="navSearch" class="navitem focusable" data-tab="search" title="Search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+      <span>Search</span></button>
+    <button id="navAddons" class="navitem focusable" data-tab="addons" title="Add-ons">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg>
+      <span>Add-ons</span></button>
+  </div>
+
+  <!-- HOME: content rows from every added add-on -->
   <div id="view-home" class="view active">
-    <div class="hero">
-      <div class="brand"><span class="brand-mark">◆</span><span class="brand-name">NEBULA</span></div>
-      <p class="tagline">Add an add-on, browse it, and play. Plays and decrypts every format.</p>
+    <div class="page-title">Home</div>
+    <div id="homeRows"></div>
+  </div>
+
+  <!-- SEARCH: one query across all add-ons -->
+  <div id="view-search" class="view">
+    <div class="page-title">Search</div>
+    <div class="searchrow">
+      <input id="globalSearch" class="focusable field" type="search" placeholder="Search across your add-ons" autocomplete="off" />
+      <button id="globalSearchClear" class="focusable iconbtn" title="Clear" style="display:none">×</button>
     </div>
+    <div id="searchResults"></div>
+  </div>
+
+  <!-- ADD-ONS: manage sources -->
+  <div id="view-addons" class="view">
+    <div class="page-title">Add-ons</div>
+    <p class="sub">Add a Stremio add-on and its catalogs show up on Home. Every format plays, decrypted on-device.</p>
     <div class="panel">
       <div class="lbl">Add-on manifest URL</div>
       <input id="addonUrl" class="focusable field" type="url" placeholder="https://your-addon/…/manifest.json" autocomplete="off" />
@@ -370,7 +466,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.07.21';
+  var PLAYER_VERSION = '2026.07.21.2';
 
   // TV mode: 10-foot sizing on webOS (PalmSystem/ServiceBridge only exist there);
   // ?tv=1 forces it anywhere for previewing.
@@ -394,7 +490,13 @@
     var el = document.getElementById('view-'+name);
     if (el){ el.classList.add('active'); el.scrollTop = 0; }
     video.style.display = (name==='player') ? 'block' : 'none';
+    document.body.classList.toggle('playing', name==='player');
     if (push !== false){ if (viewStack[viewStack.length-1] !== name) viewStack.push(name); }
+    // light up the rail item for whichever tab this stack is rooted in
+    var tabs = { home:'navHome', search:'navSearch', addons:'navAddons' };
+    Object.keys(tabs).forEach(function(t){
+      var b = document.getElementById(tabs[t]); if (b) b.classList.toggle('on', viewStack[0]===t);
+    });
     setTimeout(focusFirst, 30);
   }
   function focusFirst(){
@@ -402,8 +504,14 @@
     var f = v.querySelector('.focusable'); if (f) f.focus();
   }
   function focusables(){
-    var v = document.querySelector('.view.active'); if(!v) return [];
-    return Array.prototype.slice.call(v.querySelectorAll('.focusable')).filter(function(e){ return e.offsetParent !== null; });
+    var v = document.querySelector('.view.active');
+    var list = v ? Array.prototype.slice.call(v.querySelectorAll('.focusable')) : [];
+    // the nav rail is reachable by D-pad whenever we're not in playback
+    if (document.body.className.indexOf('playing') === -1){
+      var rail = document.getElementById('rail');
+      if (rail) list = Array.prototype.slice.call(rail.querySelectorAll('.focusable')).concat(list);
+    }
+    return list.filter(function(e){ return e.offsetParent !== null; });
   }
   // geometric 2-D navigation (works for both lists and the poster grid)
   function moveFocus2D(dx, dy){
@@ -427,7 +535,13 @@
     stopPairing();
     if (player && video.style.display==='block'){ stopPlayer(); }
     if (viewStack.length > 1){ viewStack.pop(); show(viewStack[viewStack.length-1], false); }
+    else if (viewStack[0] !== 'home'){ setTab('home'); }
     else show('home', false);
+  }
+  function setTab(t){
+    viewStack = [t];
+    show(t, false);
+    if (t === 'home') buildHomeRows(false);
   }
 
   document.addEventListener('keydown', function(e){
@@ -454,7 +568,7 @@
     else if (k===461 || k===8 || e.key==='GoBack' || e.key==='BrowserBack'){ goBack(); e.preventDefault(); }
     else if (k===13 && inInput){
       var v = document.querySelector('.view.active');
-      if (v.id==='view-home') addAddon();
+      if (v.id==='view-addons' && document.activeElement.id==='addonUrl') addAddon();
       else if (v.id==='view-manual') playManual();
     }
   });
@@ -470,6 +584,7 @@
     var json = JSON.stringify(a);
     try { LS.setItem('addons', json); } catch(e){}
     mirrorAddons(json);
+    try { buildHomeRows(true); } catch(e){}   // any add-on change reshapes Home
   }
   function mirrorAddons(json){ try { idbSave('addons', json); } catch(e){} db8Save('addons', json); }
 
@@ -676,9 +791,9 @@
           var url = xorDec(msg.message, key);
           if (url && /manifest\.json/.test(url)){
             stopPairing(); setStatus('Received add-on. Adding…','info');
-            try { var m = await addAddonFromUrl(url); renderAddons(); show('home', false); viewStack = ['home'];
+            try { var m = await addAddonFromUrl(url); renderAddons(); setTab('addons');
               setStatus('Added ' + (m.name || 'add-on') + ' from your phone.','ok'); }
-            catch(err){ setStatus('Add-on from phone failed: ' + err.message,'err'); show('home', false); viewStack=['home']; }
+            catch(err){ setStatus('Add-on from phone failed: ' + err.message,'err'); setTab('addons'); }
             return;
           }
         }
@@ -755,6 +870,20 @@
     var s=''; for(var i=0;i<n;i++) s+='<div class="card skel"><div class="thumb"></div><div class="card-label sk"></div></div>';
     return s;
   }
+  /** Poster card. When (a, m, c) are given, clicking first points ctx at that
+      addon/catalog (cards on Home and Search live outside the catalog view). */
+  function cardEl(meta, a, m, c){
+    var card=document.createElement('button'); card.className='card focusable shape-'+(meta.posterShape||'poster');
+    var thumb = meta.poster
+      ? '<div class="thumb"><img loading="lazy" src="'+esc(meta.poster)+'" onerror="this.remove()"></div>'
+      : '<div class="thumb"><span class="thumb-ph">'+esc((meta.name||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'••')+'</span></div>';
+    card.innerHTML = thumb + '<div class="card-label">'+esc(meta.name||meta.id)+'</div>';
+    card.onclick=function(){
+      if (a){ ctx.addon=a; ctx.manifest=m; ctx.catalogs=(m&&m.catalogs)||[]; ctx.catalog=c; }
+      openItem(meta);
+    };
+    return card;
+  }
   async function loadCatalog(){
     var list = document.getElementById('catList');
     list.innerHTML = skeletons(18);
@@ -765,17 +894,112 @@
       var metas = d.metas||[];
       list.innerHTML='';
       if (!metas.length){ list.innerHTML='<div class="empty">No items in this catalog.</div>'; setStatus('No items.','info'); return; }
-      metas.slice(0,300).forEach(function(meta){
-        var card=document.createElement('button'); card.className='card focusable shape-'+(meta.posterShape||'poster');
-        var thumb = meta.poster
-          ? '<div class="thumb"><img loading="lazy" src="'+esc(meta.poster)+'" onerror="this.remove()"></div>'
-          : '<div class="thumb"><span class="thumb-ph">'+esc((meta.name||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'••')+'</span></div>';
-        card.innerHTML = thumb + '<div class="card-label">'+esc(meta.name||meta.id)+'</div>';
-        card.onclick=function(){ openItem(meta); };
-        list.appendChild(card);
-      });
+      metas.slice(0,300).forEach(function(meta){ list.appendChild(cardEl(meta)); });
       setStatus(metas.length+' items','ok'); focusFirst();
     } catch(err){ list.innerHTML='<div class="empty">Failed to load catalog: '+esc(err.message)+'</div>'; setStatus('Failed to load catalog.','err'); }
+  }
+
+  // ---------- home rows + global search (Stremio-style) ----------
+  var manifestCache = {};
+  function getManifest(url){
+    if (!manifestCache[url]) manifestCache[url] = getJson(url).catch(function(e){ delete manifestCache[url]; throw e; });
+    return manifestCache[url];
+  }
+  function openCatalogFor(a, m, c){
+    ctx.addon=a; ctx.manifest=m; ctx.catalogs=(m.catalogs||[]); ctx.catalog=c; ctx.genre=null; clearSearchInput();
+    document.getElementById('catTitle').textContent = a.name || m.name || 'Catalog';
+    renderGenres(); show('catalog'); loadCatalog();
+  }
+  var homeSig = null, homeBuiltAt = 0;
+  function buildHomeRows(force){
+    var wrap = document.getElementById('homeRows'); if (!wrap) return;
+    var addons = getAddons();
+    var sig = JSON.stringify(addons.map(function(a){ return a.url; }));
+    // keep what's on screen unless the add-on list changed or the rows are stale
+    if (!force && sig === homeSig && (Date.now() - homeBuiltAt) < 300000) return;
+    homeSig = sig; homeBuiltAt = Date.now();
+    if (!addons.length){
+      wrap.innerHTML = '<div class="panel" id="homeEmpty">' +
+        '<div class="brand" style="font-size:1.9rem"><span class="brand-mark">◆</span><span class="brand-name">NEBULA</span></div>' +
+        '<p class="tagline" style="margin:.6rem 0 1.2rem">Nothing here yet — add an add-on and its catalogs fill this screen.</p>' +
+        '<button class="btn focusable" id="homeAddBtn">＋ Add an add-on</button></div>';
+      document.getElementById('homeAddBtn').onclick = function(){ setTab('addons'); };
+      return;
+    }
+    wrap.innerHTML = '';
+    var manifestsLeft = addons.length;
+    function manifestDone(){
+      manifestsLeft--;
+      if (!manifestsLeft && !wrap.childNodes.length){
+        wrap.innerHTML = '<div class="empty">Couldn’t reach your add-ons right now. ' +
+          '<button class="seeall focusable" id="homeRetry" style="margin-left:8px">Retry</button></div>';
+        document.getElementById('homeRetry').onclick = function(){ buildHomeRows(true); };
+      }
+    }
+    addons.forEach(function(a){
+      getManifest(a.url).then(function(m){
+        var cats = (m.catalogs||[]).slice(0,3);
+        cats.forEach(function(c){
+          var head = document.createElement('div'); head.className='rowhead';
+          var sub = (c.name||c.id||'') + (c.type ? ' · ' + c.type.charAt(0).toUpperCase()+c.type.slice(1) : '');
+          head.innerHTML = '<span class="row-title">'+esc(a.name||m.name||'Add-on')+
+            (cats.length>1 ? ' <span class="row-sub">'+esc(sub)+'</span>' : '')+'</span>';
+          var sa = document.createElement('button'); sa.className='seeall focusable'; sa.textContent='See all ›';
+          sa.onclick = function(){ openCatalogFor(a, m, c); };
+          head.appendChild(sa);
+          var row = document.createElement('div'); row.className='hrow';
+          row.innerHTML = skeletons(6);
+          wrap.appendChild(head); wrap.appendChild(row);
+          var u = a.base + '/catalog/' + encodeURIComponent(c.type) + '/' + encodeURIComponent(c.id) + '.json';
+          getJson(u).then(function(d){
+            var metas = (d.metas||[]).slice(0,15);
+            row.innerHTML = '';
+            if (!metas.length){ head.style.display='none'; row.style.display='none'; return; }
+            metas.forEach(function(meta){ row.appendChild(cardEl(meta, a, m, c)); });
+            // boot on TV: give the first loaded row focus if nothing has it yet
+            if (document.activeElement === document.body) focusFirst();
+          }).catch(function(){ head.style.display='none'; row.style.display='none'; });
+        });
+        manifestDone();
+      }).catch(function(){ manifestDone(); });
+    });
+  }
+  function runGlobalSearch(){
+    var input = document.getElementById('globalSearch');
+    var q = (input.value||'').trim();
+    document.getElementById('globalSearchClear').style.display = q ? '' : 'none';
+    var wrap = document.getElementById('searchResults');
+    wrap.innerHTML = '';
+    if (!q) return;
+    var addons = getAddons();
+    if (!addons.length){ wrap.innerHTML='<div class="empty">Add an add-on first — then one search covers everything it has.</div>'; return; }
+    setStatus('Searching…','info');
+    var any = false, pending = 0;
+    addons.forEach(function(a){
+      pending++;
+      getManifest(a.url).then(function(m){
+        var sc = (m.catalogs||[]).filter(catalogSupportsSearch)[0];
+        if (!sc) return;
+        var u = a.base + '/catalog/' + encodeURIComponent(sc.type) + '/' + encodeURIComponent(sc.id) + '/search=' + encodeURIComponent(q) + '.json';
+        return getJson(u).then(function(d){
+          var metas = d.metas||[];
+          if (!metas.length) return;
+          any = true;
+          var head = document.createElement('div'); head.className='rowhead';
+          head.innerHTML = '<span class="row-title">'+esc(a.name||'Add-on')+
+            ' <span class="row-sub">'+metas.length+' result'+(metas.length>1?'s':'')+'</span></span>';
+          var g = document.createElement('div'); g.className='grid';
+          metas.slice(0,60).forEach(function(meta){ g.appendChild(cardEl(meta, a, m, sc)); });
+          wrap.appendChild(head); wrap.appendChild(g);
+        });
+      }).catch(function(){}).then(function(){
+        pending--;
+        if (!pending){
+          if (!any) wrap.innerHTML = '<div class="empty">No matches for “'+esc(q)+'”.</div>';
+          setStatus(any ? 'Here\'s what matched.' : 'No matches.', any ? 'ok' : 'info');
+        }
+      });
+    });
   }
 
   // ---------- streams ----------
@@ -951,11 +1175,19 @@
   document.getElementById('manualBtn').onclick = function(){ show('manual'); };
   document.getElementById('mPlay').onclick = playManual;
   document.querySelectorAll('[data-back]').forEach(function(b){ b.onclick=function(){ goBack(); }; });
+  document.querySelectorAll('.navitem').forEach(function(b){ b.onclick=function(){ setTab(b.getAttribute('data-tab')); }; });
+  (function initGlobalSearch(){
+    var i = document.getElementById('globalSearch'), c = document.getElementById('globalSearchClear');
+    if (!i || !c) return;
+    i.addEventListener('keydown', function(e){ if (e.key==='Enter' || e.keyCode===13){ e.preventDefault(); runGlobalSearch(); } });
+    c.addEventListener('click', function(){ i.value=''; runGlobalSearch(); i.focus(); });
+  })();
   try { document.getElementById('mUrl').value = LS.getItem('m_url')||''; } catch(e){}
 
   renderAddons();
   initPersistentAddons();
-  setStatus('Ready. Add your add-on to begin.','info');
+  buildHomeRows(true);
+  setStatus(getAddons().length ? 'Welcome back.' : 'Ready. Add your add-on to begin.','info');
   focusFirst();
 })();
 </script>
