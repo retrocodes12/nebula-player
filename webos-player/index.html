@@ -446,7 +446,7 @@
         <button id="manualBtn" class="focusable btn ghost">Play a URL</button>
       </div>
     </div>
-    <div class="panel">
+    <div class="panel" id="partyPanel">
       <div class="lbl">Watch party</div>
       <div class="row">
         <input id="partyCode" class="focusable field" type="text" placeholder="Party code" autocomplete="off" maxlength="8" style="flex:1" />
@@ -510,7 +510,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.07.25.2';
+  var PLAYER_VERSION = '2026.07.25.3';
 
   // TV mode: 10-foot sizing on webOS (PalmSystem/ServiceBridge only exist there);
   // ?tv=1 forces it anywhere for previewing.
@@ -518,6 +518,9 @@
     /web0s|webos|smarttv|smart-tv|netcast/i.test(navigator.userAgent || '') ||
     /[?&#]tv=1/.test(location.href));
   if (IS_TV) document.documentElement.className += ' tv';
+  // webOS proper (not the ?tv=1 preview): watch-party UI is hidden there.
+  var IS_WEBOS = !!(window.PalmSystem || window.WebOSServiceBridge || window.PalmServiceBridge) ||
+    /web0s|webos|netcast/i.test(navigator.userAgent || '');
 
   var statusTimer = null;
   function setStatus(m, k){
@@ -1731,6 +1734,11 @@
     if (msg) setStatus(msg,'info');
   }
   $id('puiParty').onclick = function(){ startParty(); };
+  if (IS_WEBOS){
+    $id('puiParty').style.display = 'none';
+    var partyPanelEl = document.getElementById('partyPanel');
+    if (partyPanelEl) partyPanelEl.style.display = 'none';
+  }
   (function(){
     var i = document.getElementById('partyCode'), b = document.getElementById('partyJoinBtn');
     if (!i || !b) return;
