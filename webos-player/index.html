@@ -234,6 +234,7 @@
     min-width:0; flex:1; text-shadow:0 1px 2px rgba(0,0,0,.6); }
   .pui-live { flex:0 0 auto; background:var(--red); color:#fff; font-size:.72rem; font-weight:800;
     letter-spacing:.06em; padding:.25rem .6rem; border-radius:5px; }
+  .pui-party { background:#fff; color:#000; }
   .pui-round { display:flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:50%;
     border:0; background:rgba(12,12,16,.6); color:#fff; font-size:1.4rem; line-height:1; cursor:pointer;
     transition:background .12s; }
@@ -369,6 +370,7 @@
       <button id="puiBack" class="focusable pui-round" title="Back">‹</button>
       <div id="puiTitle" class="pui-title"></div>
       <span id="puiLiveBadge" class="pui-live" style="display:none">LIVE</span>
+      <span id="puiPartyBadge" class="pui-live pui-party" style="display:none"></span>
     </div>
     <div class="pui-center pui-chrome">
       <button id="puiRew" class="focusable pui-round pui-skip" title="Back 10 seconds">
@@ -392,6 +394,7 @@
         <button id="puiAudio" class="focusable pui-btn" style="display:none">Audio</button>
         <button id="puiQual" class="focusable pui-btn" style="display:none">Quality</button>
         <button id="puiSpeed" class="focusable pui-btn">1×</button>
+        <button id="puiParty" class="focusable pui-btn" title="Watch party — watch together in sync">Party</button>
         <button id="puiPip" class="focusable pui-btn" style="display:none" title="Picture-in-picture">PiP</button>
         <button id="puiMini" class="focusable pui-btn" style="display:none" title="Mini player — small window that stays on top">Mini</button>
       </div>
@@ -442,6 +445,14 @@
         <button id="addAddonBtn" class="focusable btn ghost">Add typed URL</button>
         <button id="manualBtn" class="focusable btn ghost">Play a URL</button>
       </div>
+    </div>
+    <div class="panel">
+      <div class="lbl">Watch party</div>
+      <div class="row">
+        <input id="partyCode" class="focusable field" type="text" placeholder="Party code" autocomplete="off" maxlength="8" style="flex:1" />
+        <button id="partyJoinBtn" class="focusable btn">Join party</button>
+      </div>
+      <p class="sub" style="margin:8px 0 0">To start one: play a stream, then press Party in the player. Friends enter your code here and watch in sync.</p>
     </div>
     <div class="section-title">Your add-ons</div>
     <div id="addonList" class="addons"></div>
@@ -499,7 +510,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.07.24.1';
+  var PLAYER_VERSION = '2026.07.25.1';
 
   // TV mode: 10-foot sizing on webOS (PalmSystem/ServiceBridge only exist there);
   // ?tv=1 forces it anywhere for previewing.
@@ -573,7 +584,12 @@
   }
   function goBack(){
     stopPairing();
-    if (player && video.style.display==='block'){ stopPlayer(); }
+    if (player && video.style.display==='block'){
+      stopPlayer();
+      // viewers leave the party when they stop watching; a host keeps it alive
+      // (they can pick another stream and everyone follows)
+      if (party && !party.isHost) endParty('Left the party.');
+    }
     if (viewStack.length > 1){ viewStack.pop(); show(viewStack[viewStack.length-1], false); }
     else if (viewStack[0] !== 'home'){ setTab('home'); }
     else show('home', false);
@@ -1222,6 +1238,11 @@
   async function playUrl(rawUrl, clearKeys, title, subtitles){
     if (!initShaka()) return;
     var seq = ++playSeq;
+    lastPlay = { url: rawUrl, keys: clearKeys || null, title: title || '', subs: subtitles || [] };
+    // a party host changing streams takes the whole room along
+    if (party && party.isHost && party.ws.readyState === 1){
+      try { party.ws.send(JSON.stringify({ t:'stream', stream: partyStreamDesc() })); } catch(e){}
+    }
     await stopPlayer();
     if (seq !== playSeq) return;
     show('player');
@@ -1501,6 +1522,216 @@
   };
   $id('puiMini').onclick = function(){ setMini(!miniOn); };
   video.addEventListener('enterpictureinpicture', function(){ setStatus('Picture-in-picture.','ok'); puiShow(); });
+
+  // ---- watch party (sync only — every member streams the video themselves) ----
+  var lastPlay = null;
+  var party = null;        // { ws, code, isHost, count, closing, lastState, lastSeek, n, dirty, tick, keep }
+  var partyPending = null; // { kind:'create'|'join', code, wasHost, until } — connection being established
+  var PARTY_FALLBACK = 'wss://nebula-party.onrender.com/ws';
+  var partyServerCached = null;
+  function partyServer(cb){
+    var ls = null; try { ls = LS.getItem('party_server'); } catch(e){}
+    if (ls){ cb(ls); return; }
+    if (partyServerCached){ cb(partyServerCached); return; }
+    fetch('https://retrocodes12.github.io/nebula-player/party.json', { cache:'no-store' })
+      .then(function(r){ return r.json(); })
+      .then(function(j){ partyServerCached = (j && j.server) || PARTY_FALLBACK; cb(partyServerCached); })
+      .catch(function(){ cb(PARTY_FALLBACK); });
+  }
+  function partyStreamDesc(){
+    return {
+      url: lastPlay.url, title: lastPlay.title || 'Watch party',
+      keys: lastPlay.keys || undefined,
+      subs: (lastPlay.subs && lastPlay.subs.length) ? lastPlay.subs : undefined
+    };
+  }
+  function partyBadge(){
+    var b = $id('puiPartyBadge'), btn = $id('puiParty');
+    if (!party){ b.style.display='none'; btn.textContent='Party'; return; }
+    b.style.display='';
+    b.textContent = party.code + ' · ' + party.count;
+    btn.textContent = 'Leave party';
+  }
+  function mkParty(ws, code, isHost){
+    if (party){ party.closing = true; try { party.ws.close(); } catch(e){} clearPartyTimers(party); }
+    partyPending = null;
+    var p = { ws:ws, code:code, isHost:isHost, count:1, closing:false, lastState:null, lastSeek:0, n:0, dirty:false };
+    p.tick = setInterval(function(){ partyTick(p); }, 1000);
+    p.keep = setInterval(function(){ if (ws.readyState===1){ try { ws.send('{"t":"ping"}'); } catch(e){} } }, 25000);
+    return p;
+  }
+  function clearPartyTimers(p){ clearInterval(p.tick); clearInterval(p.keep); }
+  function partyTick(p){
+    if (party !== p){ clearPartyTimers(p); return; }
+    p.n++;
+    if (p.isHost){
+      if ((p.dirty || p.n % 4 === 0) && player && video.style.display==='block' && p.ws.readyState===1){
+        p.dirty = false;
+        try { p.ws.send(JSON.stringify({ t:'state', playing: !video.paused, pos: video.currentTime })); } catch(e){}
+      }
+    } else {
+      partyCorrect();
+    }
+  }
+  // Viewers glide to the host's position: hard seek when way off, tiny speed
+  // nudges for small drift so there is no visible jump.
+  function partyCorrect(){
+    if (!party || party.isHost || !party.lastState || !player) return;
+    if (video.style.display !== 'block') return;
+    var s = party.lastState;
+    if (!s.playing){
+      if (!video.paused) video.pause();
+      video.playbackRate = 1;
+      if (Math.abs(video.currentTime - s.pos) > 1){ try { video.currentTime = s.pos; } catch(e){} }
+      return;
+    }
+    if (video.paused){ try { video.play(); } catch(e){} }
+    var target = s.pos + (Date.now() - s.atLocal)/1000;
+    var r = puiRange();
+    if (r.end > r.start && target > r.end) target = r.end;
+    var err = target - video.currentTime;
+    if (Math.abs(err) > 1.25){
+      if (Date.now() - party.lastSeek > 4000){
+        party.lastSeek = Date.now();
+        try { video.currentTime = target; } catch(e){}
+      }
+      video.playbackRate = 1;
+    }
+    else if (err > 0.4) video.playbackRate = 1.06;
+    else if (err < -0.4) video.playbackRate = 0.94;
+    else if (Math.abs(err) < 0.15) video.playbackRate = 1;
+  }
+  function partyConnect(){
+    if (!partyPending) return;
+    partyServer(function(url){
+      if (!partyPending) return;
+      var ws;
+      try { ws = new WebSocket(url); }
+      catch(e){ partyPending = null; setStatus('Watch party is not available on this device.','err'); return; }
+      ws.onopen = function(){
+        var p = partyPending;
+        if (!p){ try { ws.close(); } catch(e){} return; }
+        if (p.kind === 'create'){
+          if (!lastPlay){ partyPending = null; try { ws.close(); } catch(e){} return; }
+          ws.send(JSON.stringify({ t:'create', name:'Host', code: p.code || undefined, stream: partyStreamDesc() }));
+        } else {
+          ws.send(JSON.stringify({ t:'join', code: p.code, name:'Guest' }));
+        }
+      };
+      ws.onmessage = function(ev){ partyMessage(ws, ev); };
+      ws.onclose = function(){ partyClosed(ws); };
+      ws.onerror = function(){};
+    });
+  }
+  function partyMessage(ws, ev){
+    var m; try { m = JSON.parse(ev.data); } catch(e){ return; }
+    if (!m || !m.t) return;
+    if (m.t === 'created'){
+      party = mkParty(ws, m.code, true);
+      partyBadge(); puiShow();
+      setStatus('Party started — code ' + m.code + '. Friends: Add-ons tab, Join party.','ok');
+      return;
+    }
+    if (m.t === 'joined'){
+      party = mkParty(ws, m.code, false);
+      party.count = m.count || 1;
+      if (m.state) party.lastState = { playing: !!m.state.playing, pos: Number(m.state.pos)||0, atLocal: Date.now() - (Number(m.state.age)||0) };
+      partyBadge();
+      setStatus('Joined party ' + m.code + '.','ok');
+      if (m.stream && m.stream.url) playUrl(m.stream.url, m.stream.keys || null, m.stream.title || 'Watch party', m.stream.subs || []);
+      return;
+    }
+    if (!party || ws !== party.ws){
+      if (m.t === 'error') partyConnFailed(ws, m.message);
+      return;
+    }
+    if (m.t === 'state'){
+      party.lastState = { playing: !!m.playing, pos: Number(m.pos)||0, atLocal: Date.now() - (Number(m.age)||0) };
+      if (!party.isHost) partyCorrect();
+    } else if (m.t === 'stream'){
+      if (!party.isHost && m.stream && m.stream.url){
+        setStatus('Host switched streams.','info');
+        party.lastState = { playing:true, pos:0, atLocal: Date.now() };
+        playUrl(m.stream.url, m.stream.keys || null, m.stream.title || 'Watch party', m.stream.subs || []);
+      }
+    } else if (m.t === 'peers'){
+      party.count = m.count || 1; partyBadge();
+    } else if (m.t === 'host'){
+      party.isHost = true; partyBadge();
+      setStatus('You are now the party host.','info');
+    } else if (m.t === 'end'){
+      endParty(m.reason || 'Party ended.');
+    } else if (m.t === 'error'){
+      setStatus(m.message || 'Party error.','err');
+    }
+  }
+  function partyConnFailed(ws, message){
+    var p = partyPending;
+    if (!p){ try { ws.close(); } catch(e){} return; }
+    if (p.kind === 'join' && p.wasHost && /No party/i.test(message || '') && lastPlay){
+      p.kind = 'create'; // our room evaporated while we were away — remake it under the same code
+      try { ws.close(); } catch(e){}
+      return;
+    }
+    partyPending = null;
+    try { ws.close(); } catch(e){}
+    setStatus(message || 'Party error.','err');
+  }
+  function partyClosed(ws){
+    if (party && ws === party.ws){
+      var code = party.code, wasHost = party.isHost, userClosed = party.closing;
+      clearPartyTimers(party); party = null; partyBadge();
+      try { video.playbackRate = 1; } catch(e){}
+      if (userClosed) return;
+      partyPending = { kind:'join', code: code, wasHost: wasHost, until: Date.now() + 90000 };
+      setStatus('Party connection lost — reconnecting…','info');
+      setTimeout(partyConnect, 3000);
+      return;
+    }
+    if (partyPending){
+      if (Date.now() < partyPending.until){ setStatus('Waking the party server…','info'); setTimeout(partyConnect, 5000); }
+      else { partyPending = null; setStatus('Could not reach the party server.','err'); }
+    }
+  }
+  function startParty(){
+    if (party){ endParty('Left the party.'); return; }
+    if (partyPending){ partyPending = null; setStatus('Cancelled.','info'); return; }
+    if (!lastPlay || !player || video.style.display !== 'block'){ setStatus('Play something first, then press Party.','err'); return; }
+    partyPending = { kind:'create', code:null, wasHost:true, until: Date.now() + 90000 };
+    setStatus('Starting party…','info');
+    partyConnect();
+  }
+  function joinParty(code){
+    code = String(code || '').replace(/\s/g,'').toUpperCase();
+    if (code.length < 4){ setStatus('Enter the party code first.','err'); return; }
+    if (party) endParty(null);
+    partyPending = { kind:'join', code: code, wasHost:false, until: Date.now() + 90000 };
+    setStatus('Joining party… (can take up to a minute if the server was asleep)','info');
+    partyConnect();
+  }
+  function endParty(msg){
+    partyPending = null;
+    if (party){
+      party.closing = true;
+      try { if (party.ws.readyState === 1) party.ws.send('{"t":"leave"}'); } catch(e){}
+      try { party.ws.close(); } catch(e){}
+      clearPartyTimers(party);
+      party = null;
+    }
+    try { video.playbackRate = 1; } catch(e){}
+    partyBadge();
+    if (msg) setStatus(msg,'info');
+  }
+  $id('puiParty').onclick = function(){ startParty(); };
+  (function(){
+    var i = document.getElementById('partyCode'), b = document.getElementById('partyJoinBtn');
+    if (!i || !b) return;
+    b.onclick = function(){ joinParty(i.value); };
+    i.addEventListener('keydown', function(e){ if (e.keyCode === 13){ e.preventDefault(); joinParty(i.value); } });
+  })();
+  video.addEventListener('play', function(){ if (party && party.isHost) party.dirty = true; });
+  video.addEventListener('pause', function(){ if (party && party.isHost) party.dirty = true; });
+  video.addEventListener('seeked', function(){ if (party && party.isHost) party.dirty = true; });
 
   video.addEventListener('play', function(){ puiSyncPlayIcon(); puiShow(); });
   video.addEventListener('pause', function(){ puiSyncPlayIcon(); puiShow(); });
