@@ -392,6 +392,8 @@
         <button id="puiAudio" class="focusable pui-btn" style="display:none">Audio</button>
         <button id="puiQual" class="focusable pui-btn" style="display:none">Quality</button>
         <button id="puiSpeed" class="focusable pui-btn">1×</button>
+        <button id="puiPip" class="focusable pui-btn" style="display:none" title="Picture-in-picture">PiP</button>
+        <button id="puiMini" class="focusable pui-btn" style="display:none" title="Mini player — small window that stays on top">Mini</button>
       </div>
     </div>
     <div id="puiMenu" class="qmenu"></div>
@@ -497,7 +499,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.07.23.2';
+  var PLAYER_VERSION = '2026.07.24.1';
 
   // TV mode: 10-foot sizing on webOS (PalmSystem/ServiceBridge only exist there);
   // ?tv=1 forces it anywhere for previewing.
@@ -1210,6 +1212,8 @@
     clearInterval(puiState.tick);
     clearTimeout(puiState.idleTimer);
     closePuiMenu(false);
+    exitPip();
+    if (miniOn) setMini(false);
     if (player){ try{ await player.destroy(); }catch(e){} player=null; }
     video.style.display='none';
     try { video.playbackRate = 1; } catch(e){}
@@ -1475,6 +1479,29 @@
   $id('puiSubs').onclick = function(){ if (puiState.menu==='subs') closePuiMenu(true); else openPuiMenu('subs', this); };
   $id('puiAudio').onclick = function(){ if (puiState.menu==='audio') closePuiMenu(true); else openPuiMenu('audio', this); };
   $id('puiSpeed').onclick = function(){ if (puiState.menu==='speed') closePuiMenu(true); else openPuiMenu('speed', this); };
+
+  // ---- picture-in-picture (browsers that support it) + desktop mini player ----
+  var miniOn = false;
+  function exitPip(){
+    try { if (document.pictureInPictureElement){ document.exitPictureInPicture().catch(function(){}); } } catch(e){}
+  }
+  function setMini(on){
+    if (!window.nebulaDesktop || !window.nebulaDesktop.setMiniMode) return;
+    miniOn = !!on;
+    try { window.nebulaDesktop.setMiniMode(miniOn); } catch(e){}
+    $id('puiMini').textContent = miniOn ? 'Exit mini' : 'Mini';
+    setStatus(miniOn ? 'Mini player — window stays on top.' : 'Mini player off.','ok');
+  }
+  if (document.pictureInPictureEnabled && video.requestPictureInPicture) $id('puiPip').style.display = '';
+  if (window.nebulaDesktop && window.nebulaDesktop.setMiniMode) $id('puiMini').style.display = '';
+  $id('puiPip').onclick = function(){
+    if (document.pictureInPictureElement){ exitPip(); return; }
+    try { video.requestPictureInPicture().catch(function(){ setStatus('Picture-in-picture unavailable.','err'); }); }
+    catch(e){ setStatus('Picture-in-picture unavailable.','err'); }
+  };
+  $id('puiMini').onclick = function(){ setMini(!miniOn); };
+  video.addEventListener('enterpictureinpicture', function(){ setStatus('Picture-in-picture.','ok'); puiShow(); });
+
   video.addEventListener('play', function(){ puiSyncPlayIcon(); puiShow(); });
   video.addEventListener('pause', function(){ puiSyncPlayIcon(); puiShow(); });
   pui.addEventListener('mousemove', function(){ if (document.body.className.indexOf('playing') !== -1) puiShow(); });
