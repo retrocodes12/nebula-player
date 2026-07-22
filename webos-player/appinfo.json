@@ -1,6 +1,6 @@
 {
   "id": "com.nuvio.clearkey.player",
-  "version": "1.13.1",
+  "version": "1.13.2",
   "vendor": "Nebula",
   "type": "web",
   "main": "index.html",
