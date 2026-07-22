@@ -510,7 +510,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.07.25.1';
+  var PLAYER_VERSION = '2026.07.25.2';
 
   // TV mode: 10-foot sizing on webOS (PalmSystem/ServiceBridge only exist there);
   // ?tv=1 forces it anywhere for previewing.
@@ -1567,7 +1567,10 @@
     if (p.isHost){
       if ((p.dirty || p.n % 4 === 0) && player && video.style.display==='block' && p.ws.readyState===1){
         p.dirty = false;
-        try { p.ws.send(JSON.stringify({ t:'state', playing: !video.paused, pos: video.currentTime })); } catch(e){}
+        // live: send "seconds behind the live edge" (engine-neutral); VOD: absolute position
+        var live = puiIsLive(), pos = video.currentTime;
+        if (live){ var r = puiRange(); pos = Math.max(0, r.end - video.currentTime); }
+        try { p.ws.send(JSON.stringify({ t:'state', playing: !video.paused, pos: pos, live: live })); } catch(e){}
       }
     } else {
       partyCorrect();
@@ -1582,18 +1585,23 @@
     if (!s.playing){
       if (!video.paused) video.pause();
       video.playbackRate = 1;
-      if (Math.abs(video.currentTime - s.pos) > 1){ try { video.currentTime = s.pos; } catch(e){} }
+      if (!s.live && Math.abs(video.currentTime - s.pos) > 1){ try { video.currentTime = s.pos; } catch(e){} }
       return;
     }
     if (video.paused){ try { video.play(); } catch(e){} }
-    var target = s.pos + (Date.now() - s.atLocal)/1000;
-    var r = puiRange();
-    if (r.end > r.start && target > r.end) target = r.end;
-    var err = target - video.currentTime;
+    var err;
+    if (s.live){
+      // s.pos is the host's distance behind the live edge; positive err = we're further behind
+      var r = puiRange();
+      if (r.end <= r.start) return;
+      err = (r.end - video.currentTime) - s.pos;
+    } else {
+      err = (s.pos + (Date.now() - s.atLocal)/1000) - video.currentTime;
+    }
     if (Math.abs(err) > 1.25){
       if (Date.now() - party.lastSeek > 4000){
         party.lastSeek = Date.now();
-        try { video.currentTime = target; } catch(e){}
+        try { video.currentTime = video.currentTime + err; } catch(e){}
       }
       video.playbackRate = 1;
     }
@@ -1635,7 +1643,7 @@
     if (m.t === 'joined'){
       party = mkParty(ws, m.code, false);
       party.count = m.count || 1;
-      if (m.state) party.lastState = { playing: !!m.state.playing, pos: Number(m.state.pos)||0, atLocal: Date.now() - (Number(m.state.age)||0) };
+      if (m.state) party.lastState = { playing: !!m.state.playing, pos: Number(m.state.pos)||0, live: !!m.state.live, atLocal: Date.now() - (Number(m.state.age)||0) };
       partyBadge();
       setStatus('Joined party ' + m.code + '.','ok');
       if (m.stream && m.stream.url) playUrl(m.stream.url, m.stream.keys || null, m.stream.title || 'Watch party', m.stream.subs || []);
@@ -1646,12 +1654,12 @@
       return;
     }
     if (m.t === 'state'){
-      party.lastState = { playing: !!m.playing, pos: Number(m.pos)||0, atLocal: Date.now() - (Number(m.age)||0) };
+      party.lastState = { playing: !!m.playing, pos: Number(m.pos)||0, live: !!m.live, atLocal: Date.now() - (Number(m.age)||0) };
       if (!party.isHost) partyCorrect();
     } else if (m.t === 'stream'){
       if (!party.isHost && m.stream && m.stream.url){
         setStatus('Host switched streams.','info');
-        party.lastState = { playing:true, pos:0, atLocal: Date.now() };
+        party.lastState = { playing:true, pos:0, live:false, atLocal: Date.now() };
         playUrl(m.stream.url, m.stream.keys || null, m.stream.title || 'Watch party', m.stream.subs || []);
       }
     } else if (m.t === 'peers'){
