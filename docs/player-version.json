@@ -1,5 +1,5 @@
 {
-  "version": "2026.07.26.2",
+  "version": "2026.07.26.3",
   "url": "https://retrocodes12.github.io/nebula-player/",
-  "notes": "Live streams recover from segment errors instead of failing"
+  "notes": "Playback stability fix"
 }
