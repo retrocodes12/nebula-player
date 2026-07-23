@@ -184,6 +184,13 @@
   .stream.focusable:focus { border-color:#fff; box-shadow:0 0 0 1px #fff; }
   .stream-name { display:block; font-size:1.05rem; font-weight:600; }
   .stream-sub { display:block; color:var(--muted); font-size:.86rem; margin-top:3px; }
+  /* episode rows reuse .stream; add a thumbnail + index */
+  .ep-thumb { width:112px; height:63px; flex:0 0 auto; border-radius:8px; object-fit:cover; background:#000; }
+  .ep-thumb-ph { width:112px; height:63px; flex:0 0 auto; border-radius:8px; background:#000;
+    display:flex; align-items:center; justify-content:center; color:var(--muted); font-weight:800; font-size:1.1rem; }
+  .ep-sub { display:block; color:var(--muted); font-size:.84rem; margin-top:4px;
+    overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  html.tv .ep-thumb, html.tv .ep-thumb-ph { width:168px; height:95px; }
 
   /* focus base */
   .focusable { outline:none; }
@@ -496,6 +503,13 @@
     <div class="scroller"><div id="catList" class="grid"></div></div>
   </div>
 
+  <!-- EPISODES (series) -->
+  <div id="view-episodes" class="view cols">
+    <div class="topbar"><button class="focusable iconbtn" data-back>‹</button><div class="topbar-title" id="epTitle">Episodes</div></div>
+    <div id="seasonRow" class="chips"></div>
+    <div class="scroller"><div id="epList" class="streams"></div></div>
+  </div>
+
   <!-- STREAMS -->
   <div id="view-streams" class="view cols">
     <div class="topbar"><button class="focusable iconbtn" data-back>‹</button><div class="topbar-title" id="streamsTitle">Streams</div></div>
@@ -510,7 +524,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.07.25.3';
+  var PLAYER_VERSION = '2026.07.26.1';
 
   // TV mode: 10-foot sizing on webOS (PalmSystem/ServiceBridge only exist there);
   // ?tv=1 forces it anywhere for previewing.
@@ -1104,17 +1118,17 @@
   // Stremio semantics: catalog add-ons and stream add-ons are separate things.
   // Opening an item asks EVERY installed add-on whose manifest says it serves
   // streams for this type/id, not just the add-on the item came from.
-  function streamSupport(m){
+  function resourceSupport(m, name){
     var rs = (m && m.resources) || [];
     for (var i=0;i<rs.length;i++){
       var r = rs[i];
-      if (r === 'stream') return { types: m.types||null, idPrefixes: m.idPrefixes||null };
-      if (r && r.name === 'stream') return { types: r.types||m.types||null, idPrefixes: r.idPrefixes||m.idPrefixes||null };
+      if (r === name) return { types: m.types||null, idPrefixes: m.idPrefixes||null };
+      if (r && r.name === name) return { types: r.types||m.types||null, idPrefixes: r.idPrefixes||m.idPrefixes||null };
     }
     return null;
   }
-  function canStream(m, type, id){
-    var r = streamSupport(m); if (!r) return false;
+  function supports(m, name, type, id){
+    var r = resourceSupport(m, name); if (!r) return false;
     if (r.types && r.types.length && r.types.indexOf(type) === -1) return false;
     if (r.idPrefixes && r.idPrefixes.length){
       for (var i=0;i<r.idPrefixes.length;i++){ if (id.indexOf(r.idPrefixes[i]) === 0) return true; }
@@ -1122,18 +1136,117 @@
     }
     return true;
   }
+  function canStream(m, type, id){ return supports(m, 'stream', type, id); }
+  function canMeta(m, type, id){ return supports(m, 'meta', type, id); }
   function streamCard(s){
     var card=document.createElement('button'); card.className='stream focusable';
     card.innerHTML = '<span class="stream-play">▶</span><span><span class="stream-name">'+esc(s.name||'Stream')+'</span><span class="stream-sub">'+esc((s.title||'').replace(/\n/g,' · '))+'</span></span>';
     card.onclick=function(){ playStream(s); };
     return card;
   }
-  var openSeq = 0;
+  var openSeq = 0, seriesSeq = 0;
   function openItem(meta){
     ctx.item = meta;
-    var seq = ++openSeq;
+    ctx.streamTitle = null;
     var type = meta.type || (ctx.catalog && ctx.catalog.type) || 'tv';
-    document.getElementById('streamsTitle').textContent = meta.name || 'Streams';
+    // Series get a season/episode picker first; movies (and everything else)
+    // go straight to the stream list.
+    if (type === 'series'){ openSeries(meta, type); return; }
+    openStreams(type, meta.id, meta.name);
+  }
+
+  // ---------- series: seasons + episodes ----------
+  function epNum(v){ return (v.episode != null ? v.episode : (v.number != null ? v.number : null)); }
+  function seasonNum(v){ return (v.season != null ? v.season : 1); }
+  function epTag(v){ var e = epNum(v); return 'S' + seasonNum(v) + (e != null ? 'E' + e : ''); }
+  // Ask the origin add-on (then any other that advertises `meta` for this
+  // type/id) for the full meta — we need its `videos` list to build episodes.
+  async function fetchSeriesVideos(type, id, seq){
+    var origin = ctx.addon || null;
+    var order = origin ? [origin] : [];
+    getAddons().forEach(function(a){ if (!origin || a.url !== origin.url) order.push(a); });
+    for (var i=0;i<order.length;i++){
+      var a = order[i];
+      try {
+        var m = await getManifest(a.url);
+        if (seq !== seriesSeq) return null;
+        if (!(origin && a.url === origin.url) && !canMeta(m, type, id)) continue;
+        var d = await getJson(a.base + '/meta/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json');
+        if (seq !== seriesSeq) return null;
+        var vids = d && d.meta && d.meta.videos;
+        if (vids && vids.length) return { meta: d.meta, videos: vids };
+      } catch(e){}
+    }
+    return null;
+  }
+  async function openSeries(meta, type){
+    var seq = ++seriesSeq;
+    document.getElementById('epTitle').textContent = meta.name || 'Episodes';
+    document.getElementById('seasonRow').innerHTML = '';
+    document.getElementById('epList').innerHTML = '<div class="empty">Loading episodes…</div>';
+    show('episodes'); setStatus('Loading episodes…','info');
+    var res = await fetchSeriesVideos(type, meta.id, seq);
+    if (seq !== seriesSeq) return;
+    if (!res || !res.videos.length){
+      // No episode data anywhere — treat it like a single item so the user
+      // still gets whatever streams exist (replace episodes in the back-stack).
+      if (viewStack[viewStack.length-1] === 'episodes') viewStack.pop();
+      openStreams(type, meta.id, meta.name);
+      return;
+    }
+    ctx.seriesType = type;
+    // group videos by season, specials (0) sorted last
+    var bySeason = {};
+    res.videos.forEach(function(v){ var s = seasonNum(v); (bySeason[s] = bySeason[s] || []).push(v); });
+    var seasons = Object.keys(bySeason).map(Number).sort(function(a,b){
+      if (a === 0) return 1; if (b === 0) return -1; return a - b;
+    });
+    Object.keys(bySeason).forEach(function(s){
+      bySeason[s].sort(function(a,b){ return (epNum(a)||0) - (epNum(b)||0); });
+    });
+    var row = document.getElementById('seasonRow');
+    row.innerHTML = '';
+    function renderSeason(s){
+      Array.prototype.forEach.call(row.children, function(ch){ ch.classList.toggle('on', ch.__season === s); });
+      var list = document.getElementById('epList');
+      list.innerHTML = '';
+      bySeason[s].forEach(function(v){ list.appendChild(episodeRow(meta, v)); });
+      list.parentNode.scrollTop = 0;
+    }
+    seasons.forEach(function(s, i){
+      var chip = document.createElement('button');
+      chip.className = 'chip focusable' + (i === 0 ? ' on' : '');
+      chip.textContent = (s === 0 ? 'Specials' : 'Season ' + s);
+      chip.__season = s;
+      chip.onclick = function(){ renderSeason(s); };
+      row.appendChild(chip);
+    });
+    setStatus(res.videos.length + ' episodes','ok');
+    renderSeason(seasons[0]);
+    focusFirst();
+  }
+  function episodeRow(seriesMeta, v){
+    var row = document.createElement('button'); row.className = 'stream focusable';
+    var e = epNum(v);
+    var ph = '<div class="ep-thumb-ph">' + (e != null ? e : '•') + '</div>';
+    var thumb = v.thumbnail
+      ? '<img class="ep-thumb" loading="lazy" src="' + esc(v.thumbnail) + '" onerror="this.remove()">'
+      : ph;
+    var title = (e != null ? e + '. ' : '') + esc(v.name || v.title || ('Episode ' + (e != null ? e : '')));
+    var sub = v.overview || v.released || '';
+    row.innerHTML = thumb + '<span><span class="stream-name">' + title + '</span>' +
+      (sub ? '<span class="ep-sub">' + esc(sub) + '</span>' : '') + '</span>';
+    row.onclick = function(){
+      ctx.streamTitle = (seriesMeta.name ? seriesMeta.name + ' · ' : '') + epTag(v) + (v.name ? ' · ' + v.name : '');
+      openStreams(ctx.seriesType || 'series', v.id, ctx.streamTitle);
+    };
+    return row;
+  }
+
+  // ---------- streams ----------
+  function openStreams(type, id, titleText){
+    var seq = ++openSeq;
+    document.getElementById('streamsTitle').textContent = titleText || 'Streams';
     var list = document.getElementById('streamList');
     list.innerHTML = '<div class="empty" id="streamsLoading">Loading streams…</div>';
     list.parentNode.scrollTop = 0;
@@ -1169,8 +1282,8 @@
       getManifest(a.url).then(function(m){
         // the origin add-on is always asked; others only when their manifest
         // says they serve streams for this item's type/id
-        if (!(origin && a.url === origin.url) && !canStream(m, type, meta.id)) return;
-        var u = a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(meta.id) + '.json';
+        if (!(origin && a.url === origin.url) && !canStream(m, type, id)) return;
+        var u = a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json';
         return getJson(u).then(function(d){
           if (seq !== openSeq) return;
           var streams = (d.streams||[]).filter(function(s){ return s.url; });
@@ -1301,7 +1414,7 @@
     }
   }
   function playStream(s){
-    playUrl(s.url, extractClearKeys(s), (ctx.item && ctx.item.name) || s.name || 'Nebula', s.subtitles || []);
+    playUrl(s.url, extractClearKeys(s), ctx.streamTitle || (ctx.item && ctx.item.name) || s.name || 'Nebula', s.subtitles || []);
   }
 
   // ---------- player UI (custom controls: transport, seek, subtitles, audio, quality, speed) ----------
