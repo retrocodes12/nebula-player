@@ -1,5 +1,5 @@
 {
-  "version": "2026.07.26.1",
+  "version": "2026.07.26.2",
   "url": "https://retrocodes12.github.io/nebula-player/",
-  "notes": "New: series get a season & episode picker"
+  "notes": "Live streams recover from segment errors instead of failing"
 }

@@ -524,7 +524,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.07.26.1';
+  var PLAYER_VERSION = '2026.07.26.2';
 
   // TV mode: 10-foot sizing on webOS (PalmSystem/ServiceBridge only exist there);
   // ?tv=1 forces it anywhere for previewing.
@@ -1350,11 +1350,43 @@
     video.style.display='none';
     try { video.playbackRate = 1; } catch(e){}
   }
-  var playSeq = 0;
-  async function playUrl(rawUrl, clearKeys, title, subtitles){
+  var playSeq = 0, reloadBudget = 0, lastRecoverAt = 0;
+  // Live sports feeds routinely drop or mis-align a segment at the live edge.
+  // A native player (mpv, what Stremio uses) skips past it; the browser's MSE
+  // is stricter and throws MEDIA_SOURCE_OPERATION_FAILED (Shaka 3014), which we
+  // used to surface as a fatal error. Instead: retry in place, and if that
+  // doesn't take, reload from the live edge (which skips the bad segment).
+  function handlePlaybackError(seq, d){
+    if (seq !== playSeq) return;
+    var code = d && d.code || 0;
+    // 1xxx network, 3xxx media (incl. 3014/3015 MSE append), 5xxx streaming — all transient
+    var transient = (code>=1000&&code<2000) || (code>=3000&&code<4000) || (code>=5000&&code<6000);
+    // severity 1 = RECOVERABLE: Shaka can often fix it in place without a reload
+    if (d && d.severity === 1 && player){
+      try { player.retryStreaming(); } catch(e){}
+      setStatus('Reconnecting…','info');
+      return;
+    }
+    if (transient && reloadBudget > 0){
+      reloadBudget--;
+      lastRecoverAt = Date.now();
+      setStatus('Playback hiccup — reconnecting…','info');
+      try { $id('puiSpin').style.display = 'block'; } catch(e){}
+      setTimeout(function(){
+        if (seq !== playSeq || !lastPlay) return;   // superseded by a new stream / navigation
+        playUrl(lastPlay.url, lastPlay.keys, lastPlay.title, lastPlay.subs, true);
+      }, 1200);
+      return;
+    }
+    var detail = d && d.data ? (' — ' + String(JSON.stringify(d.data)).slice(0,180)) : '';
+    setStatus('Playback error ' + code + detail, 'err');
+    try { $id('puiSpin').style.display = 'none'; } catch(e){}
+  }
+  async function playUrl(rawUrl, clearKeys, title, subtitles, isRecovery){
     if (!initShaka()) return;
     var seq = ++playSeq;
     lastPlay = { url: rawUrl, keys: clearKeys || null, title: title || '', subs: subtitles || [] };
+    if (!isRecovery) reloadBudget = 3;   // fresh stream gets a fresh recovery budget
     // a party host changing streams takes the whole room along
     if (party && party.isHost && party.ws.readyState === 1){
       try { party.ws.send(JSON.stringify({ t:'stream', stream: partyStreamDesc() })); } catch(e){}
@@ -1366,7 +1398,16 @@
     setStatus('Loading…','info');
     player = new shaka.Player();
     try { await player.attach(video); } catch(e){}
-    player.addEventListener('error', function(ev){ var d=ev.detail||{}; setStatus('Playback error '+(d.code||'?'),'err'); });
+    // Be tolerant of flaky CDNs (these are tokenised/proxied sports CDNs): more
+    // segment/manifest retries with backoff, and don't reject live manifests
+    // over minBufferTime quirks.
+    try {
+      player.configure({
+        streaming: { retryParameters: { maxAttempts: 6, baseDelay: 500, backoffFactor: 1.5, timeout: 30000 } },
+        manifest: { retryParameters: { maxAttempts: 4, baseDelay: 500, backoffFactor: 1.5 }, dash: { ignoreMinBufferTime: true } }
+      });
+    } catch(e){}
+    player.addEventListener('error', function(ev){ handlePlaybackError(seq, ev.detail || {}); });
     player.addEventListener('adaptation', function(){ if(!puiState.menu) puiRefreshButtons(); });
     player.addEventListener('trackschanged', function(){ if(!puiState.menu) puiRefreshButtons(); });
     player.addEventListener('buffering', function(ev){ $id('puiSpin').style.display = ev.buffering ? 'block' : 'none'; });
@@ -1460,6 +1501,9 @@
   }
   function puiTick(){
     if (!player) return;
+    // After ~30s of healthy playback since the last recovery, refill the reload
+    // budget so an occasional live-edge hiccup later can still be recovered from.
+    if (reloadBudget < 3 && !video.paused && Date.now() - lastRecoverAt > 30000) reloadBudget = 3;
     var r = puiRange(), t = video.currentTime;
     var span = r.end - r.start, pct = span>0 ? (t-r.start)/span : 0;
     if (pct<0) pct=0; if (pct>1) pct=1;
