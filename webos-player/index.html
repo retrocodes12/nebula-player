@@ -318,10 +318,13 @@
   html.tv .addon { padding:18px; border-radius:12px; }
   html.tv .addon-logo { width:72px; height:72px; border-radius:10px; }
   html.tv .addon-del { width:44px; height:44px; font-size:1rem; border-radius:8px; }
-  html.tv .grid { grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:22px; }
-  html.tv .hrow .card { flex-basis:220px; }
-  html.tv .hrow .card.shape-landscape { flex-basis:310px; }
-  html.tv .hrow .card.shape-square { flex-basis:220px; }
+  html.tv .grid { grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:26px; }
+  html.tv .hrow { padding:8px 2px 14px; }
+  html.tv .hrow .card { flex-basis:300px; margin-right:20px; }
+  html.tv .hrow .card.shape-landscape { flex-basis:440px; }
+  html.tv .hrow .card.shape-square { flex-basis:300px; }
+  html.tv .card-label { font-size:1rem; padding:12px 4px 4px; }
+  html.tv .row-title { font-size:1.3rem; }
   html.tv .iconbtn { width:62px; height:62px; font-size:1.9rem; }
   html.tv .btn { padding:.85rem 1.6rem; border-radius:10px; }
   html.tv .chip { padding:.55rem 1.25rem; }
@@ -524,7 +527,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.07.26.3';
+  var PLAYER_VERSION = '2026.07.26.4';
 
   // TV mode: 10-foot sizing on webOS (PalmSystem/ServiceBridge only exist there);
   // ?tv=1 forces it anywhere for previewing.
