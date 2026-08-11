@@ -192,6 +192,38 @@
     overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
   html.tv .ep-thumb, html.tv .ep-thumb-ph { width:168px; height:95px; }
 
+  /* ---- watch progress: resume bars on posters and episode rows ---- */
+  .prog { position:absolute; left:0; right:0; bottom:0; height:4px; background:rgba(0,0,0,.55); }
+  .prog i { display:block; height:100%; background:var(--red); }
+  html.tv .prog { height:6px; }
+  .ep-thumbwrap { position:relative; flex:0 0 auto; }
+  .ep-thumbwrap > .ep-thumb, .ep-thumbwrap > .ep-thumb-ph { display:block; }
+  .ep-done { position:absolute; top:5px; right:5px; width:21px; height:21px; border-radius:50%;
+    background:rgba(11,11,15,.82); color:#46D369; font-size:.72rem; font-weight:800; line-height:21px; text-align:center; }
+  html.tv .ep-done { width:30px; height:30px; line-height:30px; font-size:.92rem; }
+  /* remove-from-continue-watching, same affordance as the add-on delete */
+  .cw-x { position:absolute; top:6px; right:6px; width:27px; height:27px; border-radius:6px; border:0;
+    background:rgba(0,0,0,.62); color:#c9c9d1; cursor:pointer; font-size:.8rem; line-height:1;
+    opacity:0; transition:opacity .12s, background .12s; }
+  .cw-x:hover { background:var(--red); color:#fff; }
+  .card:hover .cw-x, .card.focusable:focus .cw-x { opacity:1; }
+  html.tv .cw-x { width:38px; height:38px; font-size:1rem; }
+  .card-sub { padding:0 2px 4px; font-size:.8rem; color:var(--muted);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  html.tv .card-sub { font-size:.9rem; }
+
+  /* ---- up next (the following episode, offered near the end / on ended) ---- */
+  #upnext { display:none; position:absolute; right:18px; bottom:96px; z-index:7; width:330px; max-width:70vw;
+    background:#16161C; border:1px solid var(--line2); border-radius:12px; padding:16px;
+    box-shadow:0 14px 36px rgba(0,0,0,.6); }
+  #upnext.show { display:block; }
+  .upnext-title { font-size:1.02rem; font-weight:700; line-height:1.35; margin:6px 0 12px;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .upnext-row { display:flex; }
+  .upnext-row > * + * { margin-left:8px; }
+  .upnext-row .btn { padding:.6rem 1.1rem; font-size:.92rem; }
+  html.tv #upnext { width:470px; right:30px; bottom:132px; padding:24px; border-radius:14px; }
+
   /* focus base */
   .focusable { outline:none; }
 
@@ -400,6 +432,7 @@
       <div class="pui-row">
         <span id="puiTime" class="pui-time">0:00 / 0:00</span>
         <span class="pui-flex"></span>
+        <button id="puiNext" class="focusable pui-btn" style="display:none" title="Next episode">Next ›</button>
         <button id="puiSubs" class="focusable pui-btn" style="display:none">Subtitles</button>
         <button id="puiAudio" class="focusable pui-btn" style="display:none">Audio</button>
         <button id="puiQual" class="focusable pui-btn" style="display:none">Quality</button>
@@ -411,6 +444,15 @@
     </div>
     <div id="puiMenu" class="qmenu"></div>
     <div id="puiSpin" class="pui-spin" style="display:none"></div>
+    <!-- deliberately outside .pui-chrome: it must survive the controls auto-hiding -->
+    <div id="upnext">
+      <div class="lbl">Up next</div>
+      <div id="upnextTitle" class="upnext-title"></div>
+      <div class="upnext-row">
+        <button id="upnextPlay" class="focusable btn">Play now</button>
+        <button id="upnextX" class="focusable btn ghost">Dismiss</button>
+      </div>
+    </div>
   </div>
 
   <!-- nav rail (Home / Search / Add-ons) -->
@@ -527,7 +569,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.07.26.4';
+  var PLAYER_VERSION = '2026.08.11';
 
   // TV mode: 10-foot sizing on webOS (PalmSystem/ServiceBridge only exist there);
   // ?tv=1 forces it anywhere for previewing.
@@ -554,6 +596,8 @@
     document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
     var el = document.getElementById('view-'+name);
     if (el){ el.classList.add('active'); if (!back) el.scrollTop = 0; }
+    // cheap and synchronous — keeps Continue watching honest after playback
+    if (name === 'home'){ try { renderContinue(); } catch(e){} }
     video.style.display = (name==='player') ? 'block' : 'none';
     document.body.classList.toggle('playing', name==='player');
     if (push !== false){ if (viewStack[viewStack.length-1] !== name) viewStack.push(name); }
@@ -571,6 +615,11 @@
   }
   function focusables(){
     if (document.body.className.indexOf('playing') !== -1){
+      // the up-next card outlives the auto-hiding chrome, so it takes focus first
+      if (upnextState.open){
+        var un = document.getElementById('upnext');
+        if (un) return Array.prototype.slice.call(un.querySelectorAll('.focusable')).filter(function(el){ return el.offsetParent !== null; });
+      }
       if (!pui || pui.className === 'idle') return [];
       var scope = puiState.menu ? puiMenuEl : pui;
       return Array.prototype.slice.call(scope.querySelectorAll('.focusable')).filter(function(el){ return el.offsetParent !== null; });
@@ -627,10 +676,22 @@
     if (video.style.display==='block'){
       var isBack = (k===461 || k===8 || e.key==='GoBack' || e.key==='BrowserBack');
       if (isBack){
-        if (puiState.menu){ closePuiMenu(true); }
+        if (upnextState.open){ dismissUpNext(); }
+        else if (puiState.menu){ closePuiMenu(true); }
         else if (pui.className !== 'idle'){ puiIdle(); }
         else { goBack(); }
         e.preventDefault(); return;
+      }
+      // while the up-next card is up it owns left/right and OK
+      if (upnextState.open){
+        if (k===37){ moveFocus2D(-1,0); e.preventDefault(); return; }
+        if (k===39){ moveFocus2D(1,0); e.preventDefault(); return; }
+        if (k===13){
+          var ua = document.activeElement;
+          if (ua && ua.className.indexOf('focusable') !== -1) ua.click();
+          else { var t = upnextState.target; if (t) playEpisodeAt(t.index); }
+          e.preventDefault(); return;
+        }
       }
       if (puiState.menu){
         if (k===38){ movePuiMenu(-1); e.preventDefault(); }
@@ -686,7 +747,8 @@
     manifestCache = {};                        // a changed add-on list invalidates cached manifests
     try { buildHomeRows(true); } catch(e){}   // any add-on change reshapes Home
   }
-  function mirrorAddons(json){ try { idbSave('addons', json); } catch(e){} db8Save('addons', json); }
+  function mirrorKv(key, json){ try { idbSave(key, json); } catch(e){} db8Save(key, json); }
+  function mirrorAddons(json){ mirrorKv('addons', json); }
 
   function idbOpen(){
     return new Promise(function(res){
@@ -776,6 +838,108 @@
         }
       });
   }
+  // Watch progress rides the same mirrors — losing your place to an overnight
+  // storage wipe would be worse than losing the add-on list.
+  function initPersistentProgress(){
+    var cur = getProgress();
+    if (Object.keys(cur).length){ mirrorKv('progress', JSON.stringify(cur)); return; }
+    idbLoad('progress')
+      .then(function(v){ if (v) return v; return db8Load('progress'); })
+      .then(function(v){
+        if (!v) return;
+        var obj = null; try { obj = JSON.parse(v); } catch(e){}
+        if (obj && Object.keys(obj).length){
+          progCache = obj;
+          try { LS.setItem('progress', v); } catch(e){}
+          renderContinue();
+        }
+      });
+  }
+  // ---------- watch progress (resume + continue watching) ----------
+  // One record per playable thing, keyed "<type>:<id>" — for a series that id is
+  // the episode id, so each episode resumes on its own. Finished items keep a
+  // {done:true} tombstone so episode lists can tick them off.
+  var PROG_MAX = 200;        // newest N kept; TVs have little storage
+  var PROG_MIN_POS = 15;     // below this it isn't worth resuming
+  var PROG_END_GAP = 60;     // within this of the end counts as finished
+  var progCache = null, progMirrorAt = 0;
+  function getProgress(){
+    if (progCache) return progCache;
+    try { progCache = JSON.parse(LS.getItem('progress')||'{}') || {}; } catch(e){ progCache = {}; }
+    return progCache;
+  }
+  function saveProgress(mirrorNow){
+    var p = getProgress(), keys = Object.keys(p);
+    if (keys.length > PROG_MAX){
+      keys.sort(function(a,b){ return (p[b].at||0) - (p[a].at||0); });
+      keys.slice(PROG_MAX).forEach(function(k){ delete p[k]; });
+    }
+    var json = JSON.stringify(p);
+    try { LS.setItem('progress', json); } catch(e){}
+    // the mirrors are comparatively expensive: on demand, else at most every 30s
+    if (mirrorNow || Date.now() - progMirrorAt > 30000){ progMirrorAt = Date.now(); mirrorKv('progress', json); }
+  }
+  function progKey(type, id){ return (type||'') + ':' + (id||''); }
+  function progFor(type, id){ return getProgress()[progKey(type, id)] || null; }
+  /** Where playback of (type,id) should start, or 0 for the beginning. */
+  function resumeAt(type, id){
+    var r = progFor(type, id);
+    if (!r || r.done || !r.pos || !r.dur) return 0;
+    if (r.pos < PROG_MIN_POS || r.pos > r.dur - PROG_END_GAP) return 0;
+    return r.pos;
+  }
+  // What is loaded RIGHT NOW, as opposed to ctx.play* which stages what the user
+  // has just picked. Progress must be written against the former: by the time
+  // autoplay calls stopPlayer(), ctx already points at the next episode.
+  var curPlay = null;
+  function noteProgress(pos, dur, done){
+    var c = curPlay; if (!c || !c.id) return;
+    var k = progKey(c.type, c.id), p = getProgress();
+    if (done || (dur > 0 && pos > dur - PROG_END_GAP)){
+      p[k] = { type: c.type, id: c.id, done: true, at: Date.now() };
+      saveProgress(true); return;
+    }
+    if (pos < PROG_MIN_POS){                    // rewound to the top — forget it
+      if (p[k] && !p[k].done){ delete p[k]; saveProgress(false); }
+      return;
+    }
+    p[k] = {
+      type: c.type, id: c.id, name: c.name || '',
+      poster: c.poster || '', shape: c.shape || 'poster',
+      addonUrl: c.addonUrl || '', pos: pos, dur: dur, at: Date.now()
+    };
+    saveProgress(false);
+  }
+  /** Snapshot the video element into the store (skips live streams). */
+  function flushProgress(mirror){
+    if (!player || !curPlay || !curPlay.id) return;
+    try { if (puiIsLive()) return; } catch(e){ return; }
+    var r = puiRange(), dur = r.end - r.start, pos = video.currentTime - r.start;
+    if (dur > 0 && isFinite(dur) && isFinite(pos)) noteProgress(pos, dur, false);
+    if (mirror) saveProgress(true);
+  }
+  function clearProgress(type, id){
+    var p = getProgress(), k = progKey(type, id);
+    if (p[k]){ delete p[k]; saveProgress(true); }
+  }
+  /** Newest-first, only things actually worth resuming. */
+  function continueList(){
+    var p = getProgress(), out = [];
+    Object.keys(p).forEach(function(k){
+      var r = p[k];
+      if (!r || r.done || !r.pos || !r.dur) return;
+      if (r.pos < PROG_MIN_POS || r.pos > r.dur - PROG_END_GAP) return;
+      out.push(r);
+    });
+    out.sort(function(a,b){ return (b.at||0) - (a.at||0); });
+    return out.slice(0, 20);
+  }
+  function addonByUrl(u){
+    var hit = null;
+    getAddons().forEach(function(a){ if (a.url === u) hit = a; });
+    return hit;
+  }
+
   function baseOf(manifestUrl){ return manifestUrl.replace(/\/manifest\.json.*$/,''); }
   async function getJson(url){
     var r = await fetch(url, { headers: { 'Accept':'application/json' } });
@@ -919,14 +1083,21 @@
     var g = extra.filter(function(x){ return x.name==='genre'; })[0];
     return g && g.options ? g.options : [];
   }
-  function catalogSupportsSearch(c){
+  /** Does this catalog advertise an `extra` (search / genre / skip …)? */
+  function catalogSupports(c, name){
     if (!c) return false;
-    if ((c.extra||[]).some(function(x){ return x.name==='search'; })) return true;
-    return (c.extraSupported||[]).indexOf('search') !== -1;
+    if ((c.extra||[]).some(function(x){ return x.name===name; })) return true;
+    return (c.extraSupported||[]).indexOf(name) !== -1;
   }
+  function catalogSupportsSearch(c){ return catalogSupports(c, 'search'); }
   function searchCatalog(){
     if (catalogSupportsSearch(ctx.catalog)) return ctx.catalog;
-    return (ctx.catalogs||[]).filter(catalogSupportsSearch)[0] || null;
+    // prefer a searchable catalog of the same type, so searching in a Series
+    // catalog doesn't silently hand back Movies
+    var same = (ctx.catalogs||[]).filter(function(c){
+      return catalogSupportsSearch(c) && ctx.catalog && c.type === ctx.catalog.type;
+    })[0];
+    return same || (ctx.catalogs||[]).filter(catalogSupportsSearch)[0] || null;
   }
   function clearSearchInput(){
     ctx.query='';
@@ -951,11 +1122,17 @@
     });
     document.getElementById('searchRow').style.display = (ctx.catalogs||[]).some(catalogSupportsSearch) ? 'flex' : 'none';
   }
-  function catalogUrl(){
-    var c = (ctx.query && searchCatalog()) ? searchCatalog() : ctx.catalog;
+  /** The catalog actually on screen — a search may route to a different one. */
+  function activeCatalog(){ return (ctx.query && searchCatalog()) ? searchCatalog() : ctx.catalog; }
+  function catalogUrl(skip){
+    var c = activeCatalog();
     var u = ctx.addon.base + '/catalog/' + encodeURIComponent(c.type) + '/' + encodeURIComponent(c.id);
-    if (ctx.query) u += '/search=' + encodeURIComponent(ctx.query);
-    else if (ctx.genre) u += '/genre=' + encodeURIComponent(ctx.genre);
+    // Stremio puts every extra in one path segment, joined with &
+    var extras = [];
+    if (ctx.query) extras.push('search=' + encodeURIComponent(ctx.query));
+    else if (ctx.genre) extras.push('genre=' + encodeURIComponent(ctx.genre));
+    if (skip) extras.push('skip=' + skip);
+    if (extras.length) u += '/' + extras.join('&');
     return u + '.json';
   }
   (function initSearch(){
@@ -984,26 +1161,70 @@
     };
     return card;
   }
-  var catSeq = 0;
-  async function loadCatalog(){
-    var seq = ++catSeq;
+  // Catalogs arrive a page at a time; `skip` walks them. Everything below the
+  // first page used to be unreachable.
+  var catSeq = 0, catPaging = false, catDone = false, catFetched = 0, catShown = 0, catSeen = null;
+  var CAT_MAX = 1000;   // ceiling so a huge catalog can't exhaust a TV's memory
+  function catalogScroller(){ return document.querySelector('#view-catalog .scroller'); }
+  async function loadCatalog(more){
+    if (more && (catPaging || catDone)) return;
     var list = document.getElementById('catList');
-    list.innerHTML = skeletons(18);
-    list.parentNode.scrollTop = 0;
-    setStatus('Loading…','info');
+    if (!more){
+      catSeq++; catDone = false; catFetched = 0; catShown = 0; catSeen = {};
+      list.innerHTML = skeletons(18);
+      list.parentNode.scrollTop = 0;
+      setStatus('Loading…','info');
+    }
+    var seq = catSeq;
+    catPaging = true;
     try {
-      var d = await getJson(catalogUrl());
+      var d = await getJson(catalogUrl(more ? catFetched : 0));
       if (seq !== catSeq) return;
       var metas = d.metas||[];
-      list.innerHTML='';
-      if (!metas.length){ list.innerHTML='<div class="empty">No items in this catalog.</div>'; setStatus('No items.','info'); return; }
-      metas.slice(0,300).forEach(function(meta){ list.appendChild(cardEl(meta)); });
-      setStatus(metas.length+' items','ok'); focusFirst();
+      catFetched += metas.length;
+      if (!more) list.innerHTML='';
+      var added = 0;
+      metas.forEach(function(meta){
+        var key = (meta.type||'') + ':' + meta.id;
+        if (catSeen[key]) return;                  // an add-on that ignores skip repeats itself
+        catSeen[key] = 1;
+        list.appendChild(cardEl(meta));
+        added++; catShown++;
+      });
+      // stop paging on an empty page, on nothing new, when the catalog never
+      // advertised `skip`, or at the ceiling
+      if (!metas.length || !added || !catalogSupports(activeCatalog(),'skip') || catShown >= CAT_MAX) catDone = true;
+      if (!catShown){
+        list.innerHTML='<div class="empty">No items in this catalog.</div>';
+        setStatus('No items.','info'); return;
+      }
+      setStatus(catShown + (catDone ? ' items' : ' items — scroll for more'), 'ok');
+      if (!more) focusFirst();
+      // a short first page leaves nothing to scroll, so top it up
+      if (!catDone) setTimeout(function(){
+        if (seq !== catSeq || catPaging || catDone) return;
+        var sc = catalogScroller();
+        if (sc && sc.scrollHeight <= sc.clientHeight + 40) loadCatalog(true);
+      }, 0);
     } catch(err){
       if (seq !== catSeq) return;
-      list.innerHTML='<div class="empty">Failed to load catalog: '+esc(err.message)+'</div>'; setStatus('Failed to load catalog.','err');
+      catDone = true;
+      if (more){ setStatus('Couldn’t load more.','err'); }
+      else {
+        list.innerHTML='<div class="empty">Failed to load catalog: '+esc(err.message)+'</div>';
+        setStatus('Failed to load catalog.','err');
+      }
+    } finally {
+      if (seq === catSeq) catPaging = false;
     }
   }
+  (function initCatalogPaging(){
+    var sc = catalogScroller(); if (!sc) return;
+    sc.addEventListener('scroll', function(){
+      if (catDone || catPaging) return;
+      if (sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 600) loadCatalog(true);
+    });
+  })();
 
   // ---------- home rows + global search (Stremio-style) ----------
   var manifestCache = {};
@@ -1016,6 +1237,44 @@
     document.getElementById('catTitle').textContent = a.name || m.name || 'Catalog';
     renderGenres(); show('catalog'); loadCatalog();
   }
+  /** Resume what you were watching. Rendered from local storage, so it paints
+      instantly and survives every add-on being unreachable. */
+  function continueCard(r){
+    var card = document.createElement('button');
+    card.className = 'card focusable shape-' + (r.shape || 'poster');
+    var pct = r.dur > 0 ? Math.max(0, Math.min(100, (r.pos / r.dur) * 100)) : 0;
+    var thumb = r.poster
+      ? '<img loading="lazy" src="' + esc(r.poster) + '" onerror="this.style.display=\'none\'">'
+      : '<span class="thumb-ph">' + esc((r.name||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase() || '••') + '</span>';
+    var left = (r.dur - r.pos) > 0 ? fmtT(r.dur - r.pos) + ' left' : '';
+    card.innerHTML = '<div class="thumb">' + thumb +
+      '<div class="prog"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' +
+      '<div class="card-label">' + esc(r.name || r.id) + '</div>' +
+      (left ? '<div class="card-sub">' + esc(left) + '</div>' : '');
+    card.onclick = function(){
+      var a = addonByUrl(r.addonUrl);
+      if (a) ctx.addon = a;
+      ctx.item = { id: r.id, type: r.type, name: r.name, poster: r.poster, posterShape: r.shape };
+      ctx.seriesEpisodes = null; ctx.epIndex = -1; ctx.seriesName = '';
+      openStreams(r.type, r.id, r.name);
+      if (r.type === 'series') hydrateSeriesChain(r.type, r.id);
+    };
+    var x = document.createElement('button');
+    x.className = 'cw-x focusable'; x.textContent = '✕'; x.title = 'Remove from Continue watching';
+    x.onclick = function(ev){ ev.stopPropagation(); clearProgress(r.type, r.id); renderContinue(); focusFirst(); };
+    card.appendChild(x);
+    return card;
+  }
+  function renderContinue(){
+    var sec = document.getElementById('cwSection'); if (!sec) return;
+    var items = continueList();
+    if (!items.length){ sec.innerHTML = ''; return; }
+    sec.innerHTML = '<div class="rowhead"><span class="row-title">Continue watching</span></div>';
+    var row = document.createElement('div'); row.className = 'hrow';
+    items.forEach(function(r){ row.appendChild(continueCard(r)); });
+    sec.appendChild(row);
+  }
+
   var homeSig = null, homeBuiltAt = 0, homeSeq = 0;
   function buildHomeRows(force){
     var wrap = document.getElementById('homeRows'); if (!wrap) return;
@@ -1033,11 +1292,16 @@
       document.getElementById('homeAddBtn').onclick = function(){ setTab('addons'); };
       return;
     }
+    // Continue watching lives in its own section so the add-on rows (and their
+    // unreachable-fallback) can be replaced without wiping it.
     wrap.innerHTML = '';
+    var cwSec = document.createElement('div'); cwSec.id = 'cwSection'; wrap.appendChild(cwSec);
+    var rowsWrap = document.createElement('div'); rowsWrap.id = 'addonRows'; wrap.appendChild(rowsWrap);
+    renderContinue();
     var manifestsLeft = addons.length, catsLeft = 0, rowsShown = 0;
     function settle(){
       if (seq !== homeSeq || manifestsLeft || catsLeft || rowsShown) return;
-      wrap.innerHTML = '<div class="empty">Couldn’t reach your add-ons right now. ' +
+      rowsWrap.innerHTML = '<div class="empty">Couldn’t reach your add-ons right now. ' +
         '<button class="seeall focusable" id="homeRetry" style="margin-left:8px">Retry</button></div>';
       document.getElementById('homeRetry').onclick = function(){ buildHomeRows(true); };
     }
@@ -1056,7 +1320,7 @@
           head.appendChild(sa);
           var row = document.createElement('div'); row.className='hrow';
           row.innerHTML = skeletons(6);
-          wrap.appendChild(head); wrap.appendChild(row);
+          rowsWrap.appendChild(head); rowsWrap.appendChild(row);
           var u = a.base + '/catalog/' + encodeURIComponent(c.type) + '/' + encodeURIComponent(c.id) + '.json';
           getJson(u).then(function(d){
             if (seq !== homeSeq) return;
@@ -1092,21 +1356,36 @@
     addons.forEach(function(a){
       pending++;
       getManifest(a.url).then(function(m){
-        var sc = (m.catalogs||[]).filter(catalogSupportsSearch)[0];
-        if (!sc) return;
-        var u = a.base + '/catalog/' + encodeURIComponent(sc.type) + '/' + encodeURIComponent(sc.id) + '/search=' + encodeURIComponent(q) + '.json';
-        return getJson(u).then(function(d){
-          if (seq !== searchSeq) return;
-          var metas = d.metas||[];
-          if (!metas.length) return;
-          any = true;
-          var head = document.createElement('div'); head.className='rowhead';
-          head.innerHTML = '<span class="row-title">'+esc(a.name||'Add-on')+
-            ' <span class="row-sub">'+metas.length+' result'+(metas.length>1?'s':'')+'</span></span>';
-          var g = document.createElement('div'); g.className='grid';
-          metas.slice(0,60).forEach(function(meta){ g.appendChild(cardEl(meta, a, m, sc)); });
-          wrap.appendChild(head); wrap.appendChild(g);
-        });
+        // An add-on usually advertises search on several catalogs (Cinemeta has
+        // one for movies and one for series) — query them all, or a search for a
+        // show only ever returns films.
+        var cats = (m.catalogs||[]).filter(catalogSupportsSearch).slice(0, 4);
+        if (!cats.length) return;
+        // one section per add-on, filled as its catalogs answer
+        var head = document.createElement('div'); head.className='rowhead';
+        var countEl = document.createElement('span'); countEl.className='row-sub';
+        var titleEl = document.createElement('span'); titleEl.className='row-title';
+        titleEl.textContent = a.name || 'Add-on';
+        titleEl.appendChild(document.createTextNode(' ')); titleEl.appendChild(countEl);
+        head.appendChild(titleEl);
+        var g = document.createElement('div'); g.className='grid';
+        var seen = {}, count = 0, shown = false;
+        return Promise.all(cats.map(function(c){
+          var u = a.base + '/catalog/' + encodeURIComponent(c.type) + '/' + encodeURIComponent(c.id) +
+                  '/search=' + encodeURIComponent(q) + '.json';
+          return getJson(u).then(function(d){
+            if (seq !== searchSeq) return;
+            (d.metas||[]).slice(0,60).forEach(function(meta){
+              var key = (meta.type||c.type) + ':' + meta.id;
+              if (seen[key]) return;                 // same title from two catalogs
+              seen[key] = 1;
+              if (!shown){ wrap.appendChild(head); wrap.appendChild(g); shown = true; any = true; }
+              count++;
+              g.appendChild(cardEl(meta, a, m, c));
+            });
+            if (shown) countEl.textContent = count + ' result' + (count>1?'s':'');
+          }).catch(function(){});
+        }));
       }).catch(function(){}).then(function(){
         pending--;
         if (!pending && seq === searchSeq){
@@ -1151,6 +1430,7 @@
   function openItem(meta){
     ctx.item = meta;
     ctx.streamTitle = null;
+    ctx.seriesEpisodes = null; ctx.epIndex = -1;   // a movie must not inherit a stale chain
     var type = meta.type || (ctx.catalog && ctx.catalog.type) || 'tv';
     // Series get a season/episode picker first; movies (and everything else)
     // go straight to the stream list.
@@ -1162,6 +1442,21 @@
   function epNum(v){ return (v.episode != null ? v.episode : (v.number != null ? v.number : null)); }
   function seasonNum(v){ return (v.season != null ? v.season : 1); }
   function epTag(v){ var e = epNum(v); return 'S' + seasonNum(v) + (e != null ? 'E' + e : ''); }
+  /** Group a meta's `videos` into seasons (specials last) plus one flat list in
+      playing order — the flat list is what "next episode" walks. */
+  function groupEpisodes(videos){
+    var bySeason = {};
+    videos.forEach(function(v){ var s = seasonNum(v); (bySeason[s] = bySeason[s] || []).push(v); });
+    var seasons = Object.keys(bySeason).map(Number).sort(function(a,b){
+      if (a === 0) return 1; if (b === 0) return -1; return a - b;
+    });
+    Object.keys(bySeason).forEach(function(s){
+      bySeason[s].sort(function(a,b){ return (epNum(a)||0) - (epNum(b)||0); });
+    });
+    var flat = [];
+    seasons.forEach(function(s){ bySeason[s].forEach(function(v){ flat.push(v); }); });
+    return { bySeason: bySeason, seasons: seasons, flat: flat };
+  }
   // Ask the origin add-on (then any other that advertises `meta` for this
   // type/id) for the full meta — we need its `videos` list to build episodes.
   async function fetchSeriesVideos(type, id, seq){
@@ -1198,22 +1493,18 @@
       return;
     }
     ctx.seriesType = type;
-    // group videos by season, specials (0) sorted last
-    var bySeason = {};
-    res.videos.forEach(function(v){ var s = seasonNum(v); (bySeason[s] = bySeason[s] || []).push(v); });
-    var seasons = Object.keys(bySeason).map(Number).sort(function(a,b){
-      if (a === 0) return 1; if (b === 0) return -1; return a - b;
-    });
-    Object.keys(bySeason).forEach(function(s){
-      bySeason[s].sort(function(a,b){ return (epNum(a)||0) - (epNum(b)||0); });
-    });
+    var grouped = groupEpisodes(res.videos);
+    var bySeason = grouped.bySeason, seasons = grouped.seasons, flat = grouped.flat;
+    ctx.seriesEpisodes = flat;
+    ctx.seriesName = meta.name || '';
+    ctx.seriesPoster = meta.poster || '';
     var row = document.getElementById('seasonRow');
     row.innerHTML = '';
     function renderSeason(s){
       Array.prototype.forEach.call(row.children, function(ch){ ch.classList.toggle('on', ch.__season === s); });
       var list = document.getElementById('epList');
       list.innerHTML = '';
-      bySeason[s].forEach(function(v){ list.appendChild(episodeRow(meta, v)); });
+      bySeason[s].forEach(function(v){ list.appendChild(episodeRow(meta, v, flat.indexOf(v))); });
       list.parentNode.scrollTop = 0;
     }
     seasons.forEach(function(s, i){
@@ -1228,27 +1519,76 @@
     renderSeason(seasons[0]);
     focusFirst();
   }
-  function episodeRow(seriesMeta, v){
+  function epLabel(seriesName, v){
+    return (seriesName ? seriesName + ' · ' : '') + epTag(v) + (v.name ? ' · ' + v.name : '');
+  }
+  /** Resuming an episode from Continue watching bypasses the picker, so rebuild
+      the series chain in the background — otherwise "next episode" is dead there.
+      Stremio episode ids are "<seriesId>:<season>:<episode>". */
+  async function hydrateSeriesChain(type, episodeId){
+    var seriesId = String(episodeId||'').split(':')[0];
+    if (!seriesId || seriesId === episodeId) return;
+    var seq = ++seriesSeq;
+    var res = await fetchSeriesVideos(type, seriesId, seq);
+    if (!res || seq !== seriesSeq || !res.videos.length) return;
+    var grouped = groupEpisodes(res.videos);
+    ctx.seriesEpisodes = grouped.flat;
+    ctx.seriesType = type;
+    ctx.seriesName = (res.meta && res.meta.name) || ctx.seriesName || '';
+    ctx.seriesPoster = (res.meta && res.meta.poster) || ctx.seriesPoster || '';
+    ctx.epIndex = -1;
+    for (var i=0;i<grouped.flat.length;i++){
+      if (grouped.flat[i].id === episodeId){ ctx.epIndex = i; break; }
+    }
+    try { puiRefreshButtons(); } catch(e){}
+  }
+  function episodeRow(seriesMeta, v, index){
     var row = document.createElement('button'); row.className = 'stream focusable';
     var e = epNum(v);
     var ph = '<div class="ep-thumb-ph">' + (e != null ? e : '•') + '</div>';
     var thumb = v.thumbnail
       ? '<img class="ep-thumb" loading="lazy" src="' + esc(v.thumbnail) + '" onerror="this.remove()">'
       : ph;
+    // watched tick / part-way bar, from the local progress store
+    var pr = progFor(ctx.seriesType || 'series', v.id);
+    var mark = '';
+    if (pr && pr.done) mark = '<span class="ep-done">✓</span>';
+    else if (pr && pr.pos && pr.dur > 0){
+      var pct = Math.max(0, Math.min(100, (pr.pos / pr.dur) * 100));
+      mark = '<span class="prog"><i style="width:' + pct.toFixed(1) + '%"></i></span>';
+    }
     var title = (e != null ? e + '. ' : '') + esc(v.name || v.title || ('Episode ' + (e != null ? e : '')));
     var sub = v.overview || v.released || '';
-    row.innerHTML = thumb + '<span><span class="stream-name">' + title + '</span>' +
+    row.innerHTML = '<span class="ep-thumbwrap">' + thumb + mark + '</span>' +
+      '<span><span class="stream-name">' + title + '</span>' +
       (sub ? '<span class="ep-sub">' + esc(sub) + '</span>' : '') + '</span>';
     row.onclick = function(){
-      ctx.streamTitle = (seriesMeta.name ? seriesMeta.name + ' · ' : '') + epTag(v) + (v.name ? ' · ' + v.name : '');
+      ctx.epIndex = (index == null ? -1 : index);
+      ctx.streamTitle = epLabel(seriesMeta.name, v);
       openStreams(ctx.seriesType || 'series', v.id, ctx.streamTitle);
     };
     return row;
   }
 
   // ---------- streams ----------
+  /** Remember what the next playUrl() is actually playing — resume and Continue
+      watching both key off this, so it must be set before playback starts. */
+  function setPlayIdentity(type, id, title){
+    ctx.playType = type || ''; ctx.playId = id || ''; ctx.playTitle = title || '';
+    ctx.playAddonUrl = (ctx.addon && ctx.addon.url) || '';
+    ctx.playPoster = (ctx.item && ctx.item.poster) || ctx.seriesPoster || '';
+    ctx.playShape = (ctx.item && ctx.item.posterShape) || 'poster';
+  }
+  /** For playback with no catalogue identity (a pasted URL, a party stream):
+      nothing to resume and nothing worth remembering. */
+  function clearPlayIdentity(){
+    ctx.playType = ''; ctx.playId = ''; ctx.playTitle = '';
+    ctx.playAddonUrl = ''; ctx.playPoster = ''; ctx.playShape = 'poster';
+    ctx.seriesEpisodes = null; ctx.epIndex = -1;
+  }
   function openStreams(type, id, titleText){
     var seq = ++openSeq;
+    setPlayIdentity(type, id, titleText);
     document.getElementById('streamsTitle').textContent = titleText || 'Streams';
     var list = document.getElementById('streamList');
     list.innerHTML = '<div class="empty" id="streamsLoading">Loading streams…</div>';
@@ -1344,6 +1684,9 @@
     return true;
   }
   async function stopPlayer(){
+    try { flushProgress(true); } catch(e){}
+    curPlay = null;
+    closeUpNext();
     clearInterval(puiState.tick);
     clearTimeout(puiState.idleTimer);
     closePuiMenu(false);
@@ -1383,6 +1726,11 @@
     }
     await stopPlayer();
     if (seq !== playSeq) return;
+    // promote the staged selection: from here on this is what progress is written against
+    curPlay = ctx.playId ? {
+      type: ctx.playType, id: ctx.playId, name: ctx.playTitle || title || '',
+      poster: ctx.playPoster || '', shape: ctx.playShape || 'poster', addonUrl: ctx.playAddonUrl || ''
+    } : null;
     show('player');
     puiReset(title || '');
     setStatus('Loading…','info');
@@ -1421,10 +1769,14 @@
       });
       player.configure({ drm: { clearKeys: clearKeys } });
     }
+    // Resume where this exact item was left off. Handing the offset to Shaka's
+    // load() starts buffering there, rather than loading at 0 and seeking.
+    var startAt = curPlay ? resumeAt(curPlay.type, curPlay.id) : 0;
     try {
-      await player.load(cleanUrl(rawUrl));
+      if (startAt) await player.load(cleanUrl(rawUrl), startAt);
+      else await player.load(cleanUrl(rawUrl));
       if (seq !== playSeq) return;
-      setStatus('Playing.','ok');
+      setStatus(startAt ? ('Resumed from ' + fmtT(startAt) + '.') : 'Playing.', 'ok');
       try { await video.play(); } catch(e){}
       $id('puiSpin').style.display = 'none';
       puiRefreshButtons(); puiTick();
@@ -1452,6 +1804,7 @@
   var pui = document.getElementById('pui');
   var puiMenuEl = document.getElementById('puiMenu');
   var puiState = { menu:null, opener:null, idleTimer:null, tick:null };
+  var upnextState = { open:false, counting:false, dismissed:false, timer:null, left:0, target:null };
   function $id(x){ return document.getElementById(x); }
 
   function heightLabel(h){ return h ? (h + 'p') : 'Auto'; }
@@ -1489,7 +1842,7 @@
     if (p<0) p=0; if (p>1) p=1;
     video.currentTime = r.start + (r.end-r.start)*p; puiTick();
   }
-  var lastTickT = -1;
+  var lastTickT = -1, progTicks = 0;
   function puiTick(){
     if (!player) return;
     // Healthy playback (position advancing) re-arms the one-shot retry so a
@@ -1510,6 +1863,16 @@
     $id('puiTime').textContent = live
       ? (r.end - t > 12 ? '-'+fmtT(r.end - t)+' behind live' : 'At the live edge')
       : (fmtT(t - r.start) + ' / ' + fmtT(span));
+    // keep the resume point roughly current (~5s), and offer the next episode
+    // once we're near the end
+    progTicks++;
+    if (!video.paused && progTicks % 10 === 0) flushProgress(false);
+    if (!live && span > 0){
+      var remain = r.end - t;
+      if (remain > 0.5 && remain <= 25 && !video.paused && !upnextState.open &&
+          !upnextState.dismissed && nextEpisode()) openUpNext(false);
+      else if (remain > 40 && upnextState.open && !upnextState.counting) closeUpNext();
+    }
   }
   function puiSyncPlayIcon(){
     var paused = video.paused;
@@ -1521,7 +1884,7 @@
     pui.className = '';
     clearTimeout(puiState.idleTimer);
     puiState.idleTimer = setTimeout(function(){
-      if (!video.paused && !puiState.menu) puiIdle();
+      if (!video.paused && !puiState.menu && !upnextState.open) puiIdle();
     }, 3500);
   }
   function puiIdle(){
@@ -1625,10 +1988,13 @@
     $id('puiSubs').style.display = tt.length ? '' : 'none';
     var langs=[]; try { langs = player.getAudioLanguagesAndRoles()||[]; } catch(e){}
     $id('puiAudio').style.display = langs.length >= 2 ? '' : 'none';
+    $id('puiNext').style.display = nextEpisode() ? '' : 'none';
   }
   function puiReset(title){
     $id('puiTitle').textContent = title || '';
     $id('puiSpeed').textContent = '1×';
+    closeUpNext(); upnextState.dismissed = false;
+    $id('puiNext').style.display = 'none';
     closePuiMenu(false);
     $id('puiSpin').style.display = 'block';
     $id('puiFill').style.width='0%'; $id('puiBuf').style.width='0%'; $id('puiKnob').style.left='0%';
@@ -1652,6 +2018,70 @@
   $id('puiSubs').onclick = function(){ if (puiState.menu==='subs') closePuiMenu(true); else openPuiMenu('subs', this); };
   $id('puiAudio').onclick = function(){ if (puiState.menu==='audio') closePuiMenu(true); else openPuiMenu('audio', this); };
   $id('puiSpeed').onclick = function(){ if (puiState.menu==='speed') closePuiMenu(true); else openPuiMenu('speed', this); };
+
+  // ---- up next: keep a series going without a trip back to the episode list ----
+  // Offered quietly in the last 25s, with a countdown once the episode ends.
+  function nextEpisode(){
+    var list = ctx.seriesEpisodes;
+    if (!list || !list.length) return null;
+    var i = (ctx.epIndex == null) ? -1 : ctx.epIndex;
+    if (i < 0 || i + 1 >= list.length) return null;
+    return { ep: list[i+1], index: i+1 };
+  }
+  function openUpNext(withCountdown){
+    var nx = nextEpisode(); if (!nx) return;
+    upnextState.open = true; upnextState.target = nx; upnextState.counting = !!withCountdown;
+    $id('upnextTitle').textContent = epTag(nx.ep) + (nx.ep.name ? ' · ' + nx.ep.name : '');
+    $id('upnext').classList.add('show');
+    clearInterval(upnextState.timer);
+    if (!withCountdown){ $id('upnextPlay').textContent = 'Play now'; return; }
+    upnextState.left = 8;
+    $id('upnextPlay').textContent = 'Play now (' + upnextState.left + ')';
+    upnextState.timer = setInterval(function(){
+      upnextState.left--;
+      if (upnextState.left <= 0){ clearInterval(upnextState.timer); playEpisodeAt(nx.index); return; }
+      $id('upnextPlay').textContent = 'Play now (' + upnextState.left + ')';
+    }, 1000);
+    setTimeout(function(){ if (upnextState.open) $id('upnextPlay').focus(); }, 40);
+  }
+  function closeUpNext(){
+    clearInterval(upnextState.timer);
+    upnextState.open = false; upnextState.counting = false; upnextState.target = null;
+    var el = $id('upnext'); if (el) el.classList.remove('show');
+  }
+  function dismissUpNext(){ upnextState.dismissed = true; closeUpNext(); puiShow(); }
+  /** Play episode `index` of the current series: auto-pick the origin add-on's
+      first stream, and fall back to the stream list when there isn't one. */
+  async function playEpisodeAt(index){
+    var list = ctx.seriesEpisodes, v = list && list[index];
+    if (!v) return;
+    closeUpNext();
+    upnextState.dismissed = false;
+    ctx.epIndex = index;
+    var type = ctx.seriesType || 'series';
+    var label = epLabel(ctx.seriesName, v);
+    ctx.streamTitle = label;
+    var a = ctx.addon;
+    if (a){
+      setStatus('Loading ' + epTag(v) + '…','info');
+      try {
+        var d = await getJson(a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(v.id) + '.json');
+        var s = (d.streams||[]).filter(function(x){ return x.url; })[0];
+        if (s){ setPlayIdentity(type, v.id, label); playStream(s); return; }
+      } catch(e){}
+    }
+    openStreams(type, v.id, label);
+  }
+  $id('upnextPlay').onclick = function(){ var t = upnextState.target; if (t) playEpisodeAt(t.index); };
+  $id('upnextX').onclick = function(){ dismissUpNext(); };
+  $id('puiNext').onclick = function(){ var nx = nextEpisode(); if (nx) playEpisodeAt(nx.index); };
+  video.addEventListener('ended', function(){
+    if (puiIsLive()) return;
+    noteProgress(0, 0, true);          // finished — ticks it off the episode list
+    try { renderContinue(); } catch(e){}
+    puiShow();
+    if (nextEpisode()) openUpNext(true);
+  });
 
   // ---- picture-in-picture (browsers that support it) + desktop mini player ----
   var miniOn = false;
@@ -1798,7 +2228,11 @@
       if (m.state) party.lastState = { playing: !!m.state.playing, pos: Number(m.state.pos)||0, live: !!m.state.live, atLocal: Date.now() - (Number(m.state.age)||0) };
       partyBadge();
       setStatus('Joined party ' + m.code + '.','ok');
-      if (m.stream && m.stream.url) playUrl(m.stream.url, m.stream.keys || null, m.stream.title || 'Watch party', m.stream.subs || []);
+      // the host owns the position here — nothing to resume, nothing to remember
+      if (m.stream && m.stream.url){
+        clearPlayIdentity();
+        playUrl(m.stream.url, m.stream.keys || null, m.stream.title || 'Watch party', m.stream.subs || []);
+      }
       return;
     }
     if (!party || ws !== party.ws){
@@ -1812,6 +2246,7 @@
       if (!party.isHost && m.stream && m.stream.url){
         setStatus('Host switched streams.','info');
         party.lastState = { playing:true, pos:0, live:false, atLocal: Date.now() };
+        clearPlayIdentity();
         playUrl(m.stream.url, m.stream.keys || null, m.stream.title || 'Watch party', m.stream.subs || []);
       }
     } else if (m.t === 'peers'){
@@ -1932,6 +2367,7 @@
     var frag = url.indexOf('#clearkey=');
     if (frag!==-1){ decodeURIComponent(url.slice(frag+10)).split(',').forEach(function(p){var i=p.indexOf(':');if(i>0){var k=hex(p.slice(0,i)),v=hex(p.slice(i+1));if(k.length===32&&v.length===32)keys[k]=v;}}); }
     try { LS.setItem('m_url',url); } catch(e){}
+    clearPlayIdentity();
     playUrl(url, Object.keys(keys).length?keys:null, 'Custom URL', []);
   }
 
@@ -1950,8 +2386,16 @@
   })();
   try { document.getElementById('mUrl').value = LS.getItem('m_url')||''; } catch(e){}
 
+  // A TV app is usually closed by yanking power or hitting Home — persist the
+  // resume point on the way out rather than only on a clean stop.
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'hidden'){ try { flushProgress(true); } catch(e){} }
+  });
+  window.addEventListener('pagehide', function(){ try { flushProgress(true); } catch(e){} });
+
   renderAddons();
   initPersistentAddons();
+  initPersistentProgress();
   buildHomeRows(true);
   setStatus(getAddons().length ? 'Welcome back.' : 'Ready. Add your add-on to begin.','info');
   focusFirst();
