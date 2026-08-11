@@ -1,0 +1,57 @@
+{
+  "paging": {
+    "count": 2,
+    "next": null
+  },
+  "packages": [
+    {
+      "id": "com.nuvio.clearkey.player",
+      "title": "Nebula",
+      "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
+      "manifestUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.16.0/webosbrew.manifest.json",
+      "manifest": {
+        "id": "com.nuvio.clearkey.player",
+        "version": "1.16.0",
+        "type": "web",
+        "title": "Nebula",
+        "appDescription": "Nebula \u2014 add-on browser + player for webOS. Apple-style interface with layered surfaces and focus that lifts, resume and Continue Watching, next-episode autoplay, catalogue paging, and search across every catalogue. Plays and decrypts every format.",
+        "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
+        "sourceUrl": "https://github.com/retrocodes12/nebula-player",
+        "rootRequired": false,
+        "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.16.0/com.nuvio.clearkey.player_1.16.0_all.ipk",
+        "ipkHash": {
+          "sha256": "fb6eed93d74b4541a3704249cae163cc480523c48c772944881de776f808464e"
+        },
+        "ipkSize": 433004
+      },
+      "pool": "main",
+      "shortDescription": "Add-on browser + player. Add an add-on by scanning a QR with your phone.",
+      "fullDescriptionUrl": "",
+      "version": "1.16.0"
+    },
+    {
+      "id": "com.nuvio.clearkey.app",
+      "title": "Nuvio ClearKey",
+      "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
+      "manifestUrl": "https://github.com/retrocodes12/nebula-player/releases/download/webos-v1.0.0/webosbrew.manifest.json",
+      "manifest": {
+        "id": "com.nuvio.clearkey.app",
+        "version": "1.0.0",
+        "type": "web",
+        "title": "Nuvio ClearKey",
+        "appDescription": "Full Nuvio UI that decrypts every format on-device (needs the TV to reach TMDB / add-ons).",
+        "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
+        "sourceUrl": "https://github.com/retrocodes12/nebula-player",
+        "rootRequired": false,
+        "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/webos-v1.0.0/com.nuvio.clearkey.app_1.0.0_all.ipk",
+        "ipkHash": {
+          "sha256": "25c96a48f5e0f5763d52df2b55317f4413f32b2594042bf344ceec32355c747b"
+        },
+        "ipkSize": 7915894
+      },
+      "pool": "main",
+      "shortDescription": "Full Nuvio UI that decrypts every format on-device.",
+      "fullDescriptionUrl": ""
+    }
+  ]
+}

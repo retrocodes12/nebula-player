@@ -1,0 +1,2555 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Nebula</title>
+<script src="./shaka-player.compiled.js"></script>
+<script src="./qrcode.js"></script>
+<style>
+  /* ============================================================
+     Nebula — Apple app language.
+     Layered neutral surfaces (never near-black + neon), translucent
+     chrome as a real material, soft continuous corners, and focus that
+     lifts rather than outlines. Content supplies the colour; the
+     interface stays quiet.
+     Compatibility floor is old webOS Chromium: no inset shorthand, no
+     flex gap, no clamp(); backdrop-filter rides behind @supports with a
+     solid fallback underneath.
+     ============================================================ */
+  @font-face { font-family:'Geist'; src:url('fonts/geist.woff2') format('woff2');
+    font-weight:100 900; font-style:normal; font-display:swap; }
+  @font-face { font-family:'GeistMono'; src:url('fonts/geistmono.woff2') format('woff2');
+    font-weight:100 900; font-style:normal; font-display:swap; }
+
+  :root {
+    --bg:#000000;
+    --l1:#1C1C1E; --l2:#2C2C2E; --l3:#3A3A3C;
+    --sep:rgba(255,255,255,.10);
+    --label:#FFFFFF;
+    --label2:rgba(235,235,245,.60);
+    --label3:rgba(235,235,245,.30);
+    --fill:rgba(118,118,128,.24);
+    --fill2:rgba(118,118,128,.36);
+    --red:#E50914; --red-hover:#F6121D;
+    --ok:#30D158;
+    --r-card:12px; --r-tile:18px; --r-ctl:12px; --r-pill:980px;
+    --ease:cubic-bezier(.22,.61,.36,1);
+    --navh:62px; --pad:40px;
+    --sans:'Geist',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:'GeistMono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    /* legacy aliases still referenced by markup */
+    --surface:var(--l1); --surface2:var(--l2); --line:var(--sep); --line2:rgba(255,255,255,.16);
+    --ink:var(--label); --muted:var(--label2); --railw:0px; --padt:0px;
+  }
+  @media (max-width:820px){ :root { --pad:20px; } }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--label); overflow:hidden;
+    font-family:var(--sans); letter-spacing:-.011em; -webkit-font-smoothing:antialiased; }
+  ::selection { background:rgba(255,255,255,.22); }
+
+  #video { position:fixed; top:0; left:0; right:0; bottom:0; width:100%; height:100%; background:#000; z-index:1; display:none; }
+
+  .view { position:fixed; top:var(--navh); left:0; right:0; bottom:0; z-index:2; overflow-y:auto; display:none;
+    padding:26px var(--pad) 40px; scrollbar-width:none; }
+  .view::-webkit-scrollbar { display:none; }
+  .view.active { display:block; animation:viewIn .28s var(--ease) both; }
+  @keyframes viewIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: reduce){ .view.active { animation:none; } }
+  .view.cols { padding:0; }
+  .view.cols.active { display:flex; flex-direction:column; overflow:hidden; }
+  .view.cols .topbar { flex:0 0 auto; padding:24px var(--pad) 14px; }
+  .view.cols .chips { flex:0 0 auto; margin:0; padding:2px var(--pad) 14px; }
+  .view.cols .searchrow { flex:0 0 auto; display:flex; align-items:center; padding:2px var(--pad) 14px; }
+  .searchrow > * + * { margin-left:10px; }
+  .searchrow .field { flex:1; width:auto; margin:0; }
+  .scroller { flex:1 1 auto; min-height:0; overflow-y:auto; padding:2px var(--pad) 40px; scrollbar-width:none; }
+  .scroller::-webkit-scrollbar { display:none; }
+
+  #updBanner { display:none; position:fixed; top:0; left:0; right:0; z-index:200; align-items:center;
+    padding:11px 20px; background:var(--red); color:#fff; font-size:14px; font-weight:500; }
+  #updBanner.show { display:flex; }
+  #updBanner > * + * { margin-left:12px; }
+  #updBanner #updText { flex:1; }
+  #updBanner a, #updBanner button { color:#000; background:#fff; border:0; border-radius:var(--r-pill);
+    padding:7px 15px; font-weight:600; cursor:pointer; text-decoration:none; font-size:13px;
+    font-family:var(--sans); }
+  #updBanner .focusable:focus { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
+  body.upd .view { top:calc(var(--navh) + 44px); }
+  body.upd #rail { top:44px; }
+  body.playing #updBanner { display:none; }
+
+  /* ---- top bar: a material, not a slab ---- */
+  #rail { position:fixed; top:0; left:0; right:0; height:var(--navh); z-index:20; display:flex;
+    align-items:center; padding:0 var(--pad); background:rgba(0,0,0,.72);
+    border-bottom:1px solid var(--sep); }
+  @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
+    #rail { background:rgba(0,0,0,.55); -webkit-backdrop-filter:saturate(180%) blur(22px);
+      backdrop-filter:saturate(180%) blur(22px); }
+  }
+  body.playing #rail { display:none; }
+  .rail-brand { display:flex; align-items:center; margin-right:30px; flex:0 0 auto;
+    font-size:16px; font-weight:600; letter-spacing:-.02em; color:var(--label); }
+  .rail-brand svg { width:18px; height:18px; color:var(--red); margin-right:9px; }
+  .navitem { display:inline-flex; align-items:center; border:0; background:transparent; cursor:pointer;
+    font-family:var(--sans); font-size:14px; font-weight:500; color:var(--label2);
+    padding:7px 15px; margin-right:4px; border-radius:var(--r-pill);
+    transition:color .2s var(--ease), background .2s var(--ease); }
+  .navitem svg { display:none; }
+  .navitem:hover { color:var(--label); }
+  .navitem.on { color:var(--label); background:rgba(255,255,255,.10); }
+  .navitem.focusable:focus { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+
+  .page-title { font-size:34px; font-weight:700; letter-spacing:-.028em; margin:0 0 4px; }
+  @media (min-width:1400px){ .page-title { font-size:40px; } }
+
+  /* ---- rows ---- */
+  .rowhead { display:flex; align-items:baseline; margin:26px 0 12px; }
+  .rowhead:first-child { margin-top:8px; }
+  .row-title { font-size:21px; font-weight:600; letter-spacing:-.021em; flex:0 1 auto; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row-sub { color:var(--label2); font-size:14px; font-weight:400; margin-left:10px; letter-spacing:-.01em; }
+  .seeall { margin-left:auto; flex:0 0 auto; font-family:var(--sans); font-size:13px; font-weight:500;
+    color:var(--label2); background:transparent; border:0; border-radius:var(--r-pill);
+    padding:6px 10px; cursor:pointer; white-space:nowrap; transition:color .2s var(--ease); }
+  .seeall:hover { color:var(--label); }
+  .seeall.focusable:focus { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+  .hrow { display:flex; overflow-x:auto; padding:10px 0 18px; scrollbar-width:none; }
+  .hrow::-webkit-scrollbar { display:none; }
+  .hrow .card { flex:0 0 150px; margin-right:16px; }
+  .hrow .card.shape-landscape { flex-basis:266px; }
+  .hrow .card.shape-square { flex-basis:170px; }
+  @media (min-width:1500px){
+    .hrow .card { flex-basis:184px; }
+    .hrow .card.shape-landscape { flex-basis:326px; }
+    .hrow .card.shape-square { flex-basis:206px; }
+  }
+  #homeEmpty { margin:10vh auto 0; max-width:520px; text-align:center; }
+
+  #view-search .searchrow { display:flex; align-items:center; margin:14px 0 12px; }
+  #view-search .searchrow > * + * { margin-left:10px; }
+  #view-search .searchrow .field { flex:1; margin:0; }
+  #searchResults .grid { margin-bottom:26px; }
+
+  .hero { padding:4px 0 22px; }
+  .brand { font-size:28px; font-weight:700; letter-spacing:-.03em; }
+  .brand-mark { color:var(--red); margin-right:.3em; }
+  .brand-name { color:var(--label); }
+  .tagline { color:var(--label2); margin:.6rem 0 0; font-size:15px; line-height:1.5; }
+  .panel { background:var(--l1); border:0; border-radius:var(--r-tile); padding:24px; max-width:860px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.06); }
+  .panel + .panel { margin-top:16px; }
+  .lbl { color:var(--label2); font-size:13px; font-weight:500; letter-spacing:-.008em; }
+  .field { width:100%; font-family:var(--sans); font-size:15px; padding:12px 14px; margin-top:8px;
+    border-radius:var(--r-ctl); border:0; background:var(--fill); color:var(--label); outline:none;
+    transition:box-shadow .2s var(--ease); }
+  .field::placeholder { color:var(--label3); }
+  .field:focus { box-shadow:0 0 0 4px rgba(255,255,255,.30); }
+  input[type=search].field { border-radius:var(--r-pill); padding-left:2.5rem;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba(235,235,245,0.6)' stroke-width='1.9' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.6-3.6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:.95rem 50%; background-size:1.05em; }
+  .row { display:flex; flex-wrap:wrap; align-items:center; margin-top:16px; }
+  .row > * { margin:0 10px 8px 0; }
+  .btn { font-family:var(--sans); font-size:14px; font-weight:600; letter-spacing:-.01em;
+    padding:11px 22px; border-radius:var(--r-pill); border:0; background:#fff; color:#000; cursor:pointer;
+    transition:transform .18s var(--ease), background .18s var(--ease); }
+  .btn:hover { transform:scale(1.03); }
+  .btn.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.45); }
+  .btn.ghost { background:var(--fill2); color:var(--label); }
+  .btn.ghost:hover { background:rgba(118,118,128,.5); }
+  .section-title { font-size:21px; font-weight:600; letter-spacing:-.021em; margin:30px 0 12px; }
+
+  /* ---- add-ons ---- */
+  .addons { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:12px; }
+  .addon { position:relative; display:flex; align-items:center; text-align:left; cursor:pointer;
+    background:var(--l1); border:0; border-radius:var(--r-tile); padding:16px; color:var(--label);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
+    transition:transform .2s var(--ease), background .2s var(--ease); }
+  .addon > * + * { margin-left:14px; }
+  .addon:hover { background:var(--l2); }
+  .addon.focusable:focus { background:var(--l2); transform:scale(1.02);
+    box-shadow:0 12px 30px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
+  .addon-logo { width:46px; height:46px; border-radius:11px; object-fit:cover; background:#000; flex:0 0 auto; }
+  .addon-logo.ph { display:flex; align-items:center; justify-content:center; font-size:19px;
+    font-weight:600; color:#fff; background:var(--red); }
+  .addon-name { font-size:16px; font-weight:600; letter-spacing:-.015em; }
+  .addon-url { color:var(--label2); font-size:12.5px; word-break:break-all; margin-top:3px;
+    max-height:2.4em; overflow:hidden; }
+  .addon-del { position:absolute; top:10px; right:10px; width:28px; height:28px; border-radius:var(--r-pill);
+    border:0; background:rgba(0,0,0,.5); color:var(--label2); cursor:pointer; opacity:0;
+    display:flex; align-items:center; justify-content:center;
+    transition:opacity .18s var(--ease), background .18s var(--ease); }
+  .addon-del svg { width:13px; height:13px; }
+  .addon-del:hover { background:var(--red); color:#fff; }
+  .addon:hover .addon-del, .addon:focus-within .addon-del, .addon.focusable:focus .addon-del { opacity:1; }
+  .empty { color:var(--label2); padding:12px 2px; font-size:15px; }
+
+  /* ---- top bar inside views ---- */
+  .topbar { display:flex; align-items:center; padding:0 0 8px; }
+  .topbar > * + * { margin-left:16px; }
+  .iconbtn { width:36px; height:36px; border-radius:var(--r-pill); border:0; background:var(--fill);
+    color:var(--label); cursor:pointer; flex:0 0 auto; display:flex; align-items:center;
+    justify-content:center; transition:background .18s var(--ease), transform .18s var(--ease); }
+  .iconbtn svg { width:17px; height:17px; }
+  .iconbtn:hover { background:var(--fill2); }
+  .iconbtn.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+  .topbar-title { font-size:30px; font-weight:700; letter-spacing:-.026em; line-height:1.1;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  @media (min-width:1400px){ .topbar-title { font-size:36px; } }
+
+  /* ---- chips ---- */
+  .chips { display:flex; overflow-x:auto; padding:2px 0 12px; scrollbar-width:none; }
+  .chips::-webkit-scrollbar { display:none; }
+  .chip { flex:0 0 auto; font-family:var(--sans); font-size:13.5px; font-weight:500; letter-spacing:-.008em;
+    padding:8px 16px; border-radius:var(--r-pill); background:var(--fill); border:0; color:var(--label);
+    cursor:pointer; white-space:nowrap; transition:background .18s var(--ease); }
+  .chip + .chip { margin-left:8px; }
+  .chip:hover { background:var(--fill2); }
+  .chip.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+  .chip.on { background:#fff; color:#000; }
+
+  /* ---- poster grid ---- */
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:20px 16px; align-items:start; }
+  @media (min-width:1500px){ .grid { grid-template-columns:repeat(auto-fill,minmax(184px,1fr)); gap:26px 20px; } }
+  .card { position:relative; display:block; text-align:left; padding:0; border:0; border-radius:0;
+    background:transparent; color:var(--label); cursor:pointer;
+    transition:transform .32s var(--ease); }
+  .card .thumb { position:relative; width:100%; height:0; padding-top:150%; border-radius:var(--r-card);
+    overflow:hidden; background:var(--l1); box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);
+    transition:box-shadow .32s var(--ease); }
+  .card.shape-landscape .thumb { padding-top:56.25%; }
+  .card.shape-square .thumb { padding-top:100%; }
+  .card .thumb img { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb-ph { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:22px;
+    font-weight:600; color:var(--label3); }
+  .card-label { padding:9px 2px 0; font-size:13px; font-weight:500; color:var(--label2); line-height:1.35;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+    transition:color .32s var(--ease); }
+  .card-sub { padding:2px 2px 0; font-size:12px; color:var(--label3);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* focus lifts and enlarges — it does not draw a box */
+  .card:hover .thumb { box-shadow:0 14px 30px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.14); }
+  .card.focusable:focus { transform:scale(1.09); z-index:3; }
+  .card.focusable:focus .thumb { box-shadow:0 22px 46px rgba(0,0,0,.72), inset 0 0 0 1px rgba(255,255,255,.22); }
+  .card.focusable:focus .card-label { color:var(--label); }
+  .card.focusable:focus .thumb::after { content:''; position:absolute; top:0; left:0; right:0; bottom:0;
+    background:linear-gradient(160deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,0) 42%); }
+  @media (prefers-reduced-motion: reduce){ .card, .card.focusable:focus { transition:none; transform:none; } }
+
+  /* ---- streams / episodes ---- */
+  .streams { display:grid; grid-template-columns:1fr; gap:10px; max-width:960px; }
+  .streamsec { display:grid; grid-template-columns:1fr; gap:10px; }
+  .streamsec:empty { display:none; }
+  .stream { display:flex; align-items:center; text-align:left; cursor:pointer; background:var(--l1);
+    border:0; border-radius:var(--r-tile); padding:14px 16px; color:var(--label);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
+    transition:background .18s var(--ease), transform .2s var(--ease); }
+  .stream > * + * { margin-left:14px; }
+  .stream-play { width:40px; height:40px; flex:0 0 auto; border-radius:var(--r-pill); background:var(--red);
+    color:#fff; display:flex; align-items:center; justify-content:center; }
+  .stream-play svg { width:15px; height:15px; }
+  .stream:hover { background:var(--l2); }
+  .stream.focusable:focus { background:var(--l2); transform:scale(1.015);
+    box-shadow:0 14px 32px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
+  .stream-name { display:block; font-size:15.5px; font-weight:600; letter-spacing:-.015em; }
+  .stream-sub { display:block; color:var(--label2); font-size:13px; margin-top:3px; }
+  .streamsec .rowhead { margin:6px 0 2px; }
+  .ep-thumb { width:124px; height:70px; flex:0 0 auto; border-radius:9px; object-fit:cover;
+    background:#000; display:block; }
+  .ep-thumb-ph { width:124px; height:70px; flex:0 0 auto; border-radius:9px; background:var(--l2);
+    display:flex; align-items:center; justify-content:center; color:var(--label3); font-size:15px; font-weight:600; }
+  .ep-sub { display:block; color:var(--label2); font-size:13px; margin-top:4px; line-height:1.45;
+    overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  html.tv .ep-thumb, html.tv .ep-thumb-ph { width:180px; height:101px; }
+
+  /* progress + marks */
+  .prog { position:absolute; left:8px; right:8px; bottom:8px; height:3px; border-radius:2px;
+    background:rgba(255,255,255,.26); overflow:hidden; }
+  .prog i { display:block; height:100%; background:#fff; border-radius:2px; }
+  html.tv .prog { height:4px; }
+  .ep-thumbwrap { position:relative; flex:0 0 auto; }
+  .ep-thumbwrap .prog { left:6px; right:6px; bottom:6px; }
+  .ep-done { position:absolute; top:6px; right:6px; width:20px; height:20px; border-radius:var(--r-pill);
+    background:rgba(0,0,0,.66); color:var(--ok); font-size:11px; line-height:20px; text-align:center; font-weight:700; }
+  html.tv .ep-done { width:28px; height:28px; line-height:28px; font-size:14px; }
+  .cw-x { position:absolute; top:7px; right:7px; width:26px; height:26px; border-radius:var(--r-pill);
+    border:0; background:rgba(0,0,0,.55); color:#fff; cursor:pointer; opacity:0;
+    display:flex; align-items:center; justify-content:center; transition:opacity .18s var(--ease), background .18s; }
+  .cw-x svg { width:12px; height:12px; }
+  .cw-x:hover { background:var(--red); }
+  .card:hover .cw-x, .card.focusable:focus .cw-x { opacity:1; }
+  html.tv .cw-x { width:34px; height:34px; }
+  html.tv .cw-x svg { width:15px; height:15px; }
+
+  .focusable { outline:none; }
+
+  /* ---- skeletons ---- */
+  .skel { pointer-events:none; }
+  .skel .thumb, .card-label.sk, .sk-line, .sk-box, .sk-blob, .sk-head {
+    background:linear-gradient(100deg,#141416 30%,#232326 50%,#141416 70%);
+    background-size:200% 100%; animation:sh 1.4s linear infinite; }
+  .card-label.sk { height:.86em; border-radius:5px; margin:11px 2px 0; }
+  @keyframes sh { to { background-position:-200% 0; } }
+  .stream.skel { box-shadow:inset 0 0 0 1px rgba(255,255,255,.05); }
+  .sk-lines { flex:1; min-width:0; }
+  .sk-line { display:block; height:.8em; border-radius:5px; }
+  .sk-line + .sk-line { margin-top:9px; }
+  .sk-line.short { width:38%; }
+  .sk-blob { width:40px; height:40px; flex:0 0 auto; border-radius:var(--r-pill); }
+  .sk-box { width:124px; height:70px; flex:0 0 auto; border-radius:9px; }
+  html.tv .sk-blob { width:52px; height:52px; }
+  html.tv .sk-box { width:180px; height:101px; }
+  .sk-head { height:1em; width:200px; border-radius:6px; margin:26px 0 12px; }
+  @media (prefers-reduced-motion: reduce){
+    .skel .thumb, .card-label.sk, .sk-line, .sk-box, .sk-blob, .sk-head { animation:none; background:var(--l1); }
+  }
+
+  /* ---- status toast ---- */
+  #status { position:fixed; left:50%; bottom:26px; transform:translate(-50%,180%); z-index:60;
+    padding:11px 18px 11px 34px; font-size:14px; font-weight:500; letter-spacing:-.01em;
+    border-radius:var(--r-pill); background:rgba(44,44,46,.92); color:var(--label);
+    box-shadow:0 16px 40px rgba(0,0,0,.6); max-width:80vw; transition:transform .34s var(--ease); }
+  @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
+    #status { background:rgba(44,44,46,.72); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); }
+  }
+  #status::before { content:''; position:absolute; left:16px; top:50%; margin-top:-3.5px;
+    width:7px; height:7px; border-radius:50%; background:var(--label2); }
+  #status.show { transform:translate(-50%,0); }
+  #status.err::before { background:var(--red); }
+  #status.ok::before { background:var(--ok); }
+  #status.info::before { background:var(--label2); }
+
+  /* ---- pairing / manual ---- */
+  #qrbox { background:#fff; padding:18px; border-radius:var(--r-tile); display:inline-block; }
+  #qrbox svg { width:290px; height:290px; display:block; }
+  .pairwrap { display:flex; align-items:flex-start; flex-wrap:wrap; }
+  .pairwrap > * { margin:0 2.5rem 1.5rem 0; }
+  .pairsteps { max-width:520px; line-height:1.7; font-size:15px; color:var(--label2); }
+  .pairsteps li { margin:.6rem 0; }
+  .pairsteps b { color:var(--label); font-weight:600; }
+  .pairurl { color:var(--label3); font-size:12.5px; word-break:break-all; margin-top:1rem; }
+  h1 { font-size:34px; font-weight:700; letter-spacing:-.028em; margin:0 0 .3rem; }
+  .sub { color:var(--label2); margin:.3rem 0 1.4rem; font-size:15px; line-height:1.5; }
+  code { font-family:var(--mono); background:var(--l2); color:var(--label); padding:.14rem .4rem;
+    border-radius:6px; font-size:.86em; }
+
+  /* ---- player chrome ---- */
+  #pui { position:fixed; top:0; left:0; right:0; bottom:0; z-index:5; display:none; }
+  body.playing #pui { display:block; }
+  #pui.idle { cursor:none; }
+  #pui .pui-chrome { transition:opacity .28s var(--ease); }
+  #pui.idle .pui-chrome, #pui.idle .pui-shade { opacity:0; pointer-events:none; }
+  .pui-shade { position:absolute; left:0; right:0; height:190px; pointer-events:none; transition:opacity .28s var(--ease); }
+  .pui-shade-top { top:0; background:linear-gradient(180deg, rgba(0,0,0,.72), rgba(0,0,0,0)); }
+  .pui-shade-bot { bottom:0; height:230px; background:linear-gradient(0deg, rgba(0,0,0,.82), rgba(0,0,0,0)); }
+  .pui-top { position:absolute; top:0; left:0; right:0; display:flex; align-items:center; padding:24px 30px; }
+  .pui-top > * + * { margin-left:16px; }
+  .pui-title { font-size:22px; font-weight:600; letter-spacing:-.022em; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; min-width:0; flex:1; }
+  .pui-live { flex:0 0 auto; background:var(--red); color:#fff; font-size:11px; font-weight:700;
+    letter-spacing:.03em; padding:4px 8px; border-radius:6px; }
+  .pui-party { background:#fff; color:#000; }
+  .pui-round { display:flex; align-items:center; justify-content:center; width:44px; height:44px;
+    border-radius:var(--r-pill); border:0; background:rgba(118,118,128,.34); color:#fff; cursor:pointer;
+    transition:background .18s var(--ease), transform .18s var(--ease); }
+  .pui-round svg { width:20px; height:20px; }
+  .pui-round:hover { background:rgba(118,118,128,.5); transform:scale(1.06); }
+  .pui-round.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.45); }
+  @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
+    .pui-round, .pui-btn { -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
+  }
+  .pui-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:flex; align-items:center; }
+  .pui-center > * + * { margin-left:34px; }
+  .pui-skip { position:relative; width:56px; height:56px; }
+  .pui-skip svg { width:24px; height:24px; }
+  .pui-skipnum { position:absolute; bottom:9px; font-size:9px; font-weight:700; letter-spacing:0; }
+  .pui-playpause { width:76px; height:76px; }
+  .pui-playpause svg { width:32px; height:32px; }
+  .pui-bottom { position:absolute; left:0; right:0; bottom:0; padding:0 30px 26px; }
+  .pui-seek { position:relative; padding:14px 0; cursor:pointer; outline:none; }
+  .pui-rail { position:relative; height:5px; border-radius:3px; background:rgba(255,255,255,.24); }
+  .pui-buf { position:absolute; top:0; left:0; bottom:0; width:0; border-radius:3px; background:rgba(255,255,255,.38); }
+  .pui-fill { position:absolute; top:0; left:0; bottom:0; width:0; border-radius:3px; background:#fff; }
+  .pui-knob { position:absolute; top:50%; left:0; width:14px; height:14px; margin:-7px 0 0 -7px;
+    border-radius:50%; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.5);
+    transform:scale(0); transition:transform .18s var(--ease); }
+  .pui-seek:hover .pui-knob, .pui-seek:focus .pui-knob { transform:scale(1); }
+  .pui-seek:focus .pui-rail { box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+  .pui-row { display:flex; align-items:center; margin-top:6px; }
+  .pui-row > * + * { margin-left:10px; }
+  .pui-flex { flex:1; }
+  .pui-time { font-family:var(--mono); font-size:13px; color:var(--label2); font-variant-numeric:tabular-nums;
+    letter-spacing:-.01em; }
+  .pui-btn { font-family:var(--sans); font-size:13px; font-weight:600; letter-spacing:-.01em;
+    padding:9px 16px; border-radius:var(--r-pill); border:0; background:rgba(118,118,128,.34);
+    color:#fff; cursor:pointer; transition:background .18s var(--ease); }
+  .pui-btn:hover { background:rgba(118,118,128,.5); }
+  .pui-btn.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.45); }
+  #puiMenu { position:absolute; bottom:80px; right:30px; top:auto; }
+  .pui-spin { position:absolute; top:50%; left:50%; width:44px; height:44px; margin:-22px 0 0 -22px;
+    border:3px solid rgba(255,255,255,.22); border-top-color:#fff; border-radius:50%;
+    animation:puispin .9s linear infinite; pointer-events:none; }
+  @keyframes puispin { to { transform:rotate(360deg); } }
+  .qmenu { display:none; position:absolute; top:52px; right:0; min-width:214px; max-height:60vh; overflow-y:auto;
+    background:rgba(44,44,46,.94); border:0; border-radius:14px; padding:6px;
+    box-shadow:0 20px 50px rgba(0,0,0,.65), inset 0 0 0 1px rgba(255,255,255,.10); scrollbar-width:none; }
+  .qmenu::-webkit-scrollbar { display:none; }
+  @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
+    .qmenu { background:rgba(44,44,46,.72); -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px); }
+  }
+  .qmenu.open { display:block; }
+  .qtitle { color:var(--label2); font-size:12px; font-weight:600; letter-spacing:-.005em; padding:8px 12px 6px; }
+  .qopt { display:block; width:100%; text-align:left; padding:9px 12px; border-radius:9px; border:0;
+    background:transparent; color:var(--label); font-family:var(--sans); font-size:14.5px; font-weight:500;
+    cursor:pointer; white-space:nowrap; transition:background .15s var(--ease); }
+  .qopt:hover { background:rgba(255,255,255,.10); }
+  .qopt.focusable:focus { background:rgba(255,255,255,.16); box-shadow:0 0 0 3px rgba(255,255,255,.35); }
+  .qopt.on { font-weight:600; }
+  .qopt.on::after { content:' ✓'; color:var(--label2); }
+
+  /* ---- up next ---- */
+  #upnext { display:none; position:absolute; right:30px; bottom:120px; z-index:7; width:352px; max-width:72vw;
+    background:rgba(44,44,46,.94); border:0; border-radius:var(--r-tile); padding:20px;
+    box-shadow:0 24px 60px rgba(0,0,0,.7), inset 0 0 0 1px rgba(255,255,255,.10); }
+  @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
+    #upnext { background:rgba(44,44,46,.74); -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px); }
+  }
+  #upnext.show { display:block; animation:upIn .34s var(--ease) both; }
+  @keyframes upIn { from { opacity:0; transform:translateY(14px) scale(.97); } to { opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: reduce){ #upnext.show { animation:none; } }
+  #upnext .lbl { display:block; color:var(--label2); font-size:13px; font-weight:500; margin-bottom:5px; }
+  .upnext-title { font-size:20px; font-weight:600; letter-spacing:-.02em; line-height:1.2; margin:0 0 16px;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .upnext-row { display:flex; }
+  .upnext-row > * + * { margin-left:8px; }
+  .upnext-row .btn { padding:10px 18px; font-size:13.5px; }
+  html.tv #upnext { width:470px; right:40px; bottom:150px; padding:26px; }
+
+  /* ---- phones ---- */
+  @media (max-width:700px){
+    :root { --navh:54px; }
+    .rail-brand { margin-right:14px; font-size:15px; }
+    .navitem { padding:6px 11px; font-size:13px; }
+    .page-title { font-size:28px; }
+    .topbar-title { font-size:24px; }
+    .streams { max-width:none; }
+  }
+
+  /* ---- TV (webOS): 10-foot sizing ---- */
+  html.tv { font-size:20px; --navh:82px; --pad:56px; }
+  html.tv body.upd .view { top:calc(var(--navh) + 52px); }
+  html.tv .rail-brand { font-size:22px; margin-right:40px; }
+  html.tv .rail-brand svg { width:24px; height:24px; }
+  html.tv .navitem { font-size:19px; padding:10px 22px; margin-right:8px; }
+  html.tv .navitem.focusable:focus { box-shadow:0 0 0 5px rgba(255,255,255,.5); }
+  html.tv .page-title { font-size:52px; }
+  html.tv .topbar-title { font-size:44px; }
+  html.tv .row-title { font-size:28px; }
+  html.tv .seeall { font-size:17px; }
+  html.tv .hrow .card { flex-basis:250px; margin-right:24px; }
+  html.tv .hrow .card.shape-landscape { flex-basis:444px; }
+  html.tv .hrow .card.shape-square { flex-basis:280px; }
+  html.tv .grid { grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:34px 26px; }
+  html.tv .card-label { font-size:17px; }
+  html.tv .card-sub { font-size:15px; }
+  html.tv .card.focusable:focus { transform:scale(1.10); }
+  html.tv .chip { font-size:18px; padding:11px 22px; }
+  html.tv .field { font-size:20px; padding:15px 18px; }
+  html.tv input[type=search].field { padding-left:3rem; }
+  html.tv .btn { font-size:18px; padding:14px 30px; }
+  html.tv .iconbtn { width:50px; height:50px; }
+  html.tv .iconbtn svg { width:22px; height:22px; }
+  html.tv .addons { grid-template-columns:repeat(auto-fill,minmax(430px,1fr)); gap:16px; }
+  html.tv .addon { padding:22px; }
+  html.tv .addon-logo { width:64px; height:64px; border-radius:14px; }
+  html.tv .addon-name { font-size:21px; }
+  html.tv .addon-url { font-size:15px; }
+  html.tv .stream { padding:20px 24px; }
+  html.tv .stream-name { font-size:21px; }
+  html.tv .stream-sub { font-size:16px; }
+  html.tv .stream-play { width:54px; height:54px; }
+  html.tv .stream-play svg { width:20px; height:20px; }
+  html.tv .streams { max-width:1360px; }
+  html.tv .ep-sub { font-size:16px; }
+  html.tv .empty { font-size:19px; }
+  html.tv .sub { font-size:19px; }
+  html.tv #qrbox svg { width:360px; height:360px; }
+  html.tv .qmenu { min-width:300px; top:66px; }
+  html.tv .qopt { font-size:19px; padding:12px 16px; }
+  html.tv .qtitle { font-size:15px; }
+  html.tv .pui-top { padding:34px 44px; }
+  html.tv .pui-title { font-size:32px; }
+  html.tv .pui-bottom { padding:0 44px 36px; }
+  html.tv .pui-round { width:58px; height:58px; }
+  html.tv .pui-round svg { width:26px; height:26px; }
+  html.tv .pui-skip { width:70px; height:70px; }
+  html.tv .pui-playpause { width:92px; height:92px; }
+  html.tv .pui-playpause svg { width:40px; height:40px; }
+  html.tv .pui-btn { font-size:17px; padding:12px 22px; }
+  html.tv .pui-time { font-size:17px; }
+  html.tv .pui-rail { height:7px; }
+  html.tv .pui-knob { width:19px; height:19px; margin:-9.5px 0 0 -9.5px; }
+  html.tv #puiMenu { bottom:104px; right:44px; }
+  html.tv #status { font-size:18px; padding:14px 24px 14px 42px; }
+  html.tv #status::before { left:20px; width:9px; height:9px; margin-top:-4.5px; }
+  html.tv #updBanner { padding:15px 26px; font-size:18px; }
+</style>
+</head>
+<body>
+  <video id="video" autoplay playsinline></video>
+
+  <div id="updBanner">
+    <span id="updText"></span>
+    <a id="updGet" class="focusable" target="_blank" rel="noopener">Get it</a>
+    <button id="updX" class="focusable" title="Dismiss">Dismiss</button>
+  </div>
+
+  <!-- custom player controls (shown during playback) -->
+  <div id="pui">
+    <div class="pui-shade pui-shade-top"></div>
+    <div class="pui-shade pui-shade-bot"></div>
+    <div class="pui-top pui-chrome">
+      <button id="puiBack" class="focusable pui-round" title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <div id="puiTitle" class="pui-title"></div>
+      <span id="puiLiveBadge" class="pui-live" style="display:none">LIVE</span>
+      <span id="puiPartyBadge" class="pui-live pui-party" style="display:none"></span>
+    </div>
+    <div class="pui-center pui-chrome">
+      <button id="puiRew" class="focusable pui-round pui-skip" title="Back 10 seconds">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 17a5 5 0 1 0 0-10H5"/><path d="m8 4-3 3 3 3"/></svg>
+        <span class="pui-skipnum">10</span></button>
+      <button id="puiPlay" class="focusable pui-round pui-playpause" title="Play/Pause">
+        <svg id="puiIconPlay" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="puiIconPause" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+      <button id="puiFwd" class="focusable pui-round pui-skip" title="Forward 10 seconds">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 17A5 5 0 1 1 13 7h6"/><path d="m16 4 3 3-3 3"/></svg>
+        <span class="pui-skipnum">10</span></button>
+    </div>
+    <div class="pui-bottom pui-chrome">
+      <div id="puiSeek" class="focusable pui-seek" tabindex="0" title="Seek">
+        <div class="pui-rail"><div id="puiBuf" class="pui-buf"></div><div id="puiFill" class="pui-fill"></div><div id="puiKnob" class="pui-knob"></div></div>
+      </div>
+      <div class="pui-row">
+        <span id="puiTime" class="pui-time">0:00 / 0:00</span>
+        <span class="pui-flex"></span>
+        <button id="puiNext" class="focusable pui-btn" style="display:none" title="Next episode">Next ›</button>
+        <button id="puiSubs" class="focusable pui-btn" style="display:none">Subtitles</button>
+        <button id="puiAudio" class="focusable pui-btn" style="display:none">Audio</button>
+        <button id="puiQual" class="focusable pui-btn" style="display:none">Quality</button>
+        <button id="puiSpeed" class="focusable pui-btn">1×</button>
+        <button id="puiParty" class="focusable pui-btn" title="Watch party — watch together in sync">Party</button>
+        <button id="puiPip" class="focusable pui-btn" style="display:none" title="Picture-in-picture">PiP</button>
+        <button id="puiMini" class="focusable pui-btn" style="display:none" title="Mini player — small window that stays on top">Mini</button>
+      </div>
+    </div>
+    <div id="puiMenu" class="qmenu"></div>
+    <div id="puiSpin" class="pui-spin" style="display:none"></div>
+    <!-- deliberately outside .pui-chrome: it must survive the controls auto-hiding -->
+    <div id="upnext">
+      <div class="lbl">Up next</div>
+      <div id="upnextTitle" class="upnext-title"></div>
+      <div class="upnext-row">
+        <button id="upnextPlay" class="focusable btn">Play now</button>
+        <button id="upnextX" class="focusable btn ghost">Dismiss</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- nav rail (Home / Search / Add-ons) -->
+  <div id="rail">
+    <div class="rail-brand"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6 21.4 12 12 21.4 2.6 12 12 2.6Z"/></svg>Nebula</div>
+    <button id="navHome" class="navitem focusable on" data-tab="home" title="Home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+      <span>Home</span></button>
+    <button id="navSearch" class="navitem focusable" data-tab="search" title="Search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+      <span>Search</span></button>
+    <button id="navAddons" class="navitem focusable" data-tab="addons" title="Add-ons">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg>
+      <span>Add-ons</span></button>
+  </div>
+
+  <!-- HOME: content rows from every added add-on -->
+  <div id="view-home" class="view active">
+    <div class="page-title">Home</div>
+    <div id="homeRows"></div>
+  </div>
+
+  <!-- SEARCH: one query across all add-ons -->
+  <div id="view-search" class="view">
+    <div class="page-title">Search</div>
+    <div class="searchrow">
+      <input id="globalSearch" class="focusable field" type="search" placeholder="Search across your add-ons" autocomplete="off" />
+      <button id="globalSearchClear" class="focusable iconbtn" title="Clear" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div id="searchResults"></div>
+  </div>
+
+  <!-- ADD-ONS: manage sources -->
+  <div id="view-addons" class="view">
+    <div class="page-title">Add-ons</div>
+    <p class="sub">Add a Stremio add-on and its catalogs show up on Home. Every format plays, decrypted on-device.</p>
+    <div class="panel">
+      <div class="lbl">Add-on manifest URL</div>
+      <input id="addonUrl" class="focusable field" type="url" placeholder="https://your-addon/…/manifest.json" autocomplete="off" />
+      <div class="row">
+        <button id="phoneBtn" class="focusable btn">Add via phone</button>
+        <button id="addAddonBtn" class="focusable btn ghost">Add typed URL</button>
+        <button id="manualBtn" class="focusable btn ghost">Play a URL</button>
+      </div>
+    </div>
+    <div class="panel" id="partyPanel">
+      <div class="lbl">Watch party</div>
+      <div class="row">
+        <input id="partyCode" class="focusable field" type="text" placeholder="Party code" autocomplete="off" maxlength="8" style="flex:1" />
+        <button id="partyJoinBtn" class="focusable btn">Join party</button>
+      </div>
+      <p class="sub" style="margin:8px 0 0">To start one: play a stream, then press Party in the player. Friends enter your code here and watch in sync.</p>
+    </div>
+    <div class="section-title">Your add-ons</div>
+    <div id="addonList" class="addons"></div>
+  </div>
+
+  <!-- ADD VIA PHONE -->
+  <div id="view-pair" class="view">
+    <div class="topbar"><button class="focusable iconbtn" data-back title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="topbar-title">Add with your phone</div></div>
+    <div class="pairwrap">
+      <div id="qrbox"></div>
+      <ol class="pairsteps">
+        <li>On your phone, open the <b>Camera</b> and point it at this QR code.</li>
+        <li>Tap the link that appears — it opens a small page.</li>
+        <li>Paste your add-on's <b>manifest URL</b> and tap <b>Send to TV</b>.</li>
+        <li>It appears here automatically. Waiting…</li>
+        <div class="pairurl" id="pairUrlText"></div>
+      </ol>
+    </div>
+  </div>
+
+  <!-- MANUAL -->
+  <div id="view-manual" class="view">
+    <div class="topbar"><button class="focusable iconbtn" data-back title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="topbar-title">Play a URL</div></div>
+    <p class="sub">Paste a DASH/HLS URL. Put a key on it as <code>#clearkey=kidHex:keyHex</code>, or fill the fields.</p>
+    <input id="mUrl" class="focusable field" type="url" placeholder="https://host/manifest.mpd" autocomplete="off" />
+    <div class="row">
+      <input id="mKid" class="focusable field" type="text" placeholder="Key ID (hex, optional)" style="flex:1" />
+      <input id="mKey" class="focusable field" type="text" placeholder="Key (hex, optional)" style="flex:1" />
+    </div>
+    <div class="row"><button id="mPlay" class="focusable btn">Play</button></div>
+  </div>
+
+  <!-- CATALOG -->
+  <div id="view-catalog" class="view cols">
+    <div class="topbar"><button class="focusable iconbtn" data-back title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="topbar-title" id="catTitle">Catalog</div></div>
+    <div class="searchrow" id="searchRow" style="display:none">
+      <input id="catSearch" class="focusable field" type="search" placeholder="Search" autocomplete="off" />
+      <button id="catSearchClear" class="focusable iconbtn" title="Clear search" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div id="genreRow" class="chips"></div>
+    <div class="scroller"><div id="catList" class="grid"></div></div>
+  </div>
+
+  <!-- EPISODES (series) -->
+  <div id="view-episodes" class="view cols">
+    <div class="topbar"><button class="focusable iconbtn" data-back title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="topbar-title" id="epTitle">Episodes</div></div>
+    <div id="seasonRow" class="chips"></div>
+    <div class="scroller"><div id="epList" class="streams"></div></div>
+  </div>
+
+  <!-- STREAMS -->
+  <div id="view-streams" class="view cols">
+    <div class="topbar"><button class="focusable iconbtn" data-back title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="topbar-title" id="streamsTitle">Streams</div></div>
+    <div class="scroller"><div id="streamList" class="streams"></div></div>
+  </div>
+
+  <div id="status" class="info">Ready.</div>
+
+<script>
+(function () {
+  var video = document.getElementById('video');
+  var statusEl = document.getElementById('status');
+  var LS = window.localStorage;
+  var player = null, viewStack = ['home'], ctx = {};
+  var PLAYER_VERSION = '2026.08.11.2';
+
+  // TV mode: 10-foot sizing on webOS (PalmSystem/ServiceBridge only exist there);
+  // ?tv=1 forces it anywhere for previewing.
+  var IS_TV = !!(window.PalmSystem || window.WebOSServiceBridge || window.PalmServiceBridge ||
+    /web0s|webos|smarttv|smart-tv|netcast/i.test(navigator.userAgent || '') ||
+    /[?&#]tv=1/.test(location.href));
+  if (IS_TV) document.documentElement.className += ' tv';
+  // webOS proper (not the ?tv=1 preview): watch-party UI is hidden there.
+  var IS_WEBOS = !!(window.PalmSystem || window.WebOSServiceBridge || window.PalmServiceBridge) ||
+    /web0s|webos|netcast/i.test(navigator.userAgent || '');
+
+  var statusTimer = null;
+  function setStatus(m, k){
+    statusEl.textContent = m; statusEl.className = (k||'info') + ' show';
+    clearTimeout(statusTimer);
+    if (k !== 'err') statusTimer = setTimeout(function(){ statusEl.classList.remove('show'); }, 3500);
+  }
+  function hex(v){ return (v||'').trim().replace(/[^0-9a-fA-F]/g,'').toLowerCase(); }
+  function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+  // ---------- view + focus ----------
+  function show(name, push){
+    var back = (push === false);
+    document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
+    var el = document.getElementById('view-'+name);
+    if (el){ el.classList.add('active'); if (!back) el.scrollTop = 0; }
+    // cheap and synchronous — keeps Continue watching honest after playback
+    if (name === 'home'){ try { renderContinue(); } catch(e){} }
+    video.style.display = (name==='player') ? 'block' : 'none';
+    document.body.classList.toggle('playing', name==='player');
+    if (push !== false){ if (viewStack[viewStack.length-1] !== name) viewStack.push(name); }
+    // light up the rail item for whichever tab this stack is rooted in
+    var tabs = { home:'navHome', search:'navSearch', addons:'navAddons' };
+    Object.keys(tabs).forEach(function(t){
+      var b = document.getElementById(tabs[t]); if (b) b.classList.toggle('on', viewStack[0]===t);
+    });
+    setTimeout(function(){ focusFirst(back); }, 30);
+  }
+  function focusFirst(preserveScroll){
+    var v = document.querySelector('.view.active'); if(!v) return;
+    var f = v.querySelector('.focusable'); if (!f) return;
+    try { f.focus(preserveScroll ? { preventScroll: true } : undefined); } catch(e){ f.focus(); }
+  }
+  function focusables(){
+    if (document.body.className.indexOf('playing') !== -1){
+      // the up-next card outlives the auto-hiding chrome, so it takes focus first
+      if (upnextState.open){
+        var un = document.getElementById('upnext');
+        if (un) return Array.prototype.slice.call(un.querySelectorAll('.focusable')).filter(function(el){ return el.offsetParent !== null; });
+      }
+      if (!pui || pui.className === 'idle') return [];
+      var scope = puiState.menu ? puiMenuEl : pui;
+      return Array.prototype.slice.call(scope.querySelectorAll('.focusable')).filter(function(el){ return el.offsetParent !== null; });
+    }
+    var v = document.querySelector('.view.active');
+    var list = v ? Array.prototype.slice.call(v.querySelectorAll('.focusable')) : [];
+    // the nav rail is reachable by D-pad whenever we're not in playback
+    if (document.body.className.indexOf('playing') === -1){
+      var rail = document.getElementById('rail');
+      if (rail) list = Array.prototype.slice.call(rail.querySelectorAll('.focusable')).concat(list);
+    }
+    return list.filter(function(e){ return e.offsetParent !== null; });
+  }
+  // geometric 2-D navigation (works for both lists and the poster grid)
+  function moveFocus2D(dx, dy){
+    var list = focusables(); if(!list.length) return;
+    var cur = document.activeElement;
+    if (list.indexOf(cur) < 0){ list[0].focus(); return; }
+    var cr = cur.getBoundingClientRect(), cx = cr.left+cr.width/2, cy = cr.top+cr.height/2;
+    var best=null, bestScore=Infinity;
+    list.forEach(function(el){ if(el===cur) return;
+      var r=el.getBoundingClientRect(), ex=r.left+r.width/2, ey=r.top+r.height/2, ddx=ex-cx, ddy=ey-cy;
+      if (dx>0 && ddx<8) return; if (dx<0 && ddx>-8) return;
+      if (dy>0 && ddy<8) return; if (dy<0 && ddy>-8) return;
+      var primary = dx!==0 ? Math.abs(ddx) : Math.abs(ddy);
+      var cross = dx!==0 ? Math.abs(ddy) : Math.abs(ddx);
+      var score = primary + cross*2.2;
+      if (score < bestScore){ bestScore=score; best=el; }
+    });
+    if (best){ best.focus(); best.scrollIntoView({block:'nearest', inline:'nearest'}); }
+  }
+  function goBack(){
+    stopPairing();
+    if (player && video.style.display==='block'){
+      stopPlayer();
+      // viewers leave the party when they stop watching; a host keeps it alive
+      // (they can pick another stream and everyone follows)
+      if (party && !party.isHost) endParty('Left the party.');
+    }
+    if (viewStack.length > 1){ viewStack.pop(); show(viewStack[viewStack.length-1], false); }
+    else if (viewStack[0] !== 'home'){ setTab('home'); }
+    else show('home', false);
+  }
+  function setTab(t){
+    stopPairing();
+    viewStack = [t];
+    show(t, false);
+    if (t === 'home') buildHomeRows(false);
+  }
+
+  document.addEventListener('keydown', function(e){
+    var k = e.keyCode, inInput = document.activeElement && document.activeElement.tagName==='INPUT';
+    // While playing, the quality overlay owns D-pad/keys (so it's reachable on TV).
+    if (video.style.display==='block'){
+      var isBack = (k===461 || k===8 || e.key==='GoBack' || e.key==='BrowserBack');
+      if (isBack){
+        if (upnextState.open){ dismissUpNext(); }
+        else if (puiState.menu){ closePuiMenu(true); }
+        else if (pui.className !== 'idle'){ puiIdle(); }
+        else { goBack(); }
+        e.preventDefault(); return;
+      }
+      // while the up-next card is up it owns left/right and OK
+      if (upnextState.open){
+        if (k===37){ moveFocus2D(-1,0); e.preventDefault(); return; }
+        if (k===39){ moveFocus2D(1,0); e.preventDefault(); return; }
+        if (k===13){
+          var ua = document.activeElement;
+          if (ua && ua.className.indexOf('focusable') !== -1) ua.click();
+          else { var t = upnextState.target; if (t) playEpisodeAt(t.index); }
+          e.preventDefault(); return;
+        }
+      }
+      if (puiState.menu){
+        if (k===38){ movePuiMenu(-1); e.preventDefault(); }
+        else if (k===40){ movePuiMenu(1); e.preventDefault(); }
+        else if (k===13){ var a=document.activeElement; if(a&&a.classList.contains('qopt')) a.click(); e.preventDefault(); }
+        else if (k===37||k===39){ e.preventDefault(); }
+        return;
+      }
+      if (pui.className === 'idle'){
+        // controls hidden: arrows seek straight away, anything else wakes the UI
+        puiShow();
+        if (k===37){ seekBy(-10); }
+        else if (k===39){ seekBy(10); }
+        else if (k===32){ togglePlay(); }
+        else if (k===13){ setTimeout(function(){ $id('puiPlay').focus(); }, 30); }
+        e.preventDefault(); return;
+      }
+      // controls visible: arrows move focus (left/right on the seek bar seek)
+      puiShow();
+      var ae = document.activeElement;
+      if (ae && ae.id==='puiSeek' && (k===37||k===39)){ seekBy(k===37?-10:10); e.preventDefault(); return; }
+      if (k===37){ moveFocus2D(-1,0); e.preventDefault(); }
+      else if (k===39){ moveFocus2D(1,0); e.preventDefault(); }
+      else if (k===38){ moveFocus2D(0,-1); e.preventDefault(); }
+      else if (k===40){ moveFocus2D(0,1); e.preventDefault(); }
+      else if (k===32){ togglePlay(); e.preventDefault(); }
+      else if (k===13 && (!ae || ae===document.body || ae===pui)){ togglePlay(); e.preventDefault(); }
+      return;
+    }
+    if (k===37){ if(!inInput){ moveFocus2D(-1,0); e.preventDefault(); } }
+    else if (k===39){ if(!inInput){ moveFocus2D(1,0); e.preventDefault(); } }
+    else if (k===38){ moveFocus2D(0,-1); e.preventDefault(); }
+    else if (k===40){ moveFocus2D(0,1); e.preventDefault(); }
+    else if (k===461 || e.key==='GoBack' || e.key==='BrowserBack' || (k===8 && !inInput)){ goBack(); e.preventDefault(); }
+    else if (k===13 && inInput){
+      var v = document.querySelector('.view.active');
+      if (v.id==='view-addons' && document.activeElement.id==='addonUrl') addAddon();
+      else if (v.id==='view-manual') playManual();
+    }
+  });
+
+  // ---------- add-on storage ----------
+  // localStorage is the primary store, but webOS TVs periodically wipe web-app
+  // storage (overnight cleanup / full power-off), which made added add-ons vanish.
+  // So every save is mirrored to IndexedDB AND to webOS's system database (DB8,
+  // which lives outside the webkit profile), and boot restores from a mirror
+  // whenever localStorage comes up empty. On web/desktop the DB8 calls no-op.
+  function getAddons(){ try { return JSON.parse(LS.getItem('addons')||'[]'); } catch(e){ return []; } }
+  function saveAddons(a){
+    var json = JSON.stringify(a);
+    try { LS.setItem('addons', json); } catch(e){}
+    mirrorAddons(json);
+    manifestCache = {};                        // a changed add-on list invalidates cached manifests
+    try { buildHomeRows(true); } catch(e){}   // any add-on change reshapes Home
+  }
+  function mirrorKv(key, json){ try { idbSave(key, json); } catch(e){} db8Save(key, json); }
+  function mirrorAddons(json){ mirrorKv('addons', json); }
+
+  function idbOpen(){
+    return new Promise(function(res){
+      try {
+        var rq = indexedDB.open('nebula-store', 1);
+        rq.onupgradeneeded = function(){ rq.result.createObjectStore('kv'); };
+        rq.onsuccess = function(){ res(rq.result); };
+        rq.onerror = function(){ res(null); };
+      } catch(e){ res(null); }
+    });
+  }
+  function idbSave(key, val){
+    return idbOpen().then(function(db){
+      if (!db) return;
+      try { db.transaction('kv','readwrite').objectStore('kv').put(val, key); } catch(e){}
+    });
+  }
+  function idbLoad(key){
+    return idbOpen().then(function(db){
+      return new Promise(function(res){
+        if (!db) return res(null);
+        try {
+          var rq = db.transaction('kv').objectStore('kv').get(key);
+          rq.onsuccess = function(){ res(rq.result || null); };
+          rq.onerror = function(){ res(null); };
+        } catch(e){ res(null); }
+      });
+    });
+  }
+
+  var DB8_KIND = 'com.nuvio.clearkey.player:1';
+  var db8Ready = null;
+  function lunaCall(path, params){
+    return new Promise(function(res){
+      try {
+        var B = window.WebOSServiceBridge || window.PalmServiceBridge;
+        if (!B) return res(null);
+        var b = new B(), done = false;
+        var to = setTimeout(function(){ if(!done){ done=true; res(null); } }, 4000);
+        b.onservicecallback = function(raw){
+          if (done) return; done = true; clearTimeout(to);
+          var r = null; try { r = JSON.parse(raw); } catch(e){}
+          res(r);
+        };
+        b.call('luna://' + path, JSON.stringify(params || {}));
+      } catch(e){ res(null); }
+    });
+  }
+  function db8Init(){
+    if (!window.WebOSServiceBridge && !window.PalmServiceBridge) return Promise.resolve(false);
+    if (!db8Ready) db8Ready = lunaCall('com.webos.service.db/putKind', {
+      id: DB8_KIND, owner: 'com.nuvio.clearkey.player',
+      indexes: [{ name:'key', props:[{ name:'key' }] }]
+    }).then(function(r){ return !!(r && r.returnValue); });
+    return db8Ready;
+  }
+  function db8Save(key, json){
+    db8Init().then(function(ok){
+      if (!ok) return;
+      lunaCall('com.webos.service.db/find', { query:{ from: DB8_KIND, where:[{ prop:'key', op:'=', val:key }] } }).then(function(r){
+        var hit = r && r.results && r.results[0];
+        if (hit) lunaCall('com.webos.service.db/merge', { objects:[{ _id: hit._id, value: json }] });
+        else lunaCall('com.webos.service.db/put', { objects:[{ _kind: DB8_KIND, key: key, value: json }] });
+      });
+    });
+  }
+  function db8Load(key){
+    return db8Init().then(function(ok){
+      if (!ok) return null;
+      return lunaCall('com.webos.service.db/find', { query:{ from: DB8_KIND, where:[{ prop:'key', op:'=', val:key }] } }).then(function(r){
+        var hit = r && r.results && r.results[0];
+        return hit ? hit.value : null;
+      });
+    });
+  }
+  function initPersistentAddons(){
+    var cur = getAddons();
+    if (cur.length){ mirrorAddons(JSON.stringify(cur)); return; }  // seed mirrors from a healthy LS
+    idbLoad('addons')
+      .then(function(v){ if (v) return v; return db8Load('addons'); })
+      .then(function(v){
+        if (!v) return;
+        var arr = null; try { arr = JSON.parse(v); } catch(e){}
+        if (arr && arr.length){
+          saveAddons(arr); renderAddons();
+          setStatus('Restored your saved add-ons.','ok'); focusFirst();
+        }
+      });
+  }
+  // Watch progress rides the same mirrors — losing your place to an overnight
+  // storage wipe would be worse than losing the add-on list.
+  function initPersistentProgress(){
+    var cur = getProgress();
+    if (Object.keys(cur).length){ mirrorKv('progress', JSON.stringify(cur)); return; }
+    idbLoad('progress')
+      .then(function(v){ if (v) return v; return db8Load('progress'); })
+      .then(function(v){
+        if (!v) return;
+        var obj = null; try { obj = JSON.parse(v); } catch(e){}
+        if (obj && Object.keys(obj).length){
+          progCache = obj;
+          try { LS.setItem('progress', v); } catch(e){}
+          renderContinue();
+        }
+      });
+  }
+  // ---------- watch progress (resume + continue watching) ----------
+  // One record per playable thing, keyed "<type>:<id>" — for a series that id is
+  // the episode id, so each episode resumes on its own. Finished items keep a
+  // {done:true} tombstone so episode lists can tick them off.
+  var PROG_MAX = 200;        // newest N kept; TVs have little storage
+  var PROG_MIN_POS = 15;     // below this it isn't worth resuming
+  var PROG_END_GAP = 60;     // within this of the end counts as finished
+  var progCache = null, progMirrorAt = 0;
+  function getProgress(){
+    if (progCache) return progCache;
+    try { progCache = JSON.parse(LS.getItem('progress')||'{}') || {}; } catch(e){ progCache = {}; }
+    return progCache;
+  }
+  function saveProgress(mirrorNow){
+    var p = getProgress(), keys = Object.keys(p);
+    if (keys.length > PROG_MAX){
+      keys.sort(function(a,b){ return (p[b].at||0) - (p[a].at||0); });
+      keys.slice(PROG_MAX).forEach(function(k){ delete p[k]; });
+    }
+    var json = JSON.stringify(p);
+    try { LS.setItem('progress', json); } catch(e){}
+    // the mirrors are comparatively expensive: on demand, else at most every 30s
+    if (mirrorNow || Date.now() - progMirrorAt > 30000){ progMirrorAt = Date.now(); mirrorKv('progress', json); }
+  }
+  function progKey(type, id){ return (type||'') + ':' + (id||''); }
+  function progFor(type, id){ return getProgress()[progKey(type, id)] || null; }
+  /** Where playback of (type,id) should start, or 0 for the beginning. */
+  function resumeAt(type, id){
+    var r = progFor(type, id);
+    if (!r || r.done || !r.pos || !r.dur) return 0;
+    if (r.pos < PROG_MIN_POS || r.pos > r.dur - PROG_END_GAP) return 0;
+    return r.pos;
+  }
+  // What is loaded RIGHT NOW, as opposed to ctx.play* which stages what the user
+  // has just picked. Progress must be written against the former: by the time
+  // autoplay calls stopPlayer(), ctx already points at the next episode.
+  var curPlay = null;
+  function noteProgress(pos, dur, done){
+    var c = curPlay; if (!c || !c.id) return;
+    var k = progKey(c.type, c.id), p = getProgress();
+    if (done || (dur > 0 && pos > dur - PROG_END_GAP)){
+      p[k] = { type: c.type, id: c.id, done: true, at: Date.now() };
+      saveProgress(true); return;
+    }
+    if (pos < PROG_MIN_POS){                    // rewound to the top — forget it
+      if (p[k] && !p[k].done){ delete p[k]; saveProgress(false); }
+      return;
+    }
+    p[k] = {
+      type: c.type, id: c.id, name: c.name || '',
+      poster: c.poster || '', shape: c.shape || 'poster',
+      addonUrl: c.addonUrl || '', pos: pos, dur: dur, at: Date.now()
+    };
+    saveProgress(false);
+  }
+  /** Snapshot the video element into the store (skips live streams). */
+  function flushProgress(mirror){
+    if (!player || !curPlay || !curPlay.id) return;
+    try { if (puiIsLive()) return; } catch(e){ return; }
+    var r = puiRange(), dur = r.end - r.start, pos = video.currentTime - r.start;
+    if (dur > 0 && isFinite(dur) && isFinite(pos)) noteProgress(pos, dur, false);
+    if (mirror) saveProgress(true);
+  }
+  function clearProgress(type, id){
+    var p = getProgress(), k = progKey(type, id);
+    if (p[k]){ delete p[k]; saveProgress(true); }
+  }
+  /** Newest-first, only things actually worth resuming. */
+  function continueList(){
+    var p = getProgress(), out = [];
+    Object.keys(p).forEach(function(k){
+      var r = p[k];
+      if (!r || r.done || !r.pos || !r.dur) return;
+      if (r.pos < PROG_MIN_POS || r.pos > r.dur - PROG_END_GAP) return;
+      out.push(r);
+    });
+    out.sort(function(a,b){ return (b.at||0) - (a.at||0); });
+    return out.slice(0, 20);
+  }
+  function addonByUrl(u){
+    var hit = null;
+    getAddons().forEach(function(a){ if (a.url === u) hit = a; });
+    return hit;
+  }
+
+  function baseOf(manifestUrl){ return manifestUrl.replace(/\/manifest\.json.*$/,''); }
+  async function getJson(url){
+    var r = await fetch(url, { headers: { 'Accept':'application/json' } });
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  }
+
+  // Update nudge: compare our build tag to the one published on the download site.
+  // Shows a dismissible banner (per-version) when a newer player has shipped.
+  (function checkPlayerUpdate(){
+    try {
+      if (typeof fetch !== 'function') return;
+      fetch('https://retrocodes12.github.io/nebula-player/player-version.json', { cache:'no-store' })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(j){
+          if (!j || !j.version || j.version === PLAYER_VERSION) return;
+          if (LS && LS.getItem('nebulaUpdDismiss') === j.version) return;
+          var banner = document.getElementById('updBanner');
+          document.getElementById('updText').textContent =
+            'Nebula update available' + (j.notes ? ' — ' + j.notes : '') + '.';
+          document.getElementById('updGet').href = j.url || 'https://retrocodes12.github.io/nebula-player/';
+          document.getElementById('updX').onclick = function(){
+            try { if (LS) LS.setItem('nebulaUpdDismiss', j.version); } catch(e){}
+            banner.classList.remove('show');
+            document.body.classList.remove('upd');
+          };
+          banner.classList.add('show');
+          document.body.classList.add('upd');
+        })
+        .catch(function(){});
+    } catch(e){}
+  })();
+
+  function renderAddons(){
+    var wrap = document.getElementById('addonList'); wrap.innerHTML='';
+    var addons = getAddons();
+    if (!addons.length){ wrap.innerHTML = '<div class="empty">No add-ons yet — paste a manifest URL above, or use <b>Add via phone</b>.</div>'; return; }
+    addons.forEach(function(a, idx){
+      var card = document.createElement('div'); card.className='addon focusable'; card.tabIndex = 0;
+      var logo = a.logo
+        ? '<img class="addon-logo" src="'+esc(a.logo)+'" onerror="this.outerHTML=\'<div class=&quot;addon-logo ph&quot;>'+esc((a.name||'?').slice(0,1).toUpperCase())+'</div>\'">'
+        : '<div class="addon-logo ph">'+esc((a.name||'?').slice(0,1).toUpperCase())+'</div>';
+      card.innerHTML = logo + '<div><div class="addon-name">'+esc(a.name||a.url)+'</div><div class="addon-url">'+esc(a.url.replace(/^https?:\/\//,''))+'</div></div>';
+      card.onclick = function(){ openAddon(a); };
+      card.onkeydown = function(ev){ if(ev.keyCode===13) openAddon(a); };
+      var del = document.createElement('button'); del.className='addon-del focusable'; del.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>'; del.title='Remove';
+      del.onclick = function(ev){ ev.stopPropagation(); var arr=getAddons(); arr.splice(idx,1); saveAddons(arr); renderAddons(); focusFirst(); };
+      card.appendChild(del);
+      wrap.appendChild(card);
+    });
+  }
+
+  async function addAddonFromUrl(url){
+    url = (url||'').trim();
+    if (!/manifest\.json/.test(url)) throw new Error('Not a manifest URL');
+    var m = await getJson(url);
+    var addons = getAddons();
+    if (!addons.some(function(a){ return a.url===url; })){
+      addons.push({ url:url, name:m.name||'Add-on', base:baseOf(url), logo:m.logo||m.icon||'' });
+      saveAddons(addons);
+    }
+    return m;
+  }
+  async function addAddon(){
+    var url = (document.getElementById('addonUrl').value||'').trim();
+    if (!/manifest\.json/.test(url)){ setStatus('Enter the add-on manifest URL (ends in /manifest.json).', 'err'); return; }
+    setStatus('Fetching add-on…', 'info');
+    try {
+      var m = await addAddonFromUrl(url);
+      document.getElementById('addonUrl').value='';
+      renderAddons(); setStatus('Added '+(m.name||'add-on')+'.', 'ok'); focusFirst();
+    } catch(err){ setStatus('Could not load add-on: '+err.message, 'err'); }
+  }
+
+  // ---------- add via phone (QR + ntfy relay) ----------
+  var PAIR_PAGE = 'https://retrocodes12.github.io/nebula-player/pair.html';
+  var NTFY = 'https://ntfy.sh/';
+  var pairTimer = null, pairDeadline = 0;
+  function randStr(n, chars){
+    var out='', arr=null;
+    try { arr=new Uint8Array(n); (window.crypto||window.msCrypto).getRandomValues(arr); } catch(e){ arr=null; }
+    for (var i=0;i<n;i++){ var r = arr ? arr[i] : Math.floor(Math.random()*256); out += chars[r % chars.length]; }
+    return out;
+  }
+  function xorDec(b64, key){
+    var s; try { s = atob((b64||'').trim()); } catch(e){ return null; }
+    var o=''; for (var i=0;i<s.length;i++){ o += String.fromCharCode(s.charCodeAt(i) ^ key.charCodeAt(i % key.length)); }
+    return o;
+  }
+  function stopPairing(){ if (pairTimer){ clearInterval(pairTimer); pairTimer = null; } }
+  function startPairing(){
+    stopPairing();
+    var topic = 'nuvio' + randStr(16, '0123456789abcdef');
+    var key = randStr(24, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789');
+    var pairUrl = PAIR_PAGE + '#t=' + topic + '&k=' + key;
+    var box = document.getElementById('qrbox'); box.innerHTML='';
+    try { var qr = qrcode(0, 'M'); qr.addData(pairUrl); qr.make(); box.innerHTML = qr.createSvgTag({ cellSize: 6, margin: 0 }); }
+    catch(e){ box.innerHTML = '<div style="color:#000">QR error</div>'; }
+    document.getElementById('pairUrlText').textContent = 'Or open on your phone: ' + pairUrl;
+    show('pair');
+    setStatus('Waiting for your phone…','info');
+    pairDeadline = Date.now() + 180000;
+    pairTimer = setInterval(async function(){
+      if (Date.now() > pairDeadline){ stopPairing(); setStatus('Pairing timed out. Try again.','err'); return; }
+      try {
+        var r = await fetch(NTFY + topic + '/json?poll=1', { cache:'no-store' });
+        if (!r.ok) return;
+        var text = await r.text(), lines = text.split('\n');
+        for (var i=0;i<lines.length;i++){
+          var ln = lines[i].trim(); if(!ln) continue;
+          var msg; try { msg = JSON.parse(ln); } catch(e){ continue; }
+          if (msg.event !== 'message' || !msg.message) continue;
+          var url = xorDec(msg.message, key);
+          if (url && /manifest\.json/.test(url)){
+            stopPairing(); setStatus('Received add-on. Adding…','info');
+            try { var m = await addAddonFromUrl(url); renderAddons(); setTab('addons');
+              setStatus('Added ' + (m.name || 'add-on') + ' from your phone.','ok'); }
+            catch(err){ setStatus('Add-on from phone failed: ' + err.message,'err'); setTab('addons'); }
+            return;
+          }
+        }
+      } catch(e){}
+    }, 2500);
+  }
+
+  // ---------- catalog ----------
+  async function openAddon(a){
+    setStatus('Loading catalogs…','info');
+    try {
+      var m = await getJson(a.url);
+      ctx.addon = a; ctx.manifest = m;
+      ctx.catalogs = (m.catalogs||[]);
+      if (!ctx.catalogs.length){ setStatus('This add-on has no catalogs to browse.', 'err'); return; }
+      ctx.catalog = ctx.catalogs[0]; ctx.genre = null; clearSearchInput();
+      document.getElementById('catTitle').textContent = a.name || 'Catalog';
+      renderGenres(); show('catalog'); loadCatalog();
+    } catch(err){ setStatus('Failed: '+err.message, 'err'); }
+  }
+  function currentGenres(){
+    var extra = (ctx.catalog.extra||[]);
+    var g = extra.filter(function(x){ return x.name==='genre'; })[0];
+    return g && g.options ? g.options : [];
+  }
+  /** Does this catalog advertise an `extra` (search / genre / skip …)? */
+  function catalogSupports(c, name){
+    if (!c) return false;
+    if ((c.extra||[]).some(function(x){ return x.name===name; })) return true;
+    return (c.extraSupported||[]).indexOf(name) !== -1;
+  }
+  function catalogSupportsSearch(c){ return catalogSupports(c, 'search'); }
+  function searchCatalog(){
+    if (catalogSupportsSearch(ctx.catalog)) return ctx.catalog;
+    // prefer a searchable catalog of the same type, so searching in a Series
+    // catalog doesn't silently hand back Movies
+    var same = (ctx.catalogs||[]).filter(function(c){
+      return catalogSupportsSearch(c) && ctx.catalog && c.type === ctx.catalog.type;
+    })[0];
+    return same || (ctx.catalogs||[]).filter(catalogSupportsSearch)[0] || null;
+  }
+  function clearSearchInput(){
+    ctx.query='';
+    var i=document.getElementById('catSearch'); if(i) i.value='';
+    var c=document.getElementById('catSearchClear'); if(c) c.style.display='none';
+  }
+  function renderGenres(){
+    var row = document.getElementById('genreRow'); row.innerHTML='';
+    if (ctx.catalogs.length > 1){
+      ctx.catalogs.forEach(function(c){
+        var b=document.createElement('button'); b.className='chip focusable'+(c===ctx.catalog && !ctx.query?' on':'');
+        b.textContent = c.name || c.id;
+        b.onclick=function(){ ctx.catalog=c; ctx.genre=null; clearSearchInput(); renderGenres(); loadCatalog(); };
+        row.appendChild(b);
+      });
+    }
+    if (!ctx.query) currentGenres().slice(0,20).forEach(function(gn){
+      var b=document.createElement('button'); b.className='chip focusable'+(ctx.genre===gn?' on':'');
+      b.textContent=gn;
+      b.onclick=function(){ ctx.genre = (ctx.genre===gn?null:gn); renderGenres(); loadCatalog(); };
+      row.appendChild(b);
+    });
+    document.getElementById('searchRow').style.display = (ctx.catalogs||[]).some(catalogSupportsSearch) ? 'flex' : 'none';
+  }
+  /** The catalog actually on screen — a search may route to a different one. */
+  function activeCatalog(){ return (ctx.query && searchCatalog()) ? searchCatalog() : ctx.catalog; }
+  function catalogUrl(skip){
+    var c = activeCatalog();
+    var u = ctx.addon.base + '/catalog/' + encodeURIComponent(c.type) + '/' + encodeURIComponent(c.id);
+    // Stremio puts every extra in one path segment, joined with &
+    var extras = [];
+    if (ctx.query) extras.push('search=' + encodeURIComponent(ctx.query));
+    else if (ctx.genre) extras.push('genre=' + encodeURIComponent(ctx.genre));
+    if (skip) extras.push('skip=' + skip);
+    if (extras.length) u += '/' + extras.join('&');
+    return u + '.json';
+  }
+  (function initSearch(){
+    var input = document.getElementById('catSearch');
+    var clear = document.getElementById('catSearchClear');
+    if (!input || !clear) return;
+    function submit(){ ctx.query = input.value.trim(); clear.style.display = ctx.query ? '' : 'none'; renderGenres(); loadCatalog(); }
+    input.addEventListener('keydown', function(e){ if (e.key==='Enter' || e.keyCode===13){ e.preventDefault(); submit(); } });
+    clear.addEventListener('click', function(){ clearSearchInput(); renderGenres(); loadCatalog(); });
+  })();
+  function skeletons(n){
+    var s=''; for(var i=0;i<n;i++) s+='<div class="card skel"><div class="thumb"></div><div class="card-label sk"></div></div>';
+    return s;
+  }
+  /** Placeholder rows shaped like the stream cards they stand in for. */
+  function streamSkeletons(n){
+    var s='';
+    for(var i=0;i<n;i++) s+='<div class="stream skel"><span class="sk-blob"></span>' +
+      '<span class="sk-lines"><span class="sk-line"></span><span class="sk-line short"></span></span></div>';
+    return s;
+  }
+  /** Same, with an episode thumbnail instead of the play disc. */
+  function episodeSkeletons(n){
+    var s='';
+    for(var i=0;i<n;i++) s+='<div class="stream skel"><span class="sk-box"></span>' +
+      '<span class="sk-lines"><span class="sk-line"></span><span class="sk-line short"></span></span></div>';
+    return s;
+  }
+  /** Poster card. When (a, m, c) are given, clicking first points ctx at that
+      addon/catalog (cards on Home and Search live outside the catalog view). */
+  function cardEl(meta, a, m, c){
+    var card=document.createElement('button'); card.className='card focusable shape-'+(meta.posterShape||'poster');
+    var thumb = meta.poster
+      ? '<div class="thumb"><img loading="lazy" src="'+esc(meta.poster)+'" onerror="this.remove()"></div>'
+      : '<div class="thumb"><span class="thumb-ph">'+esc((meta.name||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'••')+'</span></div>';
+    card.innerHTML = thumb + '<div class="card-label">'+esc(meta.name||meta.id)+'</div>';
+    card.onclick=function(){
+      if (a){ ctx.addon=a; ctx.manifest=m; ctx.catalogs=(m&&m.catalogs)||[]; ctx.catalog=c; }
+      openItem(meta);
+    };
+    return card;
+  }
+  // Catalogs arrive a page at a time; `skip` walks them. Everything below the
+  // first page used to be unreachable.
+  var catSeq = 0, catPaging = false, catDone = false, catFetched = 0, catShown = 0, catSeen = null;
+  var CAT_MAX = 1000;   // ceiling so a huge catalog can't exhaust a TV's memory
+  function catalogScroller(){ return document.querySelector('#view-catalog .scroller'); }
+  async function loadCatalog(more){
+    if (more && (catPaging || catDone)) return;
+    var list = document.getElementById('catList');
+    if (!more){
+      catSeq++; catDone = false; catFetched = 0; catShown = 0; catSeen = {};
+      list.innerHTML = skeletons(18);
+      list.parentNode.scrollTop = 0;
+      setStatus('Loading…','info');
+    }
+    var seq = catSeq;
+    catPaging = true;
+    // while a further page is in flight, tail the grid with placeholders — added
+    // as direct children so they sit in the grid without a wrapper
+    if (more){
+      var frag = document.createElement('div');
+      frag.innerHTML = skeletons(6);
+      Array.prototype.slice.call(frag.children).forEach(function(c){
+        c.className += ' pageskel';
+        list.appendChild(c);
+      });
+    }
+    function dropPageSkel(){
+      Array.prototype.slice.call(list.querySelectorAll('.pageskel')).forEach(function(el){
+        if (el.parentNode) el.parentNode.removeChild(el);
+      });
+    }
+    try {
+      var d = await getJson(catalogUrl(more ? catFetched : 0));
+      if (seq !== catSeq) { dropPageSkel(); return; }
+      var metas = d.metas||[];
+      catFetched += metas.length;
+      dropPageSkel();
+      if (!more) list.innerHTML='';
+      var added = 0;
+      metas.forEach(function(meta){
+        var key = (meta.type||'') + ':' + meta.id;
+        if (catSeen[key]) return;                  // an add-on that ignores skip repeats itself
+        catSeen[key] = 1;
+        list.appendChild(cardEl(meta));
+        added++; catShown++;
+      });
+      // stop paging on an empty page, on nothing new, when the catalog never
+      // advertised `skip`, or at the ceiling
+      if (!metas.length || !added || !catalogSupports(activeCatalog(),'skip') || catShown >= CAT_MAX) catDone = true;
+      if (!catShown){
+        list.innerHTML='<div class="empty">No items in this catalog.</div>';
+        setStatus('No items.','info'); return;
+      }
+      setStatus(catShown + (catDone ? ' items' : ' items — scroll for more'), 'ok');
+      if (!more) focusFirst();
+      // a short first page leaves nothing to scroll, so top it up
+      if (!catDone) setTimeout(function(){
+        if (seq !== catSeq || catPaging || catDone) return;
+        var sc = catalogScroller();
+        if (sc && sc.scrollHeight <= sc.clientHeight + 40) loadCatalog(true);
+      }, 0);
+    } catch(err){
+      dropPageSkel();
+      if (seq !== catSeq) return;
+      catDone = true;
+      if (more){ setStatus('Couldn’t load more.','err'); }
+      else {
+        list.innerHTML='<div class="empty">Failed to load catalog: '+esc(err.message)+'</div>';
+        setStatus('Failed to load catalog.','err');
+      }
+    } finally {
+      if (seq === catSeq) catPaging = false;
+    }
+  }
+  (function initCatalogPaging(){
+    var sc = catalogScroller(); if (!sc) return;
+    sc.addEventListener('scroll', function(){
+      if (catDone || catPaging) return;
+      if (sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 600) loadCatalog(true);
+    });
+  })();
+
+  // ---------- home rows + global search (Stremio-style) ----------
+  var manifestCache = {};
+  function getManifest(url){
+    if (!manifestCache[url]) manifestCache[url] = getJson(url).catch(function(e){ delete manifestCache[url]; throw e; });
+    return manifestCache[url];
+  }
+  function openCatalogFor(a, m, c){
+    ctx.addon=a; ctx.manifest=m; ctx.catalogs=(m.catalogs||[]); ctx.catalog=c; ctx.genre=null; clearSearchInput();
+    document.getElementById('catTitle').textContent = a.name || m.name || 'Catalog';
+    renderGenres(); show('catalog'); loadCatalog();
+  }
+  /** Resume what you were watching. Rendered from local storage, so it paints
+      instantly and survives every add-on being unreachable. */
+  function continueCard(r){
+    var card = document.createElement('button');
+    card.className = 'card focusable shape-' + (r.shape || 'poster');
+    var pct = r.dur > 0 ? Math.max(0, Math.min(100, (r.pos / r.dur) * 100)) : 0;
+    var thumb = r.poster
+      ? '<img loading="lazy" src="' + esc(r.poster) + '" onerror="this.style.display=\'none\'">'
+      : '<span class="thumb-ph">' + esc((r.name||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase() || '••') + '</span>';
+    var left = (r.dur - r.pos) > 0 ? fmtT(r.dur - r.pos) + ' left' : '';
+    card.innerHTML = '<div class="thumb">' + thumb +
+      '<div class="prog"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' +
+      '<div class="card-label">' + esc(r.name || r.id) + '</div>' +
+      (left ? '<div class="card-sub">' + esc(left) + '</div>' : '');
+    card.onclick = function(){
+      var a = addonByUrl(r.addonUrl);
+      if (a) ctx.addon = a;
+      ctx.item = { id: r.id, type: r.type, name: r.name, poster: r.poster, posterShape: r.shape };
+      ctx.seriesEpisodes = null; ctx.epIndex = -1; ctx.seriesName = '';
+      openStreams(r.type, r.id, r.name);
+      if (r.type === 'series') hydrateSeriesChain(r.type, r.id);
+    };
+    var x = document.createElement('button');
+    x.className = 'cw-x focusable'; x.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>'; x.title = 'Remove from Continue watching';
+    x.onclick = function(ev){ ev.stopPropagation(); clearProgress(r.type, r.id); renderContinue(); focusFirst(); };
+    card.appendChild(x);
+    return card;
+  }
+  function renderContinue(){
+    var sec = document.getElementById('cwSection'); if (!sec) return;
+    var items = continueList();
+    if (!items.length){ sec.innerHTML = ''; return; }
+    sec.innerHTML = '<div class="rowhead"><span class="row-title">Continue Watching</span></div>';
+    var row = document.createElement('div'); row.className = 'hrow';
+    items.forEach(function(r){ row.appendChild(continueCard(r)); });
+    sec.appendChild(row);
+  }
+
+  var homeSig = null, homeBuiltAt = 0, homeSeq = 0;
+  function buildHomeRows(force){
+    var wrap = document.getElementById('homeRows'); if (!wrap) return;
+    var addons = getAddons();
+    var sig = JSON.stringify(addons.map(function(a){ return a.url; }));
+    // keep what's on screen unless the add-on list changed or the rows are stale
+    if (!force && sig === homeSig && (Date.now() - homeBuiltAt) < 300000) return;
+    homeSig = sig; homeBuiltAt = Date.now();
+    var seq = ++homeSeq;
+    if (!addons.length){
+      wrap.innerHTML = '<div class="panel" id="homeEmpty">' +
+        '<div class="brand"><span class="brand-name">Nebula</span></div>' +
+        '<p class="tagline" style="margin:.6rem 0 1.2rem">Nothing here yet — add an add-on and its catalogs fill this screen.</p>' +
+        '<button class="btn focusable" id="homeAddBtn">Add an add-on</button></div>';
+      document.getElementById('homeAddBtn').onclick = function(){ setTab('addons'); };
+      return;
+    }
+    // Continue watching lives in its own section so the add-on rows (and their
+    // unreachable-fallback) can be replaced without wiping it.
+    wrap.innerHTML = '';
+    var cwSec = document.createElement('div'); cwSec.id = 'cwSection'; wrap.appendChild(cwSec);
+    var rowsWrap = document.createElement('div'); rowsWrap.id = 'addonRows'; wrap.appendChild(rowsWrap);
+    renderContinue();
+    var manifestsLeft = addons.length, catsLeft = 0, rowsShown = 0;
+    function settle(){
+      if (seq !== homeSeq || manifestsLeft || catsLeft || rowsShown) return;
+      rowsWrap.innerHTML = '<div class="empty">Couldn’t reach your add-ons right now. ' +
+        '<button class="seeall focusable" id="homeRetry" style="margin-left:8px">Retry</button></div>';
+      document.getElementById('homeRetry').onclick = function(){ buildHomeRows(true); };
+    }
+    addons.forEach(function(a){
+      getManifest(a.url).then(function(m){
+        if (seq !== homeSeq) return;
+        var cats = (m.catalogs||[]).slice(0,3);
+        catsLeft += cats.length;
+        cats.forEach(function(c){
+          var head = document.createElement('div'); head.className='rowhead';
+          var sub = (c.name||c.id||'') + (c.type ? ' · ' + c.type.charAt(0).toUpperCase()+c.type.slice(1) : '');
+          head.innerHTML = '<span class="row-title">'+esc(a.name||m.name||'Add-on')+
+            (cats.length>1 ? ' <span class="row-sub">'+esc(sub)+'</span>' : '')+'</span>';
+          var sa = document.createElement('button'); sa.className='seeall focusable'; sa.textContent='See all ›';
+          sa.onclick = function(){ openCatalogFor(a, m, c); };
+          head.appendChild(sa);
+          var row = document.createElement('div'); row.className='hrow';
+          row.innerHTML = skeletons(6);
+          rowsWrap.appendChild(head); rowsWrap.appendChild(row);
+          var u = a.base + '/catalog/' + encodeURIComponent(c.type) + '/' + encodeURIComponent(c.id) + '.json';
+          getJson(u).then(function(d){
+            if (seq !== homeSeq) return;
+            var metas = (d.metas||[]).slice(0,15);
+            row.innerHTML = '';
+            if (!metas.length){ head.style.display='none'; row.style.display='none'; return; }
+            rowsShown++;
+            metas.forEach(function(meta){ row.appendChild(cardEl(meta, a, m, c)); });
+            // boot on TV: give the first loaded row focus if nothing has it yet
+            if (document.activeElement === document.body) focusFirst();
+          }).catch(function(){
+            if (seq !== homeSeq) return;
+            head.style.display='none'; row.style.display='none';
+          }).then(function(){ catsLeft--; settle(); });
+        });
+        manifestsLeft--; settle();
+      }).catch(function(){ manifestsLeft--; settle(); });
+    });
+  }
+  var searchSeq = 0;
+  function runGlobalSearch(){
+    var seq = ++searchSeq;
+    var input = document.getElementById('globalSearch');
+    var q = (input.value||'').trim();
+    document.getElementById('globalSearchClear').style.display = q ? '' : 'none';
+    var wrap = document.getElementById('searchResults');
+    wrap.innerHTML = '';
+    if (!q) return;
+    var addons = getAddons();
+    if (!addons.length){ wrap.innerHTML='<div class="empty">Add an add-on first — then one search covers everything it has.</div>'; return; }
+    setStatus('Searching…','info');
+    // stand-in section until the first add-on answers
+    wrap.innerHTML = '<div id="searchSkel"><div class="sk-head"></div><div class="grid">' + skeletons(8) + '</div></div>';
+    function dropSearchSkel(){
+      var sk = document.getElementById('searchSkel');
+      if (sk && sk.parentNode) sk.parentNode.removeChild(sk);
+    }
+    var any = false, pending = 0;
+    addons.forEach(function(a){
+      pending++;
+      getManifest(a.url).then(function(m){
+        // An add-on usually advertises search on several catalogs (Cinemeta has
+        // one for movies and one for series) — query them all, or a search for a
+        // show only ever returns films.
+        var cats = (m.catalogs||[]).filter(catalogSupportsSearch).slice(0, 4);
+        if (!cats.length) return;
+        // one section per add-on, filled as its catalogs answer
+        var head = document.createElement('div'); head.className='rowhead';
+        var countEl = document.createElement('span'); countEl.className='row-sub';
+        var titleEl = document.createElement('span'); titleEl.className='row-title';
+        titleEl.textContent = a.name || 'Add-on';
+        titleEl.appendChild(document.createTextNode(' ')); titleEl.appendChild(countEl);
+        head.appendChild(titleEl);
+        var g = document.createElement('div'); g.className='grid';
+        var seen = {}, count = 0, shown = false;
+        return Promise.all(cats.map(function(c){
+          var u = a.base + '/catalog/' + encodeURIComponent(c.type) + '/' + encodeURIComponent(c.id) +
+                  '/search=' + encodeURIComponent(q) + '.json';
+          return getJson(u).then(function(d){
+            if (seq !== searchSeq) return;
+            (d.metas||[]).slice(0,60).forEach(function(meta){
+              var key = (meta.type||c.type) + ':' + meta.id;
+              if (seen[key]) return;                 // same title from two catalogs
+              seen[key] = 1;
+              if (!shown){ dropSearchSkel(); wrap.appendChild(head); wrap.appendChild(g); shown = true; any = true; }
+              count++;
+              g.appendChild(cardEl(meta, a, m, c));
+            });
+            if (shown) countEl.textContent = count + ' result' + (count>1?'s':'');
+          }).catch(function(){});
+        }));
+      }).catch(function(){}).then(function(){
+        pending--;
+        if (!pending && seq === searchSeq){
+          dropSearchSkel();
+          if (!any) wrap.innerHTML = '<div class="empty">No matches for “'+esc(q)+'”.</div>';
+          setStatus(any ? 'Here\'s what matched.' : 'No matches.', any ? 'ok' : 'info');
+        }
+      });
+    });
+  }
+
+  // ---------- streams ----------
+  // Stremio semantics: catalog add-ons and stream add-ons are separate things.
+  // Opening an item asks EVERY installed add-on whose manifest says it serves
+  // streams for this type/id, not just the add-on the item came from.
+  function resourceSupport(m, name){
+    var rs = (m && m.resources) || [];
+    for (var i=0;i<rs.length;i++){
+      var r = rs[i];
+      if (r === name) return { types: m.types||null, idPrefixes: m.idPrefixes||null };
+      if (r && r.name === name) return { types: r.types||m.types||null, idPrefixes: r.idPrefixes||m.idPrefixes||null };
+    }
+    return null;
+  }
+  function supports(m, name, type, id){
+    var r = resourceSupport(m, name); if (!r) return false;
+    if (r.types && r.types.length && r.types.indexOf(type) === -1) return false;
+    if (r.idPrefixes && r.idPrefixes.length){
+      for (var i=0;i<r.idPrefixes.length;i++){ if (id.indexOf(r.idPrefixes[i]) === 0) return true; }
+      return false;
+    }
+    return true;
+  }
+  function canStream(m, type, id){ return supports(m, 'stream', type, id); }
+  function canMeta(m, type, id){ return supports(m, 'meta', type, id); }
+  function streamCard(s){
+    var card=document.createElement('button'); card.className='stream focusable';
+    card.innerHTML = '<span class="stream-play"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span><span class="stream-name">'+esc(s.name||'Stream')+'</span><span class="stream-sub">'+esc((s.title||'').replace(/\n/g,' · '))+'</span></span>';
+    card.onclick=function(){ playStream(s); };
+    return card;
+  }
+  var openSeq = 0, seriesSeq = 0;
+  function openItem(meta){
+    ctx.item = meta;
+    ctx.streamTitle = null;
+    ctx.seriesEpisodes = null; ctx.epIndex = -1;   // a movie must not inherit a stale chain
+    var type = meta.type || (ctx.catalog && ctx.catalog.type) || 'tv';
+    // Series get a season/episode picker first; movies (and everything else)
+    // go straight to the stream list.
+    if (type === 'series'){ openSeries(meta, type); return; }
+    openStreams(type, meta.id, meta.name);
+  }
+
+  // ---------- series: seasons + episodes ----------
+  function epNum(v){ return (v.episode != null ? v.episode : (v.number != null ? v.number : null)); }
+  function seasonNum(v){ return (v.season != null ? v.season : 1); }
+  function epTag(v){ var e = epNum(v); return 'S' + seasonNum(v) + (e != null ? 'E' + e : ''); }
+  /** Group a meta's `videos` into seasons (specials last) plus one flat list in
+      playing order — the flat list is what "next episode" walks. */
+  function groupEpisodes(videos){
+    var bySeason = {};
+    videos.forEach(function(v){ var s = seasonNum(v); (bySeason[s] = bySeason[s] || []).push(v); });
+    var seasons = Object.keys(bySeason).map(Number).sort(function(a,b){
+      if (a === 0) return 1; if (b === 0) return -1; return a - b;
+    });
+    Object.keys(bySeason).forEach(function(s){
+      bySeason[s].sort(function(a,b){ return (epNum(a)||0) - (epNum(b)||0); });
+    });
+    var flat = [];
+    seasons.forEach(function(s){ bySeason[s].forEach(function(v){ flat.push(v); }); });
+    return { bySeason: bySeason, seasons: seasons, flat: flat };
+  }
+  // Ask the origin add-on (then any other that advertises `meta` for this
+  // type/id) for the full meta — we need its `videos` list to build episodes.
+  async function fetchSeriesVideos(type, id, seq){
+    var origin = ctx.addon || null;
+    var order = origin ? [origin] : [];
+    getAddons().forEach(function(a){ if (!origin || a.url !== origin.url) order.push(a); });
+    for (var i=0;i<order.length;i++){
+      var a = order[i];
+      try {
+        var m = await getManifest(a.url);
+        if (seq !== seriesSeq) return null;
+        if (!(origin && a.url === origin.url) && !canMeta(m, type, id)) continue;
+        var d = await getJson(a.base + '/meta/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json');
+        if (seq !== seriesSeq) return null;
+        var vids = d && d.meta && d.meta.videos;
+        if (vids && vids.length) return { meta: d.meta, videos: vids };
+      } catch(e){}
+    }
+    return null;
+  }
+  async function openSeries(meta, type){
+    var seq = ++seriesSeq;
+    document.getElementById('epTitle').textContent = meta.name || 'Episodes';
+    document.getElementById('seasonRow').innerHTML = '';
+    document.getElementById('epList').innerHTML = episodeSkeletons(6);
+    show('episodes'); setStatus('Loading episodes…','info');
+    var res = await fetchSeriesVideos(type, meta.id, seq);
+    if (seq !== seriesSeq) return;
+    if (!res || !res.videos.length){
+      // No episode data anywhere — treat it like a single item so the user
+      // still gets whatever streams exist (replace episodes in the back-stack).
+      if (viewStack[viewStack.length-1] === 'episodes') viewStack.pop();
+      openStreams(type, meta.id, meta.name);
+      return;
+    }
+    ctx.seriesType = type;
+    var grouped = groupEpisodes(res.videos);
+    var bySeason = grouped.bySeason, seasons = grouped.seasons, flat = grouped.flat;
+    ctx.seriesEpisodes = flat;
+    ctx.seriesName = meta.name || '';
+    ctx.seriesPoster = meta.poster || '';
+    var row = document.getElementById('seasonRow');
+    row.innerHTML = '';
+    function renderSeason(s){
+      Array.prototype.forEach.call(row.children, function(ch){ ch.classList.toggle('on', ch.__season === s); });
+      var list = document.getElementById('epList');
+      list.innerHTML = '';
+      bySeason[s].forEach(function(v){ list.appendChild(episodeRow(meta, v, flat.indexOf(v))); });
+      list.parentNode.scrollTop = 0;
+    }
+    seasons.forEach(function(s, i){
+      var chip = document.createElement('button');
+      chip.className = 'chip focusable' + (i === 0 ? ' on' : '');
+      chip.textContent = (s === 0 ? 'Specials' : 'Season ' + s);
+      chip.__season = s;
+      chip.onclick = function(){ renderSeason(s); };
+      row.appendChild(chip);
+    });
+    setStatus(res.videos.length + ' episodes','ok');
+    renderSeason(seasons[0]);
+    focusFirst();
+  }
+  function epLabel(seriesName, v){
+    return (seriesName ? seriesName + ' · ' : '') + epTag(v) + (v.name ? ' · ' + v.name : '');
+  }
+  /** Resuming an episode from Continue watching bypasses the picker, so rebuild
+      the series chain in the background — otherwise "next episode" is dead there.
+      Stremio episode ids are "<seriesId>:<season>:<episode>". */
+  async function hydrateSeriesChain(type, episodeId){
+    var seriesId = String(episodeId||'').split(':')[0];
+    if (!seriesId || seriesId === episodeId) return;
+    var seq = ++seriesSeq;
+    var res = await fetchSeriesVideos(type, seriesId, seq);
+    if (!res || seq !== seriesSeq || !res.videos.length) return;
+    var grouped = groupEpisodes(res.videos);
+    ctx.seriesEpisodes = grouped.flat;
+    ctx.seriesType = type;
+    ctx.seriesName = (res.meta && res.meta.name) || ctx.seriesName || '';
+    ctx.seriesPoster = (res.meta && res.meta.poster) || ctx.seriesPoster || '';
+    ctx.epIndex = -1;
+    for (var i=0;i<grouped.flat.length;i++){
+      if (grouped.flat[i].id === episodeId){ ctx.epIndex = i; break; }
+    }
+    try { puiRefreshButtons(); } catch(e){}
+  }
+  function episodeRow(seriesMeta, v, index){
+    var row = document.createElement('button'); row.className = 'stream focusable';
+    var e = epNum(v);
+    var ph = '<div class="ep-thumb-ph">' + (e != null ? e : '•') + '</div>';
+    var thumb = v.thumbnail
+      ? '<img class="ep-thumb" loading="lazy" src="' + esc(v.thumbnail) + '" onerror="this.remove()">'
+      : ph;
+    // watched tick / part-way bar, from the local progress store
+    var pr = progFor(ctx.seriesType || 'series', v.id);
+    var mark = '';
+    if (pr && pr.done) mark = '<span class="ep-done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13l4.5 4.5L19 7"/></svg></span>';
+    else if (pr && pr.pos && pr.dur > 0){
+      var pct = Math.max(0, Math.min(100, (pr.pos / pr.dur) * 100));
+      mark = '<span class="prog"><i style="width:' + pct.toFixed(1) + '%"></i></span>';
+    }
+    var title = (e != null ? e + '. ' : '') + esc(v.name || v.title || ('Episode ' + (e != null ? e : '')));
+    var sub = v.overview || v.released || '';
+    row.innerHTML = '<span class="ep-thumbwrap">' + thumb + mark + '</span>' +
+      '<span><span class="stream-name">' + title + '</span>' +
+      (sub ? '<span class="ep-sub">' + esc(sub) + '</span>' : '') + '</span>';
+    row.onclick = function(){
+      ctx.epIndex = (index == null ? -1 : index);
+      ctx.streamTitle = epLabel(seriesMeta.name, v);
+      openStreams(ctx.seriesType || 'series', v.id, ctx.streamTitle);
+    };
+    return row;
+  }
+
+  // ---------- streams ----------
+  /** Remember what the next playUrl() is actually playing — resume and Continue
+      watching both key off this, so it must be set before playback starts. */
+  function setPlayIdentity(type, id, title){
+    ctx.playType = type || ''; ctx.playId = id || ''; ctx.playTitle = title || '';
+    ctx.playAddonUrl = (ctx.addon && ctx.addon.url) || '';
+    ctx.playPoster = (ctx.item && ctx.item.poster) || ctx.seriesPoster || '';
+    ctx.playShape = (ctx.item && ctx.item.posterShape) || 'poster';
+  }
+  /** For playback with no catalogue identity (a pasted URL, a party stream):
+      nothing to resume and nothing worth remembering. */
+  function clearPlayIdentity(){
+    ctx.playType = ''; ctx.playId = ''; ctx.playTitle = '';
+    ctx.playAddonUrl = ''; ctx.playPoster = ''; ctx.playShape = 'poster';
+    ctx.seriesEpisodes = null; ctx.epIndex = -1;
+  }
+  function openStreams(type, id, titleText){
+    var seq = ++openSeq;
+    setPlayIdentity(type, id, titleText);
+    document.getElementById('streamsTitle').textContent = titleText || 'Streams';
+    var list = document.getElementById('streamList');
+    list.innerHTML = '<div class="streamsec" id="streamsLoading">' + streamSkeletons(4) + '</div>';
+    list.parentNode.scrollTop = 0;
+    show('streams'); setStatus('Loading streams…','info');
+
+    var origin = ctx.addon || null;
+    var order = origin ? [origin] : [];
+    getAddons().forEach(function(a){ if (!origin || a.url !== origin.url) order.push(a); });
+    if (!order.length){ list.innerHTML = '<div class="empty">No add-ons.</div>'; return; }
+
+    var pending = order.length, total = 0, sections = 0, failures = 0;
+    function removeLoading(){
+      var el = document.getElementById('streamsLoading');
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    }
+    function done(){
+      if (seq !== openSeq) return;
+      pending--;
+      if (pending) return;
+      removeLoading();
+      if (!total){
+        list.innerHTML = failures === order.length
+          ? '<div class="empty">Failed to load streams — check your connection and try again.</div>'
+          : '<div class="empty">No playable streams right now (the event may be offline).</div>';
+        setStatus('No streams.','info');
+      } else {
+        setStatus(total+' stream'+(total>1?'s':'')+(sections>1?' from '+sections+' add-ons':''),'ok');
+      }
+    }
+    // one placeholder per add-on, filled as answers arrive, so order is stable
+    order.forEach(function(a){
+      var box = document.createElement('div'); box.className='streamsec'; list.appendChild(box);
+      // an add-on that will be asked shows skeleton rows until it answers
+      // (named to avoid shadowing the outer `pending` counter that done() uses)
+      var boxPending = false;
+      getManifest(a.url).then(function(m){
+        // the origin add-on is always asked; others only when their manifest
+        // says they serve streams for this item's type/id
+        if (!(origin && a.url === origin.url) && !canStream(m, type, id)) return;
+        if (seq !== openSeq) return;
+        boxPending = true;
+        removeLoading();                       // this add-on's own rows stand in now
+        box.innerHTML = streamSkeletons(3);
+        var u = a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json';
+        return getJson(u).then(function(d){
+          if (seq !== openSeq) return;
+          var streams = (d.streams||[]).filter(function(s){ return s.url; });
+          box.innerHTML = '';
+          boxPending = false;
+          if (!streams.length) return;
+          removeLoading();
+          sections++;
+          if (order.length > 1){
+            box.innerHTML = '<div class="rowhead"><span class="row-title">'+esc(a.name||'Add-on')+'</span></div>';
+          }
+          streams.forEach(function(s){ total++; box.appendChild(streamCard(s)); });
+          if (sections === 1) focusFirst();
+        });
+      }).catch(function(){
+        failures++;
+        if (boxPending){ box.innerHTML = ''; boxPending = false; }   // never leave it shimmering
+      }).then(done);
+    });
+  }
+
+  // ---------- playback ----------
+  function extractClearKeys(stream){
+    var keys = {};
+    var u = stream.url||'', hi = u.indexOf('#clearkey=');
+    if (hi !== -1){
+      decodeURIComponent(u.slice(hi+10)).split(',').forEach(function(p){
+        var i=p.indexOf(':'); if(i<=0) return;
+        var k=hex(p.slice(0,i)), v=hex(p.slice(i+1)); if(k.length===32&&v.length===32) keys[k]=v;
+      });
+    }
+    var src = stream.clearKeys || stream.keys || (stream.behaviorHints && stream.behaviorHints.clearKeys);
+    if (src && typeof src === 'object'){
+      Object.keys(src).forEach(function(k){ var kk=hex(k), vv=hex(src[k]); if(kk.length===32&&vv.length===32) keys[kk]=vv; });
+    }
+    return Object.keys(keys).length ? keys : null;
+  }
+  function cleanUrl(u){ var i=u.indexOf('#clearkey='); return i===-1?u:u.slice(0,i); }
+  function b64urlToHex(s){
+    s=(s||'').replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4) s+='=';
+    var bin; try{ bin=atob(s); }catch(e){ return ''; }
+    var h=''; for(var i=0;i<bin.length;i++){ h+=('0'+bin.charCodeAt(i).toString(16)).slice(-2); }
+    return h;
+  }
+  async function resolveLaurlKeys(mpdUrl){
+    try {
+      var xml = await (await fetch(cleanUrl(mpdUrl), { cache:'no-store' })).text();
+      var m = xml.match(/<(?:\w+:)?laurl[^>]*>([^<]+)<\/(?:\w+:)?laurl>/i);
+      if (!m) return null;
+      var lic = await (await fetch(m[1].trim(), { cache:'no-store' })).json();
+      var keys = {};
+      (lic.keys||[]).forEach(function(K){ var kid=b64urlToHex(K.kid), kk=b64urlToHex(K.k); if (kid.length===32 && kk.length===32) keys[kid]=kk; });
+      return Object.keys(keys).length ? keys : null;
+    } catch(e){ return null; }
+  }
+  function initShaka(){
+    if (!window.shaka){ setStatus('Shaka failed to load.','err'); return false; }
+    shaka.polyfill.installAll();
+    if (!shaka.Player.isBrowserSupported()){ setStatus('This device is not supported by Shaka Player.','err'); return false; }
+    return true;
+  }
+  async function stopPlayer(){
+    try { flushProgress(true); } catch(e){}
+    curPlay = null;
+    closeUpNext();
+    clearInterval(puiState.tick);
+    clearTimeout(puiState.idleTimer);
+    closePuiMenu(false);
+    exitPip();
+    if (miniOn) setMini(false);
+    if (player){ try{ await player.destroy(); }catch(e){} player=null; }
+    video.style.display='none';
+    try { video.playbackRate = 1; } catch(e){}
+  }
+  var playSeq = 0, didRetry = false;
+  // On a playback error, let Shaka retry the failed segments IN PLACE once
+  // (retryStreaming — no reload, no jump to the live edge); if it errors again,
+  // just show the error. Deliberately does NOT reload/loop — an aggressive
+  // reload loop thrashes (re-buffer + live-edge jump) when a source is flaky.
+  function handlePlaybackError(seq, d){
+    if (seq !== playSeq) return;
+    var code = d && d.code || 0;
+    // RECOVERABLE (severity 1): one gentle in-place retry, reset after healthy playback
+    if (d && d.severity === 1 && player && !didRetry){
+      didRetry = true;
+      setStatus('Reconnecting…','info');
+      try { player.retryStreaming(); } catch(e){}
+      return;
+    }
+    var detail = d && d.data ? (' — ' + String(JSON.stringify(d.data)).slice(0,180)) : '';
+    setStatus('Playback error ' + code + detail, 'err');
+    try { $id('puiSpin').style.display = 'none'; } catch(e){}
+  }
+  async function playUrl(rawUrl, clearKeys, title, subtitles){
+    if (!initShaka()) return;
+    var seq = ++playSeq;
+    didRetry = false;
+    lastPlay = { url: rawUrl, keys: clearKeys || null, title: title || '', subs: subtitles || [] };
+    // a party host changing streams takes the whole room along
+    if (party && party.isHost && party.ws.readyState === 1){
+      try { party.ws.send(JSON.stringify({ t:'stream', stream: partyStreamDesc() })); } catch(e){}
+    }
+    await stopPlayer();
+    if (seq !== playSeq) return;
+    // promote the staged selection: from here on this is what progress is written against
+    curPlay = ctx.playId ? {
+      type: ctx.playType, id: ctx.playId, name: ctx.playTitle || title || '',
+      poster: ctx.playPoster || '', shape: ctx.playShape || 'poster', addonUrl: ctx.playAddonUrl || ''
+    } : null;
+    show('player');
+    puiReset(title || '');
+    setStatus('Loading…','info');
+    player = new shaka.Player();
+    try { await player.attach(video); } catch(e){}
+    // Be tolerant of flaky CDNs (these are tokenised/proxied sports CDNs): more
+    // segment/manifest retries with backoff, and don't reject live manifests
+    // over minBufferTime quirks.
+    try {
+      player.configure({
+        streaming: { retryParameters: { maxAttempts: 6, baseDelay: 500, backoffFactor: 1.5, timeout: 30000 } },
+        manifest: { retryParameters: { maxAttempts: 4, baseDelay: 500, backoffFactor: 1.5 }, dash: { ignoreMinBufferTime: true } }
+      });
+    } catch(e){}
+    player.addEventListener('error', function(ev){ handlePlaybackError(seq, ev.detail || {}); });
+    player.addEventListener('adaptation', function(){ if(!puiState.menu) puiRefreshButtons(); });
+    player.addEventListener('trackschanged', function(){ if(!puiState.menu) puiRefreshButtons(); });
+    player.addEventListener('buffering', function(ev){ $id('puiSpin').style.display = ev.buffering ? 'block' : 'none'; });
+    player.getNetworkingEngine().registerRequestFilter(function(type, request){
+      if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT){
+        if (!request.headers['Range'] && !request.headers['range']){ request.headers['Range'] = 'bytes=0-'; }
+      }
+    });
+    if (!clearKeys && /\.mpd(\?|#|$)/i.test(rawUrl)){ setStatus('Fetching DRM key…','info'); clearKeys = await resolveLaurlKeys(rawUrl); }
+    if (seq !== playSeq) return;
+    if (clearKeys){
+      player.getNetworkingEngine().registerResponseFilter(function(type, response){
+        if (type === shaka.net.NetworkingEngine.RequestType.MANIFEST){
+          try {
+            var t = new TextDecoder().decode(response.data);
+            if (t.indexOf('e2719d58') !== -1){
+              response.data = new TextEncoder().encode(t.replace(/<ContentProtection[^>]*e2719d58[\s\S]*?<\/ContentProtection>/gi, '')).buffer;
+            }
+          } catch(e){}
+        }
+      });
+      player.configure({ drm: { clearKeys: clearKeys } });
+    }
+    // Resume where this exact item was left off. Handing the offset to Shaka's
+    // load() starts buffering there, rather than loading at 0 and seeking.
+    var startAt = curPlay ? resumeAt(curPlay.type, curPlay.id) : 0;
+    try {
+      if (startAt) await player.load(cleanUrl(rawUrl), startAt);
+      else await player.load(cleanUrl(rawUrl));
+      if (seq !== playSeq) return;
+      setStatus(startAt ? ('Resumed from ' + fmtT(startAt) + '.') : 'Playing.', 'ok');
+      try { await video.play(); } catch(e){}
+      $id('puiSpin').style.display = 'none';
+      puiRefreshButtons(); puiTick();
+      // add-on-provided subtitle files become selectable text tracks
+      (subtitles||[]).forEach(function(sub){
+        if (!sub || !sub.url || !player.addTextTrackAsync) return;
+        var mime = /\.srt(\?|#|$)/i.test(sub.url) ? 'text/srt' : 'text/vtt';
+        try {
+          player.addTextTrackAsync(sub.url, sub.lang || 'und', 'subtitles', mime, '', sub.lang || 'Subtitles')
+            .then(function(){ puiRefreshButtons(); }).catch(function(){});
+        } catch(e){}
+      });
+    }
+    catch(err){
+      if (seq !== playSeq) return;
+      var code=(err&&(err.code||err.message))||'unknown'; var extra=err&&err.data?(' — '+JSON.stringify(err.data).slice(0,180)):'';
+      setStatus('Failed to load ('+code+')'+extra,'err'); $id('puiSpin').style.display='none';
+    }
+  }
+  function playStream(s){
+    playUrl(s.url, extractClearKeys(s), ctx.streamTitle || (ctx.item && ctx.item.name) || s.name || 'Nebula', s.subtitles || []);
+  }
+
+  // ---------- player UI (custom controls: transport, seek, subtitles, audio, quality, speed) ----------
+  var pui = document.getElementById('pui');
+  var puiMenuEl = document.getElementById('puiMenu');
+  var puiState = { menu:null, opener:null, idleTimer:null, tick:null };
+  var upnextState = { open:false, counting:false, dismissed:false, timer:null, left:0, target:null };
+  function $id(x){ return document.getElementById(x); }
+
+  function heightLabel(h){ return h ? (h + 'p') : 'Auto'; }
+  function videoTracks(){ try { return (player.getVariantTracks()||[]).filter(function(t){ return t.height; }); } catch(e){ return []; } }
+  function distinctHeights(tracks){
+    var seen={}, out=[];
+    tracks.forEach(function(t){ if(!seen[t.height]){ seen[t.height]=1; out.push(t.height); } });
+    out.sort(function(a,b){ return b-a; }); return out;
+  }
+  function langName(code){
+    if (!code || code === 'und') return 'Unknown';
+    try { var dn = new Intl.DisplayNames(['en'], { type:'language' }); return dn.of(code) || code; }
+    catch(e){ return code; }
+  }
+  function fmtT(s){
+    if (!isFinite(s) || s < 0) s = 0;
+    s = Math.floor(s);
+    var h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+    function p(n){ return (n<10?'0':'')+n; }
+    return h ? (h+':'+p(m)+':'+p(sec)) : (m+':'+p(sec));
+  }
+  function puiRange(){
+    try { var r = player.seekRange(); if (r && isFinite(r.start) && isFinite(r.end) && r.end > r.start) return r; } catch(e){}
+    var d = video.duration; return { start:0, end:(isFinite(d)&&d>0)?d:0 };
+  }
+  function puiIsLive(){ try { return !!(player && player.isLive()); } catch(e){ return false; } }
+  function seekBy(delta){
+    var r = puiRange(); if (r.end <= r.start) return;
+    var t = video.currentTime + delta;
+    if (t < r.start) t = r.start; if (t > r.end) t = r.end;
+    video.currentTime = t; puiTick(); puiShow();
+  }
+  function puiSeekPct(p){
+    var r = puiRange(); if (r.end <= r.start) return;
+    if (p<0) p=0; if (p>1) p=1;
+    video.currentTime = r.start + (r.end-r.start)*p; puiTick();
+  }
+  var lastTickT = -1, progTicks = 0;
+  function puiTick(){
+    if (!player) return;
+    // Healthy playback (position advancing) re-arms the one-shot retry so a
+    // much-later blip can be retried once more.
+    if (!video.paused && video.currentTime > lastTickT + 0.4) didRetry = false;
+    lastTickT = video.currentTime;
+    var r = puiRange(), t = video.currentTime;
+    var span = r.end - r.start, pct = span>0 ? (t-r.start)/span : 0;
+    if (pct<0) pct=0; if (pct>1) pct=1;
+    $id('puiFill').style.width = (pct*100)+'%';
+    $id('puiKnob').style.left = (pct*100)+'%';
+    var buf = 0;
+    try { var b = video.buffered; if (b && b.length && span>0) buf = (b.end(b.length-1)-r.start)/span; } catch(e){}
+    if (buf<0) buf=0; if (buf>1) buf=1;
+    $id('puiBuf').style.width = (buf*100)+'%';
+    var live = puiIsLive();
+    $id('puiLiveBadge').style.display = live ? '' : 'none';
+    $id('puiTime').textContent = live
+      ? (r.end - t > 12 ? '-'+fmtT(r.end - t)+' behind live' : 'At the live edge')
+      : (fmtT(t - r.start) + ' / ' + fmtT(span));
+    // keep the resume point roughly current (~5s), and offer the next episode
+    // once we're near the end
+    progTicks++;
+    if (!video.paused && progTicks % 10 === 0) flushProgress(false);
+    if (!live && span > 0){
+      var remain = r.end - t;
+      if (remain > 0.5 && remain <= 25 && !video.paused && !upnextState.open &&
+          !upnextState.dismissed && nextEpisode()) openUpNext(false);
+      else if (remain > 40 && upnextState.open && !upnextState.counting) closeUpNext();
+    }
+  }
+  function puiSyncPlayIcon(){
+    var paused = video.paused;
+    $id('puiIconPlay').style.display = paused ? '' : 'none';
+    $id('puiIconPause').style.display = paused ? 'none' : '';
+  }
+  function puiShow(){
+    if (!pui) return;
+    pui.className = '';
+    clearTimeout(puiState.idleTimer);
+    puiState.idleTimer = setTimeout(function(){
+      if (!video.paused && !puiState.menu && !upnextState.open) puiIdle();
+    }, 3500);
+  }
+  function puiIdle(){
+    closePuiMenu(false);
+    if (document.activeElement && pui.contains(document.activeElement)) document.activeElement.blur();
+    pui.className = 'idle';
+  }
+  function togglePlay(){
+    if (!player) return;
+    if (video.paused){ try { video.play(); } catch(e){} } else { video.pause(); }
+    puiShow();
+  }
+
+  // ---- shared menu (quality / subtitles / audio / speed) ----
+  function menuOpt(label, selected, fn){
+    var b=document.createElement('button'); b.className='qopt focusable'+(selected?' on':''); b.tabIndex=0;
+    b.textContent=label;
+    b.onclick=function(){ fn(); };
+    b.onkeydown=function(ev){ if(ev.keyCode===13){ fn(); ev.preventDefault(); ev.stopPropagation(); } };
+    puiMenuEl.appendChild(b);
+  }
+  function openPuiMenu(kind, opener){
+    if (!player) return;
+    puiMenuEl.innerHTML = '';
+    var t=document.createElement('div'); t.className='qtitle';
+    t.textContent = { quality:'Quality', subs:'Subtitles', audio:'Audio', speed:'Speed' }[kind];
+    puiMenuEl.appendChild(t);
+    if (kind==='quality'){
+      var tracks = videoTracks(), heights = distinctHeights(tracks);
+      var abrOn=true; try { abrOn = player.getConfiguration().abr.enabled; } catch(e){}
+      var activeH=0; if(!abrOn) tracks.forEach(function(v){ if(v.active) activeH=v.height; });
+      menuOpt('Auto', abrOn, function(){ selectQuality(0); });
+      heights.forEach(function(h){ menuOpt(heightLabel(h), !abrOn&&h===activeH, function(){ selectQuality(h); }); });
+    } else if (kind==='subs'){
+      var tt=[]; try { tt = player.getTextTracks()||[]; } catch(e){}
+      var visible=false; try { visible = player.isTextTrackVisible(); } catch(e){}
+      menuOpt('Off', !visible, function(){
+        try { player.setTextTrackVisibility(false); } catch(e){}
+        setStatus('Subtitles off.','ok'); closePuiMenu(true);
+      });
+      tt.forEach(function(tr){
+        var label = tr.label || langName(tr.language) || ('Track '+tr.id);
+        menuOpt(label, visible && tr.active, function(){
+          try { player.selectTextTrack(tr); player.setTextTrackVisibility(true); } catch(e){}
+          setStatus('Subtitles: '+label,'ok'); closePuiMenu(true);
+        });
+      });
+    } else if (kind==='audio'){
+      var langs=[]; try { langs = player.getAudioLanguagesAndRoles()||[]; } catch(e){}
+      var curLang=''; try { (player.getVariantTracks()||[]).forEach(function(v){ if(v.active) curLang=v.language; }); } catch(e){}
+      langs.forEach(function(l){
+        var label = l.label || (langName(l.language) + (l.role ? ' ('+l.role+')' : ''));
+        menuOpt(label, l.language===curLang, function(){
+          try { player.selectAudioLanguage(l.language, l.role); } catch(e){}
+          setStatus('Audio: '+label,'ok'); closePuiMenu(true);
+        });
+      });
+    } else if (kind==='speed'){
+      [0.5,0.75,1,1.25,1.5,2].forEach(function(rate){
+        menuOpt(rate+'×', video.playbackRate===rate, function(){
+          video.playbackRate = rate;
+          $id('puiSpeed').textContent = rate+'×';
+          setStatus('Speed: '+rate+'×','ok'); closePuiMenu(true);
+        });
+      });
+    }
+    puiMenuEl.classList.add('open');
+    puiState.menu = kind; puiState.opener = opener || null;
+    var on = puiMenuEl.querySelector('.qopt.on') || puiMenuEl.querySelector('.qopt');
+    if (on) setTimeout(function(){ on.focus(); }, 10);
+    puiShow();
+  }
+  function closePuiMenu(refocus){
+    if (puiMenuEl) puiMenuEl.classList.remove('open');
+    var op = puiState.opener;
+    puiState.menu = null; puiState.opener = null;
+    if (refocus && op) op.focus();
+  }
+  function movePuiMenu(dir){
+    var opts=Array.prototype.slice.call(puiMenuEl.querySelectorAll('.qopt')); if(!opts.length) return;
+    var i=opts.indexOf(document.activeElement); i=(i<0?0:i+dir); if(i<0)i=0; if(i>=opts.length)i=opts.length-1; opts[i].focus();
+  }
+  function selectQuality(height){
+    if (!player) return;
+    try {
+      if (!height){ player.configure({ abr: { enabled: true } }); }
+      else {
+        player.configure({ abr: { enabled: false } });
+        var pick=null;
+        videoTracks().forEach(function(t){ if(t.height===height && (!pick || t.bandwidth>pick.bandwidth)) pick=t; });
+        if (pick) player.selectVariantTrack(pick, true);
+      }
+    } catch(e){}
+    setStatus('Quality: '+(height?heightLabel(height):'Auto'),'ok');
+    closePuiMenu(true);
+  }
+  function puiRefreshButtons(){
+    if (!player) return;
+    $id('puiQual').style.display = distinctHeights(videoTracks()).length >= 2 ? '' : 'none';
+    var tt=[]; try { tt = player.getTextTracks()||[]; } catch(e){}
+    $id('puiSubs').style.display = tt.length ? '' : 'none';
+    var langs=[]; try { langs = player.getAudioLanguagesAndRoles()||[]; } catch(e){}
+    $id('puiAudio').style.display = langs.length >= 2 ? '' : 'none';
+    $id('puiNext').style.display = nextEpisode() ? '' : 'none';
+  }
+  function puiReset(title){
+    $id('puiTitle').textContent = title || '';
+    $id('puiSpeed').textContent = '1×';
+    closeUpNext(); upnextState.dismissed = false;
+    $id('puiNext').style.display = 'none';
+    closePuiMenu(false);
+    $id('puiSpin').style.display = 'block';
+    $id('puiFill').style.width='0%'; $id('puiBuf').style.width='0%'; $id('puiKnob').style.left='0%';
+    $id('puiSubs').style.display='none'; $id('puiAudio').style.display='none'; $id('puiQual').style.display='none';
+    puiSyncPlayIcon();
+    puiShow();
+    clearInterval(puiState.tick);
+    puiState.tick = setInterval(function(){ if (player && video.style.display==='block') puiTick(); }, 500);
+    // TV: land focus on play/pause so OK works immediately
+    setTimeout(function(){
+      if (document.body.className.indexOf('playing') !== -1 && pui.className !== 'idle') $id('puiPlay').focus();
+    }, 60);
+  }
+
+  // ---- wiring ----
+  $id('puiBack').onclick = function(){ goBack(); };
+  $id('puiPlay').onclick = togglePlay;
+  $id('puiRew').onclick = function(){ seekBy(-10); };
+  $id('puiFwd').onclick = function(){ seekBy(10); };
+  $id('puiQual').onclick = function(){ if (puiState.menu==='quality') closePuiMenu(true); else openPuiMenu('quality', this); };
+  $id('puiSubs').onclick = function(){ if (puiState.menu==='subs') closePuiMenu(true); else openPuiMenu('subs', this); };
+  $id('puiAudio').onclick = function(){ if (puiState.menu==='audio') closePuiMenu(true); else openPuiMenu('audio', this); };
+  $id('puiSpeed').onclick = function(){ if (puiState.menu==='speed') closePuiMenu(true); else openPuiMenu('speed', this); };
+
+  // ---- up next: keep a series going without a trip back to the episode list ----
+  // Offered quietly in the last 25s, with a countdown once the episode ends.
+  function nextEpisode(){
+    var list = ctx.seriesEpisodes;
+    if (!list || !list.length) return null;
+    var i = (ctx.epIndex == null) ? -1 : ctx.epIndex;
+    if (i < 0 || i + 1 >= list.length) return null;
+    return { ep: list[i+1], index: i+1 };
+  }
+  function openUpNext(withCountdown){
+    var nx = nextEpisode(); if (!nx) return;
+    upnextState.open = true; upnextState.target = nx; upnextState.counting = !!withCountdown;
+    $id('upnextTitle').textContent = epTag(nx.ep) + (nx.ep.name ? ' · ' + nx.ep.name : '');
+    $id('upnext').classList.add('show');
+    clearInterval(upnextState.timer);
+    if (!withCountdown){ $id('upnextPlay').textContent = 'Play now'; return; }
+    upnextState.left = 8;
+    $id('upnextPlay').textContent = 'Play now (' + upnextState.left + ')';
+    upnextState.timer = setInterval(function(){
+      upnextState.left--;
+      if (upnextState.left <= 0){ clearInterval(upnextState.timer); playEpisodeAt(nx.index); return; }
+      $id('upnextPlay').textContent = 'Play now (' + upnextState.left + ')';
+    }, 1000);
+    setTimeout(function(){ if (upnextState.open) $id('upnextPlay').focus(); }, 40);
+  }
+  function closeUpNext(){
+    clearInterval(upnextState.timer);
+    upnextState.open = false; upnextState.counting = false; upnextState.target = null;
+    var el = $id('upnext'); if (el) el.classList.remove('show');
+  }
+  function dismissUpNext(){ upnextState.dismissed = true; closeUpNext(); puiShow(); }
+  /** Play episode `index` of the current series: auto-pick the origin add-on's
+      first stream, and fall back to the stream list when there isn't one. */
+  async function playEpisodeAt(index){
+    var list = ctx.seriesEpisodes, v = list && list[index];
+    if (!v) return;
+    closeUpNext();
+    upnextState.dismissed = false;
+    ctx.epIndex = index;
+    var type = ctx.seriesType || 'series';
+    var label = epLabel(ctx.seriesName, v);
+    ctx.streamTitle = label;
+    var a = ctx.addon;
+    if (a){
+      setStatus('Loading ' + epTag(v) + '…','info');
+      try {
+        var d = await getJson(a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(v.id) + '.json');
+        var s = (d.streams||[]).filter(function(x){ return x.url; })[0];
+        if (s){ setPlayIdentity(type, v.id, label); playStream(s); return; }
+      } catch(e){}
+    }
+    openStreams(type, v.id, label);
+  }
+  $id('upnextPlay').onclick = function(){ var t = upnextState.target; if (t) playEpisodeAt(t.index); };
+  $id('upnextX').onclick = function(){ dismissUpNext(); };
+  $id('puiNext').onclick = function(){ var nx = nextEpisode(); if (nx) playEpisodeAt(nx.index); };
+  video.addEventListener('ended', function(){
+    if (puiIsLive()) return;
+    noteProgress(0, 0, true);          // finished — ticks it off the episode list
+    try { renderContinue(); } catch(e){}
+    puiShow();
+    if (nextEpisode()) openUpNext(true);
+  });
+
+  // ---- picture-in-picture (browsers that support it) + desktop mini player ----
+  var miniOn = false;
+  function exitPip(){
+    try { if (document.pictureInPictureElement){ document.exitPictureInPicture().catch(function(){}); } } catch(e){}
+  }
+  function setMini(on){
+    if (!window.nebulaDesktop || !window.nebulaDesktop.setMiniMode) return;
+    miniOn = !!on;
+    try { window.nebulaDesktop.setMiniMode(miniOn); } catch(e){}
+    $id('puiMini').textContent = miniOn ? 'Exit mini' : 'Mini';
+    setStatus(miniOn ? 'Mini player — window stays on top.' : 'Mini player off.','ok');
+  }
+  if (document.pictureInPictureEnabled && video.requestPictureInPicture) $id('puiPip').style.display = '';
+  if (window.nebulaDesktop && window.nebulaDesktop.setMiniMode) $id('puiMini').style.display = '';
+  $id('puiPip').onclick = function(){
+    if (document.pictureInPictureElement){ exitPip(); return; }
+    try { video.requestPictureInPicture().catch(function(){ setStatus('Picture-in-picture unavailable.','err'); }); }
+    catch(e){ setStatus('Picture-in-picture unavailable.','err'); }
+  };
+  $id('puiMini').onclick = function(){ setMini(!miniOn); };
+  video.addEventListener('enterpictureinpicture', function(){ setStatus('Picture-in-picture.','ok'); puiShow(); });
+
+  // ---- watch party (sync only — every member streams the video themselves) ----
+  var lastPlay = null;
+  var party = null;        // { ws, code, isHost, count, closing, lastState, lastSeek, n, dirty, tick, keep }
+  var partyPending = null; // { kind:'create'|'join', code, wasHost, until } — connection being established
+  var PARTY_FALLBACK = 'wss://nebula-party.onrender.com/ws';
+  var partyServerCached = null;
+  function partyServer(cb){
+    var ls = null; try { ls = LS.getItem('party_server'); } catch(e){}
+    if (ls){ cb(ls); return; }
+    if (partyServerCached){ cb(partyServerCached); return; }
+    fetch('https://retrocodes12.github.io/nebula-player/party.json', { cache:'no-store' })
+      .then(function(r){ return r.json(); })
+      .then(function(j){ partyServerCached = (j && j.server) || PARTY_FALLBACK; cb(partyServerCached); })
+      .catch(function(){ cb(PARTY_FALLBACK); });
+  }
+  function partyStreamDesc(){
+    return {
+      url: lastPlay.url, title: lastPlay.title || 'Watch party',
+      keys: lastPlay.keys || undefined,
+      subs: (lastPlay.subs && lastPlay.subs.length) ? lastPlay.subs : undefined
+    };
+  }
+  function partyBadge(){
+    var b = $id('puiPartyBadge'), btn = $id('puiParty');
+    if (!party){ b.style.display='none'; btn.textContent='Party'; return; }
+    b.style.display='';
+    b.textContent = party.code + ' · ' + party.count;
+    btn.textContent = 'Leave party';
+  }
+  function mkParty(ws, code, isHost){
+    if (party){ party.closing = true; try { party.ws.close(); } catch(e){} clearPartyTimers(party); }
+    partyPending = null;
+    var p = { ws:ws, code:code, isHost:isHost, count:1, closing:false, lastState:null, lastSeek:0, n:0, dirty:false };
+    p.tick = setInterval(function(){ partyTick(p); }, 1000);
+    p.keep = setInterval(function(){ if (ws.readyState===1){ try { ws.send('{"t":"ping"}'); } catch(e){} } }, 25000);
+    return p;
+  }
+  function clearPartyTimers(p){ clearInterval(p.tick); clearInterval(p.keep); }
+  function partyTick(p){
+    if (party !== p){ clearPartyTimers(p); return; }
+    p.n++;
+    if (p.isHost){
+      if ((p.dirty || p.n % 4 === 0) && player && video.style.display==='block' && p.ws.readyState===1){
+        p.dirty = false;
+        // live: send "seconds behind the live edge" (engine-neutral); VOD: absolute position
+        var live = puiIsLive(), pos = video.currentTime;
+        if (live){ var r = puiRange(); pos = Math.max(0, r.end - video.currentTime); }
+        try { p.ws.send(JSON.stringify({ t:'state', playing: !video.paused, pos: pos, live: live })); } catch(e){}
+      }
+    } else {
+      partyCorrect();
+    }
+  }
+  // Viewers glide to the host's position: hard seek when way off, tiny speed
+  // nudges for small drift so there is no visible jump.
+  function partyCorrect(){
+    if (!party || party.isHost || !party.lastState || !player) return;
+    if (video.style.display !== 'block') return;
+    var s = party.lastState;
+    if (!s.playing){
+      if (!video.paused) video.pause();
+      video.playbackRate = 1;
+      if (!s.live && Math.abs(video.currentTime - s.pos) > 1){ try { video.currentTime = s.pos; } catch(e){} }
+      return;
+    }
+    if (video.paused){ try { video.play(); } catch(e){} }
+    var err;
+    if (s.live){
+      // s.pos is the host's distance behind the live edge; positive err = we're further behind
+      var r = puiRange();
+      if (r.end <= r.start) return;
+      err = (r.end - video.currentTime) - s.pos;
+    } else {
+      err = (s.pos + (Date.now() - s.atLocal)/1000) - video.currentTime;
+    }
+    if (Math.abs(err) > 1.25){
+      if (Date.now() - party.lastSeek > 4000){
+        party.lastSeek = Date.now();
+        try { video.currentTime = video.currentTime + err; } catch(e){}
+      }
+      video.playbackRate = 1;
+    }
+    else if (err > 0.4) video.playbackRate = 1.06;
+    else if (err < -0.4) video.playbackRate = 0.94;
+    else if (Math.abs(err) < 0.15) video.playbackRate = 1;
+  }
+  function partyConnect(){
+    if (!partyPending) return;
+    partyServer(function(url){
+      if (!partyPending) return;
+      var ws;
+      try { ws = new WebSocket(url); }
+      catch(e){ partyPending = null; setStatus('Watch party is not available on this device.','err'); return; }
+      ws.onopen = function(){
+        var p = partyPending;
+        if (!p){ try { ws.close(); } catch(e){} return; }
+        if (p.kind === 'create'){
+          if (!lastPlay){ partyPending = null; try { ws.close(); } catch(e){} return; }
+          ws.send(JSON.stringify({ t:'create', name:'Host', code: p.code || undefined, stream: partyStreamDesc() }));
+        } else {
+          ws.send(JSON.stringify({ t:'join', code: p.code, name:'Guest' }));
+        }
+      };
+      ws.onmessage = function(ev){ partyMessage(ws, ev); };
+      ws.onclose = function(){ partyClosed(ws); };
+      ws.onerror = function(){};
+    });
+  }
+  function partyMessage(ws, ev){
+    var m; try { m = JSON.parse(ev.data); } catch(e){ return; }
+    if (!m || !m.t) return;
+    if (m.t === 'created'){
+      party = mkParty(ws, m.code, true);
+      partyBadge(); puiShow();
+      setStatus('Party started — code ' + m.code + '. Friends: Add-ons tab, Join party.','ok');
+      return;
+    }
+    if (m.t === 'joined'){
+      party = mkParty(ws, m.code, false);
+      party.count = m.count || 1;
+      if (m.state) party.lastState = { playing: !!m.state.playing, pos: Number(m.state.pos)||0, live: !!m.state.live, atLocal: Date.now() - (Number(m.state.age)||0) };
+      partyBadge();
+      setStatus('Joined party ' + m.code + '.','ok');
+      // the host owns the position here — nothing to resume, nothing to remember
+      if (m.stream && m.stream.url){
+        clearPlayIdentity();
+        playUrl(m.stream.url, m.stream.keys || null, m.stream.title || 'Watch party', m.stream.subs || []);
+      }
+      return;
+    }
+    if (!party || ws !== party.ws){
+      if (m.t === 'error') partyConnFailed(ws, m.message);
+      return;
+    }
+    if (m.t === 'state'){
+      party.lastState = { playing: !!m.playing, pos: Number(m.pos)||0, live: !!m.live, atLocal: Date.now() - (Number(m.age)||0) };
+      if (!party.isHost) partyCorrect();
+    } else if (m.t === 'stream'){
+      if (!party.isHost && m.stream && m.stream.url){
+        setStatus('Host switched streams.','info');
+        party.lastState = { playing:true, pos:0, live:false, atLocal: Date.now() };
+        clearPlayIdentity();
+        playUrl(m.stream.url, m.stream.keys || null, m.stream.title || 'Watch party', m.stream.subs || []);
+      }
+    } else if (m.t === 'peers'){
+      party.count = m.count || 1; partyBadge();
+    } else if (m.t === 'host'){
+      party.isHost = true; partyBadge();
+      setStatus('You are now the party host.','info');
+    } else if (m.t === 'end'){
+      endParty(m.reason || 'Party ended.');
+    } else if (m.t === 'error'){
+      setStatus(m.message || 'Party error.','err');
+    }
+  }
+  function partyConnFailed(ws, message){
+    var p = partyPending;
+    if (!p){ try { ws.close(); } catch(e){} return; }
+    if (p.kind === 'join' && p.wasHost && /No party/i.test(message || '') && lastPlay){
+      p.kind = 'create'; // our room evaporated while we were away — remake it under the same code
+      try { ws.close(); } catch(e){}
+      return;
+    }
+    partyPending = null;
+    try { ws.close(); } catch(e){}
+    setStatus(message || 'Party error.','err');
+  }
+  function partyClosed(ws){
+    if (party && ws === party.ws){
+      var code = party.code, wasHost = party.isHost, userClosed = party.closing;
+      clearPartyTimers(party); party = null; partyBadge();
+      try { video.playbackRate = 1; } catch(e){}
+      if (userClosed) return;
+      partyPending = { kind:'join', code: code, wasHost: wasHost, until: Date.now() + 90000 };
+      setStatus('Party connection lost — reconnecting…','info');
+      setTimeout(partyConnect, 3000);
+      return;
+    }
+    if (partyPending){
+      if (Date.now() < partyPending.until){ setStatus('Waking the party server…','info'); setTimeout(partyConnect, 5000); }
+      else { partyPending = null; setStatus('Could not reach the party server.','err'); }
+    }
+  }
+  function startParty(){
+    if (party){ endParty('Left the party.'); return; }
+    if (partyPending){ partyPending = null; setStatus('Cancelled.','info'); return; }
+    if (!lastPlay || !player || video.style.display !== 'block'){ setStatus('Play something first, then press Party.','err'); return; }
+    partyPending = { kind:'create', code:null, wasHost:true, until: Date.now() + 90000 };
+    setStatus('Starting party…','info');
+    partyConnect();
+  }
+  function joinParty(code){
+    code = String(code || '').replace(/\s/g,'').toUpperCase();
+    if (code.length < 4){ setStatus('Enter the party code first.','err'); return; }
+    if (party) endParty(null);
+    partyPending = { kind:'join', code: code, wasHost:false, until: Date.now() + 90000 };
+    setStatus('Joining party… (can take up to a minute if the server was asleep)','info');
+    partyConnect();
+  }
+  function endParty(msg){
+    partyPending = null;
+    if (party){
+      party.closing = true;
+      try { if (party.ws.readyState === 1) party.ws.send('{"t":"leave"}'); } catch(e){}
+      try { party.ws.close(); } catch(e){}
+      clearPartyTimers(party);
+      party = null;
+    }
+    try { video.playbackRate = 1; } catch(e){}
+    partyBadge();
+    if (msg) setStatus(msg,'info');
+  }
+  $id('puiParty').onclick = function(){ startParty(); };
+  if (IS_WEBOS){
+    $id('puiParty').style.display = 'none';
+    var partyPanelEl = document.getElementById('partyPanel');
+    if (partyPanelEl) partyPanelEl.style.display = 'none';
+  }
+  (function(){
+    var i = document.getElementById('partyCode'), b = document.getElementById('partyJoinBtn');
+    if (!i || !b) return;
+    b.onclick = function(){ joinParty(i.value); };
+    i.addEventListener('keydown', function(e){ if (e.keyCode === 13){ e.preventDefault(); joinParty(i.value); } });
+  })();
+  video.addEventListener('play', function(){ if (party && party.isHost) party.dirty = true; });
+  video.addEventListener('pause', function(){ if (party && party.isHost) party.dirty = true; });
+  video.addEventListener('seeked', function(){ if (party && party.isHost) party.dirty = true; });
+
+  video.addEventListener('play', function(){ puiSyncPlayIcon(); puiShow(); });
+  video.addEventListener('pause', function(){ puiSyncPlayIcon(); puiShow(); });
+  pui.addEventListener('mousemove', function(){ if (document.body.className.indexOf('playing') !== -1) puiShow(); });
+  pui.addEventListener('click', function(e){
+    var cls = e.target && e.target.className ? String(e.target.className) : '';
+    if (e.target === pui || cls.indexOf('pui-shade') !== -1){
+      if (pui.className === 'idle') puiShow(); else togglePlay();
+    }
+  });
+  // seek bar: click + drag (mouse and touch)
+  (function(){
+    var bar = $id('puiSeek'), dragging = false;
+    function pctFromEvent(ev){
+      var rect = bar.getBoundingClientRect();
+      var cx = (ev.touches && ev.touches[0]) ? ev.touches[0].clientX : ev.clientX;
+      return rect.width > 0 ? (cx - rect.left) / rect.width : 0;
+    }
+    bar.addEventListener('mousedown', function(ev){ dragging=true; puiSeekPct(pctFromEvent(ev)); ev.preventDefault(); });
+    document.addEventListener('mousemove', function(ev){ if (dragging) puiSeekPct(pctFromEvent(ev)); });
+    document.addEventListener('mouseup', function(){ dragging=false; });
+    bar.addEventListener('touchstart', function(ev){ dragging=true; puiSeekPct(pctFromEvent(ev)); }, {passive:true});
+    bar.addEventListener('touchmove', function(ev){ if (dragging) puiSeekPct(pctFromEvent(ev)); }, {passive:true});
+    bar.addEventListener('touchend', function(){ dragging=false; });
+  })();
+
+  // ---------- manual ----------
+  function playManual(){
+    var url=(document.getElementById('mUrl').value||'').trim(); if(!url){ setStatus('Enter a URL.','err'); return; }
+    var keys={};
+    var fk=hex(document.getElementById('mKid').value), fv=hex(document.getElementById('mKey').value);
+    if (fk.length===32&&fv.length===32) keys[fk]=fv;
+    var frag = url.indexOf('#clearkey=');
+    if (frag!==-1){ decodeURIComponent(url.slice(frag+10)).split(',').forEach(function(p){var i=p.indexOf(':');if(i>0){var k=hex(p.slice(0,i)),v=hex(p.slice(i+1));if(k.length===32&&v.length===32)keys[k]=v;}}); }
+    try { LS.setItem('m_url',url); } catch(e){}
+    clearPlayIdentity();
+    playUrl(url, Object.keys(keys).length?keys:null, 'Custom URL', []);
+  }
+
+  // ---------- wire up ----------
+  document.getElementById('phoneBtn').onclick = startPairing;
+  document.getElementById('addAddonBtn').onclick = addAddon;
+  document.getElementById('manualBtn').onclick = function(){ show('manual'); };
+  document.getElementById('mPlay').onclick = playManual;
+  document.querySelectorAll('[data-back]').forEach(function(b){ b.onclick=function(){ goBack(); }; });
+  document.querySelectorAll('.navitem').forEach(function(b){ b.onclick=function(){ setTab(b.getAttribute('data-tab')); }; });
+  (function initGlobalSearch(){
+    var i = document.getElementById('globalSearch'), c = document.getElementById('globalSearchClear');
+    if (!i || !c) return;
+    i.addEventListener('keydown', function(e){ if (e.key==='Enter' || e.keyCode===13){ e.preventDefault(); runGlobalSearch(); } });
+    c.addEventListener('click', function(){ i.value=''; runGlobalSearch(); i.focus(); });
+  })();
+  try { document.getElementById('mUrl').value = LS.getItem('m_url')||''; } catch(e){}
+
+  // A TV app is usually closed by yanking power or hitting Home — persist the
+  // resume point on the way out rather than only on a clean stop.
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'hidden'){ try { flushProgress(true); } catch(e){} }
+  });
+  window.addEventListener('pagehide', function(){ try { flushProgress(true); } catch(e){} });
+
+  renderAddons();
+  initPersistentAddons();
+  initPersistentProgress();
+  buildHomeRows(true);
+  setStatus(getAddons().length ? 'Welcome back.' : 'Ready. Add your add-on to begin.','info');
+  focusFirst();
+})();
+</script>
+</body>
+</html>
