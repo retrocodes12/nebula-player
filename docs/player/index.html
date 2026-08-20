@@ -333,6 +333,13 @@
   code { font-family:var(--mono); background:var(--l2); color:var(--label); padding:.14rem .4rem;
     border-radius:6px; font-size:.86em; }
 
+  /* Subtitle cues render natively at the very bottom of the video, which is
+     exactly where the control bar sits — lift them while the chrome is up.
+     Blink-only pseudo-element, so it's simply inert anywhere it isn't supported. */
+  video::-webkit-media-text-track-container { transition:transform .28s var(--ease); }
+  body.pui-on video::-webkit-media-text-track-container { transform:translateY(-104px); }
+  html.tv body.pui-on video::-webkit-media-text-track-container { transform:translateY(-152px); }
+
   /* ---- player chrome ---- */
   #pui { position:fixed; top:0; left:0; right:0; bottom:0; z-index:5; display:none; }
   body.playing #pui { display:block; }
@@ -406,6 +413,9 @@
   .qopt.focusable:focus { background:rgba(255,255,255,.16); box-shadow:0 0 0 3px rgba(255,255,255,.35); }
   .qopt.on { font-weight:600; }
   .qopt.on::after { content:' ✓'; color:var(--label2); }
+  .qsep { height:1px; margin:7px 12px; background:rgba(255,255,255,.14); }
+  .qnote { color:var(--label2); font-size:12.5px; line-height:1.45; padding:7px 12px 9px;
+    white-space:normal; max-width:250px; }
 
   /* ---- up next ---- */
   #upnext { display:none; position:absolute; right:30px; bottom:120px; z-index:7; width:352px; max-width:72vw;
@@ -540,6 +550,7 @@
         <button id="puiParty" class="focusable pui-btn" title="Watch party — watch together in sync">Party</button>
         <button id="puiPip" class="focusable pui-btn" style="display:none" title="Picture-in-picture">PiP</button>
         <button id="puiMini" class="focusable pui-btn" style="display:none" title="Mini player — small window that stays on top">Mini</button>
+        <button id="puiFull" class="focusable pui-btn" style="display:none" title="Fullscreen (f)">Fullscreen</button>
       </div>
     </div>
     <div id="puiMenu" class="qmenu"></div>
@@ -781,6 +792,9 @@
         else if (pui.className !== 'idle'){ puiIdle(); }
         else { goBack(); }
         e.preventDefault(); return;
+      }
+      if (k===70 && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey){
+        toggleFullscreen(); e.preventDefault(); return;
       }
       // while the up-next card is up it owns left/right and OK
       if (upnextState.open){
@@ -1558,6 +1572,7 @@
   }
   function canStream(m, type, id){ return supports(m, 'stream', type, id); }
   function canMeta(m, type, id){ return supports(m, 'meta', type, id); }
+  function canSubs(m, type, id){ return supports(m, 'subtitles', type, id); }
   function streamCard(s){
     var card=document.createElement('button'); card.className='stream focusable';
     card.innerHTML = '<span class="stream-play"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span><span class="stream-name">'+esc(s.name||'Stream')+'</span><span class="stream-sub">'+esc((s.title||'').replace(/\n/g,' · '))+'</span></span>';
@@ -1841,9 +1856,11 @@
     clearTimeout(puiState.idleTimer);
     closePuiMenu(false);
     exitPip();
+    resetSubs();
     if (miniOn) setMini(false);
     if (player){ try{ await player.destroy(); }catch(e){} player=null; }
     video.style.display='none';
+    document.body.classList.remove('pui-on');
     try { video.playbackRate = 1; } catch(e){}
   }
   var playSeq = 0, didRetry = false;
@@ -1930,6 +1947,9 @@
       try { await video.play(); } catch(e){}
       $id('puiSpin').style.display = 'none';
       puiRefreshButtons(); puiTick();
+      // ask the subtitle add-ons what they have for this title (candidates only —
+      // nothing is downloaded until one is picked)
+      if (curPlay && curPlay.type && curPlay.id) loadAddonSubs(curPlay.type, curPlay.id, seq);
       // add-on-provided subtitle files become selectable text tracks
       (subtitles||[]).forEach(function(sub){
         if (!sub || !sub.url || !player.addTextTrackAsync) return;
@@ -1950,6 +1970,114 @@
     playUrl(s.url, extractClearKeys(s), ctx.streamTitle || (ctx.item && ctx.item.name) || s.name || 'Nebula', s.subtitles || []);
   }
 
+  // ---------- subtitles from add-ons ----------
+  // Streams rarely carry subtitles of their own, so the Subtitles menu also asks
+  // every installed add-on that advertises Stremio's `subtitles` resource
+  // (OpenSubtitles and friends). Only the candidate you actually pick is
+  // downloaded — a popular film lists ~100 of them.
+  var SUB_PER_LANG = 4, SUB_MAX = 60;
+  var subState = { seq:0, loading:false, asked:0, list:[], loaded:{}, urls:[], pending:false };
+  function resetSubs(){
+    subState.urls.forEach(function(u){ try { URL.revokeObjectURL(u); } catch(e){} });
+    subState = { seq:0, loading:false, asked:0, list:[], loaded:{}, urls:[], pending:false };
+  }
+  /** Group by language, user's languages first, numbered within each language. */
+  function rankSubs(list){
+    var pref = {};
+    try {
+      (navigator.languages || [navigator.language || 'en']).forEach(function(l, i){
+        // 'en-US' names itself "American English"; subtitle codes say "English",
+        // so the bare language has to be ranked too
+        var full = langName(l), base = langName(String(l).split('-')[0]);
+        if (pref[full] == null) pref[full] = i * 2;
+        if (pref[base] == null) pref[base] = i * 2 + 1;
+      });
+    } catch(e){}
+    var byLang = {}, order = [];
+    list.forEach(function(s){
+      var n = langName(s.lang);
+      if (!byLang[n]){ byLang[n] = []; order.push(n); }
+      byLang[n].push(s);
+    });
+    order.sort(function(a, b){
+      var pa = (pref[a] == null ? 99 : pref[a]), pb = (pref[b] == null ? 99 : pref[b]);
+      if (pa !== pb) return pa - pb;
+      return a < b ? -1 : (a > b ? 1 : 0);
+    });
+    var out = [];
+    order.forEach(function(n){
+      byLang[n].slice(0, SUB_PER_LANG).forEach(function(s, i){
+        s.label = s.name || (n + (i ? ' ' + (i + 1) : ''));
+        out.push(s);
+      });
+    });
+    return out.slice(0, SUB_MAX);
+  }
+  async function loadAddonSubs(type, id, seq){
+    subState.seq = seq; subState.loading = true; subState.asked = 0; subState.list = [];
+    var addons = getAddons(), out = [];
+    for (var i = 0; i < addons.length; i++){
+      var a = addons[i];
+      try {
+        var m = await getManifest(a.url);
+        if (seq !== subState.seq) return;
+        if (!canSubs(m, type, id)) continue;
+        subState.asked++;
+        var d = await getJson(a.base + '/subtitles/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json');
+        if (seq !== subState.seq) return;
+        ((d && d.subtitles) || []).forEach(function(s){
+          if (s && s.url) out.push({ url:s.url, lang:s.lang || s.language || 'und', name:s.name || s.title || '' });
+        });
+      } catch(e){}
+    }
+    if (seq !== subState.seq) return;
+    subState.loading = false;
+    subState.list = rankSubs(out);
+    // if the menu is sitting on “Searching…”, fill it in place
+    if (puiState.menu === 'subs' && subState.pending) openPuiMenu('subs', puiState.opener);
+  }
+  /** Fetched here rather than handed to Shaka as a URL: add-on subtitle links carry
+      no file extension (the format has to be sniffed) and some are still CP1252. */
+  async function fetchSubBlob(url){
+    var r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    var buf = await r.arrayBuffer();
+    var text = '';
+    try { text = new TextDecoder('utf-8').decode(buf); } catch(e){}
+    // a replacement char means it wasn't UTF-8 — these files are usually CP1252
+    if (!text || text.indexOf('\uFFFD') !== -1){
+      try { text = new TextDecoder('windows-1252').decode(buf); } catch(e){}
+    }
+    text = text.replace(/^\uFEFF/, '');
+    if (!text.trim()) throw new Error('empty');
+    var mime = /^WEBVTT/.test(text) ? 'text/vtt' : 'text/srt';
+    var u = URL.createObjectURL(new Blob([text], { type: mime }));
+    subState.urls.push(u);
+    return { url:u, mime:mime };
+  }
+  async function pickAddonSub(c){
+    if (!player) return;
+    closePuiMenu(true);
+    setStatus('Loading subtitles…', 'info');
+    var seq = playSeq;
+    try {
+      var blob = await fetchSubBlob(c.url);
+      if (!player || seq !== playSeq) return;
+      var track = await player.addTextTrackAsync(blob.url, c.lang, 'subtitles', blob.mime, '', c.label);
+      if (!player || seq !== playSeq) return;
+      subState.loaded[c.url] = true;
+      if (!track){
+        (player.getTextTracks() || []).forEach(function(t){ if (t.label === c.label) track = t; });
+      }
+      if (track) player.selectTextTrack(track);
+      player.setTextTrackVisibility(true);
+      setStatus('Subtitles: ' + c.label, 'ok');
+      puiRefreshButtons();
+    } catch(e){
+      setStatus('Couldn’t load that subtitle file.', 'err');
+    }
+  }
+
   // ---------- player UI (custom controls: transport, seek, subtitles, audio, quality, speed) ----------
   var pui = document.getElementById('pui');
   var puiMenuEl = document.getElementById('puiMenu');
@@ -1964,9 +2092,14 @@
     tracks.forEach(function(t){ if(!seen[t.height]){ seen[t.height]=1; out.push(t.height); } });
     out.sort(function(a,b){ return b-a; }); return out;
   }
+  // Subtitle add-ons use a few codes that aren't ISO language tags, so Intl would
+  // hand them straight back ('pob' → 'pob'). Map those before asking.
+  var LANG_ALIAS = { pob:'pt-BR', pb:'pt-BR', pm:'pt', zht:'zh-Hant', zhs:'zh-Hans',
+    zhe:'zh', ze:'zh', spl:'es-419', ea:'es-419', me:'sr-ME' };
   function langName(code){
     if (!code || code === 'und') return 'Unknown';
-    try { var dn = new Intl.DisplayNames(['en'], { type:'language' }); return dn.of(code) || code; }
+    var c = LANG_ALIAS[String(code).toLowerCase()] || code;
+    try { var dn = new Intl.DisplayNames(['en'], { type:'language' }); return dn.of(c) || code; }
     catch(e){ return code; }
   }
   function fmtT(s){
@@ -2032,6 +2165,7 @@
   function puiShow(){
     if (!pui) return;
     pui.className = '';
+    document.body.classList.add('pui-on');
     clearTimeout(puiState.idleTimer);
     puiState.idleTimer = setTimeout(function(){
       if (!video.paused && !puiState.menu && !upnextState.open) puiIdle();
@@ -2039,6 +2173,7 @@
   }
   function puiIdle(){
     closePuiMenu(false);
+    document.body.classList.remove('pui-on');
     if (document.activeElement && pui.contains(document.activeElement)) document.activeElement.blur();
     pui.className = 'idle';
   }
@@ -2056,6 +2191,8 @@
     b.onkeydown=function(ev){ if(ev.keyCode===13){ fn(); ev.preventDefault(); ev.stopPropagation(); } };
     puiMenuEl.appendChild(b);
   }
+  function puiSep(){ var d=document.createElement('div'); d.className='qsep'; puiMenuEl.appendChild(d); }
+  function puiNote(text){ var d=document.createElement('div'); d.className='qnote'; d.textContent=text; puiMenuEl.appendChild(d); }
   function openPuiMenu(kind, opener){
     if (!player) return;
     puiMenuEl.innerHTML = '';
@@ -2082,6 +2219,18 @@
           setStatus('Subtitles: '+label,'ok'); closePuiMenu(true);
         });
       });
+      // …plus whatever the installed subtitle add-ons can offer for this title
+      var fresh = subState.list.filter(function(c){ return !subState.loaded[c.url]; });
+      subState.pending = subState.loading;
+      if (subState.loading) puiNote('Searching add-ons…');
+      else if (fresh.length){
+        puiSep();
+        fresh.forEach(function(c){ menuOpt(c.label, false, function(){ pickAddonSub(c); }); });
+      } else if (!subState.asked && !tt.length){
+        puiNote('No subtitle add-on installed. Add one — OpenSubtitles v3, say — on the Add-ons tab.');
+      } else if (subState.asked && !subState.list.length){
+        puiNote('No add-on subtitles for this title.');
+      }
     } else if (kind==='audio'){
       var langs=[]; try { langs = player.getAudioLanguagesAndRoles()||[]; } catch(e){}
       var curLang=''; try { (player.getVariantTracks()||[]).forEach(function(v){ if(v.active) curLang=v.language; }); } catch(e){}
@@ -2134,8 +2283,8 @@
   function puiRefreshButtons(){
     if (!player) return;
     $id('puiQual').style.display = distinctHeights(videoTracks()).length >= 2 ? '' : 'none';
-    var tt=[]; try { tt = player.getTextTracks()||[]; } catch(e){}
-    $id('puiSubs').style.display = tt.length ? '' : 'none';
+    // always offered: even with no embedded track, add-ons may have one
+    $id('puiSubs').style.display = '';
     var langs=[]; try { langs = player.getAudioLanguagesAndRoles()||[]; } catch(e){}
     $id('puiAudio').style.display = langs.length >= 2 ? '' : 'none';
     $id('puiNext').style.display = nextEpisode() ? '' : 'none';
@@ -2148,7 +2297,7 @@
     closePuiMenu(false);
     $id('puiSpin').style.display = 'block';
     $id('puiFill').style.width='0%'; $id('puiBuf').style.width='0%'; $id('puiKnob').style.left='0%';
-    $id('puiSubs').style.display='none'; $id('puiAudio').style.display='none'; $id('puiQual').style.display='none';
+    $id('puiSubs').style.display=''; $id('puiAudio').style.display='none'; $id('puiQual').style.display='none';
     puiSyncPlayIcon();
     puiShow();
     clearInterval(puiState.tick);
@@ -2168,6 +2317,30 @@
   $id('puiSubs').onclick = function(){ if (puiState.menu==='subs') closePuiMenu(true); else openPuiMenu('subs', this); };
   $id('puiAudio').onclick = function(){ if (puiState.menu==='audio') closePuiMenu(true); else openPuiMenu('audio', this); };
   $id('puiSpeed').onclick = function(){ if (puiState.menu==='speed') closePuiMenu(true); else openPuiMenu('speed', this); };
+
+  // ---- fullscreen ----
+  // Hidden on webOS, where the app already owns the whole screen.
+  function fsEl(){ return document.fullscreenElement || document.webkitFullscreenElement || null; }
+  function fsOk(){ return !IS_WEBOS && !!(document.fullscreenEnabled || document.webkitFullscreenEnabled); }
+  function toggleFullscreen(){
+    if (!fsOk()) return;
+    var root = document.documentElement, p = null;
+    try {
+      if (fsEl()) p = (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      else p = (root.requestFullscreen || root.webkitRequestFullscreen).call(root);
+    } catch(e){}
+    if (p && p.catch) p.catch(function(){});   // a rejected request is not an error worth surfacing
+    puiShow();
+  }
+  function syncFsButton(){
+    var on = !!fsEl(), b = $id('puiFull');
+    b.textContent = on ? 'Exit fullscreen' : 'Fullscreen';
+    b.title = (on ? 'Exit fullscreen' : 'Fullscreen') + ' (f)';
+  }
+  if (fsOk()) $id('puiFull').style.display = '';
+  $id('puiFull').onclick = function(){ toggleFullscreen(); };
+  document.addEventListener('fullscreenchange', syncFsButton);
+  document.addEventListener('webkitfullscreenchange', syncFsButton);
 
   // ---- up next: keep a series going without a trip back to the episode list ----
   // Offered quietly in the last 25s, with a countdown once the episode ends.
@@ -2491,6 +2664,10 @@
     if (e.target === pui || cls.indexOf('pui-shade') !== -1){
       if (pui.className === 'idle') puiShow(); else togglePlay();
     }
+  });
+  pui.addEventListener('dblclick', function(e){
+    var cls = e.target && e.target.className ? String(e.target.className) : '';
+    if (e.target === pui || cls.indexOf('pui-shade') !== -1) toggleFullscreen();
   });
   // seek bar: click + drag (mouse and touch)
   (function(){
