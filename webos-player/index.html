@@ -335,7 +335,9 @@
 
   /* Subtitle cues render natively at the very bottom of the video, which is
      exactly where the control bar sits — lift them while the chrome is up.
-     Blink-only pseudo-element, so it's simply inert anywhere it isn't supported. */
+     Blink-only pseudo-element, so it's simply inert anywhere it isn't supported.
+     (applySubStyle() re-emits these three rules with the user's own offset added;
+     the static copies are the pre-script fallback.) */
   video::-webkit-media-text-track-container { transition:transform .28s var(--ease); }
   body.pui-on video::-webkit-media-text-track-container { transform:translateY(-104px); }
   html.tv body.pui-on video::-webkit-media-text-track-container { transform:translateY(-152px); }
@@ -416,6 +418,14 @@
   .qsep { height:1px; margin:7px 12px; background:rgba(255,255,255,.14); }
   .qnote { color:var(--label2); font-size:12.5px; line-height:1.45; padding:7px 12px 9px;
     white-space:normal; max-width:250px; }
+  /* subtitle appearance: setting rows that cycle their value, over a live sample */
+  .qmenu.wide { min-width:292px; max-height:74vh; }
+  .qset { display:flex; justify-content:space-between; align-items:center; }
+  .qset .qv { color:var(--label2); font-weight:500; margin-left:18px; white-space:nowrap; }
+  .qset:hover .qv, .qset.focusable:focus .qv { color:var(--label); }
+  .qprev { margin:2px 6px 8px; padding:16px 10px; border-radius:10px; text-align:center; overflow:hidden;
+    background:linear-gradient(135deg,#55658a 0%,#1f2b47 55%,#0b0f1c 100%); }
+  .qprev-t { display:inline-block; padding:.06em .3em; line-height:1.3; border-radius:2px; white-space:normal; }
 
   /* ---- up next ---- */
   #upnext { display:none; position:absolute; right:30px; bottom:120px; z-index:7; width:352px; max-width:72vw;
@@ -487,6 +497,7 @@
   html.tv .qmenu { min-width:300px; top:66px; }
   html.tv .qopt { font-size:19px; padding:12px 16px; }
   html.tv .qtitle { font-size:15px; }
+  html.tv .qmenu.wide { min-width:392px; }
   html.tv .pui-top { padding:34px 44px; }
   html.tv .pui-title { font-size:32px; }
   html.tv .pui-bottom { padding:0 44px 36px; }
@@ -788,6 +799,7 @@
       var isBack = (k===461 || k===8 || e.key==='GoBack' || e.key==='BrowserBack');
       if (isBack){
         if (upnextState.open){ dismissUpNext(); }
+        else if (puiState.menu==='substyle'){ openPuiMenu('subs', puiState.opener); }
         else if (puiState.menu){ closePuiMenu(true); }
         else if (pui.className !== 'idle'){ puiIdle(); }
         else { goBack(); }
@@ -811,7 +823,11 @@
         if (k===38){ movePuiMenu(-1); e.preventDefault(); }
         else if (k===40){ movePuiMenu(1); e.preventDefault(); }
         else if (k===13){ var a=document.activeElement; if(a&&a.classList.contains('qopt')) a.click(); e.preventDefault(); }
-        else if (k===37||k===39){ e.preventDefault(); }
+        else if (k===37||k===39){
+          var sr = document.activeElement;
+          if (sr && sr.classList.contains('qset')) subCycle(sr.getAttribute('data-key'), k===39 ? 1 : -1);
+          e.preventDefault();
+        }
         return;
       }
       if (pui.className === 'idle'){
@@ -2078,6 +2094,90 @@
     }
   }
 
+  // ---------- subtitle appearance ----------
+  // Cues are drawn natively (Shaka's SimpleTextDisplayer feeds the video's own
+  // TextTrack), so their look is set through the video::cue pseudo-element —
+  // Chrome-26-era CSS, which keeps webOS's Chrome 68 safe. Sizes are relative to
+  // the browser's default cue size (5% of the video height) so they scale with
+  // the screen; the position rides the same container transform that lifts cues
+  // above the control bar. Stored as option KEYS, so the CSS behind a key can be
+  // tuned later without invalidating anyone's saved choice.
+  var SUB_OPTS = {
+    size:  { label:'Size',       vals:[['small','Small','75%'], ['normal','Normal','100%'], ['large','Large','130%'],
+                                       ['xl','Extra large','165%'], ['huge','Huge','200%']] },
+    color: { label:'Colour',     vals:[['white','White','#fff'], ['yellow','Yellow','#ffe600'], ['cyan','Cyan','#62f0ff'],
+                                       ['green','Green','#7dff8a']] },
+    bg:    { label:'Background', vals:[['dark','Dark','rgba(0,0,0,.8)'], ['light','Translucent','rgba(0,0,0,.45)'],
+                                       ['none','None','transparent']] },
+    edge:  { label:'Edge',       vals:[['shadow','Shadow','.04em .06em .12em rgba(0,0,0,.95), 0 0 .2em rgba(0,0,0,.7)'],
+                                       ['outline','Outline','-.05em -.05em 0 #000, .05em -.05em 0 #000, -.05em .05em 0 #000, .05em .05em 0 #000, 0 0 .08em #000'],
+                                       ['none','None','none']] },
+    font:  { label:'Font',       vals:[['sans','Sans-serif','sans-serif'], ['serif','Serif','serif'], ['mono','Monospace','monospace']] },
+    pos:   { label:'Position',   vals:[['bottom','Bottom','0vh'], ['raised','Raised','8vh'], ['high','High','18vh'], ['centre','Centre','40vh']] }
+  };
+  var SUB_ORDER = ['size','color','bg','edge','font','pos'];
+  var SUB_DEFAULT = { size:'normal', color:'white', bg:'dark', edge:'shadow', font:'sans', pos:'bottom' };
+  function subVal(k, key){ var v = SUB_OPTS[k].vals; for (var i=0;i<v.length;i++) if (v[i][0]===key) return v[i]; return null; }
+  function normSubStyle(o){ var out={}; SUB_ORDER.forEach(function(k){ out[k] = (o && subVal(k, o[k])) ? o[k] : SUB_DEFAULT[k]; }); return out; }
+  function loadSubStyle(){ var o=null; try { o = JSON.parse(LS.getItem('sub_style')||'null'); } catch(e){} return normSubStyle(o); }
+  var subStyle = loadSubStyle(), subStyleEl = null;
+  function subCss(k){ return subVal(k, subStyle[k])[2]; }
+  function saveSubStyle(){ var json = JSON.stringify(subStyle); try { LS.setItem('sub_style', json); } catch(e){} mirrorKv('sub_style', json); }
+  function applySubStyle(){
+    if (!subStyleEl){ subStyleEl = document.createElement('style'); subStyleEl.id = 'subStyleCss'; document.head.appendChild(subStyleEl); }
+    var up = subCss('pos');
+    subStyleEl.textContent =
+      'video::cue{color:' + subCss('color') + ';background-color:' + subCss('bg') + ';font-size:' + subCss('size') +
+        ';text-shadow:' + subCss('edge') + ';font-family:' + subCss('font') + '}' +
+      'video::-webkit-media-text-track-container{transform:translateY(-' + up + ')}' +
+      'body.pui-on video::-webkit-media-text-track-container{transform:translateY(calc(-' + up + ' - 104px))}' +
+      'html.tv body.pui-on video::-webkit-media-text-track-container{transform:translateY(calc(-' + up + ' - 152px))}';
+  }
+  applySubStyle();
+  // rides the add-on/progress mirrors: a TV storage wipe shouldn't reset your subtitles
+  function initPersistentSubStyle(){
+    var has = false; try { has = !!LS.getItem('sub_style'); } catch(e){}
+    if (has){ mirrorKv('sub_style', JSON.stringify(subStyle)); return; }
+    idbLoad('sub_style')
+      .then(function(v){ if (v) return v; return db8Load('sub_style'); })
+      .then(function(v){
+        if (!v) return;
+        var o = null; try { o = JSON.parse(v); } catch(e){}
+        if (!o) return;
+        subStyle = normSubStyle(o);
+        try { LS.setItem('sub_style', JSON.stringify(subStyle)); } catch(e){}
+        applySubStyle();
+      });
+  }
+  function subCycle(k, dir){
+    var vals = SUB_OPTS[k].vals, i = 0;
+    vals.forEach(function(v, idx){ if (v[0]===subStyle[k]) i = idx; });
+    subStyle[k] = vals[(i + dir + vals.length) % vals.length][0];
+    saveSubStyle(); applySubStyle(); subRefreshRows();
+  }
+  function subSetRow(k){
+    var b = document.createElement('button'); b.className = 'qopt qset focusable'; b.tabIndex = 0; b.setAttribute('data-key', k);
+    var l = document.createElement('span'); l.className = 'qk'; l.textContent = SUB_OPTS[k].label;
+    var v = document.createElement('span'); v.className = 'qv';
+    b.appendChild(l); b.appendChild(v);
+    b.onclick = function(){ subCycle(k, 1); };
+    b.onkeydown = function(ev){ if (ev.keyCode===13){ subCycle(k, 1); ev.preventDefault(); ev.stopPropagation(); } };
+    puiMenuEl.appendChild(b);
+  }
+  /** Repaint the row values and the sample line in place, so focus never moves. */
+  function subRefreshRows(){
+    Array.prototype.forEach.call(puiMenuEl.querySelectorAll('.qset'), function(b){
+      var k = b.getAttribute('data-key');
+      b.querySelector('.qv').textContent = '‹ ' + subVal(k, subStyle[k])[1] + ' ›';
+    });
+    var pt = puiMenuEl.querySelector('.qprev-t');
+    if (pt){
+      pt.style.fontSize = ((IS_TV ? 17 : 13) * parseFloat(subCss('size')) / 100) + 'px';
+      pt.style.color = subCss('color'); pt.style.backgroundColor = subCss('bg');
+      pt.style.textShadow = subCss('edge'); pt.style.fontFamily = subCss('font');
+    }
+  }
+
   // ---------- player UI (custom controls: transport, seek, subtitles, audio, quality, speed) ----------
   var pui = document.getElementById('pui');
   var puiMenuEl = document.getElementById('puiMenu');
@@ -2197,8 +2297,9 @@
     if (!player) return;
     puiMenuEl.innerHTML = '';
     var t=document.createElement('div'); t.className='qtitle';
-    t.textContent = { quality:'Quality', subs:'Subtitles', audio:'Audio', speed:'Speed' }[kind];
+    t.textContent = { quality:'Quality', subs:'Subtitles', audio:'Audio', speed:'Speed', substyle:'Subtitle appearance' }[kind];
     puiMenuEl.appendChild(t);
+    if (kind==='substyle') puiMenuEl.classList.add('wide'); else puiMenuEl.classList.remove('wide');
     if (kind==='quality'){
       var tracks = videoTracks(), heights = distinctHeights(tracks);
       var abrOn=true; try { abrOn = player.getConfiguration().abr.enabled; } catch(e){}
@@ -2231,6 +2332,20 @@
       } else if (subState.asked && !subState.list.length){
         puiNote('No add-on subtitles for this title.');
       }
+      puiSep();
+      menuOpt('Appearance ›', false, function(){ openPuiMenu('substyle', puiState.opener); });
+    } else if (kind==='substyle'){
+      menuOpt('‹ Subtitles', false, function(){ openPuiMenu('subs', puiState.opener); });
+      var prev = document.createElement('div'); prev.className = 'qprev';
+      var pt = document.createElement('span'); pt.className = 'qprev-t'; pt.textContent = 'Subtitles will look like this';
+      prev.appendChild(pt); puiMenuEl.appendChild(prev);
+      SUB_ORDER.forEach(subSetRow);
+      subRefreshRows();
+      puiSep();
+      menuOpt('Reset to defaults', false, function(){
+        subStyle = normSubStyle(null); saveSubStyle(); applySubStyle(); subRefreshRows();
+        setStatus('Subtitle appearance reset.','ok');
+      });
     } else if (kind==='audio'){
       var langs=[]; try { langs = player.getAudioLanguagesAndRoles()||[]; } catch(e){}
       var curLang=''; try { (player.getVariantTracks()||[]).forEach(function(v){ if(v.active) curLang=v.language; }); } catch(e){}
@@ -2252,7 +2367,7 @@
     }
     puiMenuEl.classList.add('open');
     puiState.menu = kind; puiState.opener = opener || null;
-    var on = puiMenuEl.querySelector('.qopt.on') || puiMenuEl.querySelector('.qopt');
+    var on = (kind==='substyle' && puiMenuEl.querySelector('.qset')) || puiMenuEl.querySelector('.qopt.on') || puiMenuEl.querySelector('.qopt');
     if (on) setTimeout(function(){ on.focus(); }, 10);
     puiShow();
   }
@@ -2314,7 +2429,7 @@
   $id('puiRew').onclick = function(){ seekBy(-10); };
   $id('puiFwd').onclick = function(){ seekBy(10); };
   $id('puiQual').onclick = function(){ if (puiState.menu==='quality') closePuiMenu(true); else openPuiMenu('quality', this); };
-  $id('puiSubs').onclick = function(){ if (puiState.menu==='subs') closePuiMenu(true); else openPuiMenu('subs', this); };
+  $id('puiSubs').onclick = function(){ if (puiState.menu==='subs' || puiState.menu==='substyle') closePuiMenu(true); else openPuiMenu('subs', this); };
   $id('puiAudio').onclick = function(){ if (puiState.menu==='audio') closePuiMenu(true); else openPuiMenu('audio', this); };
   $id('puiSpeed').onclick = function(){ if (puiState.menu==='speed') closePuiMenu(true); else openPuiMenu('speed', this); };
 
@@ -2723,6 +2838,7 @@
   renderAddons();
   initPersistentAddons();
   initPersistentProgress();
+  initPersistentSubStyle();
   buildHomeRows(true);
   setStatus(getAddons().length ? 'Welcome back.' : 'Ready. Add your add-on to begin.','info');
   focusFirst();
