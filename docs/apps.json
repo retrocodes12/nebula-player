@@ -8,26 +8,26 @@
       "id": "com.nuvio.clearkey.player",
       "title": "Nebula",
       "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
-      "manifestUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.18.0/webosbrew.manifest.json",
+      "manifestUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.19.0/webosbrew.manifest.json",
       "manifest": {
         "id": "com.nuvio.clearkey.player",
-        "version": "1.18.0",
+        "version": "1.19.0",
         "type": "web",
         "title": "Nebula",
         "appDescription": "Nebula \u2014 add-on browser + player for webOS. Opens full on first run (starter add-ons preinstalled), leads with a featured hero board, and gives every title a full-bleed page with logo art, ratings, cast and description. My List library with an upcoming-episode calendar, resume and Continue Watching, next-episode autoplay, sync between devices with a short code, subtitle appearance controls, catalogue paging, and search across every catalogue. Plays and decrypts every format.",
         "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
         "sourceUrl": "https://github.com/retrocodes12/nebula-player",
         "rootRequired": false,
-        "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.18.0/com.nuvio.clearkey.player_1.18.0_all.ipk",
+        "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.19.0/com.nuvio.clearkey.player_1.19.0_all.ipk",
         "ipkHash": {
-          "sha256": "9b0af2022e3c94c30ae3ac2eb1c15ec7907785881cf49fa2e8d56cb405045f31"
+          "sha256": "2422f2e55a6c7c05c14626eedff2fd02891f64ed8a7373e2cbff05023e6d2b72"
         },
-        "ipkSize": 451164
+        "ipkSize": 528584
       },
       "pool": "main",
       "shortDescription": "Add-on browser + player: library, sync, calendar. Add add-ons by phone QR.",
       "fullDescriptionUrl": "",
-      "version": "1.18.0"
+      "version": "1.19.0"
     },
     {
       "id": "com.nuvio.clearkey.app",
