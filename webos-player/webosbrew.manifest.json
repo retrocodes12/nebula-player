@@ -1,15 +1,15 @@
 {
   "id": "com.nuvio.clearkey.player",
-  "version": "1.16.0",
+  "version": "1.17.0",
   "type": "web",
   "title": "Nebula",
-  "appDescription": "Nebula \u2014 add-on browser + player for webOS. Apple-style interface with layered surfaces and focus that lifts, resume and Continue Watching, next-episode autoplay, catalogue paging, and search across every catalogue. Plays and decrypts every format.",
+  "appDescription": "Nebula — add-on browser + player for webOS. Apple-style interface, My List library with title pages and an upcoming-episode calendar, resume and Continue Watching, next-episode autoplay, sync between devices with a short code, catalogue paging, and search across every catalogue. Plays and decrypts every format.",
   "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
   "sourceUrl": "https://github.com/retrocodes12/nebula-player",
   "rootRequired": false,
-  "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.16.0/com.nuvio.clearkey.player_1.16.0_all.ipk",
+  "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.17.0/com.nuvio.clearkey.player_1.17.0_all.ipk",
   "ipkHash": {
-    "sha256": "fb6eed93d74b4541a3704249cae163cc480523c48c772944881de776f808464e"
+    "sha256": "f21e7a5cbb0c9b91156dd86e4d291bbcaf5edceb94b68f7ba2a08c09d55f838d"
   },
-  "ipkSize": 433004
+  "ipkSize": 448568
 }
