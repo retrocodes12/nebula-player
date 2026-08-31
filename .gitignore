@@ -42,3 +42,6 @@ next-env.d.ts
 
 # webOS package output
 /dist-webos/
+
+# agent-router metrics junk
+.claude-flow/

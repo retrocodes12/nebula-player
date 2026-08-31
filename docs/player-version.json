@@ -1,5 +1,5 @@
 {
-  "version": "2026.08.11.2",
+  "version": "2026.08.31.1",
   "url": "https://retrocodes12.github.io/nebula-player/",
-  "notes": "New look \u2014 Apple-style interface, layered surfaces, focus that lifts"
+  "notes": "Library + My List, title pages, upcoming-episode calendar, cross-device sync by code, CORS rescue, local file playback"
 }
