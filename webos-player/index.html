@@ -3480,6 +3480,9 @@
   function mergeSubStyle(remote){
     var lAt = 0; try { lAt = Number(LS.getItem('sub_style_at')) || 0; } catch(e){}
     var rAt = (remote && remote.at) || 0;
+    // a malformed doc must not wedge the key: the rev gets recorded either
+    // way, so push our good copy over it rather than silently skipping
+    if (!remote || !remote.style) return { changed: false, localNewer: lAt > 0 };
     if (rAt > lAt && remote.style){
       subStyle = normSubStyle(remote.style);
       var json = JSON.stringify(subStyle);
