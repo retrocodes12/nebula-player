@@ -94,39 +94,32 @@
       backdrop-filter:saturate(180%) blur(22px); }
   }
   body.playing #rail { display:none; }
-  .rail-brand { display:flex; align-items:center; margin-right:38px; flex:0 0 auto;
-    font-family:'Playfair',Georgia,serif; font-style:italic; font-size:20px; font-weight:400;
-    color:var(--label); }
-  .rail-brand svg { display:none; }
+  .rail-brand { display:flex; align-items:center; margin-right:30px; flex:0 0 auto;
+    font-size:16px; font-weight:600; letter-spacing:-.02em; color:var(--label); }
+  .rail-brand svg { width:18px; height:18px; color:var(--red); margin-right:9px; }
   .navitem { display:inline-flex; align-items:center; border:0; background:transparent; cursor:pointer;
-    font-family:var(--sans); font-size:10px; font-weight:600; letter-spacing:.24em;
-    text-transform:uppercase; color:var(--label2); padding:9px 2px 8px; margin-right:28px;
-    border-bottom:1px solid transparent; border-radius:0;
-    transition:color .2s var(--ease), border-color .2s var(--ease); }
+    font-family:var(--sans); font-size:14px; font-weight:500; color:var(--label2);
+    padding:7px 15px; margin-right:4px; border-radius:var(--r-pill);
+    transition:color .2s var(--ease), background .2s var(--ease); }
   .navitem svg { display:none; }
   .navitem:hover { color:var(--label); }
-  .navitem.on { color:var(--label); background:transparent; border-bottom-color:#fff; }
-  .navitem.focusable:focus { color:var(--label); box-shadow:none; border-bottom-color:#fff; }
+  .navitem.on { color:var(--label); background:rgba(255,255,255,.10); }
+  .navitem.focusable:focus { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
 
-  .page-title { font-family:'Playfair',Georgia,serif; font-weight:400; font-size:26px;
-    letter-spacing:.18em; text-transform:uppercase; margin:0 0 4px; }
-  @media (min-width:1400px){ .page-title { font-size:30px; } }
+  .page-title { font-size:34px; font-weight:700; letter-spacing:-.028em; margin:0 0 4px; }
+  @media (min-width:1400px){ .page-title { font-size:40px; } }
 
   /* ---- rows ---- */
-  .rowhead { display:flex; align-items:center; margin:30px 0 14px;
-    border-bottom:1px solid rgba(255,255,255,.14); padding-bottom:10px; }
+  .rowhead { display:flex; align-items:baseline; margin:26px 0 12px; }
   .rowhead:first-child { margin-top:8px; }
-  .row-title { font-size:11px; font-weight:600; letter-spacing:.22em; text-transform:uppercase;
-    color:var(--label); flex:0 1 auto; min-width:0;
+  .row-title { font-size:21px; font-weight:600; letter-spacing:-.021em; flex:0 1 auto; min-width:0;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .row-sub { color:var(--label3); font-size:10px; font-weight:600; letter-spacing:.18em;
-    text-transform:uppercase; margin-left:14px; }
-  .seeall { margin-left:auto; flex:0 0 auto; font-family:var(--sans); font-size:10px; font-weight:600;
-    letter-spacing:.22em; text-transform:uppercase; color:var(--label2); background:transparent;
-    border:0; border-radius:0; padding:6px 2px; cursor:pointer; white-space:nowrap;
-    border-bottom:1px solid transparent; transition:color .2s var(--ease); }
+  .row-sub { color:var(--label2); font-size:14px; font-weight:400; margin-left:10px; letter-spacing:-.01em; }
+  .seeall { margin-left:auto; flex:0 0 auto; font-family:var(--sans); font-size:13px; font-weight:500;
+    color:var(--label2); background:transparent; border:0; border-radius:var(--r-pill);
+    padding:6px 10px; cursor:pointer; white-space:nowrap; transition:color .2s var(--ease); }
   .seeall:hover { color:var(--label); }
-  .seeall.focusable:focus { color:var(--label); box-shadow:none; border-bottom-color:#fff; }
+  .seeall.focusable:focus { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
   .hrow { display:flex; overflow-x:auto; padding:10px 0 18px; scrollbar-width:none; }
   .hrow::-webkit-scrollbar { display:none; }
   .hrow .card { flex:0 0 150px; margin-right:16px; }
@@ -170,9 +163,7 @@
   .btn.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.45); }
   .btn.ghost { background:var(--fill2); color:var(--label); }
   .btn.ghost:hover { background:rgba(118,118,128,.5); }
-  .section-title { font-size:11px; font-weight:600; letter-spacing:.22em; text-transform:uppercase;
-    color:var(--label2); margin:34px 0 12px; border-bottom:1px solid rgba(255,255,255,.14);
-    padding-bottom:10px; }
+  .section-title { font-size:21px; font-weight:600; letter-spacing:-.021em; margin:30px 0 12px; }
 
   /* ---- add-ons ---- */
   .addons { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:12px; }
@@ -229,7 +220,7 @@
   .card { position:relative; display:block; text-align:left; padding:0; border:0; border-radius:0;
     background:transparent; color:var(--label); cursor:pointer;
     transition:transform .32s var(--ease); }
-  .card .thumb { position:relative; width:100%; height:0; padding-top:150%; border-radius:0;
+  .card .thumb { position:relative; width:100%; height:0; padding-top:150%; border-radius:var(--r-card);
     overflow:hidden; background:var(--l1); box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);
     transition:box-shadow .32s var(--ease); }
   .card.shape-landscape .thumb { padding-top:56.25%; }
@@ -248,7 +239,7 @@
   .card.focusable:focus .thumb { box-shadow:0 22px 46px rgba(0,0,0,.72), inset 0 0 0 1px rgba(255,255,255,.22); }
   .card.focusable:focus .card-label { color:var(--label); }
   .card.focusable:focus .thumb::after { content:''; position:absolute; top:0; left:0; right:0; bottom:0;
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.55); }
+    background:linear-gradient(160deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,0) 42%); }
   @media (prefers-reduced-motion: reduce){ .card, .card.focusable:focus { transition:none; transform:none; } }
 
   /* ---- streams / episodes ---- */
@@ -354,124 +345,112 @@
      (applySubStyle() re-emits these three rules with the user's own offset added;
      the static copies are the pre-script fallback.) */
   video::-webkit-media-text-track-container { transition:transform .28s var(--ease); }
-  body.pui-on video::-webkit-media-text-track-container { transform:translateY(-158px); }
-  html.tv body.pui-on video::-webkit-media-text-track-container { transform:translateY(-224px); }
+  body.pui-on video::-webkit-media-text-track-container { transform:translateY(-118px); }
+  html.tv body.pui-on video::-webkit-media-text-track-container { transform:translateY(-168px); }
 
-  /* ---- player chrome — Title Card, lower-third ----
-     A didone in letterspaced caps, ornamental hairlines, whispered small-caps
-     controls, no accent hue: the film supplies every colour. Scrims exist only
-     so type stays legible over the picture. */
-  #pui { position:fixed; top:0; left:0; right:0; bottom:0; z-index:5; display:none;
-    --tc-ink:#fff; --tc-dim:rgba(255,255,255,.66); --tc-faint:rgba(255,255,255,.42);
-    --tc-line:rgba(255,255,255,.38); --tc-inset:26px; }
+  /* ---- player chrome — Apple TV layout ----
+     Frosted-glass circles for transport and window controls, a thick rounded
+     scrubber with elapsed/remaining beneath it, the title in clean sans just
+     above. Translucent materials over a soft dim; content stays the hero. */
+  #pui { position:fixed; top:0; left:0; right:0; bottom:0; z-index:5; display:none; }
   body.playing #pui { display:block; }
   #pui.idle { cursor:none; }
-  #pui .pui-chrome { transition:opacity .34s var(--ease); }
+  #pui .pui-chrome { transition:opacity .28s var(--ease); }
   #pui.idle .pui-chrome, #pui.idle .pui-shade { opacity:0; pointer-events:none; }
-  .pui-shade { position:absolute; left:0; right:0; pointer-events:none; transition:opacity .34s var(--ease); }
-  .pui-shade-top { top:0; height:130px; background:linear-gradient(180deg, rgba(12,10,9,.55), rgba(12,10,9,0)); }
-  .pui-shade-bot { bottom:0; height:260px; background:linear-gradient(0deg, rgba(12,10,9,.92), rgba(12,10,9,0)); }
-  /* the ornamental frame — chrome and ornament are one thing */
-  .pui-frame { position:absolute; top:var(--tc-inset); left:var(--tc-inset); right:var(--tc-inset); bottom:var(--tc-inset);
-    border:1px solid var(--tc-line); pointer-events:none; }
-  .pui-top { position:absolute; top:calc(var(--tc-inset) + 14px); left:calc(var(--tc-inset) + 16px);
-    right:calc(var(--tc-inset) + 16px); display:flex; align-items:center; }
-  .pui-round { display:flex; align-items:center; justify-content:center; width:38px; height:38px;
-    border:1px solid var(--tc-line); border-radius:0; background:rgba(12,10,9,.35); color:var(--tc-ink);
-    cursor:pointer; transition:border-color .16s var(--ease); }
-  .pui-round svg { width:17px; height:17px; }
-  .pui-round:hover, .pui-round.focusable:focus { border-color:#fff; }
+  .pui-shade { position:absolute; left:0; right:0; pointer-events:none; transition:opacity .28s var(--ease); }
+  .pui-shade-top { top:0; height:160px; background:linear-gradient(180deg, rgba(0,0,0,.6), rgba(0,0,0,0)); }
+  .pui-shade-bot { bottom:0; height:240px; background:linear-gradient(0deg, rgba(0,0,0,.78), rgba(0,0,0,0)); }
+  .pui-top { position:absolute; top:0; left:0; right:0; display:flex; align-items:center; padding:26px 32px; }
+  .pui-top > * + * { margin-left:14px; }
+  .pui-round { display:flex; align-items:center; justify-content:center; width:44px; height:44px;
+    border-radius:var(--r-pill); border:0; background:rgba(80,80,88,.42); color:#fff; cursor:pointer;
+    transition:background .18s var(--ease), transform .18s var(--ease); }
+  .pui-round svg { width:20px; height:20px; }
+  .pui-round:hover { background:rgba(110,110,120,.55); transform:scale(1.06); }
+  .pui-round.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
+  @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
+    .pui-round, .pui-btn, .qmenu, #upnext, .pui-live {
+      -webkit-backdrop-filter:saturate(180%) blur(18px); backdrop-filter:saturate(180%) blur(18px); }
+  }
   .pui-winrow { margin-left:auto; display:flex; align-items:center; }
-  .pui-winrow > * + * { margin-left:22px; }
-  .pui-word { border:0; background:transparent; color:var(--tc-dim); cursor:pointer; padding:6px 2px;
-    font-family:var(--sans); font-size:10px; font-weight:600; letter-spacing:.24em; text-transform:uppercase;
-    transition:color .16s var(--ease); white-space:nowrap; }
-  .pui-word:hover { color:var(--tc-ink); }
-  .pui-word.focusable:focus { color:var(--tc-ink); border-bottom:1px solid #fff; padding-bottom:5px; }
-  .pui-live { border:1px solid var(--tc-line); color:var(--tc-ink); font-size:10px; font-weight:600;
-    letter-spacing:.24em; text-transform:uppercase; padding:5px 10px 5px 12px; margin-left:22px; }
-  .pui-party { border-color:#fff; }
-  /* the lower third */
-  .pui-lower { position:absolute; left:calc(var(--tc-inset) + 38px); right:calc(var(--tc-inset) + 38px);
-    bottom:calc(var(--tc-inset) + 66px); display:flex; align-items:flex-end; }
-  .pui-lt { min-width:0; flex:1 1 auto; padding-right:40px; }
-  .pui-script { font-family:'Playfair',Georgia,serif; font-style:italic; font-size:17px;
-    color:var(--tc-dim); margin:0 0 7px; }
-  .pui-title { font-family:'Playfair',Georgia,serif; font-size:36px; font-weight:400; letter-spacing:.22em;
-    text-transform:uppercase; color:var(--tc-ink); line-height:1.15; margin:0;
+  .pui-winrow > * + * { margin-left:12px; }
+  .pui-live { flex:0 0 auto; background:rgba(80,80,88,.42); color:#fff; font-size:11px; font-weight:700;
+    letter-spacing:.04em; padding:6px 12px; border-radius:var(--r-pill); }
+  .pui-live.hot { background:var(--red); }
+  .pui-party { background:#fff; color:#000; }
+  .pui-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    display:flex; align-items:center; }
+  .pui-center > * + * { margin-left:36px; }
+  .pui-skip { width:58px; height:58px; position:relative; }
+  .pui-skip svg { width:25px; height:25px; }
+  .pui-skipnum { position:absolute; bottom:9px; font-size:9px; font-weight:700; }
+  .pui-playpause { width:82px; height:82px; }
+  .pui-playpause svg { width:36px; height:36px; }
+  .pui-bottom { position:absolute; left:0; right:0; bottom:0; padding:0 40px 26px; }
+  .pui-head { display:flex; align-items:flex-end; margin-bottom:12px; }
+  .pui-titles { flex:1 1 auto; min-width:0; }
+  .pui-title { font-size:21px; font-weight:600; letter-spacing:-.02em; color:#fff;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-shadow:0 1px 12px rgba(0,0,0,.6); }
+  .pui-sub { font-size:13px; font-weight:500; color:rgba(235,235,245,.66); margin-top:3px;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .pui-title.long { font-size:26px; letter-spacing:.14em; }
-  .pui-title.vlong { font-size:19px; letter-spacing:.1em; white-space:normal;
-    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
-  .pui-ltrule { width:min(420px, 100%); max-width:420px; height:1px; background:var(--tc-line); margin:13px 0 12px; }
-  .pui-transport { display:flex; align-items:baseline; }
-  .pui-transport > * + * { margin-left:26px; }
-  /* the whispered settings column */
-  .pui-rt { flex:0 0 auto; text-align:right; display:flex; flex-direction:column; align-items:flex-end; }
-  .pui-rt .pui-word { padding:5px 2px; }
-  .pui-rt .pui-word .pv { color:var(--tc-ink); margin-left:10px; letter-spacing:.18em; }
-  /* the seek — a hairline along the bottom of the stage */
-  .pui-bottom { position:absolute; left:calc(var(--tc-inset) + 38px); right:calc(var(--tc-inset) + 38px);
-    bottom:calc(var(--tc-inset) + 12px); }
-  .pui-seek { position:relative; padding:12px 0; cursor:pointer; outline:none; }
-  .pui-rail { position:relative; height:1px; background:rgba(255,255,255,.3); }
-  .pui-buf { position:absolute; top:0; left:0; bottom:0; width:0; background:rgba(255,255,255,.5); }
-  .pui-fill { position:absolute; top:-1px; left:0; height:2px; width:0; background:#fff; }
-  .pui-knob { position:absolute; top:50%; left:0; width:8px; height:8px; margin:-4px 0 0 -4px;
-    background:#fff; transform:rotate(45deg) scale(0); transition:transform .18s var(--ease); }
-  .pui-seek:hover .pui-knob, .pui-seek:focus .pui-knob { transform:rotate(45deg) scale(1); }
-  .pui-seek:focus .pui-rail { background:rgba(255,255,255,.55); }
-  .pui-times { display:flex; justify-content:space-between; align-items:baseline; margin-top:8px;
-    font-size:10px; font-weight:600; letter-spacing:.24em; text-transform:uppercase; color:var(--tc-dim); }
-  .pui-times .mid { color:var(--tc-faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-    max-width:50%; }
+  .pui-btns { flex:0 0 auto; display:flex; align-items:center; margin-left:20px; }
+  .pui-btns > * + * { margin-left:8px; }
+  .pui-btn { font-family:var(--sans); font-size:13px; font-weight:600; letter-spacing:-.01em;
+    padding:9px 16px; border-radius:var(--r-pill); border:0; background:rgba(80,80,88,.42);
+    color:#fff; cursor:pointer; transition:background .18s var(--ease); white-space:nowrap; }
+  .pui-btn .pv { color:rgba(235,235,245,.66); margin-left:7px; font-weight:500; }
+  .pui-btn:hover { background:rgba(110,110,120,.55); }
+  .pui-btn.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
+  /* the Apple TV scrubber: thick, fully rounded, grows a touch under focus */
+  .pui-seek { position:relative; padding:8px 0; cursor:pointer; outline:none; }
+  .pui-rail { position:relative; height:8px; border-radius:5px; background:rgba(255,255,255,.24);
+    overflow:hidden; transition:transform .18s var(--ease); }
+  .pui-seek:hover .pui-rail, .pui-seek:focus .pui-rail { transform:scaleY(1.25); }
+  .pui-buf { position:absolute; top:0; left:0; bottom:0; width:0; background:rgba(255,255,255,.38); }
+  .pui-fill { position:absolute; top:0; left:0; bottom:0; width:0; background:#fff; }
+  .pui-knob { display:none; }
+  .pui-seek:focus { box-shadow:0 0 0 4px rgba(255,255,255,.35); border-radius:8px; }
+  .pui-times { display:flex; justify-content:space-between; margin-top:8px;
+    font-size:12.5px; font-weight:500; color:rgba(235,235,245,.72); font-variant-numeric:tabular-nums; }
   .pui-spin { position:absolute; top:50%; left:50%; width:46px; height:46px; margin:-23px 0 0 -23px;
-    border:1px solid rgba(255,255,255,.25); border-top-color:#fff; border-radius:50%;
-    animation:puispin 1s linear infinite; pointer-events:none; }
+    border:3px solid rgba(255,255,255,.22); border-top-color:#fff; border-radius:50%;
+    animation:puispin .9s linear infinite; pointer-events:none; }
   @keyframes puispin { to { transform:rotate(360deg); } }
-  /* menus: hairline panels, zero radius, active = underline */
-  .qmenu { display:none; position:absolute; right:calc(var(--tc-inset) + 38px); bottom:150px;
-    min-width:216px; max-height:62vh; overflow-y:auto; background:rgba(12,10,9,.92);
-    border:1px solid var(--tc-line); border-radius:0; padding:16px 20px; scrollbar-width:none; }
+  .qmenu { display:none; position:absolute; bottom:120px; right:40px; min-width:216px; max-height:60vh;
+    overflow-y:auto; background:rgba(44,44,46,.78); border:0; border-radius:14px; padding:6px;
+    box-shadow:0 20px 50px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.10); scrollbar-width:none; }
   .qmenu::-webkit-scrollbar { display:none; }
   .qmenu.open { display:block; }
-  .qtitle { color:var(--tc-faint); font-size:9px; font-weight:600; letter-spacing:.26em;
-    text-transform:uppercase; padding:0 0 12px; }
-  .qopt { display:block; width:100%; text-align:left; padding:7px 0; border:0; background:transparent;
-    color:var(--tc-dim); font-family:var(--sans); font-size:11.5px; font-weight:600; letter-spacing:.18em;
-    text-transform:uppercase; cursor:pointer; white-space:nowrap; transition:color .14s var(--ease); }
-  .qopt:hover, .qopt.focusable:focus { color:var(--tc-ink); }
-  .qopt.focusable:focus { text-decoration:underline; text-underline-offset:4px; }
-  .qopt.on { color:var(--tc-ink); text-decoration:underline; text-underline-offset:4px; }
-  .qsep { height:1px; margin:12px 0; background:rgba(255,255,255,.16); }
-  .qnote { color:var(--tc-faint); font-size:11px; line-height:1.6; padding:4px 0 6px;
-    white-space:normal; max-width:250px; letter-spacing:.04em; }
-  .qmenu.wide { min-width:296px; max-height:74vh; }
+  .qtitle { color:rgba(235,235,245,.6); font-size:12px; font-weight:600; padding:8px 12px 6px; }
+  .qopt { display:block; width:100%; text-align:left; padding:9px 12px; border-radius:9px; border:0;
+    background:transparent; color:#fff; font-family:var(--sans); font-size:14.5px; font-weight:500;
+    cursor:pointer; white-space:nowrap; transition:background .15s var(--ease); }
+  .qopt:hover { background:rgba(255,255,255,.10); }
+  .qopt.focusable:focus { background:rgba(255,255,255,.16); box-shadow:0 0 0 3px rgba(255,255,255,.35); }
+  .qopt.on { font-weight:600; }
+  .qopt.on::after { content:' ✓'; color:rgba(235,235,245,.6); }
+  .qsep { height:1px; margin:7px 12px; background:rgba(255,255,255,.14); }
+  .qnote { color:rgba(235,235,245,.6); font-size:12.5px; line-height:1.45; padding:7px 12px 9px;
+    white-space:normal; max-width:250px; }
+  .qmenu.wide { min-width:292px; max-height:74vh; }
   .qset { display:flex; justify-content:space-between; align-items:center; }
-  .qset .qv { color:var(--tc-faint); font-weight:600; margin-left:18px; white-space:nowrap; letter-spacing:.1em; }
-  .qset:hover .qv, .qset.focusable:focus .qv { color:var(--tc-ink); }
-  .qprev { margin:2px 0 10px; padding:16px 10px; text-align:center; overflow:hidden; background:#2A3550; }
-  .qprev-t { display:inline-block; padding:.06em .3em; line-height:1.3; white-space:normal; }
-  /* up next — a small title card of its own */
-  #upnext { display:none; position:absolute; right:calc(var(--tc-inset) + 38px); bottom:150px; z-index:7;
-    width:330px; max-width:72vw; background:rgba(12,10,9,.92); border:1px solid var(--tc-line);
-    border-radius:0; padding:22px 24px; }
+  .qset .qv { color:rgba(235,235,245,.6); font-weight:500; margin-left:18px; white-space:nowrap; }
+  .qset:hover .qv, .qset.focusable:focus .qv { color:#fff; }
+  .qprev { margin:2px 6px 8px; padding:16px 10px; border-radius:10px; text-align:center; overflow:hidden;
+    background:#2A3550; }
+  .qprev-t { display:inline-block; padding:.06em .3em; line-height:1.3; border-radius:2px; white-space:normal; }
+  #upnext { display:none; position:absolute; right:40px; bottom:130px; z-index:7; width:340px; max-width:72vw;
+    background:rgba(44,44,46,.8); border:0; border-radius:var(--r-tile); padding:20px;
+    box-shadow:0 24px 60px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.10); }
   #upnext.show { display:block; animation:upIn .34s var(--ease) both; }
-  @keyframes upIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+  @keyframes upIn { from { opacity:0; transform:translateY(14px) scale(.97); } to { opacity:1; transform:none; } }
   @media (prefers-reduced-motion: reduce){ #upnext.show { animation:none; } }
-  #upnext .lbl { display:block; font-family:'Playfair',Georgia,serif; font-style:italic;
-    font-size:15px; color:var(--tc-dim); margin-bottom:8px; }
-  .upnext-title { font-family:'Playfair',Georgia,serif; font-size:18px; letter-spacing:.1em;
-    text-transform:uppercase; line-height:1.4; margin:0 0 16px; color:var(--tc-ink);
-    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  #upnext .lbl { display:block; color:rgba(235,235,245,.6); font-size:13px; font-weight:500; margin-bottom:5px; }
+  .upnext-title { font-size:19px; font-weight:600; letter-spacing:-.02em; line-height:1.25; margin:0 0 15px;
+    color:#fff; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .upnext-row { display:flex; }
-  .upnext-row > * + * { margin-left:24px; }
-  .upnext-row .btn { background:transparent; color:var(--tc-ink); border:0; border-radius:0; padding:6px 2px;
-    font-size:10px; font-weight:600; letter-spacing:.24em; text-transform:uppercase;
-    border-bottom:1px solid #fff; }
-  .upnext-row .btn.ghost { color:var(--tc-dim); border-bottom-color:transparent; }
-  .upnext-row .btn:hover { transform:none; color:#fff; }
-  .upnext-row .btn.focusable:focus { box-shadow:none; color:#fff; border-bottom-color:#fff; }
+  .upnext-row > * + * { margin-left:8px; }
+  .upnext-row .btn { padding:10px 18px; font-size:13.5px; }
 
   /* ---- featured hero + full-bleed detail + library + sync (Title Card) ---- */
   #homeHero { position:relative; display:none; margin:-26px calc(-1 * var(--pad)) 24px;
@@ -487,12 +466,10 @@
     background:linear-gradient(90deg, rgba(0,0,0,.66) 0%, rgba(0,0,0,.18) 46%, rgba(0,0,0,0) 68%); }
   .hf-info { position:absolute; z-index:2; left:var(--pad); right:var(--pad); bottom:30px; max-width:640px;
     animation:viewIn .5s var(--ease) both; }
-  .hf-script { font-family:'Playfair',Georgia,serif; font-style:italic; font-size:17px;
-    color:rgba(235,235,245,.78); margin-bottom:8px; text-shadow:0 1px 10px rgba(0,0,0,.7); }
+  .hf-script { display:none; }
   .hf-logo { display:block; max-width:min(400px, 62%); max-height:120px; margin:0 0 14px;
     filter:drop-shadow(0 4px 18px rgba(0,0,0,.55)); }
-  .hf-title { font-family:'Playfair',Georgia,serif; font-weight:400; font-size:38px;
-    letter-spacing:.18em; text-transform:uppercase; line-height:1.15; margin:0 0 12px;
+  .hf-title { font-size:44px; font-weight:700; letter-spacing:-.03em; line-height:1.04; margin:0 0 12px;
     text-shadow:0 2px 18px rgba(0,0,0,.6); }
   .hf-facts { color:rgba(235,235,245,.78); font-size:11px; font-weight:600; letter-spacing:.22em;
     text-transform:uppercase; margin-bottom:10px; text-shadow:0 1px 8px rgba(0,0,0,.7); }
@@ -512,36 +489,28 @@
   .det-body { position:relative; z-index:2; padding-top:20vh; max-width:760px; }
   .det-logo { display:block; max-width:min(400px, 70%); max-height:140px; margin:0 0 16px;
     filter:drop-shadow(0 4px 18px rgba(0,0,0,.55)); }
-  .det-name { font-family:'Playfair',Georgia,serif; font-weight:400; font-size:38px;
-    letter-spacing:.16em; text-transform:uppercase; line-height:1.2; margin:0 0 12px;
+  .det-name { font-size:44px; font-weight:700; letter-spacing:-.03em; line-height:1.04; margin:0 0 12px;
     text-shadow:0 2px 18px rgba(0,0,0,.6); }
   .det-kicker { color:var(--label2); font-size:11px; font-weight:600; letter-spacing:.22em;
     text-transform:uppercase; margin:2px 0 10px; text-shadow:0 1px 8px rgba(0,0,0,.7); }
   .det-desc { color:var(--label2); font-size:15px; line-height:1.6; margin:14px 0 6px; max-width:56ch;
     display:-webkit-box; -webkit-line-clamp:6; -webkit-box-orient:vertical; overflow:hidden; }
   .det-credits { color:var(--label3); font-size:13px; line-height:1.8; margin:8px 0 0; max-width:64ch; }
-  .det-credits b { color:var(--label3); font-weight:600; font-size:10px; letter-spacing:.2em;
-    text-transform:uppercase; margin-right:8px; }
-  .det-rule { width:min(420px, 100%); height:1px; background:rgba(255,255,255,.38); margin:18px 0 4px; }
-  .wbtn { border:0; background:transparent; cursor:pointer; font-family:var(--sans);
-    font-size:11px; font-weight:600; letter-spacing:.26em; text-transform:uppercase;
-    color:rgba(255,255,255,.8); padding:8px 2px 7px; border-bottom:1px solid transparent;
-    transition:color .16s var(--ease), border-color .16s var(--ease); white-space:nowrap; }
-  .wbtn.bright, .wbtn:hover, .wbtn.focusable:focus { color:#fff; border-bottom-color:#fff; }
+  .det-credits b { color:var(--label2); font-weight:500; margin-right:6px; }
+  .det-rule { display:none; }
 
   #libGrid { margin-top:14px; }
-  .up-day { color:var(--label2); font-size:10px; font-weight:600; letter-spacing:.24em;
+  .up-day { color:var(--label2); font-size:12px; font-weight:600; letter-spacing:.12em;
     text-transform:uppercase; margin:24px 0 10px; }
   .up-day:first-child { margin-top:8px; }
-  .up-poster { width:44px; height:66px; flex:0 0 auto; object-fit:cover; background:var(--l2); display:block; }
+  .up-poster { width:44px; height:66px; flex:0 0 auto; border-radius:8px; object-fit:cover; background:var(--l2); display:block; }
   .up-poster.ph { display:flex; align-items:center; justify-content:center; color:var(--label3);
     font-size:13px; font-weight:600; }
   .up-tag { font-family:var(--mono); color:var(--label2); font-size:12.5px; letter-spacing:0; margin-right:8px; }
   .card-rate { position:absolute; top:6px; right:6px; font-family:var(--mono); font-size:10.5px;
-    font-weight:500; padding:3px 6px; border-radius:0; background:rgba(0,0,0,.66); color:#fff;
-    letter-spacing:.06em; }
+    font-weight:500; padding:3px 6px; border-radius:6px; background:rgba(0,0,0,.62); color:#fff; }
   .sync-code { font-family:var(--mono); font-size:32px; letter-spacing:.34em; padding:18px 10px 18px 24px;
-    margin-top:16px; text-align:center; border:1px solid rgba(255,255,255,.3); color:var(--label); }
+    margin-top:16px; text-align:center; background:var(--l2); border-radius:var(--r-ctl); color:var(--label); }
   .sync-hint { color:var(--label3); font-size:12.5px; margin-top:8px; text-align:center; }
 
   @media (max-width:700px){
@@ -554,20 +523,12 @@
     .det-logo { max-height:90px; }
   }
   html.tv #homeHero { height:60vh; }
-  html.tv .hf-script { font-size:24px; }
-  html.tv .hf-title { font-size:54px; }
+  html.tv .hf-title { font-size:62px; }
   html.tv .hf-logo { max-width:520px; max-height:170px; }
   html.tv .hf-facts { font-size:15px; }
   html.tv .hf-desc { font-size:20px; }
-  html.tv .navitem { font-size:15px; letter-spacing:.26em; margin-right:36px; }
-  html.tv .rail-brand { font-size:27px; }
-  html.tv .page-title { font-size:38px; }
-  html.tv .row-title { font-size:15px; }
-  html.tv .row-sub { font-size:13px; }
-  html.tv .seeall { font-size:14px; }
-  html.tv .wbtn { font-size:16px; }
   html.tv .det-body { padding-top:22vh; }
-  html.tv .det-name { font-size:52px; }
+  html.tv .det-name { font-size:58px; }
   html.tv .det-logo { max-width:520px; max-height:180px; }
   html.tv .det-kicker { font-size:15px; }
   html.tv .det-desc { font-size:19px; }
@@ -582,21 +543,16 @@
   /* ---- phones ---- */
   @media (max-width:700px){
     :root { --navh:54px; }
-    #pui { --tc-inset:12px; }
-    .pui-lower { left:calc(var(--tc-inset) + 16px); right:calc(var(--tc-inset) + 16px);
-      bottom:calc(var(--tc-inset) + 58px); display:block; }
-    .pui-lt { padding-right:0; }
-    .pui-script { font-size:14px; margin-bottom:4px; }
-    .pui-title { font-size:22px; letter-spacing:.14em; }
-    .pui-title.long { font-size:17px; }
-    .pui-title.vlong { font-size:15px; }
-    .pui-ltrule { margin:9px 0 8px; }
-    .pui-rt { flex-direction:row; margin-top:10px; }
-    .pui-rt .pui-word { margin-left:0; margin-right:18px; }
-    .pui-rt .pui-word .pv { display:none; }
-    .pui-bottom { left:calc(var(--tc-inset) + 16px); right:calc(var(--tc-inset) + 16px); }
-    .pui-times .mid { display:none; }
-    .qmenu, #upnext { right:calc(var(--tc-inset) + 16px); bottom:130px; }
+    .pui-top { padding:16px 16px; }
+    .pui-bottom { padding:0 16px 16px; }
+    .pui-head { display:block; }
+    .pui-btns { margin-left:0; margin-top:10px; flex-wrap:wrap; }
+    .pui-btns > * { margin:0 8px 8px 0 !important; }
+    .pui-title { font-size:17px; }
+    .pui-center > * + * { margin-left:24px; }
+    .pui-playpause { width:64px; height:64px; }
+    .pui-skip { width:48px; height:48px; }
+    .qmenu, #upnext { right:16px; bottom:150px; }
     .rail-brand { margin-right:14px; font-size:15px; }
     .navitem { padding:6px 11px; font-size:13px; }
     .page-title { font-size:28px; }
@@ -647,29 +603,25 @@
   html.tv .qopt { font-size:19px; padding:12px 16px; }
   html.tv .qtitle { font-size:15px; }
   html.tv .qmenu.wide { min-width:392px; }
-  html.tv #pui { --tc-inset:38px; }
-  html.tv .pui-round { width:52px; height:52px; }
-  html.tv .pui-round svg { width:22px; height:22px; }
-  html.tv .pui-word { font-size:15px; letter-spacing:.26em; }
-  html.tv .pui-live { font-size:14px; padding:7px 14px 7px 17px; }
-  html.tv .pui-script { font-size:24px; }
-  html.tv .pui-title { font-size:52px; }
-  html.tv .pui-title.long { font-size:38px; }
-  html.tv .pui-title.vlong { font-size:28px; }
-  html.tv .pui-ltrule { max-width:560px; margin:18px 0 16px; }
-  html.tv .pui-transport > * + * { margin-left:38px; }
-  html.tv .pui-times { font-size:14px; }
-  html.tv .pui-rail { height:2px; }
-  html.tv .pui-fill { height:4px; top:-1px; }
-  html.tv .pui-knob { width:13px; height:13px; margin:-6.5px 0 0 -6.5px; }
-  html.tv .qmenu { min-width:300px; padding:22px 26px; bottom:210px; }
-  html.tv .qtitle { font-size:13px; }
-  html.tv .qopt { font-size:16px; padding:10px 0; }
-  html.tv .qmenu.wide { min-width:400px; }
-  html.tv #upnext { width:470px; padding:30px 32px; bottom:210px; }
-  html.tv #upnext .lbl { font-size:21px; }
-  html.tv .upnext-title { font-size:26px; }
-  html.tv .upnext-row .btn { font-size:14px; }
+  html.tv .pui-top { padding:34px 44px; }
+  html.tv .pui-round { width:58px; height:58px; }
+  html.tv .pui-round svg { width:26px; height:26px; }
+  html.tv .pui-skip { width:72px; height:72px; }
+  html.tv .pui-playpause { width:96px; height:96px; }
+  html.tv .pui-playpause svg { width:42px; height:42px; }
+  html.tv .pui-live { font-size:14px; padding:8px 16px; }
+  html.tv .pui-bottom { padding:0 56px 36px; }
+  html.tv .pui-title { font-size:30px; }
+  html.tv .pui-sub { font-size:17px; }
+  html.tv .pui-btn { font-size:17px; padding:12px 22px; }
+  html.tv .pui-rail { height:11px; border-radius:7px; }
+  html.tv .pui-times { font-size:16px; }
+  html.tv .qmenu { min-width:300px; bottom:150px; right:56px; }
+  html.tv .qopt { font-size:19px; padding:12px 16px; }
+  html.tv .qtitle { font-size:15px; }
+  html.tv .qmenu.wide { min-width:392px; }
+  html.tv #upnext { width:470px; right:56px; bottom:160px; padding:26px; }
+  html.tv .upnext-title { font-size:24px; }
   html.tv #status { font-size:18px; padding:14px 24px 14px 42px; }
   html.tv #status::before { left:20px; width:9px; height:9px; margin-top:-4.5px; }
   html.tv #updBanner { padding:15px 26px; font-size:18px; }
@@ -684,46 +636,50 @@
     <button id="updX" class="focusable" title="Dismiss">Dismiss</button>
   </div>
 
-  <!-- custom player controls (shown during playback) — Title Card chrome -->
+  <!-- custom player controls (shown during playback) — Apple TV layout -->
   <div id="pui">
     <div class="pui-shade pui-shade-top"></div>
     <div class="pui-shade pui-shade-bot"></div>
-    <div class="pui-frame pui-chrome"></div>
     <div class="pui-top pui-chrome">
-      <button id="puiBack" class="focusable pui-round" title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <button id="puiBack" class="focusable pui-round" title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
       <div class="pui-winrow">
-        <button id="puiPip" class="focusable pui-word" style="display:none" title="Picture-in-picture">PiP</button>
-        <button id="puiMini" class="focusable pui-word" style="display:none" title="Mini player — small window that stays on top">Mini</button>
-        <button id="puiFull" class="focusable pui-word" style="display:none" title="Fullscreen (f)">Fullscreen</button>
-        <span id="puiLiveBadge" class="pui-live" style="display:none">Live</span>
         <span id="puiPartyBadge" class="pui-live pui-party" style="display:none"></span>
+        <span id="puiLiveBadge" class="pui-live hot" style="display:none">LIVE</span>
+        <button id="puiPip" class="focusable pui-round" style="display:none" title="Picture-in-picture"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="12" width="7" height="5" rx="1" fill="currentColor" stroke="none"/></svg></button>
+        <button id="puiMini" class="focusable pui-round" style="display:none" title="Mini player — small window that stays on top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="13" y="13" width="6" height="4" rx="1" fill="currentColor" stroke="none"/></svg></button>
+        <button id="puiFull" class="focusable pui-round" style="display:none" title="Fullscreen (f)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4H4v4M16 4h4v4M8 20H4v-4M16 20h4v-4"/></svg></button>
       </div>
     </div>
-    <div class="pui-lower pui-chrome">
-      <div class="pui-lt">
-        <div id="puiScript" class="pui-script">Now Playing</div>
-        <div id="puiTitle" class="pui-title"></div>
-        <div class="pui-ltrule"></div>
-        <div class="pui-transport">
-          <button id="puiRew" class="focusable pui-word" title="Back 10 seconds">Rewind</button>
-          <button id="puiPlay" class="focusable pui-word" title="Play/Pause">Pause</button>
-          <button id="puiFwd" class="focusable pui-word" title="Forward 10 seconds">Forward</button>
-          <button id="puiParty" class="focusable pui-word" title="Watch party — watch together in sync">Party</button>
-        </div>
-      </div>
-      <div class="pui-rt">
-        <button id="puiNext" class="focusable pui-word" style="display:none" title="Next episode">Next Episode</button>
-        <button id="puiSubs" class="focusable pui-word" style="display:none">Subtitles</button>
-        <button id="puiAudio" class="focusable pui-word" style="display:none">Audio</button>
-        <button id="puiQual" class="focusable pui-word" style="display:none">Quality<span class="pv" id="puiQualVal"></span></button>
-        <button id="puiSpeed" class="focusable pui-word">Speed<span class="pv" id="puiSpeedVal">1.0×</span></button>
-      </div>
+    <div class="pui-center pui-chrome">
+      <button id="puiRew" class="focusable pui-round pui-skip" title="Back 10 seconds">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 17a5 5 0 1 0 0-10H5"/><path d="m8 4-3 3 3 3"/></svg>
+        <span class="pui-skipnum">10</span></button>
+      <button id="puiPlay" class="focusable pui-round pui-playpause" title="Play/Pause">
+        <svg id="puiIconPlay" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="puiIconPause" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+      <button id="puiFwd" class="focusable pui-round pui-skip" title="Forward 10 seconds">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 17A5 5 0 1 1 13 7h6"/><path d="m16 4 3 3-3 3"/></svg>
+        <span class="pui-skipnum">10</span></button>
     </div>
     <div class="pui-bottom pui-chrome">
+      <div class="pui-head">
+        <div class="pui-titles">
+          <div id="puiTitle" class="pui-title"></div>
+          <div id="puiSub" class="pui-sub"></div>
+        </div>
+        <div class="pui-btns">
+          <button id="puiNext" class="focusable pui-btn" style="display:none" title="Next episode">Next ›</button>
+          <button id="puiSubs" class="focusable pui-btn" style="display:none">Subtitles</button>
+          <button id="puiAudio" class="focusable pui-btn" style="display:none">Audio</button>
+          <button id="puiQual" class="focusable pui-btn" style="display:none">Quality<span class="pv" id="puiQualVal"></span></button>
+          <button id="puiSpeed" class="focusable pui-btn">Speed<span class="pv" id="puiSpeedVal">1×</span></button>
+          <button id="puiParty" class="focusable pui-btn" title="Watch party — watch together in sync">Party</button>
+        </div>
+      </div>
       <div id="puiSeek" class="focusable pui-seek" tabindex="0" title="Seek">
         <div class="pui-rail"><div id="puiBuf" class="pui-buf"></div><div id="puiFill" class="pui-fill"></div><div id="puiKnob" class="pui-knob"></div></div>
       </div>
-      <div class="pui-times"><span id="puiTimeL">0:00</span><span class="mid" id="puiTimeM"></span><span id="puiTimeR">0:00</span></div>
+      <div class="pui-times"><span id="puiTimeL">0:00</span><span id="puiTimeR">0:00</span></div>
     </div>
     <div id="puiMenu" class="qmenu"></div>
     <div id="puiSpin" class="pui-spin" style="display:none"></div>
@@ -787,11 +743,10 @@
       <div class="det-kicker" id="detMeta"></div>
       <p class="det-desc" id="detDesc"></p>
       <div class="det-credits" id="detCredits"></div>
-      <div class="det-rule"></div>
       <div class="row">
-        <button id="detPlay" class="focusable wbtn bright"><span id="detPlayLbl">Play</span></button>
-        <button id="detEpisodes" class="focusable wbtn" style="display:none">Episodes</button>
-        <button id="detList" class="focusable wbtn">My List</button>
+        <button id="detPlay" class="focusable btn"><span class="btn-ic"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span id="detPlayLbl">Play</span></button>
+        <button id="detEpisodes" class="focusable btn ghost" style="display:none">Episodes</button>
+        <button id="detList" class="focusable btn ghost">My List</button>
       </div>
     </div>
   </div>
@@ -899,7 +854,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.08.31.4';
+  var PLAYER_VERSION = '2026.08.31.5';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1849,12 +1804,11 @@
     h.innerHTML =
       '<div class="hf-art"><img src="'+esc(art)+'" alt="" onerror="this.remove()"></div>' +
       '<div class="hf-info">' +
-        '<div class="hf-script">Featured</div>' +
         '<div class="hf-facts">'+esc(facts.join('  ·  '))+'</div>' + head +
         (meta.description ? '<p class="hf-desc">'+esc(meta.description)+'</p>' : '') +
-        '<div class="row" style="margin-top:2px">' +
-          '<button id="hfOpen" class="focusable wbtn bright">Details</button>' +
-          '<button id="hfList" class="focusable wbtn">'+(inLibrary(meta.type, meta.id) ? '✓ In My List' : '+ My List')+'</button>' +
+        '<div class="row" style="margin-top:4px">' +
+          '<button id="hfOpen" class="focusable btn"><span class="btn-ic"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span>Details</button>' +
+          '<button id="hfList" class="focusable btn ghost">'+(inLibrary(meta.type, meta.id) ? '✓ In My List' : '+ My List')+'</button>' +
         '</div>' +
       '</div>' +
       '<div class="hf-dots">'+dots+'</div>';
@@ -2624,7 +2578,7 @@
     puiReset(title || '');
     if (curPlay && curPlay.type === 'series'){
       var segs = String(curPlay.id||'').split(':');
-      if (segs.length >= 3) $id('puiTimeM').textContent = 'S'+segs[segs.length-2]+' · E'+segs[segs.length-1];
+      if (segs.length >= 3) $id('puiSub').textContent = 'Season '+segs[segs.length-2]+' · Episode '+segs[segs.length-1];
     }
     setStatus('Loading…','info');
     player = new shaka.Player();
@@ -2851,8 +2805,8 @@
       'video::cue{color:' + subCss('color') + ';background-color:' + subCss('bg') + ';font-size:' + subCss('size') +
         ';text-shadow:' + subCss('edge') + ';font-family:' + subCss('font') + '}' +
       'video::-webkit-media-text-track-container{transform:translateY(-' + up + ')}' +
-      'body.pui-on video::-webkit-media-text-track-container{transform:translateY(calc(-' + up + ' - 158px))}' +
-      'html.tv body.pui-on video::-webkit-media-text-track-container{transform:translateY(calc(-' + up + ' - 224px))}';
+      'body.pui-on video::-webkit-media-text-track-container{transform:translateY(calc(-' + up + ' - 118px))}' +
+      'html.tv body.pui-on video::-webkit-media-text-track-container{transform:translateY(calc(-' + up + ' - 168px))}';
   }
   applySubStyle();
   // rides the add-on/progress mirrors: a TV storage wipe shouldn't reset your subtitles
@@ -2965,11 +2919,11 @@
     var live = puiIsLive();
     $id('puiLiveBadge').style.display = live ? '' : 'none';
     if (live){
-      $id('puiTimeL').textContent = r.end - t > 12 ? '−'+fmtT(r.end - t)+' behind' : 'At the edge';
-      $id('puiTimeR').textContent = 'Live';
+      $id('puiTimeL').textContent = r.end - t > 12 ? '−'+fmtT(r.end - t)+' behind live' : 'At the live edge';
+      $id('puiTimeR').textContent = 'LIVE';
     } else {
       $id('puiTimeL').textContent = fmtT(t - r.start);
-      $id('puiTimeR').textContent = fmtT(span);
+      $id('puiTimeR').textContent = '−' + fmtT(span - (t - r.start));
     }
     // keep the resume point roughly current (~5s), and offer the next episode
     // once we're near the end
@@ -2984,8 +2938,8 @@
   }
   function puiSyncPlayIcon(){
     var paused = video.paused;
-    $id('puiPlay').textContent = paused ? 'Play' : 'Pause';
-    $id('puiScript').textContent = paused ? 'Paused' : 'Now Playing';
+    $id('puiIconPlay').style.display = paused ? '' : 'none';
+    $id('puiIconPause').style.display = paused ? 'none' : '';
   }
   function puiShow(){
     if (!pui) return;
@@ -3136,14 +3090,9 @@
     $id('puiNext').style.display = nextEpisode() ? '' : 'none';
   }
   function puiReset(title){
-    var t = title || '';
-    var tEl = $id('puiTitle');
-    tEl.textContent = t;
-    // letterspaced didone caps eat width — long titles step down
-    tEl.className = 'pui-title' + (t.length > 34 ? ' vlong' : (t.length > 17 ? ' long' : ''));
-    $id('puiScript').textContent = 'Now Playing';
-    $id('puiTimeM').textContent = '';
-    $id('puiSpeedVal').textContent = '1.0×';
+    $id('puiTitle').textContent = title || '';
+    $id('puiSub').textContent = '';
+    $id('puiSpeedVal').textContent = '1×';
     $id('puiQualVal').textContent = '';
     closeUpNext(); upnextState.dismissed = false;
     $id('puiNext').style.display = 'none';
