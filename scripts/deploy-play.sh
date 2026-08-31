@@ -38,12 +38,11 @@ ssh -o BatchMode=yes "$VPS" 'set -e
   # party.json on the VPS always points at the VPS relay, whatever docs/ says
   printf "{\n  \"server\": \"wss://play.rifflehq.in/party/ws\"\n}\n" > /var/www/nebula-play/party.json'
 
-# 5. verify the live surface (Host-resolved until public DNS exists)
-R="--resolve play.rifflehq.in:80:162.19.153.86"
-curl -sf $R http://play.rifflehq.in/player/ -o /dev/null && echo "live: /player/ 200"
-curl -sf $R http://play.rifflehq.in/cloud/healthz && echo
-curl -sf $R http://play.rifflehq.in/party/healthz && echo
-VER_HTML=$(curl -s $R http://play.rifflehq.in/player/ | grep -o "PLAYER_VERSION = '[^']*'" | head -1)
-VER_JSON=$(curl -s $R http://play.rifflehq.in/player-version.json | grep -o '"version": "[^"]*"')
+# 5. verify the live surface
+curl -sf https://play.rifflehq.in/player/ -o /dev/null && echo "live: /player/ 200"
+curl -sf https://play.rifflehq.in/cloud/healthz && echo
+curl -sf https://play.rifflehq.in/party/healthz && echo
+VER_HTML=$(curl -s https://play.rifflehq.in/player/ | grep -o "PLAYER_VERSION = '[^']*'" | head -1)
+VER_JSON=$(curl -s https://play.rifflehq.in/player-version.json | grep -o '"version": "[^"]*"')
 echo "live: $VER_HTML / $VER_JSON"
 echo "deploy complete"
