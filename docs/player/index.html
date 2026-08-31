@@ -445,25 +445,82 @@
   .upnext-row .btn { padding:10px 18px; font-size:13.5px; }
   html.tv #upnext { width:470px; right:40px; bottom:150px; padding:26px; }
 
-  /* ---- detail (meta) view: info column left, artwork right — 40/60 ---- */
-  .det { display:flex; align-items:flex-start; }
-  .det-info { flex:0 0 42%; min-width:0; padding-right:40px; }
-  .det-art { flex:1 1 58%; min-width:0; position:relative; border-radius:var(--r-tile); overflow:hidden;
-    background:var(--l1); box-shadow:inset 0 0 0 1px rgba(255,255,255,.08); }
-  .det-art::before { content:''; display:block; padding-top:56.25%; }
-  .det-art img { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; display:block; }
-  .det-art .thumb-ph { font-size:34px; }
+  /* ---- featured hero (Home) + full-bleed detail ----
+     The artwork carries the page; scrims exist only so type stays legible over
+     it — the same functional class as the player chrome's shades. */
+  #homeHero { position:relative; display:none; margin:-26px calc(-1 * var(--pad)) 24px;
+    height:56vh; min-height:380px; max-height:640px; overflow:hidden; }
+  #homeHero.on { display:block; }
+  .hf-art { position:absolute; top:0; left:0; right:0; bottom:0; }
+  .hf-art img { width:100%; height:100%; object-fit:cover; object-position:center 20%; display:block;
+    animation:hfIn .8s var(--ease) both; }
+  @keyframes hfIn { from { opacity:0; } to { opacity:1; } }
+  .hf-art::after { content:''; position:absolute; top:0; left:0; right:0; bottom:0;
+    background:linear-gradient(180deg, rgba(0,0,0,.14) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,.52) 70%, #000 100%); }
+  .hf-art::before { content:''; position:absolute; top:0; left:0; right:0; bottom:0; z-index:1;
+    background:linear-gradient(90deg, rgba(0,0,0,.66) 0%, rgba(0,0,0,.18) 46%, rgba(0,0,0,0) 68%); }
+  .hf-info { position:absolute; z-index:2; left:var(--pad); right:var(--pad); bottom:30px; max-width:620px;
+    animation:viewIn .5s var(--ease) both; }
+  .hf-logo { display:block; max-width:min(400px, 62%); max-height:120px; margin:0 0 14px;
+    filter:drop-shadow(0 4px 18px rgba(0,0,0,.55)); }
+  .hf-title { font-size:44px; font-weight:700; letter-spacing:-.03em; line-height:1.04; margin:0 0 12px;
+    text-shadow:0 2px 18px rgba(0,0,0,.6); }
+  .hf-facts { color:rgba(235,235,245,.78); font-size:12px; font-weight:600; letter-spacing:.12em;
+    text-transform:uppercase; margin-bottom:10px; text-shadow:0 1px 8px rgba(0,0,0,.7); }
+  .hf-desc { color:rgba(235,235,245,.82); font-size:15px; line-height:1.55; margin:0 0 16px; max-width:54ch;
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+    text-shadow:0 1px 10px rgba(0,0,0,.7); }
+  .hf-dots { position:absolute; z-index:2; right:var(--pad); bottom:34px; display:flex; }
+  .hf-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.32); margin-left:7px; }
+  .hf-dot.on { background:#fff; }
+  @media (max-width:700px){
+    #homeHero { height:46vh; min-height:300px; }
+    .hf-title { font-size:28px; }
+    .hf-logo { max-height:84px; }
+    .hf-desc { display:none; }
+  }
+  html.tv #homeHero { height:60vh; }
+  html.tv .hf-title { font-size:62px; }
+  html.tv .hf-logo { max-width:520px; max-height:170px; }
+  html.tv .hf-facts { font-size:16px; }
+  html.tv .hf-desc { font-size:20px; }
+
+  .det-back { position:absolute; top:0; left:0; right:0; height:58vh; overflow:hidden; }
+  .det-back img { width:100%; height:100%; object-fit:cover; object-position:center 15%; display:block;
+    animation:hfIn .8s var(--ease) both; }
+  .det-back::after { content:''; position:absolute; top:0; left:0; right:0; bottom:0;
+    background:linear-gradient(180deg, rgba(0,0,0,.32) 0%, rgba(0,0,0,.12) 34%, rgba(0,0,0,.66) 72%, #000 100%); }
+  #view-detail .topbar { position:relative; z-index:2; }
+  .det-body { position:relative; z-index:2; padding-top:20vh; max-width:760px; }
+  .det-logo { display:block; max-width:min(400px, 70%); max-height:140px; margin:0 0 16px;
+    filter:drop-shadow(0 4px 18px rgba(0,0,0,.55)); }
+  .det-name { font-size:44px; font-weight:700; letter-spacing:-.03em; line-height:1.04; margin:0 0 12px;
+    text-shadow:0 2px 18px rgba(0,0,0,.6); }
   .det-kicker { color:var(--label2); font-size:12px; font-weight:600; letter-spacing:.12em;
-    text-transform:uppercase; margin:2px 0 10px; }
-  .det-kicker b { color:var(--label); font-weight:600; }
+    text-transform:uppercase; margin:2px 0 10px; text-shadow:0 1px 8px rgba(0,0,0,.7); }
   .det-desc { color:var(--label2); font-size:15px; line-height:1.6; margin:14px 0 6px; max-width:56ch;
-    display:-webkit-box; -webkit-line-clamp:7; -webkit-box-orient:vertical; overflow:hidden; }
+    display:-webkit-box; -webkit-line-clamp:6; -webkit-box-orient:vertical; overflow:hidden; }
+  .det-credits { color:var(--label3); font-size:13px; line-height:1.7; margin:8px 0 4px; max-width:64ch; }
+  .det-credits b { color:var(--label2); font-weight:500; }
   .btn .btn-ic { display:inline-block; vertical-align:-2px; margin-right:8px; }
   .btn .btn-ic svg { width:13px; height:13px; display:block; }
-  html.tv .det-info { padding-right:56px; }
+  @media (max-width:700px){
+    .det-body { padding-top:16vh; }
+    .det-name { font-size:28px; }
+    .det-logo { max-height:90px; }
+  }
+  html.tv .det-body { padding-top:22vh; }
+  html.tv .det-name { font-size:60px; }
+  html.tv .det-logo { max-width:520px; max-height:180px; }
   html.tv .det-kicker { font-size:16px; }
   html.tv .det-desc { font-size:19px; }
+  html.tv .det-credits { font-size:16px; }
   html.tv .btn .btn-ic svg { width:16px; height:16px; }
+
+  /* rating + year on cards — quiet, mono, content-borne */
+  .card-rate { position:absolute; top:6px; right:6px; font-family:var(--mono); font-size:10.5px;
+    font-weight:500; padding:3px 6px; border-radius:6px; background:rgba(0,0,0,.62); color:#fff; }
+  html.tv .card-rate { font-size:13px; padding:4px 8px; }
 
   /* ---- library ---- */
   #libGrid { margin-top:14px; }
@@ -488,9 +545,6 @@
 
   /* ---- phones ---- */
   @media (max-width:700px){
-    .det { flex-direction:column-reverse; }
-    .det-info { flex:none; padding:18px 0 0; }
-    .det-art { width:100%; flex:none; }
     :root { --navh:54px; }
     .rail-brand { margin-right:14px; font-size:15px; }
     .navitem { padding:6px 11px; font-size:13px; }
@@ -638,9 +692,9 @@
       <span>Add-ons</span></button>
   </div>
 
-  <!-- HOME: content rows from every added add-on -->
+  <!-- HOME: featured hero + content rows from every added add-on -->
   <div id="view-home" class="view active">
-    <div class="page-title">Home</div>
+    <div id="homeHero"></div>
     <div id="homeRows"></div>
   </div>
 
@@ -660,20 +714,21 @@
     <div id="libraryBody"></div>
   </div>
 
-  <!-- DETAIL: one title — art, facts, actions -->
+  <!-- DETAIL: one title, full-bleed — the artwork carries the page -->
   <div id="view-detail" class="view">
-    <div class="topbar"><button class="focusable iconbtn" data-back title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="topbar-title" id="detTitle">Details</div></div>
-    <div class="det">
-      <div class="det-info">
-        <div class="det-kicker" id="detMeta"></div>
-        <p class="det-desc" id="detDesc"></p>
-        <div class="row">
-          <button id="detPlay" class="focusable btn"><span class="btn-ic"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span id="detPlayLbl">Play</span></button>
-          <button id="detEpisodes" class="focusable btn ghost" style="display:none">Episodes</button>
-          <button id="detList" class="focusable btn ghost">My List</button>
-        </div>
+    <div class="det-back" id="detBack"></div>
+    <div class="topbar"><button class="focusable iconbtn" data-back title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="topbar-title" id="detTitle"></div></div>
+    <div class="det-body">
+      <img id="detLogo" class="det-logo" alt="" style="display:none">
+      <div class="det-name" id="detName" style="display:none"></div>
+      <div class="det-kicker" id="detMeta"></div>
+      <p class="det-desc" id="detDesc"></p>
+      <div class="det-credits" id="detCredits"></div>
+      <div class="row">
+        <button id="detPlay" class="focusable btn"><span class="btn-ic"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span id="detPlayLbl">Play</span></button>
+        <button id="detEpisodes" class="focusable btn ghost" style="display:none">Episodes</button>
+        <button id="detList" class="focusable btn ghost">My List</button>
       </div>
-      <div class="det-art" id="detArt"></div>
     </div>
   </div>
 
@@ -780,7 +835,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.08.31.1';
+  var PLAYER_VERSION = '2026.08.31.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1069,15 +1124,43 @@
       });
     });
   }
+  /** First run, nothing anywhere: preinstall the neutral defaults. Stremio
+      opens full because Cinemeta ships preinstalled — an empty screen asking
+      for a manifest URL reads as a developer tool. Removable like anything. */
+  function seedDefaults(){
+    try {
+      if (LS.getItem('seeded_v1')) return;   // the user deliberately emptied their list once
+      LS.setItem('seeded_v1', '1');
+      if (getAddons().length) return;
+      saveAddons([
+        { url:'https://v3-cinemeta.strem.io/manifest.json', name:'Cinemeta', base:'https://v3-cinemeta.strem.io', logo:'' },
+        { url:'https://opensubtitles-v3.strem.io/manifest.json', name:'OpenSubtitles v3', base:'https://opensubtitles-v3.strem.io', logo:'' }
+      ]);
+      // a seed must never beat a real removal when devices sync — stamp it at the epoch
+      var s = getAddonsSync();
+      s.at['https://v3-cinemeta.strem.io/manifest.json'] = 1;
+      s.at['https://opensubtitles-v3.strem.io/manifest.json'] = 1;
+      saveAddonsSync();
+      renderAddons();
+      setStatus('Starter add-ons installed — Home is filling up.','ok');
+      // real names + logos fill in as the manifests answer
+      getAddons().forEach(function(a){
+        getJson(a.url).then(function(m){
+          var arr = getAddons(), hit = false;
+          arr.forEach(function(x){ if (x.url === a.url){ x.name = m.name || x.name; x.logo = m.logo || m.icon || ''; hit = true; } });
+          if (hit){ syncApplying = true; try { saveAddons(arr); } finally { syncApplying = false; } renderAddons(); }
+        }).catch(function(){});
+      });
+    } catch(e){}
+  }
   function initPersistentAddons(){
     var cur = getAddons();
     if (cur.length){ mirrorAddons(JSON.stringify(cur)); return; }  // seed mirrors from a healthy LS
     idbLoad('addons')
       .then(function(v){ if (v) return v; return db8Load('addons'); })
       .then(function(v){
-        if (!v) return;
-        var arr = null; try { arr = JSON.parse(v); } catch(e){}
-        if (!arr || !arr.length) return;
+        var arr = null; try { arr = v ? JSON.parse(v) : null; } catch(e){}
+        if (!arr || !arr.length){ seedDefaults(); return; }   // truly first run — not a wiped TV
         // union with whatever was added while the restore was in flight
         var now = getAddons(), merged = now.slice();
         arr.forEach(function(a){
@@ -1515,10 +1598,13 @@
       addon/catalog (cards on Home and Search live outside the catalog view). */
   function cardEl(meta, a, m, c){
     var card=document.createElement('button'); card.className='card focusable shape-'+(meta.posterShape||'poster');
+    var rate = meta.imdbRating ? '<span class="card-rate">★ '+esc(String(meta.imdbRating))+'</span>' : '';
     var thumb = meta.poster
-      ? '<div class="thumb"><img loading="lazy" src="'+esc(meta.poster)+'" onerror="this.remove()"></div>'
-      : '<div class="thumb"><span class="thumb-ph">'+esc((meta.name||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'••')+'</span></div>';
-    card.innerHTML = thumb + '<div class="card-label">'+esc(meta.name||meta.id)+'</div>';
+      ? '<div class="thumb"><img loading="lazy" src="'+esc(meta.poster)+'" onerror="this.remove()">'+rate+'</div>'
+      : '<div class="thumb"><span class="thumb-ph">'+esc((meta.name||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'••')+'</span>'+rate+'</div>';
+    var year = meta.releaseInfo || meta.year || '';
+    card.innerHTML = thumb + '<div class="card-label">'+esc(meta.name||meta.id)+'</div>' +
+      (year ? '<div class="card-sub">'+esc(String(year))+'</div>' : '');
     card.onclick=function(){
       if (a){ ctx.addon=a; ctx.manifest=m; ctx.catalogs=(m&&m.catalogs)||[]; ctx.catalog=c; }
       openItem(meta);
@@ -1656,6 +1742,74 @@
     sec.appendChild(row);
   }
 
+  // ---------- featured hero ----------
+  // The first catalogue to answer seeds it: full-bleed backdrop, the title's
+  // own logo art when the catalogue carries one, cycling through the top five.
+  var heroState = { items: [], idx: 0, timer: null };
+  function heroReset(){
+    heroState.items = []; heroState.idx = 0;
+    clearInterval(heroState.timer); heroState.timer = null;
+    var h = $id('homeHero'); if (h){ h.className = ''; h.innerHTML = ''; }
+  }
+  function heroConsider(metas, a, m, c){
+    if (heroState.items.length) return;
+    var good = (metas||[]).filter(function(x){ return x && (x.background || x.poster) && x.name; }).slice(0, 5);
+    if (!good.length) return;
+    heroState.items = good.map(function(x){ return { meta: x, addon: a, manifest: m, catalog: c }; });
+    heroState.idx = 0;
+    heroRender();
+    heroState.timer = setInterval(function(){
+      var v = document.querySelector('.view.active');
+      if (!v || v.id !== 'view-home' || !heroState.items.length) return;
+      if (document.activeElement && $id('homeHero').contains(document.activeElement)) return; // don't rotate under the cursor
+      heroState.idx = (heroState.idx + 1) % heroState.items.length;
+      heroRender();
+    }, 12000);
+  }
+  function heroRender(){
+    var h = $id('homeHero'); if (!h || !heroState.items.length) return;
+    var it = heroState.items[heroState.idx], meta = it.meta;
+    var facts = [];
+    var y = metaYear(meta); if (y) facts.push(y);
+    if (meta.runtime) facts.push(String(meta.runtime));
+    if (meta.imdbRating) facts.push('★ ' + meta.imdbRating);
+    var g = meta.genres || meta.genre;
+    if (g && g.length) facts.push(g.slice(0, 2).join(' · '));
+    var art = meta.background || meta.poster;
+    var head = meta.logo
+      ? '<img class="hf-logo" src="'+esc(meta.logo)+'" alt="'+esc(meta.name)+'">'
+      : '<div class="hf-title">'+esc(meta.name)+'</div>';
+    var dots = heroState.items.map(function(_, i){
+      return '<span class="hf-dot'+(i === heroState.idx ? ' on' : '')+'"></span>';
+    }).join('');
+    h.innerHTML =
+      '<div class="hf-art"><img src="'+esc(art)+'" alt="" onerror="this.remove()"></div>' +
+      '<div class="hf-info">' +
+        '<div class="hf-facts">'+esc(facts.join('  ·  '))+'</div>' + head +
+        (meta.description ? '<p class="hf-desc">'+esc(meta.description)+'</p>' : '') +
+        '<div class="row" style="margin-top:4px">' +
+          '<button id="hfOpen" class="focusable btn"><span class="btn-ic"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span>Details</button>' +
+          '<button id="hfList" class="focusable btn ghost">'+(inLibrary(meta.type, meta.id) ? '✓ In My List' : '+ My List')+'</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="hf-dots">'+dots+'</div>';
+    h.className = 'on';
+    var lg = h.querySelector('.hf-logo');
+    if (lg) lg.onerror = function(){
+      var d = document.createElement('div'); d.className = 'hf-title'; d.textContent = meta.name;
+      lg.parentNode.replaceChild(d, lg);
+    };
+    $id('hfOpen').onclick = function(){
+      ctx.addon = it.addon; ctx.manifest = it.manifest;
+      ctx.catalogs = (it.manifest && it.manifest.catalogs) || []; ctx.catalog = it.catalog;
+      openItem(meta);
+    };
+    $id('hfList').onclick = function(){
+      toggleLibrary(meta.type || 'movie', meta, (it.addon && it.addon.url) || '');
+      $id('hfList').textContent = inLibrary(meta.type, meta.id) ? '✓ In My List' : '+ My List';
+    };
+  }
+
   var homeSig = null, homeBuiltAt = 0, homeSeq = 0;
   function buildHomeRows(force){
     var wrap = document.getElementById('homeRows'); if (!wrap) return;
@@ -1665,6 +1819,7 @@
     if (!force && sig === homeSig && (Date.now() - homeBuiltAt) < 300000) return;
     homeSig = sig; homeBuiltAt = Date.now();
     var seq = ++homeSeq;
+    heroReset();
     if (!addons.length){
       wrap.innerHTML = '<div class="panel" id="homeEmpty">' +
         '<div class="brand"><span class="brand-name">Nebula</span></div>' +
@@ -1705,6 +1860,7 @@
           var u = a.base + '/catalog/' + encodeURIComponent(c.type) + '/' + encodeURIComponent(c.id) + '.json';
           getJson(u).then(function(d){
             if (seq !== homeSeq) return;
+            heroConsider(d.metas || [], a, m, c);
             var metas = (d.metas||[]).slice(0,15);
             row.innerHTML = '';
             if (!metas.length){ head.style.display='none'; row.style.display='none'; return; }
@@ -1990,13 +2146,26 @@
     if (g && g.length) bits.push(g.slice(0,3).join(' · '));
     $id('detMeta').textContent = bits.join('   ·   ');
     $id('detDesc').textContent = meta.description || meta.overview || '';
+    var credits = '';
+    if (meta.cast && meta.cast.length) credits += '<b>Cast</b>  ' + esc(meta.cast.slice(0,5).join(', '));
+    var dir = meta.director;
+    if (dir && dir.length) credits += (credits ? '<br>' : '') + '<b>Director</b>  ' + esc((Array.isArray(dir)?dir:[dir]).slice(0,2).join(', '));
+    $id('detCredits').innerHTML = credits;
   }
   function renderDetailArt(meta){
-    var art = $id('detArt');
+    // full-bleed: the backdrop carries the page, the title-art logo replaces
+    // plain text whenever the catalogue provides one
     var img = meta.background || meta.poster || '';
-    art.innerHTML = img
-      ? '<img loading="lazy" src="'+esc(img)+'" onerror="this.remove()">'
-      : '<span class="thumb-ph">'+esc((meta.name||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'••')+'</span>';
+    $id('detBack').innerHTML = img ? '<img src="'+esc(img)+'" alt="" onerror="this.remove()">' : '';
+    var logo = $id('detLogo'), nameEl = $id('detName');
+    if (meta.logo){
+      logo.src = meta.logo; logo.style.display = '';
+      nameEl.style.display = 'none'; nameEl.textContent = meta.name || '';
+      logo.onerror = function(){ logo.style.display='none'; nameEl.style.display=''; };
+    } else {
+      logo.style.display = 'none';
+      nameEl.textContent = meta.name || ''; nameEl.style.display = '';
+    }
   }
   /** The newest still-in-progress episode of a series, or null. Episode ids are
       "<seriesId>:…", where seriesId itself may contain colons (kitsu:12345), so
@@ -2052,7 +2221,7 @@
     ctx.item = meta;                       // stream/poster identity keys off this
     detCur = { meta: meta, type: type, addon: ctx.addon || null };
     var seq = ++detSeq;
-    $id('detTitle').textContent = meta.name || 'Details';
+    $id('detTitle').textContent = '';      // the logo/name in the body carries the identity
     renderDetailFacts(meta);
     renderDetailArt(meta);
     syncDetButtons();

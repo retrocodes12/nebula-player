@@ -1,5 +1,5 @@
 {
-  "version": "2026.08.31.1",
+  "version": "2026.08.31.2",
   "url": "https://retrocodes12.github.io/nebula-player/",
-  "notes": "Library + My List, title pages, upcoming-episode calendar, cross-device sync by code, CORS rescue, local file playback"
+  "notes": "A richer Nebula: featured hero board, full-bleed title pages with logo art and cast, ratings on cards, and starter add-ons preinstalled"
 }
