@@ -45,3 +45,6 @@ next-env.d.ts
 
 # agent-router metrics junk
 .claude-flow/
+
+# cloud service run residue (groups written by local test runs)
+/cloud/data/
