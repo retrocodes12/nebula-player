@@ -3,6 +3,7 @@
 'use strict';
 
 process.env.GROUP_BURST = '40';
+process.env.SIGNIN_BURST = '100';       // the per-IP limiter would ration the suite; the per-handle one is tested
 process.env.DATA_DIR = require('fs').mkdtempSync(
   require('path').join(require('os').tmpdir(), 'nebula-cloud-test-'));
 
@@ -222,4 +223,209 @@ test('friends: enable → befriend → profile → recommend → disable', async
   assert.equal((await api('GET', '/v1/social/me', undefined, ta)).body.on, false);
   assert.equal((await api('GET', '/v1/social/friends', undefined, tb)).body.friends.length, 0);
   assert.equal((await api('POST', '/v1/social/friend', { code: ea.body.code }, tb)).status, 404);
+});
+
+// ---------- profiles ----------
+const DEV = { name: 'Test browser', plat: 'web' };
+async function mkProfile(handle, name, password) {
+  const r = await api('POST', '/v1/profile', { handle, name, password, device: DEV });
+  assert.equal(r.status, 200, 'create ' + handle + ' → ' + JSON.stringify(r.body));
+  return r.body;
+}
+const tok = (c) => c.gid + '.' + c.token;
+
+test('profile: create → sign in elsewhere → devices → edit → remove device → sign out', async () => {
+  const a = await mkProfile('Asha_01', 'Asha', 'correct horse');
+  assert.match(a.gid, /^[0-9a-f]{16}$/);
+  assert.match(a.token, /^[0-9a-f]{32}$/);
+  assert.match(a.recovery, /^([A-Z2-9]{4}-){3}[A-Z2-9]{4}$/);
+  assert.deepEqual(a.profile, { handle: 'asha_01', name: 'Asha', avatar: '#636366' });
+
+  // the device token is a full credential for sync
+  assert.equal((await api('PUT', '/v1/kv/library', { v: '{"x":1}' }, tok(a))).status, 200);
+
+  // second device signs in with handle + password (case and @ are forgiven)
+  const b = await api('POST', '/v1/profile/signin', { handle: '@ASHA_01', password: 'correct horse', device: { name: 'LG TV', plat: 'webos' } });
+  assert.equal(b.status, 200);
+  assert.equal(b.body.gid, a.gid);
+  assert.notEqual(b.body.token, a.token);
+  assert.equal((await api('GET', '/v1/kv/library', undefined, tok(b.body))).body.v, '{"x":1}');
+
+  const me = (await api('GET', '/v1/profile/me', undefined, tok(a))).body;
+  assert.equal(me.on, true);
+  assert.equal(me.handle, 'asha_01');
+  assert.equal(me.devices.length, 2);
+  assert.equal(me.devices[0].me, true);                        // the caller sorts first
+  const tv = me.devices.find((d) => d.plat === 'webos');
+  assert.equal(tv.name, 'LG TV');
+
+  // name and avatar edits; junk avatar falls back to grey
+  const ed = await api('PUT', '/v1/profile', { name: '  Asha  K ', avatar: '#0a84ff' }, tok(a));
+  assert.deepEqual(ed.body.profile, { handle: 'asha_01', name: 'Asha K', avatar: '#0A84FF' });
+  assert.equal((await api('PUT', '/v1/profile', { avatar: 'red' }, tok(a))).body.profile.avatar, '#636366');
+
+  // removing the TV kills its token, nothing else
+  assert.equal((await api('DELETE', '/v1/profile/device/' + tv.id, undefined, tok(a))).status, 200);
+  assert.equal((await api('GET', '/v1/kv', undefined, tok(b.body))).status, 401);
+  assert.equal((await api('GET', '/v1/kv', undefined, tok(a))).status, 200);
+
+  // sign out forgets this device only
+  assert.equal((await api('POST', '/v1/profile/signout', undefined, tok(a))).status, 200);
+  assert.equal((await api('GET', '/v1/profile/me', undefined, tok(a))).status, 401);
+});
+
+test('profile: handle and password rules', async () => {
+  await mkProfile('taken_one', 'T', 'password1');
+  assert.equal((await api('POST', '/v1/profile', { handle: 'Taken_One', password: 'password1' })).status, 409);
+  for (const bad of ['ab', 'has space', 'x'.repeat(21), 'nebula', 'admin', 'émile', '']) {
+    assert.equal((await api('POST', '/v1/profile', { handle: bad, password: 'password1' })).status, 400, 'handle ' + bad);
+  }
+  assert.equal((await api('POST', '/v1/profile', { handle: 'fine_handle', password: 'short' })).status, 400);
+  assert.equal((await api('POST', '/v1/profile', { handle: 'fine_handle', password: 12345678 })).status, 400);
+  // an unknown handle and a wrong password are the same answer
+  assert.equal((await api('POST', '/v1/profile/signin', { handle: 'taken_one', password: 'password2' })).status, 401);
+  assert.equal((await api('POST', '/v1/profile/signin', { handle: 'nobody_here', password: 'password1' })).status, 401);
+  // a name falls back to the handle
+  const n = await mkProfile('no_name', '', 'password1');
+  assert.equal(n.profile.name, 'no_name');
+});
+
+test('profile: a legacy sync group gains a profile in place, keeps its data and its secret', async () => {
+  const g = (await api('POST', '/v1/group')).body;
+  const legacy = g.gid + '.' + g.secret;
+  await api('PUT', '/v1/kv/progress', { v: '{"old":true}' }, legacy);
+  // the old credential trades itself for a device token
+  const ex = await api('POST', '/v1/device', { device: { name: 'Windows PC', plat: 'windows' } }, legacy);
+  assert.equal(ex.status, 200);
+  assert.equal(ex.body.profile, null);
+  assert.equal((await api('GET', '/v1/profile/me', undefined, g.gid + '.' + ex.body.token)).body.on, false);
+  // attaching a profile keeps the gid — nothing has to re-sync
+  const p = await api('POST', '/v1/profile', { handle: 'legacy_lu', name: 'Lu', password: 'password1', device: DEV }, g.gid + '.' + ex.body.token);
+  assert.equal(p.status, 200);
+  assert.equal(p.body.gid, g.gid);
+  assert.equal((await api('GET', '/v1/kv/progress', undefined, tok(p.body))).body.v, '{"old":true}');
+  assert.equal((await api('GET', '/v1/kv/progress', undefined, legacy)).status, 200);   // old installs still work
+  assert.equal((await api('POST', '/v1/profile', { handle: 'legacy_two', password: 'password1' }, legacy)).status, 409);
+  // a stale credential cannot create a profile by accident
+  assert.equal((await api('POST', '/v1/profile', { handle: 'ghost_gg', password: 'password1' }, g.gid + '.' + 'f'.repeat(32))).status, 401);
+});
+
+test('profile: changing the password signs every other device out', async () => {
+  const a = await mkProfile('pw_change', 'P', 'password1');
+  const b = (await api('POST', '/v1/profile/signin', { handle: 'pw_change', password: 'password1', device: DEV })).body;
+  assert.equal((await api('POST', '/v1/profile/password', { current: 'wrong pass', next: 'password2' }, tok(a))).status, 403);   // 401 is reserved for a dead credential
+  assert.equal((await api('POST', '/v1/profile/password', { current: 'password1', next: 'short' }, tok(a))).status, 400);
+  const ch = await api('POST', '/v1/profile/password', { current: 'password1', next: 'password2' }, tok(a));
+  assert.equal(ch.status, 200);
+  assert.equal(ch.body.token, null);                        // a device token survives its own change
+  assert.equal((await api('GET', '/v1/kv', undefined, tok(a))).status, 200);
+  assert.equal((await api('GET', '/v1/kv', undefined, tok(b))).status, 401);
+  assert.equal((await api('POST', '/v1/profile/signin', { handle: 'pw_change', password: 'password1' })).status, 401);
+  assert.equal((await api('POST', '/v1/profile/signin', { handle: 'pw_change', password: 'password2' })).status, 200);
+});
+
+test('profile: the recovery key resets the password exactly once', async () => {
+  const a = await mkProfile('lost_pw', 'L', 'password1');
+  assert.equal((await api('POST', '/v1/profile/recover', { handle: 'lost_pw', key: 'AAAA-AAAA-AAAA-AAAA', password: 'password3' })).status, 401);
+  const r = await api('POST', '/v1/profile/recover', { handle: 'lost_pw', key: a.recovery.toLowerCase().replace(/-/g, ' '), password: 'password3', device: DEV });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.gid, a.gid);
+  assert.notEqual(r.body.recovery, a.recovery);
+  assert.equal((await api('GET', '/v1/kv', undefined, tok(a))).status, 401);       // every old device is out
+  assert.equal((await api('GET', '/v1/kv', undefined, tok(r.body))).status, 200);
+  assert.equal((await api('POST', '/v1/profile/signin', { handle: 'lost_pw', password: 'password3' })).status, 200);
+  assert.equal((await api('POST', '/v1/profile/recover', { handle: 'lost_pw', key: a.recovery, password: 'password4' })).status, 401);
+});
+
+test('profile: TV sign-in by code, approved from a signed-in device', async () => {
+  const a = await mkProfile('tv_owner', 'O', 'password1');
+  const req = await api('POST', '/v1/tv', { device: { name: 'LG TV', plat: 'webos' } });
+  assert.equal(req.status, 200);
+  assert.match(req.body.code, /^[A-Z2-9]{6}$/);
+  assert.match(req.body.poll, /^[0-9a-f]{32}$/);
+  assert.deepEqual((await api('GET', '/v1/tv/' + req.body.poll)).body, { pending: true, code: req.body.code });
+  // approving needs a profile, and the right code
+  assert.equal((await api('POST', '/v1/tv/approve', { code: req.body.code })).status, 401);
+  assert.equal((await api('POST', '/v1/tv/approve', { code: 'ZZZZZZ' }, tok(a))).status, 404);
+  const ok = await api('POST', '/v1/tv/approve', { code: req.body.code.toLowerCase() }, tok(a));
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.device.name, 'LG TV');
+  assert.equal((await api('POST', '/v1/tv/approve', { code: req.body.code }, tok(a))).status, 404);   // once
+  const got = await api('GET', '/v1/tv/' + req.body.poll);
+  assert.equal(got.status, 200);
+  assert.equal(got.body.gid, a.gid);
+  assert.equal(got.body.profile.handle, 'tv_owner');
+  assert.equal((await api('GET', '/v1/kv', undefined, tok(got.body))).status, 200);
+  assert.equal((await api('GET', '/v1/tv/' + req.body.poll)).status, 404);        // handed over once
+  const me = (await api('GET', '/v1/profile/me', undefined, tok(a))).body;
+  assert.equal(me.devices.length, 2);
+  // a legacy group without a profile cannot approve a TV
+  const g = (await api('POST', '/v1/group')).body;
+  const req2 = await api('POST', '/v1/tv', {});
+  assert.equal((await api('POST', '/v1/tv/approve', { code: req2.body.code }, g.gid + '.' + g.secret)).status, 400);
+});
+
+test('friends by handle: no code minted, friends-off is its own answer, cards carry the profile', async () => {
+  const a = await mkProfile('fr_asha', 'Asha', 'password1');
+  const b = await mkProfile('fr_ben', 'Ben', 'password1');
+  const c = await mkProfile('fr_quiet', 'Quiet', 'password1');
+  const ea = await api('POST', '/v1/social/enable', {}, tok(a));
+  assert.equal(ea.status, 200);
+  assert.equal(ea.body.code, null);
+  assert.equal(ea.body.handle, 'fr_asha');
+  const meA = (await api('GET', '/v1/social/me', undefined, tok(a))).body;
+  assert.equal(meA.on, true);
+  assert.equal(meA.handle, 'fr_asha');
+  assert.equal(meA.name, 'Asha');
+  await api('POST', '/v1/social/enable', {}, tok(b));
+  // Quiet has a profile but Friends off
+  assert.equal((await api('POST', '/v1/social/friend', { handle: 'fr_quiet' }, tok(b))).status, 409);
+  assert.equal((await api('POST', '/v1/social/friend', { handle: 'nobody_x' }, tok(b))).status, 404);
+  assert.equal((await api('POST', '/v1/social/friend', { handle: '@fr_ben' }, tok(b))).status, 404);   // not yourself
+  const fr = await api('POST', '/v1/social/friend', { handle: '@FR_Asha' }, tok(b));
+  assert.equal(fr.status, 200);
+  assert.equal(fr.body.handle, 'fr_asha');
+  assert.equal(fr.body.name, 'Asha');
+  assert.equal(fr.body.avatar, '#636366');
+  // the profile name is the social name — a rename shows up for friends
+  await api('PUT', '/v1/profile', { name: 'Asha K', avatar: '#30D158' }, tok(a));
+  const fl = (await api('GET', '/v1/social/friends', undefined, tok(b))).body.friends;
+  assert.equal(fl.length, 1);
+  assert.equal(fl[0].handle, 'fr_asha');
+  assert.equal(fl[0].name, 'Asha K');
+  assert.equal(fl[0].avatar, '#30D158');
+  // recommend by handle; the inbox entry names the sender's handle
+  const rec = await api('POST', '/v1/social/recommend', { handle: 'fr_asha', item: { type: 'movie', id: 'tt1', name: 'Dune' } }, tok(b));
+  assert.equal(rec.status, 200);
+  const inbox = (await api('GET', '/v1/social/inbox', undefined, tok(a))).body.inbox;
+  assert.equal(inbox[0].h, 'fr_ben');
+  assert.equal(inbox[0].f, 'Ben');
+  assert.equal((await api('POST', '/v1/social/unfriend', { handle: 'fr_asha' }, tok(b))).status, 200);
+  assert.equal((await api('GET', '/v1/social/friends', undefined, tok(a))).body.friends.length, 0);
+  assert.equal(c.profile.handle, 'fr_quiet');
+});
+
+test('profile: delete needs the password and frees the handle', async () => {
+  const a = await mkProfile('gone_soon', 'G', 'password1');
+  const b = await mkProfile('gone_pal', 'P', 'password1');
+  await api('POST', '/v1/social/enable', {}, tok(a));
+  await api('POST', '/v1/social/enable', {}, tok(b));
+  await api('POST', '/v1/social/friend', { handle: 'gone_soon' }, tok(b));
+  assert.equal((await api('DELETE', '/v1/profile', { password: 'nope nope' }, tok(a))).status, 403);
+  assert.equal((await api('DELETE', '/v1/profile', { password: 'password1' }, tok(a))).status, 200);
+  assert.equal((await api('GET', '/v1/kv', undefined, tok(a))).status, 401);
+  assert.equal((await api('GET', '/v1/social/friends', undefined, tok(b))).body.friends.length, 0);
+  assert.equal((await api('POST', '/v1/profile/signin', { handle: 'gone_soon', password: 'password1' })).status, 401);
+  assert.equal((await api('POST', '/v1/profile', { handle: 'gone_soon', password: 'password1' })).status, 200);
+});
+
+test('profile: a handle cannot be brute-forced', async () => {
+  await mkProfile('bruted_h', 'B', 'password1');
+  let limited = false;
+  for (let i = 0; i < 12; i++) {
+    const r = await api('POST', '/v1/profile/signin', { handle: 'bruted_h', password: 'guess ' + i });
+    if (r.status === 429) { limited = true; break; }
+    assert.equal(r.status, 401);
+  }
+  assert.ok(limited, 'expected a 429 within 12 guesses at one handle');
 });

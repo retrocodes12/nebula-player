@@ -1,24 +1,27 @@
-// Nebula Cloud — account-less sync + CORS rescue for Nebula Player.
+// Nebula Cloud — email-less sync, profiles + CORS rescue for Nebula Player.
 //
-// Sync model: a device creates a GROUP (gid + secret, kept in its local storage).
-// To add another device it mints a short-lived 6-char LINK CODE; the second
-// device types the code and receives the same gid+secret. From then on both
-// push/pull small JSON blobs (add-ons, watch progress, library, subtitle style)
-// keyed under the group. No email, no password, no account — the code IS the
-// pairing, like a TV activation code. Codes die after 15 minutes; the secret is
-// what authenticates every later call.
+// Sync model: a device creates a GROUP (gid + secret, kept in its local storage)
+// and every device in the group pushes/pulls small JSON blobs (add-ons, watch
+// progress, library, subtitle style) keyed under it. A PROFILE (profile.js) is a
+// group wearing a handle + password: that is how a person signs a new device in
+// and how friends find them. Devices hold per-device tokens; the group secret is
+// the legacy credential that installs from before profiles still carry.
+// Legacy pairing (`/v1/link` mints a 15-minute code, `/v1/join` redeems it for
+// the gid+secret) stays for those installs.
 //
 // Endpoints (also reachable with a /cloud prefix, which nginx forwards as-is):
 //   GET  /healthz                          → "nebula-cloud ok groups=N"
 //   POST /v1/group                         → {gid, secret}
-//   POST /v1/link   {gid, secret}          → {code, ttl}     mint a join code
-//   POST /v1/join   {code}                 → {gid, secret}   redeem it
+//   POST /v1/link   {gid, secret}          → {code, ttl}     mint a join code (legacy)
+//   POST /v1/join   {code}                 → {gid, secret}   redeem it (legacy)
 //   GET  /v1/kv                            → {keys:{k:{rev,at}}}       (auth)
 //   GET  /v1/kv/:key                       → {v, rev, at}              (auth)
 //   PUT  /v1/kv/:key {v}                   → {rev}                     (auth)
+//   /v1/profile/*, /v1/tv/*, /v1/device    → profile.js
+//   /v1/social/*                           → friends, below
 //   GET  /p?u=<url>                        → CORS/mixed-content rescue proxy
 //
-// Auth: "Authorization: Bearer <gid>.<secret>".
+// Auth: "Authorization: Bearer <gid>.<secret or device token>".
 // The proxy exists because many Stremio add-ons send no CORS headers (or only
 // http URLs), which kills them in browsers — Stremio Web's oldest complaint.
 // It is deliberately narrow: GET only, https only, public hosts only, add-on
@@ -37,7 +40,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const GROUPS_DIR = path.join(DATA_DIR, 'groups');
 
 const MAX_GROUPS = 5000;
-const GROUP_BURST = Number(process.env.GROUP_BURST || 6);   // env-tunable so the test file isn't rationed
+const GROUP_BURST = Number(process.env.GROUP_BURST || 6);   // per-IP burst for creating identities (group, profile, friends-on); env-tunable so the test file isn't rationed
 const MAX_KEYS_PER_GROUP = 12;
 const MAX_VALUE_BYTES = 300 * 1024;
 const MAX_BODY_BYTES = 320 * 1024;
@@ -99,6 +102,34 @@ function touch(g, gid) { // eviction clock; written at most once a day per group
   const now = Date.now();
   if (now - (g.touched || 0) > 24 * 3600_000) { g.touched = now; persistSoon(gid); }
 }
+function newGroup() {
+  if (groupCount >= MAX_GROUPS) return null;
+  const gid = crypto.randomBytes(8).toString('hex');
+  const secret = crypto.randomBytes(16).toString('hex');
+  const g = { secret, created: Date.now(), touched: Date.now(), kv: {} };
+  groups.set(gid, g);
+  groupCount++;
+  persistSoon(gid);
+  return { gid, g };
+}
+/** Remove a group and every trace of it: friendships, its friend code, its handle, the file. */
+function deleteGroup(gid) {
+  const g = loadGroup(gid);
+  if (g && g.social) {
+    for (const fid of g.social.friends) {
+      const other = loadGroup(fid);
+      if (other && other.social) {
+        other.social.friends = other.social.friends.filter((f) => f !== gid);
+        persistSoon(fid);
+      }
+    }
+    if (g.social.code) { delete socialCodes[g.social.code]; persistSocialCodes(); }
+  }
+  if (g && g.profile) profile.dropHandle(g.profile.handle);
+  if (dirty.has(gid)) { clearTimeout(dirty.get(gid)); dirty.delete(gid); }
+  try { fs.unlinkSync(gPath(gid)); } catch (e) {}
+  if (g) { groups.delete(gid); groupCount--; }
+}
 function evict() {
   const cut = Date.now() - EVICT_AFTER_MS;
   let names;
@@ -106,15 +137,9 @@ function evict() {
   for (const n of names) {
     const gid = n.replace(/\.json$/, '');
     const g = loadGroup(gid);
-    if (g && (g.touched || g.created || 0) < cut) {
-      try { fs.unlinkSync(gPath(gid)); } catch (e) {}
-      groups.delete(gid);
-      groupCount--;
-    }
+    if (g && (g.touched || g.created || 0) < cut) deleteGroup(gid);
   }
 }
-evict();
-setInterval(evict, 24 * 3600_000).unref();
 
 // ---------- link codes (in-memory; a restart just voids pending codes) ----------
 const links = new Map(); // code -> {gid, until}
@@ -166,9 +191,17 @@ function auth(req) {
   if (!g) return null;
   // constant-time compare so the secret can't be felt out byte by byte
   const a = Buffer.from(g.secret), b = Buffer.from(m[2]);
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
+    touch(g, m[1]);
+    return { gid: m[1], g, dev: null };
+  }
+  // otherwise a per-device token (profile.js mints them; only its hash is stored)
+  const h = crypto.createHash('sha256').update(m[2]).digest('hex');
+  const d = g.devices && g.devices[h];
+  if (!d) return null;
+  if (Date.now() - (d.seen || 0) > 24 * 3600_000) { d.seen = Date.now(); persistSoon(m[1]); }
   touch(g, m[1]);
-  return { gid: m[1], g };
+  return { gid: m[1], g, dev: h };
 }
 function clientIp(req) {
   return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
@@ -254,11 +287,12 @@ async function handleProxy(req, res, target, ip) {
   }
 }
 
-// ---------- friends (experimental social layer) ----------
-// An identity is just a cloud group wearing a permanent friend code, so every
-// device in a sync group shares one social self for free. Profiles are opaque
+// ---------- friends (social layer) ----------
+// The social self is the group's profile: friends add each other by @handle,
+// and every device in the group shares it for free. What is shared is opaque
 // client-composed JSON, served only to mutual friends; everything is opt-in
-// and disable deletes it.
+// and disable deletes it. Groups from before profiles carry a permanent friend
+// CODE instead of a handle and can still be added by it.
 const SOCIAL_CODES_PATH = path.join(DATA_DIR, 'social-codes.json');
 const MAX_FRIENDS = 50;
 const MAX_INBOX = 40;
@@ -295,7 +329,20 @@ function cleanItem(v) {
   if (!type || !id || !name) return null;
   return { type, id, name, poster };
 }
-function socialOf(a) { return a.g.social && a.g.social.code ? a.g.social : null; }
+function socialOf(a) { return a.g.social && (a.g.social.code || a.g.social.on) ? a.g.social : null; }
+/** What friends see of a group: the profile's name/handle/avatar when it has one. */
+function socialCard(gid, g) {
+  const s = g.social, p = g.profile;
+  return { code: s.code || null, handle: p ? p.handle : null, avatar: p ? p.avatar : null,
+    name: (p && p.name) || s.name || '' };
+}
+/** Resolve `{handle}` or `{code}` in a request body to a group id. */
+function socialTarget(body) {
+  const h = profile.cleanHandle(body && body.handle);
+  if (h) { const hit = profile.lookupHandle(h); return hit ? hit.gid : null; }
+  const code = String((body && body.code) || '').toUpperCase().replace(/\s/g, '');
+  return code ? socialCodes[code] || null : null;
+}
 function handleSocial(p, req, res, ip) {
   if (!allow('social', ip, 60, 40)) { json(res, 429, { error: 'rate limited' }); return true; }
   const a = auth(req);
@@ -304,20 +351,26 @@ function handleSocial(p, req, res, ip) {
 
   if (p === '/v1/social/me' && req.method === 'GET') {
     if (!s) { json(res, 200, { on: false }); return true; }
-    json(res, 200, { on: true, code: s.code, name: s.name || '', friends: s.friends.length, inbox: s.inbox.length });
+    const card = socialCard(a.gid, a.g);
+    json(res, 200, { on: true, code: card.code, handle: card.handle, name: card.name, friends: s.friends.length, inbox: s.inbox.length });
     return true;
   }
   if (p === '/v1/social/enable' && req.method === 'POST') {
     readBody(req, (body) => {
-      if (s) return json(res, 200, { code: s.code });          // idempotent
-      if (!allow('senable', ip, 0.05, 4)) return json(res, 429, { error: 'rate limited' });
-      const code = newSocialCode();
-      if (!code) return json(res, 503, { error: 'busy' });
-      a.g.social = { code, name: cleanName(body && body.name), friends: [], inbox: [], profile: '', at: Date.now() };
-      socialCodes[code] = a.gid;
-      persistSocialCodes();
+      if (s) return json(res, 200, { code: s.code || null, handle: a.g.profile ? a.g.profile.handle : null });   // idempotent
+      if (!allow('senable', ip, 0.05, GROUP_BURST)) return json(res, 429, { error: 'rate limited' });
+      // a profile IS the identity — friends find it by handle, no code is minted
+      let code = null;
+      if (!a.g.profile) {
+        code = newSocialCode();
+        if (!code) return json(res, 503, { error: 'busy' });
+        socialCodes[code] = a.gid;
+        persistSocialCodes();
+      }
+      const name = a.g.profile ? a.g.profile.name : cleanName(body && body.name);
+      a.g.social = { on: true, code, name, friends: [], inbox: [], profile: '', at: Date.now() };
       persistSoon(a.gid);
-      return json(res, 200, { code });
+      return json(res, 200, { code, handle: a.g.profile ? a.g.profile.handle : null });
     });
     return true;
   }
@@ -338,25 +391,25 @@ function handleSocial(p, req, res, ip) {
   if (p === '/v1/social/friend' && req.method === 'POST') {
     readBody(req, (body) => {
       if (!allow('sfriend', ip, 2, 10)) return json(res, 429, { error: 'rate limited' });
-      const code = String((body && body.code) || '').toUpperCase().replace(/\s/g, '');
-      const gid = socialCodes[code];
-      if (!gid || gid === a.gid) return json(res, 404, { error: 'code not found' });
+      const gid = socialTarget(body);
+      if (!gid || gid === a.gid) return json(res, 404, { error: 'not found' });
       const other = loadGroup(gid);
-      if (!other || !other.social) { delete socialCodes[code]; persistSocialCodes(); return json(res, 404, { error: 'code not found' }); }
+      if (!other) { if (body.code) { delete socialCodes[String(body.code).toUpperCase()]; persistSocialCodes(); } return json(res, 404, { error: 'not found' }); }
+      // a real person who has not turned Friends on is a different answer from "nobody"
+      if (!other.social) return json(res, 409, { error: 'friends off' });
       if (s.friends.length >= MAX_FRIENDS || other.social.friends.length >= MAX_FRIENDS) {
         return json(res, 507, { error: 'friend list full' });
       }
       if (!s.friends.includes(gid)) s.friends.push(gid);
       if (!other.social.friends.includes(a.gid)) other.social.friends.push(a.gid);
       persistSoon(a.gid); persistSoon(gid);
-      return json(res, 200, { name: other.social.name || '', code });
+      return json(res, 200, socialCard(gid, other));
     });
     return true;
   }
   if (p === '/v1/social/unfriend' && req.method === 'POST') {
     readBody(req, (body) => {
-      const code = String((body && body.code) || '').toUpperCase().replace(/\s/g, '');
-      const gid = socialCodes[code];
+      const gid = socialTarget(body);
       if (gid) {
         s.friends = s.friends.filter((f) => f !== gid);
         const other = loadGroup(gid);
@@ -375,7 +428,10 @@ function handleSocial(p, req, res, ip) {
     for (const gid of s.friends) {
       const other = loadGroup(gid);
       if (!other || !other.social) continue;                   // evicted or disabled
-      out.push({ code: other.social.code, name: other.social.name || '', profile: other.social.profile || '', at: other.social.at || 0 });
+      const card = socialCard(gid, other);
+      card.profile = other.social.profile || '';
+      card.at = other.social.at || 0;
+      out.push(card);
     }
     json(res, 200, { friends: out });
     return true;
@@ -383,16 +439,16 @@ function handleSocial(p, req, res, ip) {
   if (p === '/v1/social/recommend' && req.method === 'POST') {
     readBody(req, (body) => {
       if (!allow('srec', ip, 4, 20)) return json(res, 429, { error: 'rate limited' });
-      const code = String((body && body.code) || '').toUpperCase().replace(/\s/g, '');
       const item = cleanItem(body && body.item);
       const note = String((body && body.note) || '').slice(0, 200);
-      const gid = socialCodes[code];
+      const gid = socialTarget(body);
       if (!item) return json(res, 400, { error: 'bad item' });
       // recommendations only travel along an existing friendship
       if (!gid || !s.friends.includes(gid)) return json(res, 404, { error: 'not a friend' });
       const other = loadGroup(gid);
       if (!other || !other.social) return json(res, 404, { error: 'not a friend' });
-      other.social.inbox.push({ f: s.name || 'A friend', c: s.code, i: item, n: note, at: Date.now() });
+      const me = socialCard(a.gid, a.g);
+      other.social.inbox.push({ f: me.name || 'A friend', c: me.code, h: me.handle, i: item, n: note, at: Date.now() });
       while (other.social.inbox.length > MAX_INBOX) other.social.inbox.shift();
       persistSoon(gid);
       return json(res, 200, { ok: true });
@@ -417,8 +473,7 @@ function handleSocial(p, req, res, ip) {
         persistSoon(gid);
       }
     }
-    delete socialCodes[s.code];
-    persistSocialCodes();
+    if (s.code) { delete socialCodes[s.code]; persistSocialCodes(); }
     delete a.g.social;
     persistSoon(a.gid);
     json(res, 200, { ok: true });
@@ -426,6 +481,13 @@ function handleSocial(p, req, res, ip) {
   }
   return false;
 }
+
+// ---------- profiles (handle + password + devices + TV sign-in) ----------
+const profile = require('./profile.js')({
+  DATA_DIR, loadGroup, persistSoon, allow, json, readBody, auth, newGroup, deleteGroup, CODE_ALPHABET, GROUP_BURST,
+});
+evict();
+setInterval(evict, 24 * 3600_000).unref();
 
 // ---------- routes ----------
 const server = http.createServer((req, res) => {
@@ -437,7 +499,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, PUT, POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, PUT, POST, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Authorization, Content-Type',
       'Access-Control-Max-Age': '86400',
     });
@@ -455,15 +517,12 @@ const server = http.createServer((req, res) => {
 
   if (p === '/v1/group' && req.method === 'POST') {
     if (!allow('group', ip, 0.1, GROUP_BURST)) return json(res, 429, { error: 'rate limited' });
-    if (groupCount >= MAX_GROUPS) return json(res, 507, { error: 'full' });
-    const gid = crypto.randomBytes(8).toString('hex');
-    const secret = crypto.randomBytes(16).toString('hex');
-    const g = { secret, created: Date.now(), touched: Date.now(), kv: {} };
-    groups.set(gid, g);
-    groupCount++;
-    persistSoon(gid);
-    return json(res, 200, { gid, secret });
+    const made = newGroup();
+    if (!made) return json(res, 507, { error: 'full' });
+    return json(res, 200, { gid: made.gid, secret: made.g.secret });
   }
+
+  if (profile.handle(p, req, res, ip)) return;
 
   if (p === '/v1/link' && req.method === 'POST') {
     return readBody(req, (body) => {

@@ -235,7 +235,6 @@
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba(235,235,245,0.6)' stroke-width='1.9' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.6-3.6'/%3E%3C/svg%3E");
     background-repeat:no-repeat; background-position:.95rem 50%; background-size:1.05em; }
   .row { display:flex; flex-wrap:wrap; align-items:center; margin-top:16px; }
-  #syncCodeIn { min-width:150px; }
   .row > * { margin:0 10px 8px 0; }
   .btn { font-family:var(--sans); font-size:14px; font-weight:600; letter-spacing:-.01em;
     padding:11px 22px; border-radius:var(--r-pill); border:0; background:#fff; color:#000; cursor:pointer;
@@ -496,7 +495,7 @@
   /* the code sits beside the title, labelled, outlined — not flung to the far edge */
   .fr-code { font-family:var(--mono); font-size:15px; letter-spacing:.12em; color:var(--label);
     border:1px solid var(--sep); border-radius:8px; padding:5px 12px; }
-  .fr-code::before { content:'Your code'; font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+  .fr-code::before { content:attr(data-lbl); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
     color:var(--label3); margin-right:12px; }
   html.tv .fr-code { font-size:20px; }
   html.tv .fr-code::before { font-size:14px; }
@@ -916,9 +915,71 @@
   .up-tag { font-family:var(--mono); color:var(--label2); font-size:12.5px; letter-spacing:0; margin-right:8px; }
   .card-rate { position:absolute; top:6px; right:6px; font-family:var(--mono); font-size:10.5px;
     font-weight:500; padding:3px 6px; border-radius:6px; background:rgba(0,0,0,.62); color:#fff; }
-  .sync-code { font-family:var(--mono); font-size:32px; letter-spacing:.34em; padding:18px 10px 18px 24px;
-    margin-top:16px; text-align:center; background:var(--l2); border-radius:var(--r-ctl); color:var(--label); }
-  .sync-hint { color:var(--label3); font-size:12.5px; margin-top:8px; text-align:center; }
+  /* ---- profile ---- */
+  /* the Settings identity row: monogram, name, handle, chevron — one tappable panel */
+  .pcard { display:flex; align-items:center; width:100%; max-width:860px; text-align:left; cursor:pointer;
+    background:rgba(255,255,255,.03); border:1px solid var(--sep); border-radius:16px; padding:16px 20px;
+    margin:0 0 16px; color:var(--label); font-family:var(--sans); transition:background .18s var(--ease); }
+  .pcard:hover { background:var(--l1); }
+  html.tv .pcard.focusable:focus { background:var(--l1); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+  .pcard.focusable:focus-visible { background:var(--l1); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+  .pcard-txt { flex:1 1 auto; min-width:0; }
+  .pcard-name { display:block; font-size:17px; font-weight:600; letter-spacing:-.015em; }
+  .pcard-txt small { display:block; color:var(--label2); font-size:13px; margin-top:3px; }
+  .pcard-chev { color:var(--label3); margin-left:12px; flex:0 0 auto; display:flex; }
+  .pcard-chev svg { width:18px; height:18px; }
+  /* the monogram: one letter on the profile's colour */
+  .pav { width:52px; height:52px; border-radius:50%; background:var(--l2); color:#fff; display:flex;
+    align-items:center; justify-content:center; font-weight:700; font-size:21px; flex:0 0 auto; margin-right:16px; }
+  .pav.big { width:84px; height:84px; font-size:34px; margin-right:22px; }
+  .pav.dim { color:var(--label2); }
+  .phead { display:flex; align-items:center; margin:6px 0 22px; }
+  .pname { font-size:28px; font-weight:700; letter-spacing:-.026em; line-height:1.1; }
+  .phandle { font-family:var(--mono); color:var(--label2); font-size:13px; margin-top:5px; letter-spacing:.02em; }
+  .pmode { margin:4px 0 18px; }
+  .field.half { max-width:380px; display:block; }
+  .setrow .field { width:auto; flex:0 1 260px; margin:0; }
+  /* one device per line, remove action at the far end */
+  .pdev { display:flex; align-items:center; padding:12px 0; }
+  .pdev + .pdev { border-top:1px solid var(--sep); }
+  .pdev-ic { width:38px; height:38px; border-radius:11px; background:var(--fill); color:var(--label);
+    display:flex; align-items:center; justify-content:center; margin-right:14px; flex:0 0 auto; }
+  .pdev-ic svg { width:19px; height:19px; }
+  .pdev-txt { flex:1 1 auto; min-width:0; }
+  .pdev-name { display:block; font-size:15px; font-weight:600; }
+  .pdev-name em { font-style:normal; font-weight:500; color:var(--label3); font-family:var(--mono); font-size:11px;
+    letter-spacing:.12em; text-transform:uppercase; margin-left:10px; }
+  .pdev-sub { display:block; font-size:12.5px; color:var(--label2); margin-top:2px; }
+  /* the recovery key and the TV code: set in mono, big enough to read across a room */
+  .pkey { font-family:var(--mono); font-size:24px; letter-spacing:.1em; padding:18px 20px; margin-top:14px;
+    text-align:center; background:var(--l2); border-radius:var(--r-ctl); color:var(--label); user-select:all; -webkit-user-select:all; }
+  .pcode { font-family:var(--mono); font-size:44px; letter-spacing:.34em; padding:22px 10px 22px 34px;
+    text-align:center; background:var(--l2); border-radius:var(--r-ctl); color:var(--label); min-width:300px; }
+  .pcode.off { color:var(--label3); }
+  .ptv { display:flex; align-items:flex-start; flex-wrap:wrap; margin-top:10px; }
+  .ptv > * { margin:0 2.5rem 1.2rem 0; }
+  .ptv-col { flex:1 1 320px; min-width:0; }
+  #pqr { background:#fff; padding:14px; border-radius:var(--r-tile); display:inline-block; }
+  #pqr svg { width:170px; height:170px; display:block; }
+  .pdanger { color:#FF5A5F; }
+  .btn.pdanger-btn { background:#FF5A5F; color:#fff; }
+  .btn.pdanger-btn:hover { background:#e8484d; }
+  .btn:disabled { opacity:.55; cursor:default; transform:none; }
+  #pqr:empty { display:none; }
+  html.tv .pav { width:64px; height:64px; font-size:26px; }
+  html.tv .pav.big { width:100px; height:100px; font-size:42px; }
+  html.tv .pcard-name { font-size:21px; }
+  html.tv .pcard-txt small { font-size:16px; }
+  html.tv .pname { font-size:36px; }
+  html.tv .phandle { font-size:16px; }
+  html.tv .pcode { font-size:60px; }
+  html.tv .pkey { font-size:32px; }
+  html.tv #pqr svg { width:230px; height:230px; }
+  html.tv #view-profile .tagline, html.tv #view-profile .sub { font-size:19px; }
+  html.tv .pdev-name { font-size:19px; }
+  html.tv .pdev-sub { font-size:15px; }
+  html.tv .pdev-ic { width:46px; height:46px; }
+  @media (max-width:700px){ .pcode { font-size:34px; min-width:0; } }
 
   @media (max-width:700px){
     #homeHero { height:46vh; min-height:300px; }
@@ -944,8 +1005,6 @@
   html.tv .up-poster { width:60px; height:90px; }
   html.tv .up-tag { font-size:16px; }
   html.tv .card-rate { font-size:13px; padding:4px 8px; }
-  html.tv .sync-code { font-size:44px; }
-  html.tv .sync-hint { font-size:15px; }
 
   /* ---- phones ---- */
   @media (max-width:700px){
@@ -1242,6 +1301,12 @@
   <div id="view-settings" class="view">
     <div class="scroller">
       <h1 class="page-title">Settings</h1>
+      <!-- the identity row: who this device belongs to, or the invitation to have one -->
+      <button id="setProfile" class="focusable pcard">
+        <span class="pav" id="setProfileAv" aria-hidden="true"></span>
+        <span class="pcard-txt"><span class="pcard-name" id="setProfileName">Profile</span><small id="setProfileSub"></small></span>
+        <span class="pcard-chev" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+      </button>
       <div class="panel">
         <div class="lbl">Appearance</div>
         <div class="setrow">
@@ -1280,7 +1345,7 @@
         <div class="lbl">About</div>
         <p class="sub" id="setAbout" style="margin:8px 0 0"></p>
         <p class="sub privacy-link" style="margin:10px 0 0">
-          No accounts, no tracking — <a href="https://play.rifflehq.in/privacy.html" target="_blank" rel="noopener" style="color:inherit">how Nebula handles your data</a>.
+          No email, no tracking — a profile is optional. <a href="https://play.rifflehq.in/privacy.html" target="_blank" rel="noopener" style="color:inherit">How Nebula handles your data</a>.
         </p>
       </div>
     </div>
@@ -1305,20 +1370,8 @@
     </div>
     <div class="panel" id="syncPanel">
       <div class="lbl">Sync between devices</div>
-      <p class="sub" id="syncStatus" style="margin:8px 0 0">Add-ons, progress and your list stay on this device until you link another.</p>
-      <div class="row" id="syncUnlinked">
-        <button id="syncStart" class="focusable btn">Start syncing</button>
-        <input id="syncCodeIn" class="focusable field" type="text" placeholder="Code from another device" autocomplete="off" maxlength="8" style="flex:1" />
-        <button id="syncJoinBtn" class="focusable btn ghost">Link</button>
-      </div>
-      <div class="row" id="syncLinked" style="display:none">
-        <button id="syncShowCode" class="focusable btn">Link another device</button>
-        <button id="syncLeave" class="focusable btn ghost">Stop syncing</button>
-      </div>
-      <div id="syncCodeBox" style="display:none">
-        <div class="sync-code" id="syncCodeText"></div>
-        <div class="sync-hint" id="syncCodeHint"></div>
-      </div>
+      <p class="sub" id="syncStatus" style="margin:8px 0 0"></p>
+      <div class="row"><button id="syncOpen" class="focusable btn ghost">Open Profile</button></div>
     </div>
     <div class="panel" id="partyPanel">
       <div class="lbl">Watch party</div>
@@ -1331,7 +1384,7 @@
     <div class="section-title">Your add-ons</div>
     <div id="addonList" class="addons"></div>
     <p class="sub privacy-link" style="margin:26px 0 0">
-      No accounts, no tracking — <a href="https://play.rifflehq.in/privacy.html" target="_blank" rel="noopener" style="color:inherit">how Nebula handles your data</a>.
+      No email, no tracking — a profile is optional. <a href="https://play.rifflehq.in/privacy.html" target="_blank" rel="noopener" style="color:inherit">How Nebula handles your data</a>.
     </p>
   </div>
 
@@ -1348,6 +1401,13 @@
         <div class="pairurl" id="pairUrlText"></div>
       </ol>
     </div>
+  </div>
+
+  <!-- PROFILE: one identity across devices — @handle + password, no email. The
+       body is built per state (signed out / old link code / signed in). -->
+  <div id="view-profile" class="view">
+    <div class="topbar"><button class="focusable iconbtn" data-back title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="topbar-title">Profile</div></div>
+    <div id="profileBody"></div>
   </div>
 
   <!-- MANUAL -->
@@ -1406,7 +1466,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.02.1';
+  var PLAYER_VERSION = '2026.09.02.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1488,6 +1548,8 @@
     if (name === 'episodes' && epView){ try { epView.refresh(); } catch(e){} }
     // coming back to a title after watching: the Resume label must be current
     if (name === 'detail' && detCur){ try { syncDetButtons(); if (detEp) detEp.refresh(); } catch(e){} }
+    // the profile page is built fresh every time: its state lives on the server
+    if (name === 'profile'){ try { profileRender(); } catch(e){} }
     video.style.display = (name==='player') ? 'block' : 'none';
     document.body.classList.toggle('playing', name==='player');
     if (push !== false){ if (viewStack[viewStack.length-1] !== name) viewStack.push(name); }
@@ -1556,7 +1618,7 @@
     if (best){ best.focus(); best.scrollIntoView({block:'nearest', inline:'nearest'}); }
   }
   function goBack(){
-    stopPairing();
+    stopPairing(); pfTvStop();
     if (player && video.style.display==='block'){
       stopPlayer();
       // viewers leave the party when they stop watching; a host keeps it alive
@@ -1568,7 +1630,7 @@
     else show('home', false);
   }
   function setTab(t){
-    stopPairing();
+    stopPairing(); pfTvStop();
     viewStack = [t];
     show(t, false);
     if (t === 'home') buildHomeRows(false);
@@ -3089,39 +3151,46 @@
   }
   // ---------- friends (experimental social layer) ----------
   // Rate what you watch, trade recommendations, and see what friends are
-  // watching. The identity is the cloud sync group wearing a permanent code;
-  // everything is opt-in, friend-visible only, and Turn off deletes it.
+  // watching. The identity is the Nebula Profile — friends add each other by
+  // @handle; everything is opt-in, friend-visible only, and Turn off deletes
+  // the shared doc. Installs from before profiles still wear their friend code.
   var social = null;
   try { social = JSON.parse(LS.getItem('social_v1')||'null'); } catch(e){}
   var socialPubTimer = null, socialOpenCode = null;
   function socialOn(){ return !!(social && social.on && cloudLinked()); }
-  function socialSave(){ try { LS.setItem('social_v1', JSON.stringify(social)); } catch(e){} }
-  function socialName(){ return ((social && social.name) || getPrefs().pname || '').trim() || 'Nebula fan'; }
+  function socialSave(){ try { if (social) LS.setItem('social_v1', JSON.stringify(social)); else LS.removeItem('social_v1'); } catch(e){} }
+  function socialName(){ return ((profile && profile.name) || (social && social.name) || getPrefs().pname || '').trim() || 'Nebula fan'; }
+  /** What friends type to find someone: the handle, or the old code. */
+  function friendKey(f){ return f.handle ? '@' + f.handle : (f.code || ''); }
+  function friendLabel(f){ return f.name || friendKey(f) || 'A friend'; }
+  function friendRef(f){ return f.handle ? { handle: f.handle } : { code: f.code }; }
+  /** Pull the server's view of Friends after signing in — the switch lives with the profile, not the device. */
+  function socialRefresh(){
+    if (!cloudLinked()) return Promise.resolve();
+    return cloudApi('GET', '/v1/social/me').then(function(r){
+      social = r && r.on ? { on: true, code: r.code || null, handle: r.handle || null, name: r.name || '' } : null;
+      socialSave();
+    }).catch(function(){});
+  }
   function socialEnable(){
-    var go = function(){
-      cloudApi('POST', '/v1/social/enable', { name: socialName() }).then(function(r){
-        social = { on: true, code: r.code, name: socialName() };
-        socialSave(); socialPublishSoon(); renderLibraryTab();
-        setStatus('Friends is on — your code is ' + r.code + '.', 'ok');
-      }).catch(function(){ setStatus('Could not reach the server.', 'err'); });
-    };
-    if (cloudLinked()) return go();
-    // no sync group yet — mint one; it doubles as device sync from here on
-    cloudApi('POST', '/v1/group').then(function(g){
-      cloudLink = { gid: g.gid, secret: g.secret };
-      try { LS.setItem('cloud_link', JSON.stringify(cloudLink)); } catch(e){}
-      cloudRevs = {}; saveCloudRevs();
-      SYNC_KEYS.forEach(function(k){ if (syncDocHasContent(k)) cloudPush(k); });
-      try { syncPanelRender(); } catch(e){}
-      go();
+    // a profile IS the identity friends look for
+    if (!profile){
+      setStatus('Friends find each other by @handle — sign in or create a profile first.', 'info');
+      show('profile');
+      return;
+    }
+    cloudApi('POST', '/v1/social/enable', { name: socialName() }).then(function(r){
+      social = { on: true, code: r.code || null, handle: r.handle || profile.handle, name: socialName() };
+      socialSave(); socialPublishSoon(); renderLibraryTab();
+      setStatus('Friends is on — people add you as @' + (r.handle || profile.handle) + '.', 'ok');
     }).catch(function(){ setStatus('Could not reach the server.', 'err'); });
   }
   function socialDisable(){
     cloudApi('POST', '/v1/social/disable').catch(function(){});
     social = null;
-    try { LS.removeItem('social_v1'); } catch(e){}
+    socialSave();
     renderLibraryTab();
-    setStatus('Friends is off — your profile is gone from the server.', 'info');
+    setStatus('Friends is off — what you shared is gone from the server.', 'info');
   }
   function socialPublishSoon(){
     if (!socialOn()) return;
@@ -3188,34 +3257,46 @@
       p.innerHTML = '<div class="lbl">Friends · experimental</div>' +
         '<p class="tagline" style="margin:.5rem 0 1rem">Rate what you watch, see what your friends are watching, ' +
         'and trade recommendations. Turning it on shares your ratings, recent watches and My List ' +
-        '— with friends you add by code, and no one else.</p>' +
-        '<button class="btn focusable" id="frOn">Turn on Friends</button>';
+        '— with friends you add by @handle, and no one else.</p>' +
+        '<button class="btn focusable" id="frOn">' + (profile ? 'Turn on Friends' : 'Sign in to use Friends') + '</button>';
       wrap.appendChild(p);
       $id('frOn').onclick = socialEnable;
       return;
     }
     var head = document.createElement('div'); head.className = 'fr-head';
     var t = document.createElement('span'); t.className = 'row-title'; t.textContent = 'Friends';
-    var code = document.createElement('span'); code.className = 'fr-code'; code.textContent = social.code;
-    code.title = 'Your friend code — friends enter this to add you';
-    head.appendChild(t); head.appendChild(code);
+    var me = document.createElement('span'); me.className = 'fr-code';
+    if (profile){
+      me.setAttribute('data-lbl', 'You are'); me.textContent = '@' + profile.handle;
+      me.title = 'Your handle — friends enter this to add you';
+    } else {
+      // an install from before profiles: the old friend code still works
+      me.setAttribute('data-lbl', 'Your code'); me.textContent = social.code || '';
+      me.title = 'Your friend code — friends enter this to add you';
+    }
+    head.appendChild(t); head.appendChild(me);
     wrap.appendChild(head);
     var bar = document.createElement('div'); bar.className = 'row';
-    bar.innerHTML = '<input id="frCodeIn" class="field focusable" style="max-width:220px" ' +
-      'placeholder="Friend’s code" autocomplete="off" autocapitalize="characters">' +
+    bar.innerHTML = '<input id="frHandleIn" class="field focusable" style="max-width:240px" ' +
+      'placeholder="Friend’s @handle" autocomplete="off" autocapitalize="none" spellcheck="false">' +
       '<button id="frAdd" class="btn focusable">Add friend</button>' +
-      '<button id="frOff" class="btn ghost focusable" title="Deletes your profile and code from the server">Turn off</button>';
+      '<button id="frOff" class="btn ghost focusable" title="Deletes what you share from the server">Turn off</button>';
     wrap.appendChild(bar);
     $id('frAdd').onclick = function(){
-      var c = ($id('frCodeIn').value||'').replace(/\s/g,'').toUpperCase();
-      if (c.length < 7){ setStatus('Enter a 7-character friend code.', 'err'); return; }
-      cloudApi('POST', '/v1/social/friend', { code: c }).then(function(r){
-        $id('frCodeIn').value = '';
-        setStatus('You and ' + (r.name || 'your friend') + ' are now friends.', 'ok');
+      var raw = ($id('frHandleIn').value||'').replace(/\s/g,'');
+      // a 7-character all-caps string with no @ is one of the old friend codes
+      var ref = /^[A-Z2-9]{7}$/.test(raw) ? { code: raw } : { handle: raw.replace(/^@/, '').toLowerCase() };
+      if (ref.handle !== undefined && !/^[a-z0-9_]{3,20}$/.test(ref.handle)){ setStatus('Enter a friend’s @handle.', 'err'); return; }
+      cloudApi('POST', '/v1/social/friend', ref).then(function(r){
+        $id('frHandleIn').value = '';
+        setStatus('You and ' + friendLabel(r) + ' are now friends.', 'ok');
         renderLibraryTab();
-      }).catch(function(){ setStatus('No one has that code.', 'err'); });
+      }).catch(function(e){
+        setStatus(e.status === 409 ? 'They have a profile, but Friends is off on their side.'
+          : e.status === 404 ? 'No one has that handle.' : 'Could not reach the server.', 'err');
+      });
     };
-    $id('frCodeIn').addEventListener('keydown', function(e){
+    $id('frHandleIn').addEventListener('keydown', function(e){
       if (e.keyCode === 13){ e.preventDefault(); $id('frAdd').onclick(); }
     });
     $id('frOff').onclick = socialDisable;
@@ -3244,7 +3325,7 @@
             }
             var col = document.createElement('div');
             var l1 = document.createElement('div');
-            l1.textContent = (rec.f || 'A friend') + ' recommends ' + rec.i.name;
+            l1.textContent = (rec.f || (rec.h ? '@' + rec.h : 'A friend')) + ' recommends ' + rec.i.name;
             l1.style.fontWeight = '600';
             col.appendChild(l1);
             if (rec.n){ var l2 = document.createElement('div'); l2.className = 'rec-note'; l2.textContent = '“' + rec.n + '”'; col.appendChild(l2); }
@@ -3260,7 +3341,7 @@
         var friends = (rs[0] && rs[0].friends) || [];
         if (!friends.length){
           var e2 = document.createElement('div'); e2.className = 'empty';
-          e2.textContent = 'No friends yet — trade codes and their watching shows up here.';
+          e2.textContent = 'No friends yet — add someone by @handle and what they watch shows up here.';
           body.appendChild(e2);
           return;
         }
@@ -3268,22 +3349,25 @@
         var detail = document.createElement('div');
         friends.forEach(function(f){
           var prof = null; try { prof = JSON.parse(f.profile || 'null'); } catch(e){}
+          var key = friendKey(f);
           var c = document.createElement('button');
-          c.className = 'fr-card focusable' + (socialOpenCode === f.code ? ' on' : '');
+          c.className = 'fr-card focusable' + (socialOpenCode === key ? ' on' : '');
           var av = document.createElement('span'); av.className = 'fr-av';
-          av.textContent = (f.name || '?').slice(0, 1).toUpperCase();
+          av.textContent = (f.name || f.handle || '?').slice(0, 1).toUpperCase();
+          if (f.avatar){ av.style.background = f.avatar; if (f.avatar === '#F2F2F7') av.style.color = '#000'; }
           var col = document.createElement('span');
-          var nm = document.createElement('span'); nm.className = 'fr-name'; nm.textContent = f.name || f.code;
+          var nm = document.createElement('span'); nm.className = 'fr-name'; nm.textContent = friendLabel(f);
           var sb = document.createElement('span'); sb.className = 'fr-sub';
-          sb.textContent = (prof && prof.ratings ? prof.ratings.length : 0) + ' rated';
+          sb.textContent = (f.handle && f.name ? '@' + f.handle + ' · ' : '') +
+            (prof && prof.ratings ? prof.ratings.length : 0) + ' rated';
           sb.style.display = 'block';
           col.appendChild(nm); col.appendChild(sb);
           c.appendChild(av); c.appendChild(col);
           c.onclick = function(){
-            socialOpenCode = socialOpenCode === f.code ? null : f.code;
+            socialOpenCode = socialOpenCode === key ? null : key;
             detail.innerHTML = '';
             [].slice.call(cards.children).forEach(function(k){ k.className = k.className.replace(' on',''); });
-            if (socialOpenCode !== f.code) return;
+            if (socialOpenCode !== key) return;
             c.className += ' on';
             if (!prof){ var e3 = document.createElement('div'); e3.className='empty'; e3.textContent = 'Nothing shared yet.'; detail.appendChild(e3); return; }
             friendRow(detail, (f.name || 'They') + ' watched recently',
@@ -3332,10 +3416,11 @@
         openSheet({
           title: m.name || '', sub: 'Recommend to…', poster: m.poster || '', shape: m.posterShape || 'poster',
           actions: fr.slice(0, 8).map(function(f){
-            return { icon: 'heart', label: f.name || f.code, fn: function(){
-              cloudApi('POST', '/v1/social/recommend', {
-                code: f.code, item: { type: type, id: m.id, name: m.name || '', poster: m.poster || '' },
-              }).then(function(){ setStatus('Recommended to ' + (f.name || 'your friend') + '.', 'ok'); })
+            var ref = friendRef(f);
+            ref.item = { type: type, id: m.id, name: m.name || '', poster: m.poster || '' };
+            return { icon: 'heart', label: friendLabel(f), fn: function(){
+              cloudApi('POST', '/v1/social/recommend', ref)
+                .then(function(){ setStatus('Recommended to ' + friendLabel(f) + '.', 'ok'); })
                 .catch(function(){ setStatus('Could not send that.', 'err'); });
             } };
           }),
@@ -5035,6 +5120,7 @@
   function partyName(){
     var pn = getPrefs().pname;
     if (pn) return String(pn).slice(0, 40);
+    if (profile && profile.name) return String(profile.name).slice(0, 40);
     if (IS_WEBOS) return 'LG TV';
     if (IS_TV) return 'TV';
     if (/electron/i.test(navigator.userAgent || '')) return 'Windows';
@@ -5359,13 +5445,16 @@
   }
 
   // ---------- cross-device sync (Nebula Cloud) ----------
-  // A 6-character code typed once links devices into a group; add-ons, watch
-  // progress, My List and subtitle style then flow both ways. Every record
-  // carries a timestamp and the newest action wins wherever it happened, so
-  // there is no account and no "primary" device. Stremio needs an email login
-  // for this; here the code IS the pairing.
+  // Signing in to a Nebula Profile (@handle + password, no email) puts a device
+  // in the profile's group; add-ons, watch progress, My List and subtitle style
+  // then flow both ways. Every record carries a timestamp and the newest action
+  // wins wherever it happened, so there is no "primary" device. Each device
+  // holds its own token ({gid, token}); installs from before profiles still
+  // hold the group's master secret ({gid, secret}) and trade it in at boot.
   var cloudLink = null;
   try { cloudLink = JSON.parse(LS.getItem('cloud_link')||'null'); } catch(e){}
+  var profile = null;                       // {handle, name, avatar} — the server's copy, cached
+  try { profile = JSON.parse(LS.getItem('profile_v1')||'null'); } catch(e){}
   var cloudRevs = {};
   try { cloudRevs = JSON.parse(LS.getItem('cloud_revs')||'{}') || {}; } catch(e){}
   // Keys with local changes the server has not confirmed yet. Survives reloads,
@@ -5375,19 +5464,31 @@
   try { cloudDirty = JSON.parse(LS.getItem('cloud_dirty')||'{}') || {}; } catch(e){}
   var syncApplying = false, syncTimers = {}, lastPullAt = 0;
   var SYNC_KEYS = ['addons','progress','library','sub_style','ratings'];
-  function cloudLinked(){ return !!(cloudLink && cloudLink.gid && cloudLink.secret); }
+  function cloudLinked(){ return !!(cloudLink && cloudLink.gid && (cloudLink.token || cloudLink.secret)); }
+  function saveCloudLink(){ try { if (cloudLink) LS.setItem('cloud_link', JSON.stringify(cloudLink)); else LS.removeItem('cloud_link'); } catch(e){} }
   function saveCloudRevs(){ try { LS.setItem('cloud_revs', JSON.stringify(cloudRevs)); } catch(e){} }
   function saveCloudDirty(){ try { LS.setItem('cloud_dirty', JSON.stringify(cloudDirty)); } catch(e){} }
-  function cloudApi(method, path, body, keepalive){
+  /** Talk to the cloud. Errors carry `.status` and the server's `.body`; a 401
+      on a call we signed means this device's credential is dead (removed from
+      the profile, password changed elsewhere) — it signs itself out. */
+  function cloudRequest(method, path, body, keepalive, signed){
     var h = { 'Content-Type': 'application/json' };
-    if (cloudLinked()) h['Authorization'] = 'Bearer ' + cloudLink.gid + '.' + cloudLink.secret;
+    if (signed) h['Authorization'] = 'Bearer ' + cloudLink.gid + '.' + (cloudLink.token || cloudLink.secret);
     var opts = { method: method, headers: h, body: body === undefined ? undefined : JSON.stringify(body) };
     if (keepalive) opts.keepalive = true;    // lets a final push outlive the page
     return fetch(CLOUD_BASE + path, opts).then(function(r){
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
+      if (r.ok) return r.json();
+      return r.json().catch(function(){ return null; }).then(function(b){
+        if (r.status === 401 && signed) cloudCredentialDead();
+        var e = new Error('HTTP ' + r.status); e.status = r.status; e.body = b;
+        throw e;
+      });
     });
   }
+  function cloudApi(method, path, body, keepalive){ return cloudRequest(method, path, body, keepalive, cloudLinked()); }
+  /** Sign-in, recovery and the TV code path never carry a credential — a wrong
+      password there must not read as "this device was signed out". */
+  function cloudPublic(method, path, body){ return cloudRequest(method, path, body, false, false); }
   // The add-on list itself carries no timestamps, so the sync layer keeps its
   // own: when was each URL added here, when was each removed.
   var addonsSyncMeta = null;
@@ -5586,6 +5687,8 @@
     return cloudApi('GET', '/v1/kv').then(function(res){
       var keys = (res && res.keys) || {};
       var work = [];
+      // a link-code group learns here that a profile was added to it from another device
+      if (!profile && cloudLink.token) profileRefresh();
       SYNC_KEYS.forEach(function(key){
         var remoteMeta = keys[key];
         if (!remoteMeta){
@@ -5610,66 +5713,479 @@
       return Promise.all(work);
     }).catch(function(){});
   }
-  // ---- sync panel ----
-  function syncPanelRender(){
-    var linked = cloudLinked();
-    $id('syncUnlinked').style.display = linked ? 'none' : '';
-    $id('syncLinked').style.display = linked ? '' : 'none';
-    if (!linked) $id('syncCodeBox').style.display = 'none';
-    $id('syncStatus').textContent = linked
-      ? 'Syncing is on — add-ons, progress, My List and subtitle style follow you between linked devices.'
-      : 'Add-ons, progress and your list stay on this device until you link another.';
+  // ---------- profile (Nebula Profile: @handle + password, no email) ----------
+  // Three states: signed out · an old link-code group that has no profile yet ("legacy") ·
+  // signed in. A TV signs in by showing a code that a signed-in phone or computer approves;
+  // its QR opens this player with ?link=CODE so the phone only has to tap Approve.
+  var AVATARS = ['#636366','#E50914','#0A84FF','#30D158','#BF5AF2','#FF9F0A','#FF375F','#F2F2F7'];
+  var pfDevices = [], pfMode = null, pfTv = null, pfTvTimer = null, pfRecovery = null, pfPendingLink = null;
+  function profileSave(){ try { if (profile) LS.setItem('profile_v1', JSON.stringify(profile)); else LS.removeItem('profile_v1'); } catch(e){} }
+  function avStyle(av){ return 'background:' + (av || '#636366') + ';color:' + (av === '#F2F2F7' ? '#000' : '#fff'); }
+  function avLetter(name){ return ((name || '?').replace(/^@/, '').slice(0, 1) || '?').toUpperCase(); }
+  function deviceInfo(){
+    var ua = navigator.userAgent || '';
+    if (IS_WEBOS) return { name: 'LG TV', plat: 'webos' };
+    if (window.nebulaDesktop || /electron/i.test(ua)) return { name: 'Windows PC', plat: 'windows' };
+    if (IS_TV) return { name: 'TV', plat: 'tv' };
+    var os = /android/i.test(ua) ? 'Android' : /iphone|ipad/i.test(ua) ? 'iPhone' : /mac os/i.test(ua) ? 'Mac'
+      : /windows/i.test(ua) ? 'Windows' : /linux/i.test(ua) ? 'Linux' : '';
+    var br = /edg\//i.test(ua) ? 'Edge' : /firefox/i.test(ua) ? 'Firefox' : /chrome/i.test(ua) ? 'Chrome'
+      : /safari/i.test(ua) ? 'Safari' : 'Browser';
+    return { name: br + (os ? ' on ' + os : ''), plat: 'web' };
   }
-  function syncShowCode(){
-    cloudApi('POST', '/v1/link', { gid: cloudLink.gid, secret: cloudLink.secret }).then(function(r){
-      $id('syncCodeBox').style.display = '';
-      $id('syncCodeText').textContent = r.code;
-      $id('syncCodeHint').textContent = 'On the other device: Add-ons › Sync › enter this code. It works for 15 minutes.';
-    }).catch(function(){ setStatus('Could not get a link code — is the sync server reachable?','err'); });
-  }
-  function syncStart(){
-    setStatus('Setting up sync…','info');
-    cloudApi('POST', '/v1/group').then(function(g){
-      cloudLink = { gid: g.gid, secret: g.secret };
-      try { LS.setItem('cloud_link', JSON.stringify(cloudLink)); } catch(e){}
-      cloudRevs = {}; saveCloudRevs();
-      syncPanelRender();
+  /** Take a credential set {gid, token, profile} as this device's identity. */
+  function cloudAdopt(c, fresh){
+    cloudLink = { gid: c.gid, token: c.token }; saveCloudLink();
+    cloudRevs = {}; saveCloudRevs();
+    profile = c.profile || null; profileSave();
+    social = null; socialSave();               // Friends state belongs to the identity, not the device
+    if (fresh){
+      // a brand-new profile: what this device holds IS the profile's data
       SYNC_KEYS.forEach(function(k){ if (syncDocHasContent(k)) cloudPush(k); });
-      syncShowCode();
-      setStatus('Sync is on. Enter the code on your other device.','ok');
-    }).catch(function(){ setStatus('Could not reach the sync server.','err'); });
+    } else {
+      cloudPullAll(true);                      // merge; newer local records push back on their own
+      socialRefresh();
+    }
+    profileCardRender(); syncPanelRender();
   }
-  function syncJoin(){
-    var code = ($id('syncCodeIn').value||'').replace(/\s/g,'').toUpperCase();
-    if (code.length < 6){ setStatus('Enter the 6-character code first.','err'); return; }
-    setStatus('Linking…','info');
-    cloudApi('POST', '/v1/join', { code: code }).then(function(g){
-      cloudLink = { gid: g.gid, secret: g.secret };
-      try { LS.setItem('cloud_link', JSON.stringify(cloudLink)); } catch(e){}
-      cloudRevs = {}; saveCloudRevs();
-      $id('syncCodeIn').value = '';
-      syncPanelRender();
-      setStatus('Linked — pulling your things…','ok');
-      cloudPullAll(true);
-    }).catch(function(e){
-      setStatus(/404/.test(e.message) ? 'That code was not found — it may have expired.' : 'Could not reach the sync server.','err');
+  /** Forget the credential on this device only; nothing local is deleted. */
+  function cloudForget(){
+    cloudLink = null; saveCloudLink();
+    profile = null; profileSave();
+    social = null; socialSave();
+    cloudRevs = {}; saveCloudRevs();
+    pfDevices = []; pfMode = null;
+    profileCardRender(); syncPanelRender();
+  }
+  /** A signed request came back 401: the token was revoked elsewhere (or the profile is gone). */
+  function cloudCredentialDead(){
+    if (!cloudLink) return;
+    cloudForget();
+    var v = document.querySelector('.view.active');
+    if (v && v.id === 'view-profile') profileRender();
+    setStatus('This device was signed out of your profile. Nothing on it was deleted.', 'info');
+  }
+  /** Boot: a pre-profile install trades the group's master secret for a token of its own. */
+  function profileBoot(){
+    if (!cloudLinked()) return;
+    if (!cloudLink.token && cloudLink.secret){
+      cloudApi('POST', '/v1/device', { device: deviceInfo() }).then(function(r){
+        cloudLink = { gid: cloudLink.gid, token: r.token }; saveCloudLink();
+        profile = r.profile || null; profileSave();
+        profileCardRender(); syncPanelRender();
+      }).catch(function(){});                  // offline: keep the secret, try again next boot
+      return;
+    }
+    profileRefresh();
+    socialRefresh();
+  }
+  function profileRefresh(){
+    if (!cloudLinked()) return Promise.resolve(null);
+    return cloudApi('GET', '/v1/profile/me').then(function(r){
+      profile = r.on ? { handle: r.handle, name: r.name, avatar: r.avatar } : null; profileSave();
+      pfDevices = r.devices || [];
+      profileCardRender(); syncPanelRender();
+      return r;
+    }).catch(function(){ return null; });
+  }
+  function pfState(){ return !cloudLinked() ? 'out' : (profile ? 'in' : 'legacy'); }
+  function profileCardRender(){
+    var av = $id('setProfileAv'); if (!av) return;
+    var st = pfState();
+    av.className = 'pav' + (st === 'in' ? '' : ' dim');
+    av.setAttribute('style', st === 'in' ? avStyle(profile.avatar) : '');
+    av.textContent = st === 'in' ? avLetter(profile.name || profile.handle) : '?';
+    $id('setProfileName').textContent = st === 'in' ? profile.name : (st === 'legacy' ? 'Add a profile' : 'Sign in or create a profile');
+    $id('setProfileSub').textContent = st === 'in'
+      ? '@' + profile.handle + (pfDevices.length > 1 ? ' · ' + pfDevices.length + ' devices' : '')
+      : st === 'legacy' ? 'This device syncs with a link code from an earlier version'
+      : 'Sync add-ons, progress and My List across your devices';
+  }
+  function syncPanelRender(){
+    var st = pfState(), el = $id('syncStatus'); if (!el) return;
+    el.textContent = st === 'in'
+      ? 'Signed in as @' + profile.handle + ' — add-ons, progress, My List and subtitle style follow you to every device you sign in on.'
+      : st === 'legacy' ? 'Syncing with a link code from an earlier version. Add a profile to sign in by @handle on new devices.'
+      : 'Add-ons, progress and your list stay on this device until you sign in with a profile.';
+    $id('syncOpen').textContent = st === 'in' ? 'Manage profile' : (st === 'legacy' ? 'Add a profile' : 'Sign in');
+  }
+  $id('syncOpen').onclick = function(){ show('profile'); };
+  $id('setProfile').onclick = function(){ show('profile'); };
+
+  // ---- profile view ----
+  function pfErr(e, fallback){
+    if (!e || !e.status) return 'Could not reach the server.';
+    if (e.status === 429) return 'Too many tries — give it a minute.';
+    var m = e.body && e.body.error;
+    if (m === 'handle taken') return 'That handle is taken.';
+    if (m === 'bad handle') return 'Handles are 3–20 letters, numbers or underscores.';
+    if (m === 'bad password') return 'Passwords are at least 8 characters.';
+    if (m === 'wrong handle or password') return 'Wrong handle or password.';
+    if (m === 'wrong handle or key') return 'That handle and recovery key don’t match.';
+    if (m === 'wrong password') return 'Wrong password.';
+    if (m === 'already has a profile') return 'This group already has a profile — it will show up here in a moment.';
+    return fallback || 'Something went wrong (' + e.status + ').';
+  }
+  function pfWhen(t){
+    if (!t) return '';
+    var d = Math.floor((Date.now() - t) / 86400000);
+    if (d <= 0) return 'today';
+    if (d === 1) return 'yesterday';
+    if (d < 30) return d + ' days ago';
+    return new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  }
+  var PF_ICONS = {
+    tv: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M8 20h8"/></svg>',
+    pc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="11" rx="2"/><path d="M12 16v4M7 20h10"/></svg>',
+    phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/></svg>',
+    web: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg>'
+  };
+  function pfIcon(plat){
+    if (plat === 'webos' || plat === 'tv' || plat === 'androidtv') return PF_ICONS.tv;
+    if (plat === 'windows' || plat === 'mac' || plat === 'linux') return PF_ICONS.pc;
+    if (plat === 'android' || plat === 'ios') return PF_ICONS.phone;
+    return PF_ICONS.web;
+  }
+  function pfField(id, type, ph, extra){
+    extra = extra || '';
+    return '<input id="' + id + '" class="field focusable half" type="' + type + '" placeholder="' + esc(ph) + '"' +
+      (/autocomplete/.test(extra) ? '' : ' autocomplete="off"') + (/autocapitalize/.test(extra) ? '' : ' autocapitalize="none"') +
+      ' autocorrect="off" spellcheck="false"' + extra + '>';
+  }
+  function pfHandleVal(id){ return (($id(id) && $id(id).value) || '').trim().replace(/^@/, '').toLowerCase(); }
+  function pfHandleOk(h){ return /^[a-z0-9_]{3,20}$/.test(h); }
+  /** Swap a button's label while its request is in flight; label null restores it. */
+  function pfBusy(id, label){
+    var b = $id(id); if (!b) return;
+    if (label){ if (!b.__lbl) b.__lbl = b.textContent; b.textContent = label; b.disabled = true; }
+    else { if (b.__lbl) b.textContent = b.__lbl; b.disabled = false; }
+  }
+  /** Enter in any of these inputs presses the button (or just leaves the field). */
+  function pfEnter(ids, goId){
+    ids.forEach(function(id){
+      var el = $id(id); if (!el) return;
+      el.addEventListener('keydown', function(e){
+        if (e.keyCode !== 13) return;
+        e.preventDefault(); e.stopPropagation();
+        if (goId){ var b = $id(goId); if (b) b.click(); } else el.blur();
+      });
     });
   }
-  function syncLeave(){
-    cloudLink = null;
-    try { LS.removeItem('cloud_link'); } catch(e){}
-    cloudRevs = {}; saveCloudRevs();
-    syncPanelRender();
-    setStatus('Sync is off for this device. Nothing was deleted.','info');
+  function profileRender(){
+    var body = $id('profileBody'); if (!body) return;
+    pfTvStop();
+    var st = pfState();
+    if (pfRecovery){ pfRenderRecovery(body); return; }
+    if (st === 'in'){ pfRenderIn(body); return; }
+    if (!pfMode) pfMode = st === 'legacy' ? 'attach' : (IS_TV ? 'code' : 'signin');
+    if (st !== 'legacy' && pfMode === 'attach') pfMode = 'create';
+    pfRenderOut(body, st);
   }
-  $id('syncStart').onclick = syncStart;
-  $id('syncJoinBtn').onclick = syncJoin;
-  $id('syncShowCode').onclick = syncShowCode;
-  $id('syncLeave').onclick = syncLeave;
-  (function(){
-    var i = $id('syncCodeIn');
-    i.addEventListener('keydown', function(e){ if (e.keyCode === 13){ e.preventDefault(); syncJoin(); } });
-  })();
+  function pfRenderOut(body, st){
+    var h = '';
+    if (st === 'legacy'){
+      h += '<p class="sub">This device syncs with a link code from an earlier version. Give it a profile — everything ' +
+        'you’ve synced stays exactly where it is, and every device signs in by handle from now on.' +
+        (IS_TV ? ' Easiest from a linked phone or computer: this TV picks the profile up on its own.' : '') + '</p>';
+    } else {
+      h += '<p class="sub">Your add-ons, progress, My List and ratings follow you to every device you sign in on. ' +
+        'No email, no tracking — a profile is optional.</p>';
+    }
+    var modes = st === 'legacy'
+      ? [['attach', 'Add a profile'], ['signin', 'Sign in to another']]
+      : (IS_TV ? [['code', 'Sign in with a code'], ['signin', 'Handle and password'], ['create', 'Create profile']]
+               : [['signin', 'Sign in'], ['create', 'Create profile'], ['code', 'Sign in with a code']]);
+    h += '<div class="seg pmode" id="pfModes"></div><div class="panel" id="pfPanel"></div>';
+    body.innerHTML = h;
+    var seg = $id('pfModes');
+    modes.forEach(function(m){
+      var on = pfMode === m[0] || (pfMode === 'recover' && m[0] === 'signin');
+      seg.appendChild(prefChip(m[1], on, function(){ pfMode = m[0]; profileRender(); }));
+    });
+    var p = $id('pfPanel');
+    if (pfMode === 'signin') pfPanelSignin(p, st);
+    else if (pfMode === 'recover') pfPanelRecover(p);
+    else if (pfMode === 'code') pfPanelCode(p);
+    else pfPanelCreate(p, st === 'legacy');
+    if (st === 'legacy'){
+      var lr = document.createElement('div'); lr.className = 'linkrow'; lr.style.maxWidth = '860px';
+      lr.innerHTML = '<span class="lbl">This device</span><button id="pfLeave" class="textbtn focusable">Stop syncing here</button>';
+      body.appendChild(lr);
+      $id('pfLeave').onclick = function(){ cloudForget(); profileRender(); setStatus('Sync is off for this device. Nothing was deleted.', 'info'); };
+    }
+  }
+  function pfPanelSignin(p, st){
+    p.innerHTML = '<div class="lbl">Sign in</div>' +
+      pfField('pfHandle', 'text', '@handle', ' autocomplete="username"') +
+      pfField('pfPass', 'password', 'Password', ' autocomplete="current-password"') +
+      '<div class="row"><button id="pfGo" class="btn focusable">Sign in</button>' +
+      '<button id="pfForgot" class="textbtn focusable">Forgot password?</button></div>' +
+      (st === 'legacy' ? '<p class="sub" style="margin:6px 0 0">Signing in moves this device to that profile. What’s on it merges in; the link-code group stays for the other devices.</p>' : '');
+    $id('pfForgot').onclick = function(){ pfMode = 'recover'; profileRender(); };
+    pfEnter(['pfHandle', 'pfPass'], 'pfGo');
+    $id('pfGo').onclick = function(){
+      var handle = pfHandleVal('pfHandle'), pw = $id('pfPass').value;
+      if (!pfHandleOk(handle)){ setStatus(handle ? 'Handles are 3–20 letters, numbers or underscores.' : 'Enter your @handle.', 'err'); return; }
+      if (!pw){ setStatus('Enter your password.', 'err'); return; }
+      pfBusy('pfGo', 'Signing in…');
+      cloudPublic('POST', '/v1/profile/signin', { handle: handle, password: pw, device: deviceInfo() }).then(function(r){
+        cloudAdopt(r, false);
+        setStatus('Signed in as @' + r.profile.handle + ' — pulling your things…', 'ok');
+        profileRender();
+      }).catch(function(e){ pfBusy('pfGo', null); setStatus(pfErr(e), 'err'); });
+    };
+  }
+  function pfPanelCreate(p, attach){
+    p.innerHTML = '<div class="lbl">' + (attach ? 'Add a profile to this device’s group' : 'Create a profile') + '</div>' +
+      pfField('pfHandle', 'text', 'Choose a handle — letters, numbers, _', ' autocomplete="username" maxlength="21"') +
+      pfField('pfName', 'text', 'Display name — what friends see', ' autocomplete="nickname" maxlength="40"') +
+      pfField('pfPass', 'password', 'Password — 8 characters or more', ' autocomplete="new-password"') +
+      '<div class="row"><button id="pfGo" class="btn focusable">' + (attach ? 'Add profile' : 'Create profile') + '</button></div>' +
+      '<p class="sub" style="margin:6px 0 0">No email. You’ll get a recovery key once — it’s the only way back in if you forget the password.</p>';
+    pfEnter(['pfHandle', 'pfName', 'pfPass'], 'pfGo');
+    $id('pfGo').onclick = function(){
+      var handle = pfHandleVal('pfHandle'), name = $id('pfName').value.trim(), pw = $id('pfPass').value;
+      if (!pfHandleOk(handle)){ setStatus('Handles are 3–20 letters, numbers or underscores.', 'err'); return; }
+      if (pw.length < 8){ setStatus('Passwords are at least 8 characters.', 'err'); return; }
+      pfBusy('pfGo', attach ? 'Adding…' : 'Creating…');
+      var req = { handle: handle, name: name, password: pw, device: deviceInfo() };
+      (attach ? cloudApi : cloudPublic)('POST', '/v1/profile', req).then(function(r){
+        pfRecovery = r.recovery;
+        cloudAdopt(r, !attach);
+        setStatus('Welcome, @' + r.profile.handle + '.', 'ok');
+        profileRender();
+      }).catch(function(e){ pfBusy('pfGo', null); setStatus(pfErr(e), 'err'); });
+    };
+  }
+  function pfPanelRecover(p){
+    p.innerHTML = '<div class="lbl">Reset your password</div>' +
+      pfField('pfHandle', 'text', '@handle', ' autocomplete="username"') +
+      pfField('pfKey', 'text', 'Recovery key', ' autocapitalize="characters"') +
+      pfField('pfPass', 'password', 'New password — 8 characters or more', ' autocomplete="new-password"') +
+      '<div class="row"><button id="pfGo" class="btn focusable">Reset password</button>' +
+      '<button id="pfBackIn" class="textbtn focusable">Back to sign in</button></div>' +
+      '<p class="sub" style="margin:6px 0 0">This signs out every other device and gives you a fresh recovery key.</p>';
+    $id('pfBackIn').onclick = function(){ pfMode = 'signin'; profileRender(); };
+    pfEnter(['pfHandle', 'pfKey', 'pfPass'], 'pfGo');
+    $id('pfGo').onclick = function(){
+      var handle = pfHandleVal('pfHandle'), key = $id('pfKey').value.trim(), pw = $id('pfPass').value;
+      if (!pfHandleOk(handle)){ setStatus('Enter your @handle.', 'err'); return; }
+      if (key.replace(/[^A-Za-z0-9]/g, '').length < 16){ setStatus('Enter the 16-character recovery key.', 'err'); return; }
+      if (pw.length < 8){ setStatus('Passwords are at least 8 characters.', 'err'); return; }
+      pfBusy('pfGo', 'Resetting…');
+      cloudPublic('POST', '/v1/profile/recover', { handle: handle, key: key, password: pw, device: deviceInfo() }).then(function(r){
+        pfRecovery = r.recovery;
+        cloudAdopt(r, false);
+        setStatus('Password reset — you’re signed in.', 'ok');
+        profileRender();
+      }).catch(function(e){ pfBusy('pfGo', null); setStatus(pfErr(e), 'err'); });
+    };
+  }
+  // TV: show a code (and its QR), poll until a signed-in device approves it
+  function pfPanelCode(p){
+    p.innerHTML = '<div class="lbl">Sign in with a code</div>' +
+      '<div class="ptv"><div id="pqr"></div><div class="ptv-col">' +
+      '<div class="pcode off" id="pfCode">······</div>' +
+      '<p class="tagline" id="pfCodeHint">On a phone or computer where you’re signed in, open <b>Settings › Profile › Link a TV</b> and type this code — or scan it with your phone.</p>' +
+      '<div class="row"><button id="pfCodeNew" class="textbtn focusable">Get a new code</button></div>' +
+      '</div></div>';
+    $id('pfCodeNew').onclick = pfTvStart;
+    pfTvStart();
+  }
+  function pfTvStop(){ if (pfTvTimer){ clearInterval(pfTvTimer); pfTvTimer = null; } pfTv = null; }
+  function pfTvStart(){
+    pfTvStop();
+    var codeEl = $id('pfCode'), qrEl = $id('pqr'); if (!codeEl) return;
+    codeEl.textContent = '······'; codeEl.className = 'pcode off';
+    if (qrEl){ qrEl.innerHTML = ''; qrEl.style.display = ''; }
+    var hint = $id('pfCodeHint'); if (hint) hint.textContent = 'On a phone or computer where you’re signed in, open Settings › Profile › Link a TV and type this code — or scan it with your phone.';
+    cloudPublic('POST', '/v1/tv', { device: deviceInfo() }).then(function(r){
+      if (!$id('pfCode')) return;                      // left the view meanwhile
+      pfTv = { code: r.code, poll: r.poll, until: Date.now() + (r.ttl || 600) * 1000 };
+      $id('pfCode').textContent = r.code; $id('pfCode').className = 'pcode';
+      try {
+        var qr = qrcode(0, 'M'); qr.addData(SITE + '/player/?link=' + r.code); qr.make();
+        $id('pqr').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0 });
+      } catch(e){ if ($id('pqr')) $id('pqr').style.display = 'none'; }
+      pfTvTimer = setInterval(pfTvPoll, 3000);
+    }).catch(function(e){
+      if ($id('pfCode')) $id('pfCode').textContent = '— — —';
+      setStatus(pfErr(e, 'Could not get a code.'), 'err');
+    });
+  }
+  function pfTvPoll(){
+    var v = $id('view-profile');
+    if (!pfTv || !v || !v.classList.contains('active')){ pfTvStop(); return; }
+    if (Date.now() > pfTv.until){ pfTvStop(); pfCodeExpired(); return; }
+    cloudPublic('GET', '/v1/tv/' + pfTv.poll).then(function(r){
+      if (!pfTv || r.pending) return;
+      pfTvStop();
+      cloudAdopt(r, false);
+      setStatus('Signed in as @' + r.profile.handle + ' — pulling your things…', 'ok');
+      profileRender();
+    }).catch(function(e){
+      if (e.status === 404){ pfTvStop(); pfCodeExpired(); }
+    });
+  }
+  function pfCodeExpired(){
+    var c = $id('pfCode'); if (!c) return;
+    c.textContent = 'Expired'; c.className = 'pcode off';
+    var hint = $id('pfCodeHint'); if (hint) hint.textContent = 'That code has expired — get a new one.';
+  }
+  function pfRenderRecovery(body){
+    body.innerHTML = '<div class="phead"><span class="pav big" style="' + (profile ? avStyle(profile.avatar) : '') + '">' +
+      esc(profile ? avLetter(profile.name || profile.handle) : '?') + '</span><div><div class="pname">' + esc(profile ? profile.name : '') +
+      '</div><div class="phandle">' + (profile ? '@' + esc(profile.handle) : '') + '</div></div></div>' +
+      '<div class="panel"><div class="lbl">Your recovery key</div>' +
+      '<p class="tagline">Write it down or keep it somewhere safe. It is shown once, and it is the only way to reset your ' +
+      'password — there is no email to send one to.</p>' +
+      '<div class="pkey">' + esc(pfRecovery) + '</div>' +
+      '<div class="row"><button id="pfKeyDone" class="btn focusable">I’ve saved it</button></div></div>';
+    $id('pfKeyDone').onclick = function(){ pfRecovery = null; profileRender(); };
+  }
+  function pfRenderIn(body){
+    var me = profile;
+    var h = '<div class="phead"><span class="pav big" style="' + avStyle(me.avatar) + '">' + esc(avLetter(me.name || me.handle)) + '</span>' +
+      '<div><div class="pname">' + esc(me.name) + '</div><div class="phandle">@' + esc(me.handle) + '</div></div></div>';
+    h += '<div class="panel"><div class="lbl">Profile</div>' +
+      '<div class="setrow"><span class="setname">Name<small>What friends and watch parties see</small></span>' +
+      '<input id="pfName" class="field focusable" type="text" maxlength="40" autocomplete="nickname" value="' + esc(me.name) + '"></div>' +
+      '<div class="setrow"><span class="setname">Colour<small>Your monogram, wherever you appear</small></span><span id="pfAvatars"></span></div></div>';
+    var link = '<div class="panel"><div class="lbl">Link a TV</div>' +
+      '<p class="tagline" style="margin-top:6px">On the TV, open <b>Settings › Profile › Sign in with a code</b> and type its code here. ' +
+      'Only approve a code that is on a screen in front of you.</p>' +
+      '<div class="row"><input id="pfLinkIn" class="field focusable" type="text" placeholder="Code from the TV" maxlength="8" ' +
+      'autocomplete="off" autocapitalize="characters" spellcheck="false" style="width:auto;flex:0 1 220px">' +
+      '<button id="pfLinkGo" class="btn focusable">Approve</button></div></div>';
+    var devs = '<div class="panel"><div class="lbl">Devices</div><div id="pfDevList"><div class="empty">Loading…</div></div></div>';
+    h += IS_TV ? devs + link : link + devs;
+    h += '<div class="panel"><div class="lbl">Password</div><div id="pfPwBox">' +
+      '<div class="row"><button id="pfPwBtn" class="btn ghost focusable">Change password</button></div></div>' +
+      '<p class="sub" style="margin:6px 0 0">Changing it signs out every other device.</p></div>';
+    h += '<div class="panel"><div class="lbl">This device</div>' +
+      '<p class="tagline" style="margin-top:6px">Signing out leaves everything on this device in place — it just stops following your profile.</p>' +
+      '<div class="row"><button id="pfOut" class="btn ghost focusable">Sign out</button>' +
+      '<button id="pfDel" class="textbtn focusable pdanger">Delete profile…</button></div><div id="pfDelBox"></div></div>';
+    body.innerHTML = h;
+    // name saves on change
+    var nm = $id('pfName');
+    nm.addEventListener('change', function(){
+      var v = nm.value.trim(); if (!v || !profile || v === profile.name) return;
+      cloudApi('PUT', '/v1/profile', { name: v }).then(function(r){
+        profile = r.profile; profileSave(); profileCardRender();
+        var pn = body.querySelector('.pname'), pa = body.querySelector('.pav.big');
+        if (pn) pn.textContent = profile.name;
+        if (pa) pa.textContent = avLetter(profile.name);
+        setStatus('Name saved.', 'ok');
+        socialPublishSoon();
+      }).catch(function(e){ setStatus(pfErr(e), 'err'); });
+    });
+    pfEnter(['pfName'], null);
+    var avs = $id('pfAvatars');
+    AVATARS.forEach(function(a){
+      var b = document.createElement('button');
+      b.className = 'swatch focusable' + (me.avatar === a ? ' on' : '');
+      b.style.background = a; b.title = 'Colour';
+      b.onclick = function(){
+        cloudApi('PUT', '/v1/profile', { avatar: a }).then(function(r){
+          profile = r.profile; profileSave(); profileCardRender(); profileRender();
+        }).catch(function(e){ setStatus(pfErr(e), 'err'); });
+      };
+      avs.appendChild(b);
+    });
+    // link a TV — a scanned QR only prefills; the person still taps Approve
+    var li = $id('pfLinkIn');
+    if (pfPendingLink) li.value = pfPendingLink;
+    pfEnter(['pfLinkIn'], 'pfLinkGo');
+    $id('pfLinkGo').onclick = function(){
+      var code = li.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      if (code.length !== 6){ setStatus('Enter the 6-character code from the TV.', 'err'); return; }
+      pfBusy('pfLinkGo', 'Approving…');
+      cloudApi('POST', '/v1/tv/approve', { code: code }).then(function(r){
+        pfPendingLink = null; li.value = '';
+        pfBusy('pfLinkGo', null);
+        setStatus(((r.device && r.device.name) || 'The TV') + ' is signed in as @' + profile.handle + '.', 'ok');
+        pfDevicesRender();
+      }).catch(function(e){
+        pfBusy('pfLinkGo', null);
+        setStatus(e.status === 404 ? 'That code was not found — it may have expired. Get a new one on the TV.' : pfErr(e), 'err');
+      });
+    };
+    pfDevicesRender();
+    $id('pfPwBtn').onclick = function(){
+      $id('pfPwBox').innerHTML = pfField('pfPwCur', 'password', 'Current password', ' autocomplete="current-password"') +
+        pfField('pfPwNew', 'password', 'New password — 8 characters or more', ' autocomplete="new-password"') +
+        '<div class="row"><button id="pfPwGo" class="btn focusable">Save password</button>' +
+        '<button id="pfPwCancel" class="textbtn focusable">Cancel</button></div>';
+      $id('pfPwCancel').onclick = profileRender;
+      pfEnter(['pfPwCur', 'pfPwNew'], 'pfPwGo');
+      $id('pfPwGo').onclick = function(){
+        var cur = $id('pfPwCur').value, nx = $id('pfPwNew').value;
+        if (nx.length < 8){ setStatus('Passwords are at least 8 characters.', 'err'); return; }
+        pfBusy('pfPwGo', 'Saving…');
+        cloudApi('POST', '/v1/profile/password', { current: cur, next: nx, device: deviceInfo() }).then(function(r){
+          if (r.token){ cloudLink = { gid: cloudLink.gid, token: r.token }; saveCloudLink(); }
+          setStatus('Password changed — every other device is signed out.', 'ok');
+          profileRender();
+        }).catch(function(e){ pfBusy('pfPwGo', null); setStatus(pfErr(e), 'err'); });
+      };
+      try { $id('pfPwCur').focus(); } catch(e){}
+    };
+    $id('pfOut').onclick = function(){
+      cloudApi('POST', '/v1/profile/signout').catch(function(){});
+      cloudForget();
+      profileRender();
+      setStatus('Signed out on this device. Nothing here was deleted.', 'info');
+    };
+    $id('pfDel').onclick = function(){
+      $id('pfDelBox').innerHTML = '<p class="tagline">This deletes your profile, its synced data and its Friends from the server, ' +
+        'and frees @' + esc(me.handle) + '. What is on your devices stays. Type your password to confirm.</p>' +
+        pfField('pfDelPw', 'password', 'Password', ' autocomplete="current-password"') +
+        '<div class="row"><button id="pfDelGo" class="btn focusable pdanger-btn">Delete profile</button>' +
+        '<button id="pfDelCancel" class="textbtn focusable">Cancel</button></div>';
+      $id('pfDelCancel').onclick = profileRender;
+      pfEnter(['pfDelPw'], 'pfDelGo');
+      $id('pfDelGo').onclick = function(){
+        var pw = $id('pfDelPw').value; if (!pw){ setStatus('Type your password to confirm.', 'err'); return; }
+        pfBusy('pfDelGo', 'Deleting…');
+        cloudApi('DELETE', '/v1/profile', { password: pw }).then(function(){
+          var handle = profile.handle;
+          cloudForget();
+          profileRender();
+          setStatus('@' + handle + ' is deleted. Everything on this device stays.', 'info');
+        }).catch(function(e){ pfBusy('pfDelGo', null); setStatus(pfErr(e), 'err'); });
+      };
+      try { $id('pfDelPw').focus(); } catch(e){}
+    };
+    if (pfPendingLink){ try { $id('pfLinkGo').focus(); } catch(e){} }
+  }
+  function pfDevicesRender(){
+    if (!$id('pfDevList')) return;
+    profileRefresh().then(function(r){
+      var list = $id('pfDevList'); if (!list || !r) return;
+      if (!profile){ profileRender(); return; }     // the profile went away under us
+      list.innerHTML = '';
+      pfDevices.forEach(function(d){
+        var row = document.createElement('div'); row.className = 'pdev';
+        var seen = pfWhen(d.seen), at = pfWhen(d.at);
+        row.innerHTML = '<span class="pdev-ic">' + pfIcon(d.plat) + '</span><span class="pdev-txt">' +
+          '<span class="pdev-name">' + esc(d.name) + (d.me ? '<em>this device</em>' : '') + '</span>' +
+          '<span class="pdev-sub">Signed in ' + at + (seen && seen !== at ? ' · last used ' + seen : '') + '</span></span>';
+        if (!d.me){
+          var rm = document.createElement('button'); rm.className = 'textbtn focusable'; rm.textContent = 'Remove';
+          rm.onclick = function(){
+            cloudApi('DELETE', '/v1/profile/device/' + d.id).then(function(){
+              setStatus(d.name + ' is signed out.', 'ok'); pfDevicesRender();
+            }).catch(function(e){ setStatus(pfErr(e), 'err'); });
+          };
+          row.appendChild(rm);
+        }
+        list.appendChild(row);
+      });
+      if (!pfDevices.length) list.innerHTML = '<div class="empty">Only this device.</div>';
+    });
+  }
+
   // ---------- preferences (device-local by design: a TV and a phone can differ) ----------
   var PREF_ACCENTS = [
     ['Nebula Red', '#E50914'], ['White', '#F2F2F7'], ['Cobalt', '#0A84FF'],
@@ -5730,6 +6246,7 @@
     pn.placeholder = partyName();
     $id('setAbout').textContent = 'Nebula · build ' + PLAYER_VERSION +
       ' · plays every add-on format, on-device';
+    profileCardRender();
   }
   applyPrefs();
   settingsRender();
@@ -5837,7 +6354,16 @@
   initPersistentLibrary();
   initPersistentRatings();
   buildHomeRows(true);
-  if (cloudLinked()) setTimeout(function(){ cloudPullAll(true); }, 900);
+  if (cloudLinked()) setTimeout(function(){ cloudPullAll(true); profileBoot(); }, 900);
+  // a TV's sign-in QR: play.rifflehq.in/player/?link=CODE opens Profile with the code filled in.
+  // Never auto-approve — the person confirms the code is on a screen in front of them.
+  (function(){
+    var m = /[?&]link=([A-Za-z0-9]{6})/.exec(location.search || '');
+    if (!m) return;
+    try { history.replaceState(null, '', location.pathname + location.hash); } catch(e){}
+    pfPendingLink = m[1].toUpperCase();
+    setTimeout(function(){ setTab('settings'); show('profile'); }, 300);
+  })();
   setStatus(getAddons().length ? 'Welcome back.' : 'Ready. Add your add-on to begin.','info');
   focusFirst();
 })();
