@@ -704,6 +704,19 @@
   html.tv #status { font-size:18px; padding:14px 24px 14px 42px; }
   html.tv #status::before { left:20px; width:9px; height:9px; margin-top:-4.5px; }
   html.tv #updBanner { padding:15px 26px; font-size:18px; }
+  /* ---- lite (real TVs): identical layout, cheap rendering ---- */
+  html.lite * { -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
+  html.lite #rail { transition:none; }
+  html.lite #rail.open { box-shadow:none; border-right:1px solid rgba(255,255,255,.14); }
+  html.lite .rail-brand span, html.lite .navitem span { transition:none; }
+  html.lite #homeHero { box-shadow:none; }
+  html.lite .hf-art img { animation:none; }
+  html.lite .hf-logo { filter:none; }
+  html.lite .card { transition:none; }
+  html.lite .card .cw-x { transition:none; }
+  html.lite .navitem { transition:none; }
+  html.lite .hs-card { transition:none; }
+
 </style>
 </head>
 <body>
@@ -975,7 +988,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.12';
+  var PLAYER_VERSION = '2026.09.01.13';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1003,6 +1016,11 @@
     /web0s|webos|smarttv|smart-tv|netcast/i.test(navigator.userAgent || '') ||
     /[?&#]tv=1/.test(location.href));
   if (IS_TV) document.documentElement.className += ' tv';
+  // TV SoCs are weak GPUs: the lite profile keeps the design but drops the
+  // expensive paints (big blurred shadows, width animation, image fades, blur)
+  var IS_LITE = !!(window.PalmSystem || window.WebOSServiceBridge || window.PalmServiceBridge) ||
+    /web0s|webos|netcast/i.test(navigator.userAgent || '') || /[?&#]lite=1/.test(location.href);
+  if (IS_LITE) document.documentElement.className += ' lite';
   // webOS proper (not the ?tv=1 preview): quirks that only exist on the TV itself
   var IS_WEBOS = !!(window.PalmSystem || window.WebOSServiceBridge || window.PalmServiceBridge) ||
     /web0s|webos|netcast/i.test(navigator.userAgent || '');
@@ -1027,7 +1045,7 @@
   // placeholder instead of leaving a blank tile.
   function posterImg(url, name, cls){
     var ph = phFor(name);
-    return '<img ' + (cls ? 'class="'+cls+'" ' : '') + 'loading="lazy" src="' + esc(url) +
+    return '<img ' + (cls ? 'class="'+cls+'" ' : '') + 'loading="lazy" decoding="async" src="' + esc(url) +
       '" onerror="this.outerHTML=\'<span class=&quot;thumb-ph&quot;>' + ph + '</span>\'">';
   }
 
@@ -1928,7 +1946,10 @@
       if (document.activeElement && $id('homeHero').contains(document.activeElement)) return; // don't rotate under the cursor
       heroState.idx = (heroState.idx + 1) % heroState.items.length;
       heroRender();
-    }, 12000);
+      // pre-warm the next backdrop so the swap doesn't decode on-beat
+      var nx = heroState.items[(heroState.idx + 1) % heroState.items.length].meta;
+      var pre = new Image(); pre.src = (nx.background || nx.poster || '');
+    }, IS_LITE ? 20000 : 12000);
   }
   function heroRender(){
     var h = $id('homeHero'); if (!h || !heroState.items.length) return;
@@ -1947,7 +1968,7 @@
       return '<span class="hf-dot'+(i === heroState.idx ? ' on' : '')+'"></span>';
     }).join('');
     h.innerHTML =
-      '<div class="hf-art"><img src="'+esc(art)+'" alt="" onerror="this.remove()"></div>' +
+      '<div class="hf-art"><img src="'+esc(art)+'" alt="" decoding="async" onerror="this.remove()"></div>' +
       '<div class="hf-info">' +
         '<div class="hf-facts">'+esc(facts.join('  ·  '))+'</div>' + head +
         (meta.description ? '<p class="hf-desc">'+esc(meta.description)+'</p>' : '') +
@@ -1985,7 +2006,7 @@
         var m = itS.meta;
         var b = document.createElement('button');
         b.className = 'hs-card focusable';
-        b.innerHTML = '<img src="' + esc(m.background || m.poster) + '" alt="" onerror="this.remove()">' +
+        b.innerHTML = '<img src="' + esc(m.background || m.poster) + '" alt="" decoding="async" onerror="this.remove()">' +
           ((m.imdbRating && getPrefs().ratings !== false) ? '<span class="hs-rate">★ ' + esc(m.imdbRating) + '</span>' : '') +
           '<div class="hs-name">' + esc(m.name) + '</div>';
         b.onclick = function(){
