@@ -1083,6 +1083,14 @@
           <span class="setname">Ratings on posters<small>The little star badges on artwork</small></span>
           <span id="setRatings"></span>
         </div>
+        <div class="setrow">
+          <span class="setname">Featured carousel<small>The full-bleed showcase at the top of Home</small></span>
+          <span id="setHero"></span>
+        </div>
+        <div class="setrow">
+          <span class="setname">Continue Watching<small>Pick up where you left off, right on Home</small></span>
+          <span id="setCw"></span>
+        </div>
       </div>
       <div class="panel">
         <div class="lbl">Playback</div>
@@ -1222,7 +1230,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.27';
+  var PLAYER_VERSION = '2026.09.01.28';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -2482,7 +2490,7 @@
   }
   function renderContinue(){
     var sec = document.getElementById('cwSection'); if (!sec) return;
-    var items = continueList();
+    var items = getPrefs().cw === false ? [] : continueList();
     if (!items.length){ sec.innerHTML = ''; return; }
     sec.innerHTML = '<div class="rowhead"><span class="row-title">Continue Watching</span></div>';
     var row = document.createElement('div'); row.className = 'hrow';
@@ -2501,6 +2509,7 @@
     var hs = $id('heroSide'); if (hs){ hs.className = ''; hs.innerHTML = ''; }
   }
   function heroConsider(metas, a, m, c){
+    if (getPrefs().hero === false) return;
     if (heroState.items.length) return;
     var good = (metas||[]).filter(function(x){ return x && (x.background || x.poster) && x.name; }).slice(0, 5);
     if (!good.length) return;
@@ -5084,8 +5093,8 @@
   })();
   // ---------- preferences (device-local by design: a TV and a phone can differ) ----------
   var PREF_ACCENTS = [
-    ['Nebula Red', '#E50914'], ['Cobalt', '#0A84FF'], ['Emerald', '#30D158'],
-    ['Violet', '#BF5AF2'], ['Amber', '#FF9F0A'],
+    ['Nebula Red', '#E50914'], ['White', '#F2F2F7'], ['Cobalt', '#0A84FF'],
+    ['Emerald', '#30D158'], ['Violet', '#BF5AF2'], ['Amber', '#FF9F0A'], ['Rose', '#FF375F'],
   ];
   function getPrefs(){ try { return JSON.parse(LS.getItem('prefs_v1') || '{}') || {}; } catch(e){ return {}; } }
   function setPref(k, v){
@@ -5125,6 +5134,14 @@
     var a2 = $id('setAutoplay'); a2.innerHTML = '';
     a2.appendChild(prefChip('On', pr.autoplay !== false, function(){ setPref('autoplay', true); }));
     a2.appendChild(prefChip('Off', pr.autoplay === false, function(){ setPref('autoplay', false); }));
+    var he = $id('setHero'); if (he){ he.innerHTML = '';
+      he.appendChild(prefChip('Show', pr.hero !== false, function(){ setPref('hero', true); buildHomeRows(true); }));
+      he.appendChild(prefChip('Hide', pr.hero === false, function(){ setPref('hero', false); buildHomeRows(true); }));
+    }
+    var cw = $id('setCw'); if (cw){ cw.innerHTML = '';
+      cw.appendChild(prefChip('Show', pr.cw !== false, function(){ setPref('cw', true); renderContinue(); }));
+      cw.appendChild(prefChip('Hide', pr.cw === false, function(){ setPref('cw', false); renderContinue(); }));
+    }
     var pn = $id('setPname');
     if (pn && !pn.__wired){
       pn.__wired = true;
