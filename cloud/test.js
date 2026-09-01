@@ -2,6 +2,7 @@
 // proxy's target validation. Uses a throwaway data dir and an ephemeral port.
 'use strict';
 
+process.env.GROUP_BURST = '40';
 process.env.DATA_DIR = require('fs').mkdtempSync(
   require('path').join(require('os').tmpdir(), 'nebula-cloud-test-'));
 
@@ -151,4 +152,74 @@ test('join brute force hits the rate limit', async () => {
     if (r.status === 429) { limited = true; break; }
   }
   assert.ok(limited, 'expected a 429 within 20 rapid joins');
+});
+
+test('friends: enable → befriend → profile → recommend → disable', async () => {
+  // two independent identities
+  const ga = (await api('POST', '/v1/group')).body;
+  const gb = (await api('POST', '/v1/group')).body;
+  const ta = ga.gid + '.' + ga.secret;
+  const tb = gb.gid + '.' + gb.secret;
+
+  // social is off until asked for
+  assert.equal((await api('GET', '/v1/social/me', undefined, ta)).body.on, false);
+  assert.equal((await api('GET', '/v1/social/friends', undefined, ta)).status, 400);
+
+  // enable both; enable is idempotent
+  const ea = await api('POST', '/v1/social/enable', { name: 'Asha' }, ta);
+  assert.equal(ea.status, 200);
+  assert.match(ea.body.code, /^[A-Z2-9]{7}$/);
+  assert.equal((await api('POST', '/v1/social/enable', { name: 'Asha' }, ta)).body.code, ea.body.code);
+  const eb = await api('POST', '/v1/social/enable', { name: 'Ben' }, tb);
+
+  // no auth, no entry
+  assert.equal((await api('GET', '/v1/social/me')).status, 401);
+
+  // B befriends A by code — the edge is mutual
+  const fr = await api('POST', '/v1/social/friend', { code: ea.body.code }, tb);
+  assert.equal(fr.status, 200);
+  assert.equal(fr.body.name, 'Asha');
+  assert.equal((await api('GET', '/v1/social/me', undefined, ta)).body.friends, 1);
+  assert.equal((await api('GET', '/v1/social/me', undefined, tb)).body.friends, 1);
+  // your own code is not a friend you can make
+  assert.equal((await api('POST', '/v1/social/friend', { code: eb.body.code }, tb)).status, 404);
+
+  // A publishes a profile; B reads it through the friendship
+  const doc = JSON.stringify({ ratings: [{ id: 'tt1', name: 'Dune', rating: 5 }] });
+  assert.equal((await api('PUT', '/v1/social/profile', { v: doc, name: 'Asha' }, ta)).status, 200);
+  const fl = await api('GET', '/v1/social/friends', undefined, tb);
+  assert.equal(fl.body.friends.length, 1);
+  assert.equal(fl.body.friends[0].name, 'Asha');
+  assert.equal(fl.body.friends[0].profile, doc);
+
+  // a stranger with the code but no friendship cannot recommend
+  const gc = (await api('POST', '/v1/group')).body;
+  const tc = gc.gid + '.' + gc.secret;
+  await api('POST', '/v1/social/enable', { name: 'Mallory' }, tc);
+  assert.equal((await api('POST', '/v1/social/recommend',
+    { code: ea.body.code, item: { type: 'movie', id: 'tt2', name: 'x' } }, tc)).status, 404);
+
+  // B recommends to A
+  const rec = await api('POST', '/v1/social/recommend',
+    { code: ea.body.code, item: { type: 'movie', id: 'tt0133093', name: 'The Matrix', poster: 'https://x/p.jpg' }, note: 'you will love this' }, tb);
+  assert.equal(rec.status, 200);
+  const inbox = (await api('GET', '/v1/social/inbox', undefined, ta)).body.inbox;
+  assert.equal(inbox.length, 1);
+  assert.equal(inbox[0].f, 'Ben');
+  assert.equal(inbox[0].i.name, 'The Matrix');
+  assert.equal(inbox[0].n, 'you will love this');
+  assert.equal((await api('POST', '/v1/social/inbox_clear', undefined, ta)).status, 200);
+  assert.equal((await api('GET', '/v1/social/inbox', undefined, ta)).body.inbox.length, 0);
+
+  // a malformed recommendation dies at the door
+  assert.equal((await api('POST', '/v1/social/recommend', { code: ea.body.code, item: { id: 'x' } }, tb)).status, 400);
+
+  // an oversized profile dies too
+  assert.equal((await api('PUT', '/v1/social/profile', { v: 'x'.repeat(25 * 1024) }, ta)).status, 413);
+
+  // disable removes A everywhere: B's edge is gone, A's code is dead
+  assert.equal((await api('POST', '/v1/social/disable', undefined, ta)).status, 200);
+  assert.equal((await api('GET', '/v1/social/me', undefined, ta)).body.on, false);
+  assert.equal((await api('GET', '/v1/social/friends', undefined, tb)).body.friends.length, 0);
+  assert.equal((await api('POST', '/v1/social/friend', { code: ea.body.code }, tb)).status, 404);
 });

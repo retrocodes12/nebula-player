@@ -37,6 +37,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const GROUPS_DIR = path.join(DATA_DIR, 'groups');
 
 const MAX_GROUPS = 5000;
+const GROUP_BURST = Number(process.env.GROUP_BURST || 6);   // env-tunable so the test file isn't rationed
 const MAX_KEYS_PER_GROUP = 12;
 const MAX_VALUE_BYTES = 300 * 1024;
 const MAX_BODY_BYTES = 320 * 1024;
@@ -253,6 +254,179 @@ async function handleProxy(req, res, target, ip) {
   }
 }
 
+// ---------- friends (experimental social layer) ----------
+// An identity is just a cloud group wearing a permanent friend code, so every
+// device in a sync group shares one social self for free. Profiles are opaque
+// client-composed JSON, served only to mutual friends; everything is opt-in
+// and disable deletes it.
+const SOCIAL_CODES_PATH = path.join(DATA_DIR, 'social-codes.json');
+const MAX_FRIENDS = 50;
+const MAX_INBOX = 40;
+const MAX_PROFILE_BYTES = 24 * 1024;
+let socialCodes = {};            // CODE -> gid
+try { socialCodes = JSON.parse(fs.readFileSync(SOCIAL_CODES_PATH, 'utf8')); } catch (e) {}
+let socialCodesTimer = null;
+function persistSocialCodes() {
+  clearTimeout(socialCodesTimer);
+  socialCodesTimer = setTimeout(() => {
+    try {
+      const tmp = SOCIAL_CODES_PATH + '.tmp';
+      fs.writeFileSync(tmp, JSON.stringify(socialCodes));
+      fs.renameSync(tmp, SOCIAL_CODES_PATH);
+    } catch (e) {}
+  }, 250);
+}
+function newSocialCode() {
+  for (let i = 0; i < 40; i++) {
+    let c = '';
+    for (let j = 0; j < 7; j++) c += CODE_ALPHABET[crypto.randomInt(CODE_ALPHABET.length)];
+    if (!socialCodes[c] && !links.has(c)) return c;
+  }
+  return null;
+}
+function cleanName(v) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, 40); }
+function cleanItem(v) {
+  if (!v || typeof v !== 'object') return null;
+  const type = String(v.type || '').slice(0, 12);
+  const id = String(v.id || '').slice(0, 64);
+  const name = String(v.name || '').slice(0, 120);
+  let poster = String(v.poster || '').slice(0, 400);
+  if (poster && !/^https?:\/\//.test(poster)) poster = '';
+  if (!type || !id || !name) return null;
+  return { type, id, name, poster };
+}
+function socialOf(a) { return a.g.social && a.g.social.code ? a.g.social : null; }
+function handleSocial(p, req, res, ip) {
+  if (!allow('social', ip, 60, 40)) { json(res, 429, { error: 'rate limited' }); return true; }
+  const a = auth(req);
+  if (!a) { json(res, 401, { error: 'unauthorized' }); return true; }
+  const s = socialOf(a);
+
+  if (p === '/v1/social/me' && req.method === 'GET') {
+    if (!s) { json(res, 200, { on: false }); return true; }
+    json(res, 200, { on: true, code: s.code, name: s.name || '', friends: s.friends.length, inbox: s.inbox.length });
+    return true;
+  }
+  if (p === '/v1/social/enable' && req.method === 'POST') {
+    readBody(req, (body) => {
+      if (s) return json(res, 200, { code: s.code });          // idempotent
+      if (!allow('senable', ip, 0.05, 4)) return json(res, 429, { error: 'rate limited' });
+      const code = newSocialCode();
+      if (!code) return json(res, 503, { error: 'busy' });
+      a.g.social = { code, name: cleanName(body && body.name), friends: [], inbox: [], profile: '', at: Date.now() };
+      socialCodes[code] = a.gid;
+      persistSocialCodes();
+      persistSoon(a.gid);
+      return json(res, 200, { code });
+    });
+    return true;
+  }
+  if (!s) { json(res, 400, { error: 'friends is not enabled' }); return true; }
+
+  if (p === '/v1/social/profile' && req.method === 'PUT') {
+    readBody(req, (body) => {
+      if (!body || typeof body.v !== 'string') return json(res, 400, { error: 'bad request' });
+      if (Buffer.byteLength(body.v) > MAX_PROFILE_BYTES) return json(res, 413, { error: 'too large' });
+      s.profile = body.v;
+      if (body.name !== undefined) s.name = cleanName(body.name);
+      s.at = Date.now();
+      persistSoon(a.gid);
+      return json(res, 200, { ok: true });
+    });
+    return true;
+  }
+  if (p === '/v1/social/friend' && req.method === 'POST') {
+    readBody(req, (body) => {
+      if (!allow('sfriend', ip, 2, 10)) return json(res, 429, { error: 'rate limited' });
+      const code = String((body && body.code) || '').toUpperCase().replace(/\s/g, '');
+      const gid = socialCodes[code];
+      if (!gid || gid === a.gid) return json(res, 404, { error: 'code not found' });
+      const other = loadGroup(gid);
+      if (!other || !other.social) { delete socialCodes[code]; persistSocialCodes(); return json(res, 404, { error: 'code not found' }); }
+      if (s.friends.length >= MAX_FRIENDS || other.social.friends.length >= MAX_FRIENDS) {
+        return json(res, 507, { error: 'friend list full' });
+      }
+      if (!s.friends.includes(gid)) s.friends.push(gid);
+      if (!other.social.friends.includes(a.gid)) other.social.friends.push(a.gid);
+      persistSoon(a.gid); persistSoon(gid);
+      return json(res, 200, { name: other.social.name || '', code });
+    });
+    return true;
+  }
+  if (p === '/v1/social/unfriend' && req.method === 'POST') {
+    readBody(req, (body) => {
+      const code = String((body && body.code) || '').toUpperCase().replace(/\s/g, '');
+      const gid = socialCodes[code];
+      if (gid) {
+        s.friends = s.friends.filter((f) => f !== gid);
+        const other = loadGroup(gid);
+        if (other && other.social) {
+          other.social.friends = other.social.friends.filter((f) => f !== a.gid);
+          persistSoon(gid);
+        }
+        persistSoon(a.gid);
+      }
+      return json(res, 200, { ok: true });
+    });
+    return true;
+  }
+  if (p === '/v1/social/friends' && req.method === 'GET') {
+    const out = [];
+    for (const gid of s.friends) {
+      const other = loadGroup(gid);
+      if (!other || !other.social) continue;                   // evicted or disabled
+      out.push({ code: other.social.code, name: other.social.name || '', profile: other.social.profile || '', at: other.social.at || 0 });
+    }
+    json(res, 200, { friends: out });
+    return true;
+  }
+  if (p === '/v1/social/recommend' && req.method === 'POST') {
+    readBody(req, (body) => {
+      if (!allow('srec', ip, 4, 20)) return json(res, 429, { error: 'rate limited' });
+      const code = String((body && body.code) || '').toUpperCase().replace(/\s/g, '');
+      const item = cleanItem(body && body.item);
+      const note = String((body && body.note) || '').slice(0, 200);
+      const gid = socialCodes[code];
+      if (!item) return json(res, 400, { error: 'bad item' });
+      // recommendations only travel along an existing friendship
+      if (!gid || !s.friends.includes(gid)) return json(res, 404, { error: 'not a friend' });
+      const other = loadGroup(gid);
+      if (!other || !other.social) return json(res, 404, { error: 'not a friend' });
+      other.social.inbox.push({ f: s.name || 'A friend', c: s.code, i: item, n: note, at: Date.now() });
+      while (other.social.inbox.length > MAX_INBOX) other.social.inbox.shift();
+      persistSoon(gid);
+      return json(res, 200, { ok: true });
+    });
+    return true;
+  }
+  if (p === '/v1/social/inbox' && req.method === 'GET') {
+    json(res, 200, { inbox: s.inbox });
+    return true;
+  }
+  if (p === '/v1/social/inbox_clear' && req.method === 'POST') {
+    s.inbox = [];
+    persistSoon(a.gid);
+    json(res, 200, { ok: true });
+    return true;
+  }
+  if (p === '/v1/social/disable' && req.method === 'POST') {
+    for (const gid of s.friends) {
+      const other = loadGroup(gid);
+      if (other && other.social) {
+        other.social.friends = other.social.friends.filter((f) => f !== a.gid);
+        persistSoon(gid);
+      }
+    }
+    delete socialCodes[s.code];
+    persistSocialCodes();
+    delete a.g.social;
+    persistSoon(a.gid);
+    json(res, 200, { ok: true });
+    return true;
+  }
+  return false;
+}
+
 // ---------- routes ----------
 const server = http.createServer((req, res) => {
   const ip = clientIp(req);
@@ -280,7 +454,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (p === '/v1/group' && req.method === 'POST') {
-    if (!allow('group', ip, 0.1, 6)) return json(res, 429, { error: 'rate limited' });
+    if (!allow('group', ip, 0.1, GROUP_BURST)) return json(res, 429, { error: 'rate limited' });
     if (groupCount >= MAX_GROUPS) return json(res, 507, { error: 'full' });
     const gid = crypto.randomBytes(8).toString('hex');
     const secret = crypto.randomBytes(16).toString('hex');
@@ -314,6 +488,11 @@ const server = http.createServer((req, res) => {
       if (!g) { links.delete(code); return json(res, 404, { error: 'code not found or expired' }); }
       return json(res, 200, { gid: l.gid, secret: g.secret });
     });
+  }
+
+  if (p.startsWith('/v1/social/')) {
+    if (handleSocial(p, req, res, ip)) return;
+    return json(res, 404, { error: 'not found' });
   }
 
   const kvOne = /^\/v1\/kv\/([a-z_][a-z0-9_]{0,31})$/.exec(p);

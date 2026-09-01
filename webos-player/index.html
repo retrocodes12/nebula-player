@@ -391,6 +391,49 @@
   .ep-done { position:absolute; top:6px; right:6px; width:20px; height:20px; border-radius:var(--r-pill);
     background:rgba(0,0,0,.66); color:var(--ok); font-size:11px; line-height:20px; text-align:center; font-weight:700; }
   html.tv .ep-done { width:28px; height:28px; line-height:28px; font-size:14px; }
+  /* ---- ratings + friends (experimental) ---- */
+  .det-rate { display:flex; align-items:center; margin-top:14px; }
+  .det-rate .star { width:34px; height:34px; border:0; background:none; padding:0; cursor:pointer;
+    color:var(--label3); display:flex; align-items:center; justify-content:center;
+    border-radius:9px; transition:color .15s var(--ease), transform .15s var(--ease); }
+  .det-rate .star svg { width:26px; height:26px; }
+  .det-rate .star.lit { color:var(--accent); }
+  .det-rate .star:hover { transform:scale(1.15); }
+  .det-rate .star.focusable:focus { background:var(--label); color:#000; }
+  .det-rate .rate-lbl { color:var(--label2); font-size:13px; margin-left:12px; }
+  html.tv .det-rate .star { width:46px; height:46px; }
+  html.tv .det-rate .star svg { width:34px; height:34px; }
+  html.tv .det-rate .rate-lbl { font-size:16px; }
+  .fr-head { display:flex; align-items:center; margin:4px 0 12px; }
+  .fr-head .row-title { flex:1; }
+  .fr-code { font-family:var(--mono); font-size:15px; letter-spacing:.12em; color:var(--label);
+    background:var(--l1); border-radius:10px; padding:7px 12px; }
+  html.tv .fr-code { font-size:20px; }
+  .fr-cards { display:flex; flex-wrap:wrap; }
+  .fr-card { display:flex; align-items:center; border:0; cursor:pointer; text-align:left;
+    background:var(--l1); border-radius:14px; padding:10px 16px 10px 10px; margin:0 10px 10px 0;
+    color:var(--label); box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
+    transition:background .18s var(--ease), transform .18s var(--ease); }
+  .fr-card:hover { background:var(--l2); }
+  .fr-card.focusable:focus { background:var(--l2); transform:scale(1.04);
+    box-shadow:0 10px 26px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
+  .fr-card.on { box-shadow:inset 0 0 0 2px var(--accent); }
+  .fr-av { width:40px; height:40px; border-radius:var(--r-pill); background:var(--accent); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:17px;
+    margin-right:11px; flex:0 0 auto; }
+  .fr-name { font-size:15px; font-weight:600; }
+  .fr-sub { font-size:12px; color:var(--label2); margin-top:1px; }
+  .rec-row { display:flex; align-items:center; width:100%; border:0; text-align:left; cursor:pointer;
+    background:var(--l1); border-radius:12px; padding:10px 14px; margin-bottom:8px; color:var(--label);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.06); }
+  .rec-row:hover, .rec-row.focusable:focus { background:var(--l2); }
+  .rec-thumb { width:34px; height:50px; border-radius:7px; object-fit:cover; background:#000;
+    margin-right:12px; flex:0 0 auto; }
+  .rec-note { color:var(--label2); font-size:12.5px; margin-top:2px; }
+  .card-myrate { position:absolute; left:6px; top:6px; background:rgba(0,0,0,.72); color:var(--accent);
+    font-size:11.5px; font-weight:700; border-radius:8px; padding:3px 7px; }
+  html.tv .card-myrate { font-size:14px; }
+
   /* ---- long-press card sheet ---- */
   /* Card actions used to be a delete cross sitting on the artwork. It was the
      loudest thing in the row and the one control a stray tap should never find,
@@ -1055,7 +1098,9 @@
         <button id="detPlay" class="focusable btn"><span class="btn-ic"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span id="detPlayLbl">Play</span></button>
         <button id="detEpisodes" class="focusable btn ghost" style="display:none">Episodes</button>
         <button id="detList" class="focusable btn ghost">My List</button>
+        <button id="detRec" class="focusable btn ghost" style="display:none">Recommend</button>
       </div>
+      <div class="det-rate" id="detRate"></div>
       <div class="det-chips" id="detGenres"></div>
       <div class="det-castlbl" id="detCastLbl" style="display:none">CAST</div>
       <div class="det-chips cast" id="detCastRow"></div>
@@ -1230,7 +1275,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.28';
+  var PLAYER_VERSION = '2026.09.01.29';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1777,6 +1822,7 @@
     try { LS.setItem('library', json); } catch(e){}
     mirrorKv('library', json);
     cloudPushSoon('library');
+    try { socialPublishSoon(); } catch(e){}
   }
   function inLibrary(type, id){
     var r = getLibrary()[progKey(type, id)];
@@ -1801,6 +1847,70 @@
     saveLibrary();
     upcomingCache = { at: 0, rows: null };   // the upcoming list keys off the library
   }
+  // ---------- ratings (Letterboxd-style, local-first) ----------
+  // Same store shape as the library: one record per title, removal is a
+  // tombstone so a stale synced copy cannot resurrect a cleared rating.
+  var ratCache = null;
+  function getRatings(){
+    if (ratCache) return ratCache;
+    try { ratCache = JSON.parse(LS.getItem('ratings')||'{}') || {}; } catch(e){ ratCache = {}; }
+    return ratCache;
+  }
+  function saveRatings(){
+    var json = JSON.stringify(getRatings());
+    try { LS.setItem('ratings', json); } catch(e){}
+    mirrorKv('ratings', json);
+    cloudPushSoon('ratings');
+  }
+  function myRating(type, id){
+    var r = getRatings()[progKey(type, id)];
+    return (r && !r.removed && r.rating) || 0;
+  }
+  function setRating(type, meta, val){
+    var R = getRatings(), k = progKey(type, meta.id);
+    if (!val) R[k] = { removed: true, at: Date.now() };
+    else R[k] = { type: type, id: meta.id, name: meta.name||'', poster: meta.poster||'',
+      shape: meta.posterShape||'poster', rating: val, at: Date.now() };
+    saveRatings();
+    socialPublishSoon();
+  }
+  function ratingsList(){
+    var R = getRatings(), out = [];
+    Object.keys(R).forEach(function(k){ var r = R[k]; if (r && !r.removed && r.id) out.push(r); });
+    out.sort(function(a,b){ return (b.at||0) - (a.at||0); });
+    return out;
+  }
+  function initPersistentRatings(){
+    var cur = getRatings();
+    if (Object.keys(cur).length){ mirrorKv('ratings', JSON.stringify(cur)); return; }
+    idbLoad('ratings')
+      .then(function(v){ if (v) return v; return db8Load('ratings'); })
+      .then(function(v){
+        if (!v) return;
+        var obj = null; try { obj = JSON.parse(v); } catch(e){}
+        if (!obj || !Object.keys(obj).length) return;
+        ratCache = obj;
+        try { LS.setItem('ratings', JSON.stringify(obj)); } catch(e){}
+      });
+  }
+  function mergeRatings(remote){
+    var local = getRatings(), changed = false, localNewer = false;
+    Object.keys(remote).forEach(function(k){
+      var r = remote[k], l = local[k];
+      if (r && (!l || (r.at||0) > (l.at||0))){ local[k] = r; changed = true; }
+    });
+    Object.keys(local).forEach(function(k){
+      var r = remote[k];
+      if (!r || (local[k].at||0) > (r.at||0)) localNewer = true;
+    });
+    if (changed){
+      ratCache = local;
+      saveRatings();
+      if (detCur){ try { detRateRender(); } catch(e){} }
+    }
+    return { changed: changed, localNewer: localNewer };
+  }
+
   function initPersistentLibrary(){
     var cur = getLibrary();
     if (Object.keys(cur).length){ mirrorKv('library', JSON.stringify(cur)); return; }
@@ -2329,6 +2439,7 @@
     info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.4"/></svg>',
     trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 7V5h4v2M6 7l1 12.2A1.8 1.8 0 0 0 8.8 21h6.4a1.8 1.8 0 0 0 1.8-1.8L18 7"/></svg>',
     bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h12v17l-6-4.2L6 21z"/><path d="M9.4 9.6h5.2"/></svg>',
+    heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.3C7 16.6 3.2 13.3 3.2 9.4 3.2 6.9 5.2 5 7.6 5c1.6 0 3.2.8 4.4 2.4C13.2 5.8 14.8 5 16.4 5c2.4 0 4.4 1.9 4.4 4.4 0 3.9-3.8 7.2-8.8 10.9z"/></svg>',
   };
   var sheetState = { el: null, scrim: null, prev: null, keys: null };
   function closeSheet(restoreFocus){
@@ -2786,13 +2897,274 @@
     });
     return card;
   }
+  // ---------- friends (experimental social layer) ----------
+  // Rate what you watch, trade recommendations, and see what friends are
+  // watching. The identity is the cloud sync group wearing a permanent code;
+  // everything is opt-in, friend-visible only, and Turn off deletes it.
+  var social = null;
+  try { social = JSON.parse(LS.getItem('social_v1')||'null'); } catch(e){}
+  var socialPubTimer = null, socialOpenCode = null;
+  function socialOn(){ return !!(social && social.on && cloudLinked()); }
+  function socialSave(){ try { LS.setItem('social_v1', JSON.stringify(social)); } catch(e){} }
+  function socialName(){ return ((social && social.name) || getPrefs().pname || '').trim() || 'Nebula fan'; }
+  function socialEnable(){
+    var go = function(){
+      cloudApi('POST', '/v1/social/enable', { name: socialName() }).then(function(r){
+        social = { on: true, code: r.code, name: socialName() };
+        socialSave(); socialPublishSoon(); renderLibraryTab();
+        setStatus('Friends is on — your code is ' + r.code + '.', 'ok');
+      }).catch(function(){ setStatus('Could not reach the server.', 'err'); });
+    };
+    if (cloudLinked()) return go();
+    // no sync group yet — mint one; it doubles as device sync from here on
+    cloudApi('POST', '/v1/group').then(function(g){
+      cloudLink = { gid: g.gid, secret: g.secret };
+      try { LS.setItem('cloud_link', JSON.stringify(cloudLink)); } catch(e){}
+      cloudRevs = {}; saveCloudRevs();
+      SYNC_KEYS.forEach(function(k){ if (syncDocHasContent(k)) cloudPush(k); });
+      try { syncPanelRender(); } catch(e){}
+      go();
+    }).catch(function(){ setStatus('Could not reach the server.', 'err'); });
+  }
+  function socialDisable(){
+    cloudApi('POST', '/v1/social/disable').catch(function(){});
+    social = null;
+    try { LS.removeItem('social_v1'); } catch(e){}
+    renderLibraryTab();
+    setStatus('Friends is off — your profile is gone from the server.', 'info');
+  }
+  function socialPublishSoon(){
+    if (!socialOn()) return;
+    clearTimeout(socialPubTimer);
+    socialPubTimer = setTimeout(socialPublish, 4000);
+  }
+  function socialPublish(){
+    if (!socialOn()) return;
+    var p = getProgress(), recent = [];
+    Object.keys(p).forEach(function(k){ var r = p[k]; if (r && !r.dismissed && r.name && r.id) recent.push(r); });
+    recent.sort(function(a,b){ return (b.at||0) - (a.at||0); });
+    recent = recent.slice(0, 20).map(function(r){
+      var rootId = r.type === 'series' ? String(r.id).split(':')[0] : r.id;
+      return { type: r.type, id: r.id, name: r.name, poster: r.poster||'', shape: r.shape||'poster',
+        at: r.at, rating: myRating(r.type, rootId) };
+    });
+    var doc = {
+      name: socialName(),
+      recent: recent,
+      ratings: ratingsList().slice(0, 60).map(function(r){
+        return { type: r.type, id: r.id, name: r.name, poster: r.poster||'', shape: r.shape||'poster', rating: r.rating, at: r.at };
+      }),
+      list: libraryList().slice(0, 40).map(function(r){
+        return { type: r.type, id: r.id, name: r.name, poster: r.poster||'', shape: r.shape||'poster' };
+      }),
+    };
+    cloudApi('PUT', '/v1/social/profile', { v: JSON.stringify(doc), name: doc.name }).catch(function(){});
+  }
+  /** A poster card built from a friend's (untrusted) profile entry. */
+  function friendItemCard(it, rated){
+    if (!it || !it.id || !it.name) return null;
+    var card = document.createElement('button');
+    card.className = 'card focusable shape-' + (it.shape === 'landscape' ? 'landscape' : 'poster');
+    var thumb = document.createElement('div'); thumb.className = 'thumb';
+    if (it.poster && /^https?:\/\//.test(it.poster)) thumb.innerHTML = posterImg(it.poster, it.name);
+    else { var ph = document.createElement('span'); ph.className = 'thumb-ph'; ph.textContent = phFor(it.name); thumb.appendChild(ph); }
+    if (rated && it.rating){
+      var br = document.createElement('span'); br.className = 'card-myrate';
+      br.textContent = '★ ' + it.rating; thumb.appendChild(br);
+    }
+    var lbl = document.createElement('div'); lbl.className = 'card-label'; lbl.textContent = it.name;
+    card.appendChild(thumb); card.appendChild(lbl);
+    card.onclick = function(){
+      openDetail({ id: String(it.id), type: it.type === 'series' ? 'series' : 'movie',
+        name: String(it.name), poster: String(it.poster||''), posterShape: it.shape || 'poster' },
+        it.type === 'series' ? 'series' : 'movie');
+    };
+    return card;
+  }
+  function friendRow(wrap, title, items, rated){
+    if (!items || !items.length) return;
+    var head = document.createElement('div'); head.className = 'rowhead';
+    var t = document.createElement('span'); t.className = 'row-title'; t.textContent = title;
+    head.appendChild(t);
+    var row = document.createElement('div'); row.className = 'hrow';
+    items.slice(0, 15).forEach(function(it){ var c = friendItemCard(it, rated); if (c) row.appendChild(c); });
+    if (!row.children.length) return;
+    wrap.appendChild(head); wrap.appendChild(row);
+  }
+  function renderFriends(wrap){
+    wrap.innerHTML = '';
+    if (!socialOn()){
+      var p = document.createElement('div'); p.className = 'panel';
+      p.innerHTML = '<div class="lbl">Friends · experimental</div>' +
+        '<p class="tagline" style="margin:.5rem 0 1rem">Rate what you watch, see what your friends are watching, ' +
+        'and trade recommendations. Turning it on shares your ratings, recent watches and My List ' +
+        '— with friends you add by code, and no one else.</p>' +
+        '<button class="btn focusable" id="frOn">Turn on Friends</button>';
+      wrap.appendChild(p);
+      $id('frOn').onclick = socialEnable;
+      return;
+    }
+    var head = document.createElement('div'); head.className = 'fr-head';
+    var t = document.createElement('span'); t.className = 'row-title'; t.textContent = 'Friends';
+    var code = document.createElement('span'); code.className = 'fr-code'; code.textContent = social.code;
+    code.title = 'Your friend code — friends enter this to add you';
+    head.appendChild(t); head.appendChild(code);
+    wrap.appendChild(head);
+    var bar = document.createElement('div'); bar.className = 'row';
+    bar.innerHTML = '<input id="frCodeIn" class="field focusable" style="max-width:220px" ' +
+      'placeholder="Friend’s code" autocomplete="off" autocapitalize="characters">' +
+      '<button id="frAdd" class="btn ghost focusable">Add friend</button>' +
+      '<button id="frOff" class="btn ghost focusable" title="Deletes your profile and code from the server">Turn off</button>';
+    wrap.appendChild(bar);
+    $id('frAdd').onclick = function(){
+      var c = ($id('frCodeIn').value||'').replace(/\s/g,'').toUpperCase();
+      if (c.length < 7){ setStatus('Enter a 7-character friend code.', 'err'); return; }
+      cloudApi('POST', '/v1/social/friend', { code: c }).then(function(r){
+        $id('frCodeIn').value = '';
+        setStatus('You and ' + (r.name || 'your friend') + ' are now friends.', 'ok');
+        renderLibraryTab();
+      }).catch(function(){ setStatus('No one has that code.', 'err'); });
+    };
+    $id('frCodeIn').addEventListener('keydown', function(e){
+      if (e.keyCode === 13){ e.preventDefault(); $id('frAdd').onclick(); }
+    });
+    $id('frOff').onclick = socialDisable;
+    var body = document.createElement('div'); body.id = 'frBody'; wrap.appendChild(body);
+    var sk = document.createElement('div'); sk.className = 'empty'; sk.textContent = 'Loading friends…';
+    body.appendChild(sk);
+    socialPublishSoon();
+    Promise.all([cloudApi('GET', '/v1/social/friends'), cloudApi('GET', '/v1/social/inbox')])
+      .then(function(rs){
+        body.innerHTML = '';
+        var inbox = (rs[1] && rs[1].inbox) || [];
+        if (inbox.length){
+          var ih = document.createElement('div'); ih.className = 'rowhead';
+          ih.innerHTML = '<span class="row-title">Recommended to you</span>';
+          var clr = document.createElement('button'); clr.className = 'seeall focusable';
+          clr.textContent = 'Clear';
+          clr.onclick = function(){ cloudApi('POST', '/v1/social/inbox_clear').then(function(){ renderLibraryTab(); }); };
+          ih.appendChild(clr);
+          body.appendChild(ih);
+          inbox.slice().reverse().slice(0, 10).forEach(function(rec){
+            if (!rec || !rec.i || !rec.i.id) return;
+            var row = document.createElement('button'); row.className = 'rec-row focusable';
+            if (rec.i.poster && /^https?:\/\//.test(rec.i.poster)){
+              var im = document.createElement('img'); im.className = 'rec-thumb'; im.loading = 'lazy';
+              im.src = rec.i.poster; row.appendChild(im);
+            }
+            var col = document.createElement('div');
+            var l1 = document.createElement('div');
+            l1.textContent = (rec.f || 'A friend') + ' recommends ' + rec.i.name;
+            l1.style.fontWeight = '600';
+            col.appendChild(l1);
+            if (rec.n){ var l2 = document.createElement('div'); l2.className = 'rec-note'; l2.textContent = '“' + rec.n + '”'; col.appendChild(l2); }
+            row.appendChild(col);
+            row.onclick = function(){
+              openDetail({ id: String(rec.i.id), type: rec.i.type === 'series' ? 'series' : 'movie',
+                name: String(rec.i.name), poster: String(rec.i.poster||'') },
+                rec.i.type === 'series' ? 'series' : 'movie');
+            };
+            body.appendChild(row);
+          });
+        }
+        var friends = (rs[0] && rs[0].friends) || [];
+        if (!friends.length){
+          var e2 = document.createElement('div'); e2.className = 'empty';
+          e2.textContent = 'No friends yet — trade codes and their watching shows up here.';
+          body.appendChild(e2);
+          return;
+        }
+        var cards = document.createElement('div'); cards.className = 'fr-cards';
+        var detail = document.createElement('div');
+        friends.forEach(function(f){
+          var prof = null; try { prof = JSON.parse(f.profile || 'null'); } catch(e){}
+          var c = document.createElement('button');
+          c.className = 'fr-card focusable' + (socialOpenCode === f.code ? ' on' : '');
+          var av = document.createElement('span'); av.className = 'fr-av';
+          av.textContent = (f.name || '?').slice(0, 1).toUpperCase();
+          var col = document.createElement('span');
+          var nm = document.createElement('span'); nm.className = 'fr-name'; nm.textContent = f.name || f.code;
+          var sb = document.createElement('span'); sb.className = 'fr-sub';
+          sb.textContent = (prof && prof.ratings ? prof.ratings.length : 0) + ' rated';
+          sb.style.display = 'block';
+          col.appendChild(nm); col.appendChild(sb);
+          c.appendChild(av); c.appendChild(col);
+          c.onclick = function(){
+            socialOpenCode = socialOpenCode === f.code ? null : f.code;
+            detail.innerHTML = '';
+            [].slice.call(cards.children).forEach(function(k){ k.className = k.className.replace(' on',''); });
+            if (socialOpenCode !== f.code) return;
+            c.className += ' on';
+            if (!prof){ var e3 = document.createElement('div'); e3.className='empty'; e3.textContent = 'Nothing shared yet.'; detail.appendChild(e3); return; }
+            friendRow(detail, (f.name || 'They') + ' watched recently',
+              (prof.recent||[]).map(function(r){ return r && r.type === 'series'
+                ? Object.assign({}, r, { id: String(r.id).split(':')[0] }) : r; }), true);
+            friendRow(detail, 'Rated', prof.ratings, true);
+            friendRow(detail, 'Their list', prof.list, false);
+            if (!detail.children.length){ var e4 = document.createElement('div'); e4.className='empty'; e4.textContent = 'Nothing shared yet.'; detail.appendChild(e4); }
+          };
+          cards.appendChild(c);
+        });
+        body.appendChild(cards); body.appendChild(detail);
+      })
+      .catch(function(){ sk.textContent = 'Could not reach the server.'; });
+  }
+  /** Stars on the title page. */
+  function detRateRender(){
+    var wrap = $id('detRate'); if (!wrap) return;
+    if (!detCur){ wrap.innerHTML = ''; return; }
+    var m = detCur.meta, type = detCur.type;
+    var cur = myRating(type, m.id);
+    wrap.innerHTML = '';
+    for (var i = 1; i <= 5; i++)(function(i){
+      var b = document.createElement('button');
+      b.className = 'star focusable' + (i <= cur ? ' lit' : '');
+      b.title = i + ' star' + (i > 1 ? 's' : '');
+      b.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+        '<path d="M12 2.6l2.94 5.96 6.58.96-4.76 4.64 1.12 6.55L12 17.62l-5.88 3.09 1.12-6.55L2.48 9.52l6.58-.96z"/></svg>';
+      b.onclick = function(){ setRating(type, m, i === cur ? 0 : i); detRateRender(); };
+      wrap.appendChild(b);
+    })(i);
+    var lbl = document.createElement('span'); lbl.className = 'rate-lbl';
+    lbl.textContent = cur ? 'Your rating' : 'Rate it';
+    wrap.appendChild(lbl);
+  }
+  /** The Recommend button on the title page — only worn while Friends is on. */
+  function detRecWire(){
+    var b = $id('detRec'); if (!b) return;
+    if (!socialOn() || !detCur){ b.style.display = 'none'; return; }
+    b.style.display = '';
+    b.onclick = function(){
+      var m = detCur.meta, type = detCur.type;
+      cloudApi('GET', '/v1/social/friends').then(function(r){
+        var fr = (r.friends || []);
+        if (!fr.length){ setStatus('Add a friend first — Library › Friends.', 'info'); return; }
+        openSheet({
+          title: m.name || '', sub: 'Recommend to…', poster: m.poster || '', shape: m.posterShape || 'poster',
+          actions: fr.slice(0, 8).map(function(f){
+            return { icon: 'heart', label: f.name || f.code, fn: function(){
+              cloudApi('POST', '/v1/social/recommend', {
+                code: f.code, item: { type: type, id: m.id, name: m.name || '', poster: m.poster || '' },
+              }).then(function(){ setStatus('Recommended to ' + (f.name || 'your friend') + '.', 'ok'); })
+                .catch(function(){ setStatus('Could not send that.', 'err'); });
+            } };
+          }),
+        });
+      }).catch(function(){ setStatus('Could not reach the server.', 'err'); });
+    };
+  }
+
   function renderLibraryTab(){
     var wrap = $id('libraryBody'); if (!wrap) return;
-    var items = libraryList();
     wrap.innerHTML = '';
+    var fr = document.createElement('div'); fr.id = 'friendsSec'; wrap.appendChild(fr);
+    renderFriends(fr);
+    var items = libraryList();
     if (!items.length){
-      wrap.innerHTML = '<div class="empty">Nothing saved yet — open any title and press <b>+ My List</b>. ' +
-        'New episodes of saved series appear here under Upcoming.</div>';
+      var e = document.createElement('div'); e.className = 'empty';
+      e.innerHTML = 'Nothing saved yet — open any title and press <b>+ My List</b>. ' +
+        'New episodes of saved series appear here under Upcoming.';
+      wrap.appendChild(e);
       return;
     }
     var grid = document.createElement('div'); grid.className = 'grid'; grid.id = 'libGrid';
@@ -3244,6 +3616,7 @@
     return best;
   }
   function syncDetButtons(){
+    try { detRateRender(); detRecWire(); } catch(e){}
     var meta = detCur.meta, type = detCur.type;
     var play = $id('detPlay'), lbl = $id('detPlayLbl'), eps = $id('detEpisodes');
     eps.style.display = 'none';
@@ -3285,6 +3658,7 @@
     type = type || meta.type || 'movie';
     ctx.item = meta;                       // stream/poster identity keys off this
     detCur = { meta: meta, type: type, addon: ctx.addon || null };
+    try { detRateRender(); detRecWire(); } catch(e){}
     var seq = ++detSeq;
     $id('detTitle').textContent = '';      // the logo/name in the body carries the identity
     renderDetailFacts(meta);
@@ -3688,6 +4062,7 @@
     // toast right after (goBack → endParty's "Left the party.") isn't wiped by
     // a deferred clear.
     clearStatus();
+    try { socialPublishSoon(); } catch(e){}   // friends see the freshly-watched title
     try { flushProgress(true); } catch(e){}
     curPlay = null;
     closeUpNext();
@@ -4798,7 +5173,7 @@
   var cloudDirty = {};
   try { cloudDirty = JSON.parse(LS.getItem('cloud_dirty')||'{}') || {}; } catch(e){}
   var syncApplying = false, syncTimers = {}, lastPullAt = 0;
-  var SYNC_KEYS = ['addons','progress','library','sub_style'];
+  var SYNC_KEYS = ['addons','progress','library','sub_style','ratings'];
   function cloudLinked(){ return !!(cloudLink && cloudLink.gid && cloudLink.secret); }
   function saveCloudRevs(){ try { LS.setItem('cloud_revs', JSON.stringify(cloudRevs)); } catch(e){} }
   function saveCloudDirty(){ try { LS.setItem('cloud_dirty', JSON.stringify(cloudDirty)); } catch(e){} }
@@ -4853,6 +5228,7 @@
     }
     if (key === 'progress') return JSON.stringify(getProgress());
     if (key === 'library') return JSON.stringify(getLibrary());
+    if (key === 'ratings') return JSON.stringify(getRatings());
     if (key === 'sub_style'){
       var at = 0; try { at = Number(LS.getItem('sub_style_at')) || 0; } catch(e){}
       return JSON.stringify({ style: subStyle, at: at });
@@ -4863,6 +5239,7 @@
     if (key === 'addons') return getAddons().length > 0;
     if (key === 'progress') return Object.keys(getProgress()).length > 0;
     if (key === 'library') return Object.keys(getLibrary()).length > 0;
+    if (key === 'ratings') return Object.keys(getRatings()).length > 0;
     if (key === 'sub_style'){ var at = 0; try { at = Number(LS.getItem('sub_style_at')) || 0; } catch(e){} return at > 0; }
     return false;
   }
@@ -4997,6 +5374,7 @@
     if (key === 'addons') return mergeAddons(remote);
     if (key === 'progress') return mergeProgress(remote);
     if (key === 'library') return mergeLibrary(remote);
+    if (key === 'ratings') return mergeRatings(remote);
     if (key === 'sub_style') return mergeSubStyle(remote);
     return { changed: false, localNewer: false };
   }
@@ -5256,6 +5634,7 @@
   initPersistentProgress();
   initPersistentSubStyle();
   initPersistentLibrary();
+  initPersistentRatings();
   buildHomeRows(true);
   if (cloudLinked()) setTimeout(function(){ cloudPullAll(true); }, 900);
   setStatus(getAddons().length ? 'Welcome back.' : 'Ready. Add your add-on to begin.','info');
