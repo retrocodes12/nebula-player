@@ -988,7 +988,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.15';
+  var PLAYER_VERSION = '2026.09.01.16';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -3013,6 +3013,14 @@
         }
       });
       player.configure({ drm: { clearKeys: clearKeys } });
+    }
+    // An extension-less URL (presigned R2/S3 links) makes Shaka try a manifest
+    // fetch — which a browser can't do cross-origin without CORS (error 1002).
+    // Native players just play these; force src= playback so the TV's media
+    // pipeline sniffs the container itself, exactly like Android does.
+    if (!mimeType && !clearKeys &&
+        !/\.(mpd|m3u8|mp4|m4v|webm|mkv|mov|ts|avi|mp3|aac|ogg|flac|wav)(\?|#|$)/i.test(rawUrl)){
+      mimeType = 'video/mp4';
     }
     // Resume where this exact item was left off. Handing the offset to Shaka's
     // load() starts buffering there, rather than loading at 0 and seeking.
