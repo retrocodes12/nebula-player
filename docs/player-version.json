@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.01.2",
-  "url": "https://retrocodes12.github.io/nebula-player/",
-  "notes": "Audit fixes: proper Play/Details buttons, initials for broken posters, toast corrections, mobile nav fit"
+  "version": "2026.09.01.3",
+  "url": "https://play.rifflehq.in/",
+  "notes": "Series upgrade: opens your current season with the next episode ready, air dates, fresh watched-marks"
 }

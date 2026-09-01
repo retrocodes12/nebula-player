@@ -280,6 +280,11 @@
   html.tv .prog { height:4px; }
   .ep-thumbwrap { position:relative; flex:0 0 auto; }
   .ep-thumbwrap .prog { left:6px; right:6px; bottom:6px; }
+  .stream.ep-next { box-shadow:inset 0 0 0 1px rgba(255,255,255,.4), 0 0 0 0 transparent; }
+  .ep-upnext { flex:0 0 auto; margin-left:auto; align-self:center; font-size:11px; font-weight:600;
+    letter-spacing:.04em; color:#fff; background:rgba(118,118,128,.4); border-radius:var(--r-pill);
+    padding:5px 11px; white-space:nowrap; }
+  html.tv .ep-upnext { font-size:14px; padding:7px 14px; }
   .ep-done { position:absolute; top:6px; right:6px; width:20px; height:20px; border-radius:var(--r-pill);
     background:rgba(0,0,0,.66); color:var(--ok); font-size:11px; line-height:20px; text-align:center; font-weight:700; }
   html.tv .ep-done { width:28px; height:28px; line-height:28px; font-size:14px; }
@@ -859,7 +864,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.2';
+  var PLAYER_VERSION = '2026.09.01.3';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -922,6 +927,8 @@
     // cheap and synchronous — keeps Continue watching honest after playback
     if (name === 'home'){ try { renderContinue(); } catch(e){} }
     if (name === 'library'){ try { renderLibraryTab(); } catch(e){} }
+    // back from playback: the episode list's ticks, bars and "up next" are stale
+    if (name === 'episodes' && epView){ try { epView.refresh(); } catch(e){} }
     // coming back to a title after watching: the Resume label must be current
     if (name === 'detail' && detCur){ try { syncDetButtons(); } catch(e){} }
     video.style.display = (name==='player') ? 'block' : 'none';
@@ -935,6 +942,8 @@
     setTimeout(function(){ focusFirst(back); }, 30);
   }
   function focusFirst(preserveScroll){
+    var ae = document.activeElement;
+    if (ae && ae.tagName === 'INPUT' && ae.offsetParent !== null) return; // never yank focus from a field being typed in
     var v = document.querySelector('.view.active'); if(!v) return;
     var f = v.querySelector('.focusable'); if (!f) return;
     try { f.focus(preserveScroll ? { preventScroll: true } : undefined); } catch(e){ f.focus(); }
@@ -2181,6 +2190,11 @@
     if (meta.imdbRating) bits.push('★ ' + meta.imdbRating);
     var g = meta.genres || meta.genre;
     if (g && g.length) bits.push(g.slice(0,3).join(' · '));
+    if (meta.videos && meta.videos.length){
+      var sn = {}; meta.videos.forEach(function(v){ var x = seasonNum(v); if (x > 0) sn[x] = 1; });
+      var n = Object.keys(sn).length;
+      if (n) bits.push(n + ' Season' + (n > 1 ? 's' : ''));
+    }
     $id('detMeta').textContent = bits.join('   ·   ');
     $id('detDesc').textContent = meta.description || meta.overview || '';
     var credits = '';
@@ -2320,8 +2334,26 @@
     }
     return null;
   }
+  // Lets a return from playback repaint the open season with fresh
+  // watched-marks and the new "up next" — the render closure lives here.
+  var epView = null;
+  /** Where the viewer is in this series: newest progress record wins; a
+      finished episode advances the cursor to the one after it. */
+  function seriesCursor(type, flat){
+    var p = getProgress(), best = null, bestIdx = -1;
+    flat.forEach(function(v, i){
+      var r = p[progKey(type, v.id)];
+      if (!r || r.dismissed) return;
+      if (!r.done && !(r.pos >= PROG_MIN_POS && r.dur > 0)) return;
+      if (!best || (r.at||0) > (best.at||0)){ best = r; bestIdx = i; }
+    });
+    if (bestIdx === -1) return null;
+    var upIdx = best.done ? Math.min(bestIdx + 1, flat.length - 1) : bestIdx;
+    return { upIdx: upIdx, up: flat[upIdx] };
+  }
   async function openSeries(meta, type){
     var seq = ++seriesSeq;
+    epView = null;                     // stale renderers must not answer show('episodes')
     document.getElementById('epTitle').textContent = meta.name || 'Episodes';
     document.getElementById('seasonRow').innerHTML = '';
     document.getElementById('epList').innerHTML = episodeSkeletons(6);
@@ -2343,23 +2375,38 @@
     ctx.seriesPoster = meta.poster || '';
     var row = document.getElementById('seasonRow');
     row.innerHTML = '';
-    function renderSeason(s){
+    var upIdx = -1;
+    function renderSeason(s, keepScroll){
       Array.prototype.forEach.call(row.children, function(ch){ ch.classList.toggle('on', ch.__season === s); });
       var list = document.getElementById('epList');
+      var keptScroll = keepScroll ? list.parentNode.scrollTop : 0;
       list.innerHTML = '';
-      bySeason[s].forEach(function(v){ list.appendChild(episodeRow(meta, v, flat.indexOf(v))); });
-      list.parentNode.scrollTop = 0;
+      bySeason[s].forEach(function(v){
+        var i = flat.indexOf(v);
+        list.appendChild(episodeRow(meta, v, i, i === upIdx));
+      });
+      list.parentNode.scrollTop = keptScroll;
     }
-    seasons.forEach(function(s, i){
+    /** Open (or repaint) at the viewer's place in the show: the season of the
+        newest watched/in-progress episode, next-up highlighted and in view. */
+    function renderCurrent(keepScroll){
+      var cur = seriesCursor(type, flat);
+      upIdx = cur ? cur.upIdx : -1;
+      renderSeason(cur ? seasonNum(cur.up) : seasons[0], keepScroll);
+      var next = document.querySelector('#epList .ep-next');
+      if (next){ try { next.scrollIntoView({ block:'center' }); } catch(e){} }
+    }
+    seasons.forEach(function(s){
       var chip = document.createElement('button');
-      chip.className = 'chip focusable' + (i === 0 ? ' on' : '');
+      chip.className = 'chip focusable';
       chip.textContent = (s === 0 ? 'Specials' : 'Season ' + s);
       chip.__season = s;
       chip.onclick = function(){ renderSeason(s); };
       row.appendChild(chip);
     });
     setStatus(res.videos.length + ' episodes','ok');
-    renderSeason(seasons[0]);
+    renderCurrent(false);
+    epView = { refresh: function(){ if (seq === seriesSeq) renderCurrent(true); } };
     focusFirst();
   }
   function epLabel(seriesName, v){
@@ -2389,8 +2436,15 @@
     }
     try { puiRefreshButtons(); } catch(e){}
   }
-  function episodeRow(seriesMeta, v, index){
-    var row = document.createElement('button'); row.className = 'stream focusable';
+  function fmtAirDate(iso){
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    try { return new Intl.DateTimeFormat('en', { day:'numeric', month:'short', year:'numeric' }).format(d); }
+    catch(e){ return String(iso).slice(0, 10); }
+  }
+  function episodeRow(seriesMeta, v, index, upNext){
+    var row = document.createElement('button'); row.className = 'stream focusable' + (upNext ? ' ep-next' : '');
     var e = epNum(v);
     var ph = '<div class="ep-thumb-ph">' + (e != null ? e : '•') + '</div>';
     var thumb = v.thumbnail
@@ -2405,10 +2459,12 @@
       mark = '<span class="prog"><i style="width:' + pct.toFixed(1) + '%"></i></span>';
     }
     var title = (e != null ? e + '. ' : '') + esc(v.name || v.title || ('Episode ' + (e != null ? e : '')));
-    var sub = v.overview || v.released || '';
+    var date = fmtAirDate(v.released);
+    var sub = [date, v.overview].filter(Boolean).join(' — ');
     row.innerHTML = '<span class="ep-thumbwrap">' + thumb + mark + '</span>' +
       '<span><span class="stream-name">' + title + '</span>' +
-      (sub ? '<span class="ep-sub">' + esc(sub) + '</span>' : '') + '</span>';
+      (sub ? '<span class="ep-sub">' + esc(sub) + '</span>' : '') + '</span>' +
+      (upNext ? '<span class="ep-upnext">Up next</span>' : '');
     row.onclick = function(){
       ctx.epIndex = (index == null ? -1 : index);
       ctx.streamTitle = epLabel(seriesMeta.name, v);
