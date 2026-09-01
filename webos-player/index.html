@@ -38,6 +38,7 @@
     --fill:rgba(118,118,128,.24);
     --fill2:rgba(118,118,128,.36);
     --red:#E50914; --red-hover:#F6121D;
+    --accent:#E50914; --fzoom:1.10;
     --ok:#30D158;
     --r-card:12px; --r-tile:18px; --r-ctl:12px; --r-pill:980px;
     --ease:cubic-bezier(.22,.61,.36,1);
@@ -49,6 +50,11 @@
     --ink:var(--label); --muted:var(--label2); --railw:0px; --padt:0px;
   }
   @media (max-width:820px){ :root { --pad:20px; } }
+  @media (max-width:820px){
+    .navitem span { display:none; }
+    .navitem svg { display:block; width:20px; height:20px; }
+    .navitem { padding:8px 11px; }
+  }
   @media (hover:hover){
     .card .cw-x { opacity:0; transition:opacity .18s; }
     .card:hover .cw-x, .card:focus-within .cw-x { opacity:1; }
@@ -77,7 +83,7 @@
   .scroller::-webkit-scrollbar { display:none; }
 
   #updBanner { display:none; position:fixed; top:0; left:0; right:0; z-index:200; align-items:center;
-    padding:11px 20px; background:var(--red); color:#fff; font-size:14px; font-weight:500; }
+    padding:11px 20px; background:var(--accent); color:#fff; font-size:14px; font-weight:500; }
   #updBanner.show { display:flex; }
   #updBanner > * + * { margin-left:12px; }
   #updBanner #updText { flex:1; }
@@ -100,7 +106,7 @@
   body.playing #rail { display:none; }
   .rail-brand { display:flex; align-items:center; margin-right:30px; flex:0 0 auto;
     font-size:16px; font-weight:600; letter-spacing:-.02em; color:var(--label); }
-  .rail-brand svg { width:18px; height:18px; color:var(--red); margin-right:9px; }
+  .rail-brand svg { width:18px; height:18px; color:var(--accent); margin-right:9px; }
   .navitem { display:inline-flex; align-items:center; border:0; background:transparent; cursor:pointer;
     font-family:var(--sans); font-size:14px; font-weight:500; color:var(--label2);
     padding:7px 15px; margin-right:4px; border-radius:var(--r-pill); white-space:nowrap;
@@ -111,6 +117,18 @@
   .navitem.focusable:focus { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
 
   .page-title { font-size:34px; font-weight:700; letter-spacing:-.028em; margin:0 0 4px; }
+  .setrow { display:flex; align-items:center; flex-wrap:wrap; padding:14px 0; }
+  .setrow + .setrow { border-top:1px solid var(--sep); }
+  .setname { flex:1 1 180px; font-size:15px; font-weight:600; }
+  .setname small { display:block; color:var(--label2); font-weight:400; font-size:12.5px; margin-top:2px; }
+  .setrow .chip { margin:4px 8px 4px 0; }
+  .swatch { width:36px; height:36px; border-radius:50%; border:0; cursor:pointer; margin:4px 10px 4px 0;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.18); }
+  .swatch.on { box-shadow:0 0 0 3px #000, 0 0 0 5px #fff; }
+  .swatch.focusable:focus { box-shadow:0 0 0 3px #000, 0 0 0 5px rgba(255,255,255,.6); }
+  html:not(.tv) #rowZoom { display:none; }   /* focus zoom only means something on a TV */
+  html.tv .setname { font-size:19px; }
+  html.tv .swatch { width:46px; height:46px; }
   @media (min-width:1400px){ .page-title { font-size:40px; } }
 
   /* ---- rows ---- */
@@ -144,7 +162,7 @@
 
   .hero { padding:4px 0 22px; }
   .brand { font-size:28px; font-weight:700; letter-spacing:-.03em; }
-  .brand-mark { color:var(--red); margin-right:.3em; }
+  .brand-mark { color:var(--accent); margin-right:.3em; }
   .brand-name { color:var(--label); }
   .tagline { color:var(--label2); margin:.6rem 0 0; font-size:15px; line-height:1.5; }
   .panel { background:var(--l1); border:0; border-radius:var(--r-tile); padding:24px; max-width:860px;
@@ -188,7 +206,7 @@
     box-shadow:0 12px 30px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
   .addon-logo { width:46px; height:46px; border-radius:11px; object-fit:cover; background:#000; flex:0 0 auto; }
   .addon-logo.ph { display:flex; align-items:center; justify-content:center; font-size:19px;
-    font-weight:600; color:#fff; background:var(--red); }
+    font-weight:600; color:#fff; background:var(--accent); }
   .addon-name { font-size:16px; font-weight:600; letter-spacing:-.015em; }
   .addon-url { color:var(--label2); font-size:12.5px; word-break:break-all; margin-top:3px;
     max-height:2.4em; overflow:hidden; }
@@ -197,7 +215,7 @@
     display:flex; align-items:center; justify-content:center;
     transition:opacity .18s var(--ease), background .18s var(--ease); }
   .addon-del svg { width:13px; height:13px; }
-  .addon-del:hover { background:var(--red); color:#fff; }
+  .addon-del:hover { background:var(--accent); color:#fff; }
   .addon:hover .addon-del, .addon:focus-within .addon-del, .addon.focusable:focus .addon-del { opacity:1; }
   .empty { color:var(--label2); padding:12px 2px; font-size:15px; }
 
@@ -262,7 +280,7 @@
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
     transition:background .18s var(--ease), transform .2s var(--ease); }
   .stream > * + * { margin-left:14px; }
-  .stream-play { width:40px; height:40px; flex:0 0 auto; border-radius:var(--r-pill); background:var(--red);
+  .stream-play { width:40px; height:40px; flex:0 0 auto; border-radius:var(--r-pill); background:var(--accent);
     color:#fff; display:flex; align-items:center; justify-content:center; }
   .stream-play svg { width:15px; height:15px; }
   .stream:hover { background:var(--l2); }
@@ -304,7 +322,7 @@
     border:0; background:rgba(0,0,0,.55); color:#fff; cursor:pointer; opacity:0;
     display:flex; align-items:center; justify-content:center; transition:opacity .18s var(--ease), background .18s; }
   .cw-x svg { width:12px; height:12px; }
-  .cw-x:hover { background:var(--red); }
+  .cw-x:hover { background:var(--accent); }
   .card:hover .cw-x, .card.focusable:focus .cw-x { opacity:1; }
   html.tv .cw-x { width:34px; height:34px; }
   html.tv .cw-x svg { width:15px; height:15px; }
@@ -398,7 +416,7 @@
   .pui-winrow > * + * { margin-left:12px; }
   .pui-live { flex:0 0 auto; background:rgba(80,80,88,.42); color:#fff; font-size:11px; font-weight:700;
     letter-spacing:.04em; padding:6px 12px; border-radius:var(--r-pill); }
-  .pui-live.hot { background:var(--red); }
+  .pui-live.hot { background:var(--accent); }
   .pui-party { background:#fff; color:#000; }
   .pui-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
     display:flex; align-items:center; }
@@ -635,7 +653,7 @@
   html.tv .grid { grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:34px 26px; }
   html.tv .card-label { font-size:17px; }
   html.tv .card-sub { font-size:15px; }
-  html.tv .card.focusable:focus { transform:scale(1.10); }
+  html.tv .card.focusable:focus { transform:scale(var(--fzoom)); }
   html.tv .chip { font-size:18px; padding:11px 22px; }
   html.tv .field { font-size:20px; padding:15px 18px; }
   html.tv input[type=search].field { padding-left:3rem; }
@@ -770,6 +788,9 @@
     <button id="navAddons" class="navitem focusable" data-tab="addons" title="Add-ons">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg>
       <span>Add-ons</span></button>
+    <button id="navSettings" class="navitem focusable" data-tab="settings" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.98 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.98a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9c.22.63.8 1.05 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51.97Z"/></svg>
+      <span>Settings</span></button>
   </div>
 
   <!-- HOME: featured hero + content rows from every added add-on -->
@@ -813,6 +834,42 @@
   </div>
 
   <!-- ADD-ONS: manage sources -->
+  <!-- SETTINGS: appearance + playback preferences (device-local) -->
+  <div id="view-settings" class="view">
+    <div class="scroller">
+      <h1 class="page-title">Settings</h1>
+      <div class="panel">
+        <div class="lbl">Appearance</div>
+        <div class="setrow">
+          <span class="setname">Accent<small>Colours the brand, play buttons and badges</small></span>
+          <span id="setAccent"></span>
+        </div>
+        <div class="setrow" id="rowZoom">
+          <span class="setname">Focus zoom<small>How much cards grow when highlighted</small></span>
+          <span id="setZoom"></span>
+        </div>
+        <div class="setrow">
+          <span class="setname">Ratings on posters<small>The little star badges on artwork</small></span>
+          <span id="setRatings"></span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="lbl">Playback</div>
+        <div class="setrow">
+          <span class="setname">Autoplay next episode<small>Count down and roll into the next one</small></span>
+          <span id="setAutoplay"></span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="lbl">About</div>
+        <p class="sub" id="setAbout" style="margin:8px 0 0"></p>
+        <p class="sub privacy-link" style="margin:10px 0 0">
+          No accounts, no tracking — <a href="https://play.rifflehq.in/privacy.html" target="_blank" rel="noopener" style="color:inherit">how Nebula handles your data</a>.
+        </p>
+      </div>
+    </div>
+  </div>
+
   <div id="view-addons" class="view">
     <div class="page-title">Add-ons</div>
     <p class="sub">Add an add-on and its catalogs show up on Home. Every format plays, decrypted on-device.</p>
@@ -918,7 +975,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.11';
+  var PLAYER_VERSION = '2026.09.01.12';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1704,7 +1761,7 @@
       addon/catalog (cards on Home and Search live outside the catalog view). */
   function cardEl(meta, a, m, c){
     var card=document.createElement('button'); card.className='card focusable shape-'+(meta.posterShape||'poster');
-    var rate = meta.imdbRating ? '<span class="card-rate">★ '+esc(String(meta.imdbRating))+'</span>' : '';
+    var rate = (meta.imdbRating && getPrefs().ratings !== false) ? '<span class="card-rate">★ '+esc(String(meta.imdbRating))+'</span>' : '';
     var thumb = meta.poster
       ? '<div class="thumb">'+posterImg(meta.poster, meta.name)+rate+'</div>'
       : '<div class="thumb"><span class="thumb-ph">'+phFor(meta.name)+'</span>'+rate+'</div>';
@@ -1929,7 +1986,7 @@
         var b = document.createElement('button');
         b.className = 'hs-card focusable';
         b.innerHTML = '<img src="' + esc(m.background || m.poster) + '" alt="" onerror="this.remove()">' +
-          (m.imdbRating ? '<span class="hs-rate">★ ' + esc(m.imdbRating) + '</span>' : '') +
+          ((m.imdbRating && getPrefs().ratings !== false) ? '<span class="hs-rate">★ ' + esc(m.imdbRating) + '</span>' : '') +
           '<div class="hs-name">' + esc(m.name) + '</div>';
         b.onclick = function(){
           ctx.addon = itS.addon; ctx.manifest = itS.manifest;
@@ -3447,7 +3504,8 @@
   }
   function openUpNext(withCountdown){
     var nx = nextEpisode(); if (!nx) return;
-    upnextState.open = true; upnextState.target = nx; upnextState.counting = !!withCountdown;
+    upnextState.open = true; upnextState.target = nx;
+    upnextState.counting = !!withCountdown && getPrefs().autoplay !== false;
     $id('upnextTitle').textContent = epTag(nx.ep) + (nx.ep.name ? ' · ' + nx.ep.name : '');
     $id('upnext').classList.add('show');
     clearInterval(upnextState.timer);
@@ -4084,6 +4142,55 @@
     var i = $id('syncCodeIn');
     i.addEventListener('keydown', function(e){ if (e.keyCode === 13){ e.preventDefault(); syncJoin(); } });
   })();
+  // ---------- preferences (device-local by design: a TV and a phone can differ) ----------
+  var PREF_ACCENTS = [
+    ['Nebula Red', '#E50914'], ['Cobalt', '#0A84FF'], ['Emerald', '#30D158'],
+    ['Violet', '#BF5AF2'], ['Amber', '#FF9F0A'],
+  ];
+  function getPrefs(){ try { return JSON.parse(LS.getItem('prefs_v1') || '{}') || {}; } catch(e){ return {}; } }
+  function setPref(k, v){
+    var pr = getPrefs(); pr[k] = v;
+    try { LS.setItem('prefs_v1', JSON.stringify(pr)); } catch(e){}
+    applyPrefs(); settingsRender();
+  }
+  function applyPrefs(){
+    var pr = getPrefs();
+    document.documentElement.style.setProperty('--accent', pr.accent || '#E50914');
+    document.documentElement.style.setProperty('--fzoom', pr.zoom || '1.10');
+  }
+  function prefChip(label, on, fn){
+    var b = document.createElement('button');
+    b.className = 'chip focusable' + (on ? ' on' : '');
+    b.textContent = label; b.onclick = fn;
+    return b;
+  }
+  function settingsRender(){
+    var pr = getPrefs();
+    var acc = $id('setAccent'); if (!acc) return;
+    acc.innerHTML = '';
+    PREF_ACCENTS.forEach(function(a){
+      var b = document.createElement('button');
+      b.className = 'swatch focusable' + ((pr.accent || '#E50914') === a[1] ? ' on' : '');
+      b.style.background = a[1]; b.title = a[0];
+      b.onclick = function(){ setPref('accent', a[1]); };
+      acc.appendChild(b);
+    });
+    var z = $id('setZoom'); z.innerHTML = '';
+    [['Subtle','1.05'], ['Standard','1.10'], ['Bold','1.16']].forEach(function(o){
+      z.appendChild(prefChip(o[0], (pr.zoom || '1.10') === o[1], function(){ setPref('zoom', o[1]); }));
+    });
+    var r = $id('setRatings'); r.innerHTML = '';
+    r.appendChild(prefChip('Show', pr.ratings !== false, function(){ setPref('ratings', true); buildHomeRows(true); }));
+    r.appendChild(prefChip('Hide', pr.ratings === false, function(){ setPref('ratings', false); buildHomeRows(true); }));
+    var a2 = $id('setAutoplay'); a2.innerHTML = '';
+    a2.appendChild(prefChip('On', pr.autoplay !== false, function(){ setPref('autoplay', true); }));
+    a2.appendChild(prefChip('Off', pr.autoplay === false, function(){ setPref('autoplay', false); }));
+    $id('setAbout').textContent = 'Nebula · build ' + PLAYER_VERSION +
+      ' · HLS · DASH · DASH+ClearKey · plays every add-on format on-device';
+  }
+  applyPrefs();
+  settingsRender();
+
   syncPanelRender();
   (function(){
     var rail = document.getElementById('rail');
