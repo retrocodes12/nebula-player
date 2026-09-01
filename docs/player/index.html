@@ -1072,7 +1072,7 @@
   <!-- MANUAL -->
   <div id="view-manual" class="view">
     <div class="topbar"><button class="focusable iconbtn" data-back title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="topbar-title">Play a URL</div></div>
-    <p class="sub">Paste a DASH/HLS URL. Put a key on it as <code>#clearkey=kidHex:keyHex</code>, or fill the fields.</p>
+    <p class="sub">Paste a stream URL. If it needs a key, fill the two fields below.</p>
     <input id="mUrl" class="focusable field" type="url" placeholder="https://host/manifest.mpd" autocomplete="off" />
     <div class="row">
       <input id="mKid" class="focusable field" type="text" placeholder="Key ID (hex, optional)" style="flex:1" />
@@ -1125,7 +1125,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.23';
+  var PLAYER_VERSION = '2026.09.01.24';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -4683,7 +4683,7 @@
     if (pn && document.activeElement !== pn) pn.value = pr.pname || '';
     pn.placeholder = partyName();
     $id('setAbout').textContent = 'Nebula · build ' + PLAYER_VERSION +
-      ' · HLS · DASH · DASH+ClearKey · plays every add-on format on-device';
+      ' · plays every add-on format, on-device';
   }
   applyPrefs();
   settingsRender();

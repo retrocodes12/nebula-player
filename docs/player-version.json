@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.01.23",
+  "version": "2026.09.01.24",
   "url": "https://play.rifflehq.in/",
-  "notes": "Fixes: phone navigation icons were invisible, and TV series pages now use the whole screen"
+  "notes": "Plainer language throughout \u2014 the app talks about what it does, not the formats it speaks"
 }
