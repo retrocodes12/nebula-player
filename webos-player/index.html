@@ -1033,7 +1033,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.17';
+  var PLAYER_VERSION = '2026.09.01.18';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1827,7 +1827,15 @@
     var clear = document.getElementById('catSearchClear');
     if (!input || !clear) return;
     function submit(){ ctx.query = input.value.trim(); clear.style.display = ctx.query ? '' : 'none'; renderGenres(); loadCatalog(); }
-    input.addEventListener('keydown', function(e){ if (e.key==='Enter' || e.keyCode===13){ e.preventDefault(); submit(); } });
+    var catDeb = null;
+    input.addEventListener('keydown', function(e){ if (e.key==='Enter' || e.keyCode===13){ e.preventDefault(); clearTimeout(catDeb); submit(); } });
+    input.addEventListener('input', function(){
+      clearTimeout(catDeb);
+      var q = input.value.trim();
+      if (!q && ctx.query){ submit(); return; }
+      if (q.length < 2) return;
+      catDeb = setTimeout(submit, 450);
+    });
     clear.addEventListener('click', function(){ clearSearchInput(); renderGenres(); loadCatalog(); });
   })();
   function skeletons(n){
@@ -4459,8 +4467,17 @@
   (function initGlobalSearch(){
     var i = document.getElementById('globalSearch'), c = document.getElementById('globalSearchClear');
     if (!i || !c) return;
-    i.addEventListener('keydown', function(e){ if (e.key==='Enter' || e.keyCode===13){ e.preventDefault(); runGlobalSearch(); } });
-    c.addEventListener('click', function(){ i.value=''; runGlobalSearch(); i.focus(); });
+    var searchDeb = null;
+    i.addEventListener('keydown', function(e){ if (e.key==='Enter' || e.keyCode===13){ e.preventDefault(); clearTimeout(searchDeb); runGlobalSearch(); } });
+    i.addEventListener('input', function(){
+      clearTimeout(searchDeb);
+      var q = i.value.trim();
+      c.style.display = q ? '' : 'none';
+      if (!q){ runGlobalSearch(); return; }          // cleared — empty the results now
+      if (q.length < 2) return;                       // one letter would just spray requests
+      searchDeb = setTimeout(runGlobalSearch, 450);
+    });
+    c.addEventListener('click', function(){ clearTimeout(searchDeb); i.value=''; runGlobalSearch(); i.focus(); });
   })();
   try { document.getElementById('mUrl').value = LS.getItem('m_url')||''; } catch(e){}
 
