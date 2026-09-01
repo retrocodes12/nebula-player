@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.01.26",
+  "version": "2026.09.01.27",
   "url": "https://play.rifflehq.in/",
-  "notes": "Drag your add-ons into the order you want them asked in"
+  "notes": "No more empty Home on launch — it waits for the first catalogue"
 }

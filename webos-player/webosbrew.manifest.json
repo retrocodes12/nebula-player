@@ -9,7 +9,7 @@
   "rootRequired": false,
   "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.47.0/com.nuvio.clearkey.player_1.47.0_all.ipk",
   "ipkHash": {
-    "sha256": "4780997dbc2c2088b11467c3abf40cd96c713fae54b31d11dc0c3dabab6a2ece"
+    "sha256": "ae42d763c9c0733244c4f397cc81fc7f4480df5208ca7d9c96483aba42485b8d"
   },
-  "ipkSize": 886134
+  "ipkSize": 887210
 }
