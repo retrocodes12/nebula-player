@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.01.4",
+  "version": "2026.09.01.5",
   "url": "https://play.rifflehq.in/",
-  "notes": "Stream cards reborn: fusion badges (4K, Dolby Vision, Atmos, REMUX and more) with clean size, seeds and source info"
+  "notes": "Badges load instantly (bundled art, 75x smaller), one tidy row, and stream text no longer repeats what the badges say"
 }

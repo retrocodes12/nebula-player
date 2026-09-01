@@ -264,7 +264,7 @@
     box-shadow:0 14px 32px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
   .stream-name { display:block; font-size:15.5px; font-weight:600; letter-spacing:-.015em; }
   .stream-sub { display:block; color:var(--label2); font-size:13px; margin-top:3px; }
-  .sbadges { display:block; margin-top:6px; line-height:0; }
+  .sbadges { display:block; margin-top:6px; line-height:0; white-space:nowrap; overflow:hidden; }
   .sbadges img { height:16px; width:auto; display:inline-block; vertical-align:middle; margin:2px 8px 2px 0; }
   .stream-facts { display:block; color:var(--label2); font-size:12.5px; margin-top:4px; font-variant-numeric:tabular-nums; }
   .streamsec .rowhead { margin:6px 0 2px; }
@@ -869,7 +869,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.4';
+  var PLAYER_VERSION = '2026.09.01.5';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -2148,7 +2148,7 @@
   // ---------- stream badges (Elite "fusion" pack — the default set) ----------
   // Matched against the stream's raw name+title text; first hit per group wins,
   // and within a group the table runs specific -> generic (HDR10+ before HDR).
-  var BADGE_IMG_BASE = 'https://raw.githubusercontent.com/leonevz/Elite-Badges/main/Badges/';
+  var BADGE_IMG_BASE = 'badges/';
   var BADGE_PACK = [
     ['resolution', "\\b(4k|2160p|uhd|ultra\\s*hd)\\b", "4k_ultra_hd.png"],
     ['resolution', "\\b(1080p|fhd|full\\s*hd)\\b", "1080p_full_hd.png"],
@@ -2191,15 +2191,17 @@
         try { badgeRe.push(new RegExp(BADGE_PACK[i][1], 'i')); } catch(e){ badgeRe.push(null); }
       }
     }
-    var seen = {}, out = '', shown = 0;
-    for (i=0;i<BADGE_PACK.length && shown < 7;i++){
+    var seen = {}, out = '', fired = [], shown = 0;
+    for (i=0;i<BADGE_PACK.length;i++){
+      if (!badgeRe[i] || !badgeRe[i].test(raw)) continue;
+      fired.push(badgeRe[i]);               // every match cleans the text line
       var g = BADGE_PACK[i][0];
-      if (seen[g] || !badgeRe[i] || !badgeRe[i].test(raw)) continue;
+      if (seen[g] || shown >= 6) continue;  // but only the group's first becomes a badge
       seen[g] = 1; shown++;
-      out += '<img loading="lazy" alt="" src="' + BADGE_IMG_BASE + BADGE_PACK[i][2] +
+      out += '<img alt="" src="' + BADGE_IMG_BASE + BADGE_PACK[i][2] +
         '" onerror="this.style.display=\'none\'">';
     }
-    return out;
+    return { html: out, fired: fired };
   }
   function fmtBytes(n){
     var g = n / 1073741824;
@@ -2209,18 +2211,22 @@
   /** Pull the human facts out of a stream's title text: size, seeders, provider.
       Lines that only carried those (Torrentio's emoji line) are consumed;
       whatever text remains becomes the muted description. */
-  function streamFacts(s, text){
-    var size = null, seeds = null, provider = null, desc = [];
+  var RE_SIZE = /(\d+(?:[.,]\d+)?)\s*(GB|GiB|MB|MiB)\b/i;
+  var RE_BITRATE = /~?\s*(\d+(?:\.\d+)?)\s*Mbps\b/i;
+  var RE_SOURCE = /\bsource\s*:?\s+(.+)$/i;
+  function streamFacts(s, text, firedBadges){
+    var size = null, seeds = null, provider = null, bitrate = null, desc = [];
     var bh = s.behaviorHints || {};
     if (bh.videoSize > 0) size = fmtBytes(bh.videoSize);
     var lines = String(text || '').split('\n');
     for (var i = 0; i < lines.length; i++){
       var ln = lines[i], m;
       var factLine = ln.indexOf('👤') >= 0 || ln.indexOf('💾') >= 0 || ln.indexOf('⚙') >= 0;
-      if (!size && (m = ln.match(/(\d+(?:[.,]\d+)?)\s*(GB|GiB|MB|MiB)\b/i))){
+      if (!size && (m = ln.match(RE_SIZE))){
         var unit = m[2].length === 3 ? m[2].charAt(0).toUpperCase() + 'iB' : m[2].toUpperCase();
         size = m[1].replace(',', '.') + ' ' + unit;
       }
+      if (!bitrate && (m = ln.match(RE_BITRATE))) bitrate = m[1] + ' Mbps';
       if (!seeds && (m = ln.match(/👤\s*(\d+)/) || ln.match(/\b(?:seeds?|seeders?)[:\s]+(\d+)/i))) seeds = m[1];
       if (!provider){
         var ix = ln.indexOf('⚙');
@@ -2229,10 +2235,30 @@
           if (pv) provider = pv;
         }
       }
-      if (!factLine && ln.replace(/\s/g, '')) desc.push(ln);
+      if (factLine || !ln.replace(/\s/g, '')) continue;
+      // bullet-style metadata lines: drop what the badges and facts already say
+      if (ln.indexOf('·') >= 0 || ln.indexOf('•') >= 0){
+        var kept = [];
+        var toks = ln.split(/\s*[·•]\s*/);
+        for (var t = 0; t < toks.length; t++){
+          var tok = toks[t];
+          if (!tok) continue;
+          if ((m = tok.match(RE_SOURCE))){ if (!provider) provider = m[1].trim(); continue; }
+          if (RE_BITRATE.test(tok) || RE_SIZE.test(tok)) continue;
+          var badged = false;
+          for (var b = 0; firedBadges && b < firedBadges.length; b++){
+            if (firedBadges[b].test(tok)){ badged = true; break; }
+          }
+          if (!badged) kept.push(tok);
+        }
+        if (kept.length) desc.push(kept.join(' · '));
+      } else {
+        desc.push(ln);
+      }
     }
     var facts = [];
     if (size) facts.push(size);
+    if (bitrate) facts.push(bitrate);
     if (seeds) facts.push(seeds + ' seeds');
     if (provider) facts.push(provider);
     return { facts: facts.join('  ·  '), desc: desc.join(' · ') };
@@ -2241,11 +2267,11 @@
     var card=document.createElement('button'); card.className='stream focusable';
     var text = (s.title || s.description || '');
     var badges = streamBadges((s.name || '') + '\n' + text);
-    var f = streamFacts(s, text);
+    var f = streamFacts(s, text, badges.fired);
     var name = (s.name || 'Stream').replace(/\n/g, ' ');
     card.innerHTML = '<span class="stream-play"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span>' +
       '<span class="stream-name">' + esc(name) + '</span>' +
-      (badges ? '<span class="sbadges">' + badges + '</span>' : '') +
+      (badges.html ? '<span class="sbadges">' + badges.html + '</span>' : '') +
       (f.facts ? '<span class="stream-facts">' + esc(f.facts) + '</span>' : '') +
       (f.desc ? '<span class="stream-sub">' + esc(f.desc) + '</span>' : '') +
       '</span>';
