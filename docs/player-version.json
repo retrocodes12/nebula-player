@@ -1,5 +1,5 @@
 {
-  "version": "2026.08.31.5",
+  "version": "2026.09.01.1",
   "url": "https://retrocodes12.github.io/nebula-player/",
-  "notes": "The player wears the Apple TV layout: glass controls, a thick rounded scrubber, remaining time at your right hand"
+  "notes": "Fix: a playback error toast no longer lingers after you close the stream"
 }

@@ -854,7 +854,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.08.31.5';
+  var PLAYER_VERSION = '2026.09.01.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -892,6 +892,10 @@
     clearTimeout(statusTimer);
     if (k !== 'err') statusTimer = setTimeout(function(){ statusEl.classList.remove('show'); }, 3500);
   }
+  // Errors are sticky (no auto-timeout) so they can be read — which means they
+  // must be dismissed explicitly when their context goes away, or a playback
+  // error rides the toast all the way back to Home.
+  function clearStatus(){ clearTimeout(statusTimer); statusEl.classList.remove('show'); }
   function hex(v){ return (v||'').trim().replace(/[^0-9a-fA-F]/g,'').toLowerCase(); }
   function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
 
@@ -901,6 +905,10 @@
     document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
     var el = document.getElementById('view-'+name);
     if (el){ el.classList.add('active'); if (!back) el.scrollTop = 0; }
+    // a sticky error belongs to the screen that raised it — leaving that screen
+    // clears it (a per-view message is always set AFTER its show(), so this
+    // never wipes the toast the incoming view just put up)
+    if (statusEl.className.indexOf('err') !== -1) clearStatus();
     // cheap and synchronous — keeps Continue watching honest after playback
     if (name === 'home'){ try { renderContinue(); } catch(e){} }
     if (name === 'library'){ try { renderLibraryTab(); } catch(e){} }
@@ -2538,6 +2546,7 @@
     video.style.display='none';
     document.body.classList.remove('pui-on');
     try { video.playbackRate = 1; } catch(e){}
+    clearStatus();                    // a sticky playback error must not outlive the stream
   }
   var playSeq = 0, didRetry = false;
   // On a playback error, let Shaka retry the failed segments IN PLACE once
