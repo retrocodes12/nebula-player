@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.01.1",
+  "version": "2026.09.01.2",
   "url": "https://retrocodes12.github.io/nebula-player/",
-  "notes": "Fix: a playback error toast no longer lingers after you close the stream"
+  "notes": "Audit fixes: proper Play/Details buttons, initials for broken posters, toast corrections, mobile nav fit"
 }

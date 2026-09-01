@@ -99,7 +99,7 @@
   .rail-brand svg { width:18px; height:18px; color:var(--red); margin-right:9px; }
   .navitem { display:inline-flex; align-items:center; border:0; background:transparent; cursor:pointer;
     font-family:var(--sans); font-size:14px; font-weight:500; color:var(--label2);
-    padding:7px 15px; margin-right:4px; border-radius:var(--r-pill);
+    padding:7px 15px; margin-right:4px; border-radius:var(--r-pill); white-space:nowrap;
     transition:color .2s var(--ease), background .2s var(--ease); }
   .navitem svg { display:none; }
   .navitem:hover { color:var(--label); }
@@ -163,6 +163,11 @@
   .btn.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.45); }
   .btn.ghost { background:var(--fill2); color:var(--label); }
   .btn.ghost:hover { background:rgba(118,118,128,.5); }
+  /* leading icon inside a .btn (hero "Details", detail "Play") — without these
+     the unsized SVG balloons the button into a circle with a stacked label */
+  .btn .btn-ic { display:inline-flex; vertical-align:-2px; margin-right:8px; }
+  .btn .btn-ic svg { width:13px; height:13px; display:block; }
+  html.tv .btn .btn-ic svg { width:17px; height:17px; }
   .section-title { font-size:21px; font-weight:600; letter-spacing:-.021em; margin:30px 0 12px; }
 
   /* ---- add-ons ---- */
@@ -477,7 +482,7 @@
     display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
     text-shadow:0 1px 10px rgba(0,0,0,.7); }
   .hf-dots { position:absolute; z-index:2; right:var(--pad); bottom:34px; display:flex; }
-  .hf-dot { width:6px; height:6px; background:rgba(255,255,255,.32); margin-left:8px; transform:rotate(45deg); }
+  .hf-dot { width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,.32); margin-left:8px; }
   .hf-dot.on { background:#fff; }
 
   .det-back { position:absolute; top:0; left:0; right:0; height:58vh; overflow:hidden; }
@@ -553,8 +558,8 @@
     .pui-playpause { width:64px; height:64px; }
     .pui-skip { width:48px; height:48px; }
     .qmenu, #upnext { right:16px; bottom:150px; }
-    .rail-brand { margin-right:14px; font-size:15px; }
-    .navitem { padding:6px 11px; font-size:13px; }
+    .rail-brand { margin-right:8px; font-size:14px; }
+    .navitem { padding:6px 8px; font-size:12.5px; margin-right:0; }
     .page-title { font-size:28px; }
     .topbar-title { font-size:24px; }
     .streams { max-width:none; }
@@ -854,7 +859,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.1';
+  var PLAYER_VERSION = '2026.09.01.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -898,6 +903,15 @@
   function clearStatus(){ clearTimeout(statusTimer); statusEl.classList.remove('show'); }
   function hex(v){ return (v||'').trim().replace(/[^0-9a-fA-F]/g,'').toLowerCase(); }
   function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  // Two-letter fallback for a missing/broken poster (initials, else bullets).
+  function phFor(name){ return esc((name||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase() || '••'); }
+  // A poster <img> that, when its URL 404s, swaps itself for the initials
+  // placeholder instead of leaving a blank tile.
+  function posterImg(url, name, cls){
+    var ph = phFor(name);
+    return '<img ' + (cls ? 'class="'+cls+'" ' : '') + 'loading="lazy" src="' + esc(url) +
+      '" onerror="this.outerHTML=\'<span class=&quot;thumb-ph&quot;>' + ph + '</span>\'">';
+  }
 
   // ---------- view + focus ----------
   function show(name, push){
@@ -905,10 +919,6 @@
     document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
     var el = document.getElementById('view-'+name);
     if (el){ el.classList.add('active'); if (!back) el.scrollTop = 0; }
-    // a sticky error belongs to the screen that raised it — leaving that screen
-    // clears it (a per-view message is always set AFTER its show(), so this
-    // never wipes the toast the incoming view just put up)
-    if (statusEl.className.indexOf('err') !== -1) clearStatus();
     // cheap and synchronous — keeps Continue watching honest after playback
     if (name === 'home'){ try { renderContinue(); } catch(e){} }
     if (name === 'library'){ try { renderLibraryTab(); } catch(e){} }
@@ -1627,8 +1637,8 @@
     var card=document.createElement('button'); card.className='card focusable shape-'+(meta.posterShape||'poster');
     var rate = meta.imdbRating ? '<span class="card-rate">★ '+esc(String(meta.imdbRating))+'</span>' : '';
     var thumb = meta.poster
-      ? '<div class="thumb"><img loading="lazy" src="'+esc(meta.poster)+'" onerror="this.remove()">'+rate+'</div>'
-      : '<div class="thumb"><span class="thumb-ph">'+esc((meta.name||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||'••')+'</span>'+rate+'</div>';
+      ? '<div class="thumb">'+posterImg(meta.poster, meta.name)+rate+'</div>'
+      : '<div class="thumb"><span class="thumb-ph">'+phFor(meta.name)+'</span>'+rate+'</div>';
     var year = meta.releaseInfo || meta.year || '';
     card.innerHTML = thumb + '<div class="card-label">'+esc(meta.name||meta.id)+'</div>' +
       (year ? '<div class="card-sub">'+esc(String(year))+'</div>' : '');
@@ -1738,8 +1748,8 @@
     card.className = 'card focusable shape-' + (r.shape || 'poster');
     var pct = r.dur > 0 ? Math.max(0, Math.min(100, (r.pos / r.dur) * 100)) : 0;
     var thumb = r.poster
-      ? '<img loading="lazy" src="' + esc(r.poster) + '" onerror="this.style.display=\'none\'">'
-      : '<span class="thumb-ph">' + esc((r.name||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase() || '••') + '</span>';
+      ? posterImg(r.poster, r.name)
+      : '<span class="thumb-ph">' + phFor(r.name) + '</span>';
     var left = (r.dur - r.pos) > 0 ? fmtT(r.dur - r.pos) + ' left' : '';
     card.innerHTML = '<div class="thumb">' + thumb +
       '<div class="prog"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' +
@@ -1973,8 +1983,8 @@
     var card = document.createElement('button');
     card.className = 'card focusable shape-' + (r.shape || 'poster');
     var thumb = r.poster
-      ? '<img loading="lazy" src="' + esc(r.poster) + '" onerror="this.style.display=\'none\'">'
-      : '<span class="thumb-ph">' + esc((r.name||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase() || '••') + '</span>';
+      ? posterImg(r.poster, r.name)
+      : '<span class="thumb-ph">' + phFor(r.name) + '</span>';
     card.innerHTML = '<div class="thumb">' + thumb + '</div>' +
       '<div class="card-label">' + esc(r.name || r.id) + '</div>';
     card.onclick = function(){
@@ -2533,6 +2543,11 @@
     return true;
   }
   async function stopPlayer(){
+    // Synchronous, and first: a sticky playback error must not outlive the
+    // stream, and this must run before any await so a caller that sets its own
+    // toast right after (goBack → endParty's "Left the party.") isn't wiped by
+    // a deferred clear.
+    clearStatus();
     try { flushProgress(true); } catch(e){}
     curPlay = null;
     closeUpNext();
@@ -2546,7 +2561,6 @@
     video.style.display='none';
     document.body.classList.remove('pui-on');
     try { video.playbackRate = 1; } catch(e){}
-    clearStatus();                    // a sticky playback error must not outlive the stream
   }
   var playSeq = 0, didRetry = false;
   // On a playback error, let Shaka retry the failed segments IN PLACE once
