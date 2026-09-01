@@ -158,6 +158,27 @@
   #view-search .searchrow .field { flex:1; margin:0; }
   #searchResults .grid { margin-bottom:26px; }
 
+  /* ---- boot screen ---- */
+  /* above the update banner (200) — a nag must not flash over the boot screen */
+  #boot { position:fixed; left:0; top:0; right:0; bottom:0; z-index:210; background:var(--bg);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    transition:opacity .34s var(--ease); }
+  #boot.out { opacity:0; pointer-events:none; }
+  .boot-mark { display:flex; align-items:center; font-size:30px; font-weight:700; letter-spacing:-.03em;
+    color:var(--label); }
+  .boot-mark svg { width:30px; height:30px; color:var(--accent); margin-right:11px; }
+  html.tv .boot-mark { font-size:46px; }
+  html.tv .boot-mark svg { width:46px; height:46px; margin-right:16px; }
+  .boot-bar { width:132px; height:3px; border-radius:2px; margin-top:26px; overflow:hidden;
+    background:rgba(255,255,255,.10); }
+  html.tv .boot-bar { width:200px; height:4px; margin-top:34px; }
+  /* An indeterminate sweep, not a percentage — we cannot know how long an
+     add-on will take, and a fake percentage that stalls is worse than none. */
+  .boot-bar i { display:block; width:40%; height:100%; border-radius:2px; background:var(--accent);
+    animation:bootSweep 1.05s var(--ease) infinite; }
+  @keyframes bootSweep { 0% { transform:translateX(-105%); } 100% { transform:translateX(355%); } }
+  @media (prefers-reduced-motion: reduce){ .boot-bar i { animation:none; width:100%; opacity:.5; } }
+
   .hero { padding:4px 0 22px; }
   .brand { font-size:28px; font-weight:700; letter-spacing:-.03em; }
   .brand-mark { color:var(--accent); margin-right:.3em; }
@@ -892,6 +913,16 @@
 </style>
 </head>
 <body>
+  <!-- Boot screen. Static markup, above the script, so it paints on the first
+       frame — the whole point is that nobody ever sees an empty Home. -->
+  <div id="boot">
+    <div class="boot-mark">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6 21.4 12 12 21.4 2.6 12 12 2.6Z"/></svg>
+      <span>Nebula</span>
+    </div>
+    <div class="boot-bar"><i></i></div>
+  </div>
+
   <video id="video" autoplay playsinline></video>
 
   <div id="updBanner">
@@ -1191,7 +1222,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.26';
+  var PLAYER_VERSION = '2026.09.01.27';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1264,6 +1295,9 @@
     if (el){ el.classList.add('active'); if (!back) el.scrollTop = 0; }
     // cheap and synchronous — keeps Continue watching honest after playback
     if (name === 'home'){ try { renderContinue(); } catch(e){} }
+    // Anywhere but Home is its own destination — a deep link or a resumed view
+    // must not sit behind a boot screen waiting for catalogues it won't show.
+    if (name !== 'home'){ try { bootReady(); } catch(e){} }
     if (name === 'library'){ try { renderLibraryTab(); } catch(e){} }
     // back from playback: the episode list's ticks, bars and "up next" are stale
     if (name === 'episodes' && epView){ try { epView.refresh(); } catch(e){} }
@@ -1564,14 +1598,22 @@
       setStatus('Starter add-ons restored — Home is filling up.','ok');
     } catch(e){}
   }
+  /** Every add-on restore path ends here: the list is now whatever it is going
+      to be, so Home can stop waiting on one that will never arrive. */
+  var addonsReady = false;
+  function finishAddonRestore(){
+    seedMissingDefaults();
+    addonsReady = true;
+    if (!getAddons().length) bootReady();
+  }
   function initPersistentAddons(){
     var cur = getAddons();
-    if (cur.length){ mirrorAddons(JSON.stringify(cur)); seedMissingDefaults(); return; }  // seed mirrors from a healthy LS
+    if (cur.length){ mirrorAddons(JSON.stringify(cur)); finishAddonRestore(); return; }  // seed mirrors from a healthy LS
     idbLoad('addons')
       .then(function(v){ if (v) return v; return db8Load('addons'); })
       .then(function(v){
         var arr = null; try { arr = v ? JSON.parse(v) : null; } catch(e){}
-        if (!arr || !arr.length){ seedDefaults(); seedMissingDefaults(); return; }   // truly first run — not a wiped TV
+        if (!arr || !arr.length){ seedDefaults(); finishAddonRestore(); return; }   // truly first run — not a wiped TV
         // union with whatever was added while the restore was in flight
         var now = getAddons(), merged = now.slice();
         arr.forEach(function(a){
@@ -1581,7 +1623,7 @@
           saveAddons(merged); renderAddons();
           if (!now.length){ setStatus('Restored your saved add-ons.','ok'); focusFirst(); }
         }
-        seedMissingDefaults();
+        finishAddonRestore();
       });
   }
   // Watch progress rides the same mirrors — losing your place to an overnight
@@ -2546,6 +2588,32 @@
   }
 
   var homeSig = null, homeBuiltAt = 0, homeSeq = 0;
+  // ---------- boot screen ----------
+  // Home used to appear the instant the shell was ready and then fill in row by
+  // row, so the first thing anyone saw was an empty screen. This holds it back
+  // until the first catalogue has actually painted.
+  var BOOT_MIN = 550;      // below this it reads as a flicker, not a screen
+  var BOOT_MAX = 3200;     // a stuck add-on must never strand anyone here
+  var bootAt = Date.now(), bootGone = false, bootTimer = null;
+  function endBoot(){
+    if (bootGone) return;
+    bootGone = true;
+    clearTimeout(bootTimer);
+    var el = $id('boot'); if (!el) return;
+    el.className = 'out';
+    setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 400);
+    // on a TV nothing has focus until the boot screen lets go
+    setTimeout(function(){ if (document.activeElement === document.body) focusFirst(); }, 60);
+  }
+  /** Home has something real to show (or has given up). */
+  function bootReady(){
+    if (bootGone) return;
+    var waited = Date.now() - bootAt;
+    if (waited >= BOOT_MIN) endBoot();
+    else { clearTimeout(bootTimer); bootTimer = setTimeout(endBoot, BOOT_MIN - waited); }
+  }
+  bootTimer = setTimeout(endBoot, BOOT_MAX);
+
   function buildHomeRows(force){
     var wrap = document.getElementById('homeRows'); if (!wrap) return;
     var addons = getAddons();
@@ -2561,6 +2629,8 @@
         '<p class="tagline" style="margin:.6rem 0 1.2rem">Nothing here yet — add an add-on and its catalogs fill this screen.</p>' +
         '<button class="btn focusable" id="homeAddBtn">Add an add-on</button></div>';
       document.getElementById('homeAddBtn').onclick = function(){ setTab('addons'); };
+      // an empty list this early usually means the mirrors have not answered yet
+      if (addonsReady) bootReady();
       return;
     }
     // Continue watching lives in its own section so the add-on rows (and their
@@ -2575,6 +2645,7 @@
       rowsWrap.innerHTML = '<div class="empty">Couldn’t reach your add-ons right now. ' +
         '<button class="seeall focusable" id="homeRetry" style="margin-left:8px">Retry</button></div>';
       document.getElementById('homeRetry').onclick = function(){ buildHomeRows(true); };
+      bootReady();                       // every add-on failed — show them that
     }
     addons.forEach(function(a){
       getManifest(a.url).then(function(m){
@@ -2601,6 +2672,7 @@
             if (!metas.length){ head.style.display='none'; row.style.display='none'; return; }
             rowsShown++;
             metas.forEach(function(meta){ row.appendChild(cardEl(meta, a, m, c)); });
+            if (rowsShown === 1) bootReady();   // first real row on screen
             // boot on TV: give the first loaded row focus if nothing has it yet
             if (document.activeElement === document.body) focusFirst();
           }).catch(function(){
