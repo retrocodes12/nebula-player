@@ -878,7 +878,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.6';
+  var PLAYER_VERSION = '2026.09.01.7';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -906,7 +906,7 @@
     /web0s|webos|smarttv|smart-tv|netcast/i.test(navigator.userAgent || '') ||
     /[?&#]tv=1/.test(location.href));
   if (IS_TV) document.documentElement.className += ' tv';
-  // webOS proper (not the ?tv=1 preview): watch-party UI is hidden there.
+  // webOS proper (not the ?tv=1 preview): quirks that only exist on the TV itself
   var IS_WEBOS = !!(window.PalmSystem || window.WebOSServiceBridge || window.PalmServiceBridge) ||
     /web0s|webos|netcast/i.test(navigator.userAgent || '');
 
@@ -3676,9 +3676,6 @@
   }
   $id('puiParty').onclick = function(){ startParty(); };
   if (IS_WEBOS){
-    $id('puiParty').style.display = 'none';
-    var partyPanelEl = document.getElementById('partyPanel');
-    if (partyPanelEl) partyPanelEl.style.display = 'none';
     var fileBtnEl = document.getElementById('fileBtn');   // no file dialogs on a TV
     if (fileBtnEl) fileBtnEl.style.display = 'none';
   }
