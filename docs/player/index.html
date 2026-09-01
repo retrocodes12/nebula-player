@@ -988,7 +988,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.13';
+  var PLAYER_VERSION = '2026.09.01.14';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1334,14 +1334,41 @@
       });
     } catch(e){}
   }
+  /** v2: an older install that already had add-ons when seeding first ran
+      never got the defaults — the flag was set and nothing was added. Add
+      what's missing, once, unless it was deliberately removed here. */
+  function seedMissingDefaults(){
+    try {
+      if (LS.getItem('seeded_v2')) return;
+      LS.setItem('seeded_v2', '1');
+      var sy = getAddonsSync();
+      var cur = getAddons(), added = [];
+      [
+        { url:'https://v3-cinemeta.strem.io/manifest.json', name:'Cinemeta', base:'https://v3-cinemeta.strem.io', logo:'' },
+        { url:'https://opensubtitles-v3.strem.io/manifest.json', name:'OpenSubtitles v3', base:'https://opensubtitles-v3.strem.io', logo:'' }
+      ].forEach(function(a){
+        if (cur.some(function(x){ return x.url === a.url; })) return;
+        if (sy.removed[a.url]) return;                 // removed on purpose — respect it
+        cur.push(a); added.push(a.url);
+      });
+      if (!added.length) return;
+      saveAddons(cur);
+      var sy2 = getAddonsSync();
+      added.forEach(function(u){ sy2.at[u] = 1; });    // a seed must never beat a real removal in sync
+      saveAddonsSync();
+      renderAddons();
+      buildHomeRows(true);
+      setStatus('Starter add-ons restored — Home is filling up.','ok');
+    } catch(e){}
+  }
   function initPersistentAddons(){
     var cur = getAddons();
-    if (cur.length){ mirrorAddons(JSON.stringify(cur)); return; }  // seed mirrors from a healthy LS
+    if (cur.length){ mirrorAddons(JSON.stringify(cur)); seedMissingDefaults(); return; }  // seed mirrors from a healthy LS
     idbLoad('addons')
       .then(function(v){ if (v) return v; return db8Load('addons'); })
       .then(function(v){
         var arr = null; try { arr = v ? JSON.parse(v) : null; } catch(e){}
-        if (!arr || !arr.length){ seedDefaults(); return; }   // truly first run — not a wiped TV
+        if (!arr || !arr.length){ seedDefaults(); seedMissingDefaults(); return; }   // truly first run — not a wiped TV
         // union with whatever was added while the restore was in flight
         var now = getAddons(), merged = now.slice();
         arr.forEach(function(a){
@@ -1351,6 +1378,7 @@
           saveAddons(merged); renderAddons();
           if (!now.length){ setStatus('Restored your saved add-ons.','ok'); focusFirst(); }
         }
+        seedMissingDefaults();
       });
   }
   // Watch progress rides the same mirrors — losing your place to an overnight

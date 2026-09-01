@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.01.13",
+  "version": "2026.09.01.14",
   "url": "https://play.rifflehq.in/",
-  "notes": "TV performance: same design, far cheaper rendering \u2014 snappier navigation everywhere"
+  "notes": "Fix: older installs now get the starter add-ons (Cinemeta) they missed \u2014 deliberate removals stay respected"
 }
