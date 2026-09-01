@@ -802,6 +802,16 @@
   .upnext-row { display:flex; }
   .upnext-row > * + * { margin-left:8px; }
   .upnext-row .btn { padding:10px 18px; font-size:13.5px; }
+  /* what the next episode will play from — chosen while this one still runs */
+  .upnext-src { display:block; font-family:var(--mono); font-size:11px; letter-spacing:.06em;
+    color:var(--label2); margin:-9px 0 14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .upnext-src:empty { display:none; }
+  html.tv .upnext-src { font-size:13px; }
+  /* the row that matches what you picked last time — same source, same quality */
+  .stream.usual { box-shadow:inset 0 0 0 1px rgba(255,255,255,.16); }
+  .s-usual { display:block; font-family:var(--mono); font-size:10px; font-weight:500; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:3px; }
+  html.tv .s-usual { font-size:12px; }
   /* pause board: leave a film paused for a moment and it tells you what you're
      looking at — title, episode, synopsis, what's left — the way a TV box does.
      Any key or the pointer clears it; the transport stays where it was. */
@@ -1304,6 +1314,7 @@
     <div id="upnext">
       <div class="lbl">Up next</div>
       <div id="upnextTitle" class="upnext-title"></div>
+      <div id="upnextSrc" class="upnext-src"></div>
       <div class="upnext-row">
         <button id="upnextPlay" class="focusable btn">Play now</button>
         <button id="upnextX" class="focusable btn ghost">Dismiss</button>
@@ -1552,7 +1563,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.02.3';
+  var PLAYER_VERSION = '2026.09.02.4';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1650,7 +1661,7 @@
   // rings and the zoom are for remotes and keyboards. Until a key is pressed
   // on a non-TV device focus stays on the body; the first arrow or Tab places
   // it (moveFocus2D handles the no-current-focus case).
-  var kbUsed = false;
+  var kbUsed = false, lastKeyAt = 0;   // lastKeyAt: has the remote moved since a list opened?
   document.addEventListener('mousedown', function(){ kbUsed = false; }, true);
   document.addEventListener('touchstart', function(){ kbUsed = false; }, true);
   function focusFirst(preserveScroll){
@@ -1658,7 +1669,11 @@
     var ae = document.activeElement;
     if (ae && ae.tagName === 'INPUT' && ae.offsetParent !== null) return; // never yank focus from a field being typed in
     var v = document.querySelector('.view.active'); if(!v) return;
-    var f = v.querySelector('.focusable'); if (!f) return;
+    // the view's own code may already have placed the focus (a stream list lands
+    // on the row picked last time) — leave that alone
+    if (ae && ae !== document.body && v.contains(ae) && !ae.hasAttribute('data-back')) return;
+    // content first: the topbar's Back button is only the landing spot when there is nothing else
+    var f = v.querySelector('.focusable:not([data-back]):not(input)') || v.querySelector('.focusable'); if (!f) return;
     try { f.focus(preserveScroll ? { preventScroll: true } : undefined); } catch(e){ f.focus(); }
   }
   function focusables(){
@@ -1724,7 +1739,7 @@
 
   document.addEventListener('keydown', function(e){
     var k = e.keyCode, inInput = document.activeElement && document.activeElement.tagName==='INPUT';
-    if (k === 9 || k === 13 || (k >= 37 && k <= 40)) kbUsed = true;
+    if (k === 9 || k === 13 || (k >= 37 && k <= 40)){ kbUsed = true; lastKeyAt = Date.now(); }
     // While playing, the quality overlay owns D-pad/keys (so it's reachable on TV).
     if (video.style.display==='block'){
       var isBack = (k===461 || k===8 || e.key==='GoBack' || e.key==='BrowserBack');
@@ -3834,7 +3849,8 @@
     });
     return out.slice(0, 4).join('  ·  ');
   }
-  function streamCard(s, addonName){
+  function streamCard(s, addon){
+    var addonName = (addon && addon.name) || '';
     var card=document.createElement('button'); card.className='stream focusable';
     var text = (s.title || s.description || '');
     var raw = (s.name || '') + '\n' + text;
@@ -3856,8 +3872,89 @@
         (sub ? '<span class="stream-sub">' + esc(sub) + '</span>' : '') +
       '</span>' +
       (spec ? '<span class="s-spec">' + spec + '</span>' : '');
-    card.onclick=function(){ playStream(s); };
+    // a hand-picked row is the one the next episodes follow (same source, same quality)
+    card.onclick=function(){ ctx.pickedFrom = streamSig(s, addon); savePick(ctx.pickedFrom); playStream(s); };
     return card;
+  }
+
+  // ---- same source, same quality: remember what was picked, find its twin ----
+  var RES_RANK = { '4K':4, '1080':3, '720':2, 'SD':1, '':0 };
+  function sigWords(t){
+    var out = {}, toks = String(t || '').toLowerCase().split(/[^a-z0-9]+/);
+    for (var i = 0; i < toks.length; i++){
+      var w = toks[i];
+      if (w.length < 3 || /^\d+$/.test(w) || /^s\d+e\d+$/.test(w)) continue;   // episode-specific bits
+      out[w] = 1;
+    }
+    return out;
+  }
+  /** The fingerprint of a stream row that survives to the next episode: the
+      add-on it came from, its binge group when the add-on declares one, the
+      resolution plate, provider, fusion badges and the release words. */
+  function streamSig(s, addon){
+    var text = (s.title || s.description || '');
+    var raw = (s.name || '') + '\n' + text;
+    var plate = plateFor(raw);
+    var bh = s.behaviorHints || {};
+    streamBadges(raw, null);                    // makes sure badgeRe is compiled
+    var badges = [];
+    for (var i = 0; i < BADGE_PACK.length; i++){
+      if (badgeRe[i] && badgeRe[i].test(raw)) badges.push(BADGE_PACK[i][2]);
+    }
+    var f = streamFacts(s, text, null);
+    return {
+      addonUrl: addon ? (addon.url || '') : '', addonName: addon ? (addon.name || '') : '',
+      binge: String(bh.bingeGroup || ''), res: plate ? plate.r : '',
+      provider: String(f.provider || '').toLowerCase(),
+      badges: badges,
+      words: sigWords(cleanStreamName(s.name, addon && addon.name) + ' ' + (text.split('\n')[0] || ''))
+    };
+  }
+  /** How much `s` resembles the row picked last time; higher is closer. */
+  function streamScore(s, sig, addon){
+    var c = streamSig(s, addon), sc = 0, i;
+    if (sig.binge && c.binge && sig.binge === c.binge) sc += 100;
+    if (sig.res){
+      if (!c.res) sc -= 10;
+      else sc += (sig.res === c.res) ? 40 : -15 * Math.abs(RES_RANK[sig.res] - RES_RANK[c.res]);
+    }
+    if (sig.provider && c.provider) sc += (sig.provider === c.provider) ? 30 : -10;
+    var shared = 0;
+    for (i = 0; i < sig.badges.length; i++) if (c.badges.indexOf(sig.badges[i]) >= 0) shared++;
+    sc += shared * 6 - (sig.badges.length - shared) * 3 - (c.badges.length - shared);
+    var both = 0, either = 0, w;
+    for (w in sig.words){ either++; if (c.words[w]) both++; }
+    for (w in c.words) if (!sig.words[w]) either++;
+    if (either) sc += 12 * both / either;
+    return sc;
+  }
+  /** What an identical row would score against `sig` — a twin gets most of it. */
+  function sigMax(sig){
+    return (sig.binge ? 100 : 0) + (sig.res ? 40 : 0) + (sig.provider ? 30 : 0) + sig.badges.length * 6 + 12;
+  }
+  function isTwin(s, sig, addon){ return streamScore(s, sig, addon) >= 0.6 * sigMax(sig); }
+  /** The stream in `streams` closest to `sig` (the list's first when nothing was picked). */
+  function matchStream(streams, sig, addon){
+    if (!streams || !streams.length) return null;
+    if (!sig) return streams[0];
+    var best = streams[0], bestSc = -1e9;
+    for (var i = 0; i < streams.length; i++){
+      var sc = streamScore(streams[i], sig, addon) - i * 0.01;   // earlier rows win ties
+      if (sc > bestSc){ best = streams[i]; bestSc = sc; }
+    }
+    return best;
+  }
+  /** "1080p · Torrentio" — the source line the up-next card shows. */
+  function sigLabel(sig){
+    var r = sig.res === '1080' || sig.res === '720' ? sig.res + 'p' : sig.res;
+    return [r, sig.addonName].filter(Boolean).join(' · ');
+  }
+  // The last hand-pick outlives the session, so tomorrow's episode is marked and
+  // pre-chosen the same way. Device-local on purpose: a TV picks 4K, a phone 720p.
+  function savePick(sig){ try { LS.setItem('pick_v1', JSON.stringify(sig)); } catch(e){} }
+  function loadPick(){
+    try { var p = JSON.parse(LS.getItem('pick_v1') || 'null'); return (p && p.addonUrl && p.words) ? p : null; }
+    catch(e){ return null; }
   }
   var openSeq = 0, seriesSeq = 0;
   function openItem(meta){
@@ -4313,7 +4410,7 @@
     updateStreamFilters();
   }
   function openStreams(type, id, titleText){
-    var seq = ++openSeq;
+    var seq = ++openSeq, openedAt = Date.now();
     lastStreamsReq = { type: type, id: id, title: titleText };
     setPlayIdentity(type, id, titleText);
     renderStreamsHero(type, id, titleText);
@@ -4380,9 +4477,27 @@
           if (order.length > 1){
             box.innerHTML = '<div class="rowhead"><span class="row-title">'+esc(a.name||'Add-on')+'</span></div>';
           }
-          streams.forEach(function(s){ total++; box.appendChild(streamCard(s, a.name || '')); });
+          var cards = streams.map(function(s){ total++; var c = streamCard(s, a); box.appendChild(c); return c; });
           updateStreamFilters();
-          if (sections === 1) focusFirst();
+          // the D-pad lands on the first row (not the topbar's Back button)
+          var driving = IS_TV || kbUsed, untouched = lastKeyAt <= openedAt;
+          if (sections === 1 && driving && untouched){ try { cards[0].focus(); } catch(e){} }
+          // the row that matches the last hand-pick from this add-on is marked and,
+          // if the remote has not moved since the list opened, takes the focus
+          var pf = ctx.pickedFrom;
+          if (pf && pf.addonUrl === a.url){
+            var twin = matchStream(streams, pf, a);
+            if (twin && isTwin(twin, pf, a)){
+              var uc = cards[streams.indexOf(twin)];
+              uc.classList.add('usual');
+              var nm = uc.querySelector('.stream-name');
+              if (nm){ var tag = document.createElement('span'); tag.className = 's-usual'; tag.textContent = 'Same as last time'; nm.parentNode.insertBefore(tag, nm); }
+              // it heads its section — buried at row 30 of 40 it would help nobody
+              var first = box.querySelector('.stream');
+              if (first && first !== uc) box.insertBefore(uc, first);
+              if (driving && untouched){ try { uc.focus(); } catch(e){} }
+            }
+          }
         });
       }).catch(function(){
         failures++;
@@ -4862,6 +4977,7 @@
     if (!video.paused && progTicks % 10 === 0) flushProgress(false);
     if (!live && span > 0){
       var remain = r.end - t;
+      if (remain <= 90 && nextEpisode()) prefetchNext();   // the next stream is chosen before it is needed
       if (remain > 0.5 && remain <= 25 && !video.paused && !upnextState.open &&
           !upnextState.dismissed && nextEpisode()) openUpNext(false);
       else if (remain > 40 && upnextState.open && !upnextState.counting) closeUpNext();
@@ -5271,11 +5387,58 @@
     if (i < 0 || i + 1 >= list.length) return null;
     return { ep: list[i+1], index: i+1 };
   }
+  // ---- the next episode's stream is chosen while this one is still playing ----
+  // The add-on the viewer last picked from is asked first (the origin add-on
+  // when nothing was picked), and the row closest to that pick wins — so a
+  // series keeps its source and quality without a trip through the list.
+  var nextReady = null;   // { id, addon, streams, pick, failed, at }
+  function pickSource(){
+    var pf = ctx.pickedFrom, list = getAddons();
+    if (pf && pf.addonUrl){ for (var i = 0; i < list.length; i++) if (list[i].url === pf.addonUrl) return list[i]; }
+    return ctx.addon || null;
+  }
+  /** Ask `a` for the episode's streams; with none, ask the origin add-on too. */
+  async function resolveEpisodeStreams(a, type, id){
+    var cands = [a];
+    if (ctx.addon && ctx.addon.url !== a.url) cands.push(ctx.addon);
+    for (var i = 0; i < cands.length; i++){
+      try {
+        var d = await getJson(cands[i].base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json');
+        var streams = (d.streams||[]).filter(function(x){ return x.url; });
+        if (streams.length) return { addon: cands[i], streams: streams, pick: matchStream(streams, ctx.pickedFrom, cands[i]) };
+      } catch(e){}
+    }
+    return { addon: a, streams: [], pick: null };
+  }
+  function prefetchNext(){
+    var nx = nextEpisode(); if (!nx) return;
+    if (nextReady && nextReady.id === nx.ep.id) return;
+    var a = pickSource(); if (!a) return;
+    var rec = nextReady = { id: nx.ep.id, addon: a, streams: null, pick: null, failed: false, at: Date.now() };
+    resolveEpisodeStreams(a, ctx.seriesType || 'series', nx.ep.id).then(function(res){
+      if (nextReady !== rec) return;
+      rec.addon = res.addon; rec.streams = res.streams; rec.pick = res.pick; rec.failed = !res.pick;
+      upnextRenderSrc();
+    });
+  }
+  function upnextRenderSrc(){
+    var el = $id('upnextSrc'), nx = upnextState.target, nr = nextReady;
+    if (!el) return;
+    if (!upnextState.open || !nx || !nr || nr.id !== nx.ep.id){ el.textContent = ''; return; }
+    if (nr.pick){
+      // a twin of the last pick reads as ready; anything less says so
+      var pf = ctx.pickedFrom, same = !pf || isTwin(nr.pick, pf, nr.addon);
+      el.textContent = (same ? '' : 'Closest match · ') + sigLabel(streamSig(nr.pick, nr.addon)) + (same ? ' · Ready' : '');
+    }
+    else el.textContent = nr.failed ? 'No stream found yet — Play opens the list' : 'Finding a stream…';
+  }
   function openUpNext(withCountdown){
     var nx = nextEpisode(); if (!nx) return;
     upnextState.open = true; upnextState.target = nx;
     upnextState.counting = !!withCountdown && getPrefs().autoplay !== false;
     $id('upnextTitle').textContent = epTag(nx.ep) + (nx.ep.name ? ' · ' + nx.ep.name : '');
+    prefetchNext();
+    upnextRenderSrc();
     $id('upnext').classList.add('show');
     clearInterval(upnextState.timer);
     if (!withCountdown){ $id('upnextPlay').textContent = 'Play now'; return; }
@@ -5294,8 +5457,8 @@
     var el = $id('upnext'); if (el) el.classList.remove('show');
   }
   function dismissUpNext(){ upnextState.dismissed = true; closeUpNext(); puiShow(); }
-  /** Play episode `index` of the current series: auto-pick the origin add-on's
-      first stream, and fall back to the stream list when there isn't one. */
+  /** Play episode `index` of the current series from the stream chosen ahead
+      of time (or chosen now, the same way); the stream list is the fallback. */
   async function playEpisodeAt(index){
     var list = ctx.seriesEpisodes, v = list && list[index];
     if (!v) return;
@@ -5305,14 +5468,23 @@
     var type = ctx.seriesType || 'series';
     var label = epLabel(ctx.seriesName, v);
     ctx.streamTitle = label;
-    var a = ctx.addon;
-    if (a){
-      setStatus('Loading ' + epTag(v) + '…','info');
-      try {
-        var d = await getJson(a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(v.id) + '.json');
-        var s = (d.streams||[]).filter(function(x){ return x.url; })[0];
-        if (s){ setPlayIdentity(type, v.id, label); playStream(s); return; }
-      } catch(e){}
+    // a pre-chosen stream is trusted for ten minutes — resolver links expire
+    var res = (nextReady && nextReady.id === v.id && nextReady.pick && Date.now() - nextReady.at < 600000) ? nextReady : null;
+    nextReady = null;
+    if (!res){
+      var a = pickSource();
+      if (a){
+        setStatus('Loading ' + epTag(v) + '…','info');
+        res = await resolveEpisodeStreams(a, type, v.id);
+        if (!res.pick) res = null;
+      }
+    }
+    if (res){
+      setPlayIdentity(type, v.id, label);
+      // an untouched series adopts the first auto-pick as its taste; a hand-pick is never overwritten
+      if (!ctx.pickedFrom) ctx.pickedFrom = streamSig(res.pick, res.addon);
+      playStream(res.pick);
+      return;
     }
     openStreams(type, v.id, label);
   }
@@ -6525,6 +6697,7 @@
   }
   applyPrefs();
   settingsRender();
+  ctx.pickedFrom = loadPick();
 
   syncPanelRender();
   (function(){

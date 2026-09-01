@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.02.3",
+  "version": "2026.09.02.4",
   "url": "https://play.rifflehq.in/",
-  "notes": "Pause and the screen tells you what you are watching, how long is left and what plays next. Press i for playback info — picture, codec, connection, buffer, dropped frames. Nudge subtitle timing from the Subtitles menu. Pick a picture quality policy in Settings, and jump back to the live edge with one button"
+  "notes": "The next episode is chosen while this one is still playing — same source, same quality as the stream you picked — so Play now starts it without a trip through the list. On the stream list the row that matches your last pick heads its section, marked Same as last time, and the remote lands on it. Lists open on their first row, not the Back button"
 }
