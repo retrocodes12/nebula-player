@@ -283,6 +283,25 @@
   .stream-play { width:40px; height:40px; flex:0 0 auto; border-radius:var(--r-pill); background:var(--accent);
     color:#fff; display:flex; align-items:center; justify-content:center; }
   .stream-play svg { width:15px; height:15px; }
+  /* the resolution is what you actually choose by — it leads the row as a
+     plate instead of a decorative play button, and lights up on focus */
+  .s-plate { flex:0 0 auto; width:62px; padding:10px 0; border-radius:14px; background:var(--fill);
+    text-align:center; font-family:var(--mono); transition:background .18s var(--ease); }
+  .s-plate b { display:block; font-size:15px; font-weight:700; letter-spacing:-.02em; }
+  .s-plate i { display:block; font-style:normal; font-size:9px; letter-spacing:.1em;
+    color:var(--label2); margin-top:3px; }
+  .stream:hover .s-plate { background:var(--fill2); }
+  .stream.focusable:focus .s-plate { background:var(--accent); color:#fff; }
+  .stream.focusable:focus .s-plate i { color:rgba(255,255,255,.82); }
+  .s-main { flex:1 1 auto; min-width:0; }
+  .s-spec { flex:0 0 auto; text-align:right; font-family:var(--mono); font-size:12px;
+    color:var(--label2); line-height:1.55; white-space:nowrap; }
+  .s-spec b { display:block; color:var(--label); font-size:14px; font-weight:600; letter-spacing:-.01em; }
+  html.tv .s-plate { width:84px; padding:14px 0; }
+  html.tv .s-plate b { font-size:20px; }
+  html.tv .s-plate i { font-size:11px; }
+  html.tv .s-spec { font-size:15px; }
+  html.tv .s-spec b { font-size:17px; }
   .stream:hover { background:var(--l2); }
   .stream.focusable:focus { background:var(--l2); transform:scale(1.015);
     box-shadow:0 14px 32px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
@@ -1085,7 +1104,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.20';
+  var PLAYER_VERSION = '2026.09.01.21';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -2475,7 +2494,7 @@
     ['audio-channels', "\\b(5\\.1|5-1|6ch|6\\s*channel)\\b", "5_1_audio.png"],
   ];
   var badgeRe = null;
-  function streamBadges(raw){
+  function streamBadges(raw, skipGroup){
     var i;
     if (!badgeRe){
       badgeRe = [];
@@ -2488,6 +2507,7 @@
       if (!badgeRe[i] || !badgeRe[i].test(raw)) continue;
       fired.push(badgeRe[i]);               // every match cleans the text line
       var g = BADGE_PACK[i][0];
+      if (g === skipGroup) continue;        // shown elsewhere (resolution plate)
       if (seen[g] || shown >= 6) continue;  // but only the group's first becomes a badge
       seen[g] = 1; shown++;
       out += '<img alt="" src="' + BADGE_IMG_BASE + BADGE_PACK[i][2] +
@@ -2569,27 +2589,73 @@
         desc.push(ln);
       }
     }
-    var facts = [];
-    if (size) facts.push(size);
-    if (bitrate) facts.push(bitrate);
-    if (seeds) facts.push(seeds + ' seeds');
     var langs = streamLangs(String(text || ''));
-    if (langs) facts.push(langs);
-    if (provider) facts.push(provider);
-    return { facts: facts.join('  ·  '), desc: desc.join(' · ') };
+    return { size: size, bitrate: bitrate, seeds: seeds, langs: langs, provider: provider,
+             desc: desc.join(' · ') };
   }
-  function streamCard(s){
+  var RE_EMOJI = /[\u2190-\u21FF\u2300-\u27BF\u2B00-\u2BFF\uFE0F\u200D]|[\uD83C-\uDBFF][\uDC00-\uDFFF]/g;
+  var RE_RES = /\b(4k|2160p|uhd|1080p|fhd|720p|480p|360p)\b/ig;
+  function plateFor(raw){
+    if (/\b(4k|2160p|uhd)\b/i.test(raw)) return { r:'4K', t:'ULTRA HD' };
+    if (/\b(1080p|fhd)\b/i.test(raw)) return { r:'1080', t:'FULL HD' };
+    if (/\b720p\b/i.test(raw)) return { r:'720', t:'HD' };
+    if (/\b(480p|360p)\b/i.test(raw)) return { r:'SD', t:'' };
+    return null;
+  }
+  /** The row sits under its add-on's heading and above its own badges, so the
+      name only has to say which RELEASE this is — strip everything the row
+      already shows elsewhere. */
+  function cleanStreamName(raw, addonName){
+    var t = String(raw || '').replace(/\n/g, ' ').replace(RE_EMOJI, ' ');
+    if (addonName) t = t.replace(new RegExp('\\b' + addonName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'ig'), ' ');
+    t = t.replace(RE_RES, ' ')
+         .replace(/\s*[·•|]\s*/g, ' · ')
+         .replace(/\s{2,}/g, ' ')
+         .replace(/^[\s·•|,-]+|[\s·•|,-]+$/g, '');
+    return t;
+  }
+  /** Whatever is left of the description after the badges, facts and the page
+      itself have taken their share. */
+  function cleanStreamDesc(desc, addonName){
+    var known = String((ctx.playTitle || '') + ' ' + ((ctx.item && ctx.item.name) || '')).toLowerCase();
+    var epTagRe = /^s\d{1,2}\s*e\d{1,3}$/i;
+    var out = [];
+    String(desc || '').split(' · ').forEach(function(tok){
+      var t = tok.replace(RE_EMOJI, ' ').replace(/\s{2,}/g, ' ').trim();
+      if (!t) return;
+      if (/\bs\d{1,2}\s*e\d{1,3}\b/i.test(t)) return;             // the header already says the episode
+      if (epTagRe.test(t.replace(/[\s()]/g, ''))) return;
+      if (/^\(?(19|20)\d\d\)?$/.test(t)) return;                  // bare year
+      if (addonName && t.toLowerCase() === addonName.toLowerCase()) return;
+      var bare = t.replace(/\b(s\d{1,2}e\d{1,3}|\((19|20)\d\d\))\b/ig, '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+      if (bare && known.replace(/[^a-z0-9]/g, '').indexOf(bare) >= 0) return;  // repeats the title
+      if (out.indexOf(t) >= 0) return;
+      out.push(t);
+    });
+    return out.slice(0, 4).join('  ·  ');
+  }
+  function streamCard(s, addonName){
     var card=document.createElement('button'); card.className='stream focusable';
     var text = (s.title || s.description || '');
-    var badges = streamBadges((s.name || '') + '\n' + text);
+    var raw = (s.name || '') + '\n' + text;
+    var plate = plateFor(raw);
+    var badges = streamBadges(raw, plate ? 'resolution' : null);
     var f = streamFacts(s, text, badges.fired);
-    var name = (s.name || 'Stream').replace(/\n/g, ' ');
-    card.innerHTML = '<span class="stream-play"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span>' +
-      '<span class="stream-name">' + esc(name) + '</span>' +
-      (badges.html ? '<span class="sbadges">' + badges.html + '</span>' : '') +
-      (f.facts ? '<span class="stream-facts">' + esc(f.facts) + '</span>' : '') +
-      (f.desc ? '<span class="stream-sub">' + esc(f.desc) + '</span>' : '') +
-      '</span>';
+    var name = cleanStreamName(s.name, addonName) || f.provider || cleanStreamName(text.split('\n')[0], addonName) || 'Stream';
+    var sub = [f.provider && name.indexOf(f.provider) < 0 ? f.provider : '', f.langs, cleanStreamDesc(f.desc, addonName)]
+      .filter(Boolean).join('  ·  ');
+    var spec = f.size ? '<b>' + esc(f.size) + '</b>' : '';
+    var line2 = [f.bitrate, f.seeds ? f.seeds + ' seeds' : ''].filter(Boolean).join(' · ');
+    if (line2) spec += esc(line2);
+    card.innerHTML =
+      (plate ? '<span class="s-plate"><b>' + plate.r + '</b>' + (plate.t ? '<i>' + plate.t + '</i>' : '') + '</span>'
+             : '<span class="stream-play"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span>') +
+      '<span class="s-main">' +
+        '<span class="stream-name">' + esc(name) + '</span>' +
+        (badges.html ? '<span class="sbadges">' + badges.html + '</span>' : '') +
+        (sub ? '<span class="stream-sub">' + esc(sub) + '</span>' : '') +
+      '</span>' +
+      (spec ? '<span class="s-spec">' + spec + '</span>' : '');
     card.onclick=function(){ playStream(s); };
     return card;
   }
@@ -3099,7 +3165,7 @@
           if (order.length > 1){
             box.innerHTML = '<div class="rowhead"><span class="row-title">'+esc(a.name||'Add-on')+'</span></div>';
           }
-          streams.forEach(function(s){ total++; box.appendChild(streamCard(s)); });
+          streams.forEach(function(s){ total++; box.appendChild(streamCard(s, a.name || '')); });
           updateStreamFilters();
           if (sections === 1) focusFirst();
         });

@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.01.20",
+  "version": "2026.09.01.21",
   "url": "https://play.rifflehq.in/",
-  "notes": "The streams screen grows up: episode artwork header, per-add-on filters, and languages in the facts"
+  "notes": "Stream rows rebuilt: a resolution plate leads each row, names are clean, size and bitrate get their own column"
 }
