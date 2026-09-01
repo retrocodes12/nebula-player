@@ -50,11 +50,6 @@
     --ink:var(--label); --muted:var(--label2); --railw:0px; --padt:0px;
   }
   @media (max-width:820px){ :root { --pad:20px; } }
-  @media (max-width:820px){
-    .navitem span { display:none; }
-    .navitem svg { display:block; width:20px; height:20px; }
-    .navitem { padding:8px 11px; }
-  }
   @media (hover:hover){
     .card .cw-x { opacity:0; transition:opacity .18s; }
     .card:hover .cw-x, .card:focus-within .cw-x { opacity:1; }
@@ -115,6 +110,13 @@
   .navitem:hover { color:var(--label); }
   .navitem.on { color:var(--label); background:rgba(255,255,255,.10); }
   .navitem.focusable:focus { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+  /* phones: five labelled tabs will not fit, so the rail goes icon-only —
+     these must sit AFTER `.navitem svg { display:none }` to win on order */
+  @media (max-width:820px){
+    .navitem span { display:none; }
+    .navitem svg { display:block; width:21px; height:21px; }
+    .navitem { padding:9px 12px; margin-right:2px; }
+  }
 
   .page-title { font-size:34px; font-weight:700; letter-spacing:-.028em; margin:0 0 4px; }
   .setrow { display:flex; align-items:center; flex-wrap:wrap; padding:14px 0; }
@@ -580,7 +582,7 @@
   .det-back::after { content:''; position:absolute; top:0; left:0; right:0; bottom:0;
     background:linear-gradient(180deg, rgba(0,0,0,.32) 0%, rgba(0,0,0,.12) 34%, rgba(0,0,0,.66) 72%, #000 100%); }
   #view-detail .topbar { position:relative; z-index:2; }
-  .det-body { position:relative; z-index:2; padding-top:20vh; max-width:760px; }
+  .det-body { position:relative; z-index:2; padding-top:20vh; max-width:1180px; }
   .det-logo { display:block; max-width:min(400px, 70%); max-height:140px; margin:0 0 16px;
     filter:drop-shadow(0 4px 18px rgba(0,0,0,.55)); }
   .det-name { font-size:44px; font-weight:700; letter-spacing:-.03em; line-height:1.04; margin:0 0 12px;
@@ -673,7 +675,7 @@
   html.tv .hf-logo { max-width:520px; max-height:170px; }
   html.tv .hf-facts { font-size:15px; }
   html.tv .hf-desc { font-size:20px; }
-  html.tv .det-body { padding-top:22vh; }
+  html.tv .det-body { padding-top:22vh; max-width:1560px; }
   html.tv .det-name { font-size:58px; }
   html.tv .det-logo { max-width:520px; max-height:180px; }
   html.tv .det-kicker { font-size:15px; }
@@ -1123,7 +1125,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.22';
+  var PLAYER_VERSION = '2026.09.01.23';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its

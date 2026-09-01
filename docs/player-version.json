@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.01.22",
+  "version": "2026.09.01.23",
   "url": "https://play.rifflehq.in/",
-  "notes": "Stream header reborn: artwork to every edge, quiet filters, and rows that fit their screen"
+  "notes": "Fixes: phone navigation icons were invisible, and TV series pages now use the whole screen"
 }
