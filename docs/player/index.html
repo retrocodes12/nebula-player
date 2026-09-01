@@ -417,6 +417,37 @@
   .pui-live { flex:0 0 auto; background:rgba(80,80,88,.42); color:#fff; font-size:11px; font-weight:700;
     letter-spacing:.04em; padding:6px 12px; border-radius:var(--r-pill); }
   .pui-live.hot { background:var(--accent); }
+  #partyCard { display:none; position:absolute; right:40px; top:90px; z-index:8; width:320px; max-width:80vw;
+    background:rgba(20,20,25,.96); border:1px solid rgba(255,255,255,.14); border-radius:20px; padding:20px; }
+  #partyCard.open { display:block; }
+  #partyCard .pc-title { font-size:15px; font-weight:700; margin:0 0 2px; }
+  #partyCard .pc-code { font-family:var(--mono); font-size:30px; font-weight:700; letter-spacing:.14em; margin:6px 0 10px; }
+  #partyCard .pc-qr { background:#fff; border-radius:12px; padding:10px; width:150px; margin:0 0 10px; }
+  #partyCard .pc-qr svg { display:block; width:130px; height:130px; }
+  #partyCard .pc-link { color:var(--label2); font-size:12px; word-break:break-all; margin:0 0 10px; }
+  #partyCard .pc-members { color:var(--label2); font-size:13px; line-height:1.7; margin:0 0 12px; }
+  #partyCard .pc-react { display:flex; }
+  #partyCard .pc-react button { flex:1; font-size:22px; background:var(--fill); border:0; border-radius:12px;
+    padding:8px 0; margin-right:8px; cursor:pointer; }
+  #partyCard .pc-react button:last-child { margin-right:0; }
+  #partyCard .pc-react button:focus { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
+  #partyCard .pc-close { margin-top:12px; }
+  html.tv #partyCard { right:56px; top:110px; width:380px; }
+  html.tv #partyCard .pc-code { font-size:36px; }
+  html.tv #partyCard .pc-qr { width:190px; }
+  html.tv #partyCard .pc-qr svg { width:170px; height:170px; }
+  #reactLayer { position:absolute; left:0; right:0; top:0; bottom:0; z-index:6; pointer-events:none; overflow:hidden; }
+  .react-float { position:absolute; bottom:18%; font-size:44px; opacity:0;
+    animation:reactUp 2.6s var(--ease) forwards; text-align:center; }
+  .react-float small { display:block; font-size:12px; color:rgba(255,255,255,.85);
+    text-shadow:0 1px 6px rgba(0,0,0,.8); margin-top:2px; }
+  @keyframes reactUp {
+    0% { opacity:0; transform:translateY(30px) scale(.7); }
+    12% { opacity:1; transform:translateY(0) scale(1); }
+    78% { opacity:1; }
+    100% { opacity:0; transform:translateY(-42vh) scale(1.15); }
+  }
+  html.tv .react-float { font-size:56px; }
   .pui-party { background:#fff; color:#000; }
   .pui-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
     display:flex; align-items:center; }
@@ -735,7 +766,7 @@
     <div class="pui-top pui-chrome">
       <button id="puiBack" class="focusable pui-round" title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
       <div class="pui-winrow">
-        <span id="puiPartyBadge" class="pui-live pui-party" style="display:none"></span>
+        <span id="puiPartyBadge" class="pui-live pui-party focusable" role="button" tabindex="0" style="display:none; cursor:pointer"></span>
         <span id="puiLiveBadge" class="pui-live hot" style="display:none">LIVE</span>
         <button id="puiPip" class="focusable pui-round" style="display:none" title="Picture-in-picture"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="12" width="7" height="5" rx="1" fill="currentColor" stroke="none"/></svg></button>
         <button id="puiMini" class="focusable pui-round" style="display:none" title="Mini player — small window that stays on top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="13" y="13" width="6" height="4" rx="1" fill="currentColor" stroke="none"/></svg></button>
@@ -776,6 +807,16 @@
     <div id="puiMenu" class="qmenu"></div>
     <div id="puiSpin" class="pui-spin" style="display:none"></div>
     <!-- deliberately outside .pui-chrome: it must survive the controls auto-hiding -->
+    <div id="reactLayer"></div>
+    <div id="partyCard">
+      <p class="pc-title">Watch together</p>
+      <div class="pc-code" id="pcCode"></div>
+      <div class="pc-qr" id="pcQr"></div>
+      <p class="pc-link" id="pcLink"></p>
+      <p class="pc-members" id="pcMembers"></p>
+      <div class="pc-react" id="pcReact"></div>
+      <button id="pcClose" class="focusable btn ghost pc-close">Close</button>
+    </div>
     <div id="upnext">
       <div class="lbl">Up next</div>
       <div id="upnextTitle" class="upnext-title"></div>
@@ -871,6 +912,10 @@
         <div class="setrow">
           <span class="setname">Autoplay next episode<small>Count down and roll into the next one</small></span>
           <span id="setAutoplay"></span>
+        </div>
+        <div class="setrow">
+          <span class="setname">Party name<small>How you appear to friends in a watch party</small></span>
+          <input id="setPname" class="focusable field" type="text" maxlength="40" autocomplete="off" style="flex:0 1 240px" />
         </div>
       </div>
       <div class="panel">
@@ -988,7 +1033,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.16';
+  var PLAYER_VERSION = '2026.09.01.17';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -3691,6 +3736,61 @@
       clearPlayIdentity();
     }
   }
+  function partyName(){
+    var pn = getPrefs().pname;
+    if (pn) return String(pn).slice(0, 40);
+    if (IS_WEBOS) return 'LG TV';
+    if (IS_TV) return 'TV';
+    if (/electron/i.test(navigator.userAgent || '')) return 'Windows';
+    return 'Web';
+  }
+  var REACTIONS = ['👍','😂','❤️','😮','🔥'];
+  var lastReactAt = 0;
+  function sendReaction(e){
+    if (!party || party.ws.readyState !== 1) return;
+    if (Date.now() - lastReactAt < 600) return;   // stay well inside the relay's budget
+    lastReactAt = Date.now();
+    try { party.ws.send(JSON.stringify({ t:'react', emoji: e })); } catch(err){}
+    showReaction(e, '');
+  }
+  function showReaction(emoji, name){
+    var layer = $id('reactLayer'); if (!layer || !emoji) return;
+    var el = document.createElement('span');
+    el.className = 'react-float';
+    el.style.left = (12 + Math.random() * 70) + '%';
+    el.textContent = emoji;
+    if (name){ var sm = document.createElement('small'); sm.textContent = name; el.appendChild(sm); }
+    layer.appendChild(el);
+    setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 2800);
+  }
+  function partyInviteUrl(code){ return 'https://play.rifflehq.in/?party=' + code; }
+  function partyCardRender(){
+    var card = $id('partyCard'); if (!card) return;
+    if (!party){ card.classList.remove('open'); return; }
+    $id('pcCode').textContent = party.code;
+    $id('pcLink').textContent = partyInviteUrl(party.code);
+    try {
+      var qr = qrcode(0, 'M'); qr.addData(partyInviteUrl(party.code)); qr.make();
+      $id('pcQr').innerHTML = qr.createSvgTag({ cellSize: 5, margin: 0 });
+    } catch(e){ $id('pcQr').innerHTML = ''; }
+    var names = (party.names && party.names.length) ? party.names : [partyName()];
+    $id('pcMembers').textContent = 'Watching (' + Math.max(party.count, names.length) + '): ' + names.join(', ');
+    var re = $id('pcReact');
+    if (!re.childNodes.length){
+      REACTIONS.forEach(function(e){
+        var b = document.createElement('button');
+        b.className = 'focusable'; b.textContent = e;
+        b.onclick = function(){ sendReaction(e); };
+        re.appendChild(b);
+      });
+    }
+  }
+  function partyCardToggle(force){
+    var card = $id('partyCard'); if (!card) return;
+    var open = force !== undefined ? force : !card.classList.contains('open');
+    if (open && party){ partyCardRender(); card.classList.add('open'); }
+    else card.classList.remove('open');
+  }
   function partyBadge(){
     var b = $id('puiPartyBadge'), btn = $id('puiParty');
     if (!party){ b.style.display='none'; btn.textContent='Party'; return; }
@@ -3701,7 +3801,7 @@
   function mkParty(ws, code, isHost){
     if (party){ party.closing = true; try { party.ws.close(); } catch(e){} clearPartyTimers(party); }
     partyPending = null;
-    var p = { ws:ws, code:code, isHost:isHost, count:1, closing:false, lastState:null, lastSeek:0, n:0, dirty:false };
+    var p = { ws:ws, code:code, isHost:isHost, count:1, names:[], closing:false, lastState:null, lastSeek:0, n:0, dirty:false };
     p.tick = setInterval(function(){ partyTick(p); }, 1000);
     p.keep = setInterval(function(){ if (ws.readyState===1){ try { ws.send('{"t":"ping"}'); } catch(e){} } }, 25000);
     return p;
@@ -3767,9 +3867,9 @@
         if (!p){ try { ws.close(); } catch(e){} return; }
         if (p.kind === 'create'){
           if (!lastPlay){ partyPending = null; try { ws.close(); } catch(e){} return; }
-          ws.send(JSON.stringify({ t:'create', name:'Host', code: p.code || undefined, stream: partyStreamDesc() }));
+          ws.send(JSON.stringify({ t:'create', name: partyName(), code: p.code || undefined, stream: partyStreamDesc() }));
         } else {
-          ws.send(JSON.stringify({ t:'join', code: p.code, name:'Guest' }));
+          ws.send(JSON.stringify({ t:'join', code: p.code, name: partyName() }));
         }
       };
       ws.onmessage = function(ev){ partyMessage(ws, ev); };
@@ -3781,9 +3881,10 @@
     var m; try { m = JSON.parse(ev.data); } catch(e){ return; }
     if (!m || !m.t) return;
     if (m.t === 'created'){
+      setTimeout(function(){ partyCardToggle(true); }, 400);
       party = mkParty(ws, m.code, true);
       partyBadge(); puiShow();
-      setStatus('Party started — code ' + m.code + '. Friends: Add-ons tab, Join party.','ok');
+      setStatus('Party ' + m.code + ' started — friends can scan the code on screen or open the invite link.','ok');
       return;
     }
     if (m.t === 'joined'){
@@ -3814,7 +3915,20 @@
         playUrl(m.stream.url, m.stream.keys || null, m.stream.title || 'Watch party', m.stream.subs || []);
       }
     } else if (m.t === 'peers'){
-      party.count = m.count || 1; partyBadge();
+      var oldNames = party.names || [];
+      party.count = m.count || 1;
+      party.names = (m.names || []).slice(0, 30);
+      // joined/left toasts from the membership diff (never for our own arrival)
+      if (oldNames.length){
+        party.names.forEach(function(n){
+          var i = oldNames.indexOf(n); if (i >= 0) oldNames.splice(i, 1);
+          else setStatus(n + ' joined — ' + party.count + ' watching','ok');
+        });
+        oldNames.forEach(function(n){ setStatus(n + ' left — ' + party.count + ' watching','info'); });
+      }
+      partyBadge(); partyCardRender();
+    } else if (m.t === 'react'){
+      showReaction(m.emoji, m.name || '');
     } else if (m.t === 'host'){
       party.isHost = true; partyBadge();
       setStatus('You are now the party host.','info');
@@ -3876,6 +3990,7 @@
   }
   function endParty(msg){
     partyPending = null;
+    partyCardToggle(false);
     if (party){
       party.closing = true;
       try { if (party.ws.readyState === 1) party.ws.send('{"t":"leave"}'); } catch(e){}
@@ -3888,6 +4003,9 @@
     if (msg) setStatus(msg,'info');
   }
   $id('puiParty').onclick = function(){ startParty(); };
+  $id('puiPartyBadge').onclick = function(){ partyCardToggle(); };
+  $id('puiPartyBadge').addEventListener('keydown', function(e){ if (e.keyCode === 13){ e.preventDefault(); partyCardToggle(); } });
+  $id('pcClose').onclick = function(){ partyCardToggle(false); };
   if (IS_WEBOS){
     var fileBtnEl = document.getElementById('fileBtn');   // no file dialogs on a TV
     if (fileBtnEl) fileBtnEl.style.display = 'none';
@@ -4274,6 +4392,13 @@
     var a2 = $id('setAutoplay'); a2.innerHTML = '';
     a2.appendChild(prefChip('On', pr.autoplay !== false, function(){ setPref('autoplay', true); }));
     a2.appendChild(prefChip('Off', pr.autoplay === false, function(){ setPref('autoplay', false); }));
+    var pn = $id('setPname');
+    if (pn && !pn.__wired){
+      pn.__wired = true;
+      pn.addEventListener('change', function(){ setPref('pname', pn.value.trim()); });
+    }
+    if (pn && document.activeElement !== pn) pn.value = pr.pname || '';
+    pn.placeholder = partyName();
     $id('setAbout').textContent = 'Nebula · build ' + PLAYER_VERSION +
       ' · HLS · DASH · DASH+ClearKey · plays every add-on format on-device';
   }
@@ -4362,6 +4487,13 @@
 
   renderAddons();
   initPersistentAddons();
+  // invite links: play.rifflehq.in/?party=CODE joins straight away
+  (function(){
+    var m = /[?&]party=([A-Za-z0-9]{4,8})/.exec(location.search || '');
+    if (!m) return;
+    try { history.replaceState(null, '', location.pathname + location.hash); } catch(e){}
+    setTimeout(function(){ joinParty(m[1]); }, 600);
+  })();
   initPersistentProgress();
   initPersistentSubStyle();
   initPersistentLibrary();
