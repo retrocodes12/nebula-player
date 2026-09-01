@@ -311,7 +311,7 @@
   .ep-thumbwrap { position:relative; flex:0 0 auto; }
   .ep-thumbwrap .prog { left:6px; right:6px; bottom:6px; }
   .stream.ep-next { box-shadow:inset 0 0 0 1px rgba(255,255,255,.4), 0 0 0 0 transparent; }
-  .ep-upnext { flex:0 0 auto; margin-left:auto; align-self:center; font-size:11px; font-weight:600;
+  .ep-upnext { flex:0 0 auto; margin-left:10px; align-self:center; font-size:11px; font-weight:600;
     letter-spacing:.04em; color:#fff; background:rgba(118,118,128,.4); border-radius:var(--r-pill);
     padding:5px 11px; white-space:nowrap; }
   html.tv .ep-upnext { font-size:14px; padding:7px 14px; }
@@ -569,6 +569,24 @@
   .det-desc { color:var(--label2); font-size:15px; line-height:1.6; margin:14px 0 6px; max-width:56ch;
     display:-webkit-box; -webkit-line-clamp:6; -webkit-box-orient:vertical; overflow:hidden; }
   .det-credits { color:var(--label3); font-size:13px; line-height:1.8; margin:8px 0 0; max-width:64ch; }
+  .det-chips { display:flex; flex-wrap:wrap; margin-top:6px; }
+  .det-chips span { background:var(--fill); border-radius:var(--r-pill); padding:7px 15px; margin:0 8px 8px 0;
+    font-size:13px; font-weight:600; }
+  .det-chips.cast span { background:transparent; border:1px solid var(--sep); color:var(--label2); font-weight:400; }
+  .det-castlbl { color:var(--label2); font-size:11px; font-weight:700; letter-spacing:.16em; margin:12px 0 8px; }
+  .det-rate { background:var(--fill); border-radius:8px; padding:3px 9px; font-weight:700; letter-spacing:0; color:var(--label); }
+  .det-seasons { display:flex; overflow-x:auto; margin:24px 0 2px; padding:4px 0 8px; scrollbar-width:none; }
+  .det-seasons::-webkit-scrollbar { display:none; }
+  .det-seasons .chip { flex:0 0 auto; margin-right:8px; }
+  .det-eps { margin-top:10px; padding-bottom:40px; max-width:960px; }
+  .ep-main { flex:1; min-width:0; }
+  .ep-titlerow { display:flex; align-items:center; }
+  .ep-titlerow .stream-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ep-date { flex:0 0 auto; color:var(--label2); font-size:12.5px; margin-left:10px; }
+  html.tv .det-chips span { font-size:16px; padding:9px 18px; }
+  html.tv .det-castlbl { font-size:14px; }
+  html.tv .ep-date { font-size:15px; }
+  html.tv .det-eps { max-width:1600px; }
   .det-credits b { color:var(--label2); font-weight:500; margin-right:6px; }
   .det-rule { display:none; }
 
@@ -884,6 +902,11 @@
         <button id="detEpisodes" class="focusable btn ghost" style="display:none">Episodes</button>
         <button id="detList" class="focusable btn ghost">My List</button>
       </div>
+      <div class="det-chips" id="detGenres"></div>
+      <div class="det-castlbl" id="detCastLbl" style="display:none">CAST</div>
+      <div class="det-chips cast" id="detCastRow"></div>
+      <div class="det-seasons" id="detSeasonRow" style="display:none"></div>
+      <div id="detEpList" class="streams det-eps"></div>
     </div>
   </div>
 
@@ -1033,7 +1056,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.18';
+  var PLAYER_VERSION = '2026.09.01.19';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1110,7 +1133,7 @@
     // back from playback: the episode list's ticks, bars and "up next" are stale
     if (name === 'episodes' && epView){ try { epView.refresh(); } catch(e){} }
     // coming back to a title after watching: the Resume label must be current
-    if (name === 'detail' && detCur){ try { syncDetButtons(); } catch(e){} }
+    if (name === 'detail' && detCur){ try { syncDetButtons(); if (detEp) detEp.refresh(); } catch(e){} }
     video.style.display = (name==='player') ? 'block' : 'none';
     document.body.classList.toggle('playing', name==='player');
     if (push !== false){ if (viewStack[viewStack.length-1] !== name) viewStack.push(name); }
@@ -2559,21 +2582,61 @@
     var bits = [];
     var y = metaYear(meta); if (y) bits.push(y);
     if (meta.runtime) bits.push(String(meta.runtime));
-    if (meta.imdbRating) bits.push('★ ' + meta.imdbRating);
-    var g = meta.genres || meta.genre;
-    if (g && g.length) bits.push(g.slice(0,3).join(' · '));
     if (meta.videos && meta.videos.length){
       var sn = {}; meta.videos.forEach(function(v){ var x = seasonNum(v); if (x > 0) sn[x] = 1; });
       var n = Object.keys(sn).length;
       if (n) bits.push(n + ' Season' + (n > 1 ? 's' : ''));
     }
-    $id('detMeta').textContent = bits.join('   ·   ');
+    $id('detMeta').innerHTML = esc(bits.join('   ·   ')) +
+      (meta.imdbRating ? (bits.length ? '&nbsp;&nbsp;&nbsp;' : '') + '<span class="det-rate">★ ' + esc(String(meta.imdbRating)) + '</span>' : '');
     $id('detDesc').textContent = meta.description || meta.overview || '';
-    var credits = '';
-    if (meta.cast && meta.cast.length) credits += '<b>Cast</b>  ' + esc(meta.cast.slice(0,5).join(', '));
-    var dir = meta.director;
-    if (dir && dir.length) credits += (credits ? '<br>' : '') + '<b>Director</b>  ' + esc((Array.isArray(dir)?dir:[dir]).slice(0,2).join(', '));
-    $id('detCredits').innerHTML = credits;
+    var g = meta.genres || meta.genre || [];
+    $id('detGenres').innerHTML = g.slice(0, 6).map(function(x){ return '<span>' + esc(x) + '</span>'; }).join('');
+    var cast = meta.cast || [];
+    $id('detCastLbl').style.display = cast.length ? '' : 'none';
+    $id('detCastRow').innerHTML = cast.slice(0, 8).map(function(x){ return '<span>' + esc(x) + '</span>'; }).join('');
+    $id('detCredits').innerHTML = '';
+  }
+  /** Series pages carry their seasons + episodes inline — one scroll from the
+      art to every episode, like the phone app. The separate episodes view
+      remains only as a fallback when the full meta has no videos. */
+  var detEp = null;
+  function renderDetailSeries(meta, type){
+    var sRow = $id('detSeasonRow'), list = $id('detEpList');
+    detEp = null;
+    sRow.style.display = 'none'; sRow.innerHTML = ''; list.innerHTML = '';
+    if (type !== 'series' || !meta.videos || !meta.videos.length) return;
+    var grouped = groupEpisodes(meta.videos);
+    var bySeason = grouped.bySeason, seasons = grouped.seasons, flat = grouped.flat;
+    ctx.seriesType = type;
+    ctx.seriesEpisodes = flat; ctx.seriesName = meta.name || ''; ctx.seriesPoster = meta.poster || '';
+    var upIdx = -1;
+    function renderSeason(sn){
+      Array.prototype.forEach.call(sRow.children, function(ch){ ch.classList.toggle('on', ch.__season === sn); });
+      list.innerHTML = '';
+      bySeason[sn].forEach(function(v){
+        var i = flat.indexOf(v);
+        list.appendChild(episodeRow(meta, v, i, i === upIdx));
+      });
+    }
+    function renderCurrent(){
+      var cur = seriesCursor(type, flat);
+      upIdx = cur ? cur.upIdx : -1;
+      renderSeason(cur ? seasonNum(cur.up) : seasons[0]);
+    }
+    if (seasons.length > 1){
+      sRow.style.display = '';
+      seasons.forEach(function(sn){
+        var chip = document.createElement('button');
+        chip.className = 'chip focusable';
+        chip.textContent = (sn === 0 ? 'Specials' : 'Season ' + sn);
+        chip.__season = sn;
+        chip.onclick = function(){ renderSeason(sn); };
+        sRow.appendChild(chip);
+      });
+    }
+    renderCurrent();
+    detEp = { refresh: renderCurrent };
   }
   function renderDetailArt(meta){
     // full-bleed: the backdrop carries the page, the title-art logo replaces
@@ -2607,7 +2670,7 @@
   function syncDetButtons(){
     var meta = detCur.meta, type = detCur.type;
     var play = $id('detPlay'), lbl = $id('detPlayLbl'), eps = $id('detEpisodes');
-    eps.style.display = (type === 'series') ? '' : 'none';
+    eps.style.display = 'none';
     if (type === 'series'){
       eps.onclick = function(){ openSeries(meta, type); };
       var r = seriesResume(type, meta.id);
@@ -2625,7 +2688,10 @@
         };
       } else {
         lbl.textContent = 'Play';
-        play.onclick = function(){ openSeries(meta, type); };
+        play.onclick = function(){
+          var first = document.querySelector('#detEpList .stream:not(.skel)');
+          if (first) first.click(); else openSeries(meta, type);
+        };
       }
     } else {
       var pr = progFor(type, meta.id);
@@ -2647,6 +2713,7 @@
     $id('detTitle').textContent = '';      // the logo/name in the body carries the identity
     renderDetailFacts(meta);
     renderDetailArt(meta);
+    renderDetailSeries(meta, type);
     syncDetButtons();
     show('detail');
     // land focus on Play, not the back button — one OK press should start it
@@ -2663,6 +2730,7 @@
       detCur.meta = merged; ctx.item = merged;
       renderDetailFacts(merged);
       renderDetailArt(merged);
+      renderDetailSeries(merged, type);
       syncDetButtons();
     });
   }
@@ -2832,11 +2900,11 @@
     }
     var title = (e != null ? e + '. ' : '') + esc(v.name || v.title || ('Episode ' + (e != null ? e : '')));
     var date = fmtAirDate(v.released);
-    var sub = [date, v.overview].filter(Boolean).join(' — ');
     row.innerHTML = '<span class="ep-thumbwrap">' + thumb + mark + '</span>' +
-      '<span><span class="stream-name">' + title + '</span>' +
-      (sub ? '<span class="ep-sub">' + esc(sub) + '</span>' : '') + '</span>' +
-      (upNext ? '<span class="ep-upnext">Up next</span>' : '');
+      '<span class="ep-main"><span class="ep-titlerow"><span class="stream-name">' + title + '</span>' +
+      (date ? '<span class="ep-date">' + esc(date) + '</span>' : '') +
+      (upNext ? '<span class="ep-upnext">Up next</span>' : '') + '</span>' +
+      (v.overview ? '<span class="ep-sub">' + esc(v.overview) + '</span>' : '') + '</span>';
     row.onclick = function(){
       ctx.epIndex = (index == null ? -1 : index);
       ctx.streamTitle = epLabel(seriesMeta.name, v);
