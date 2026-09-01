@@ -579,6 +579,24 @@
   .det-seasons::-webkit-scrollbar { display:none; }
   .det-seasons .chip { flex:0 0 auto; margin-right:8px; }
   .det-eps { margin-top:10px; padding-bottom:40px; max-width:960px; }
+  #streamsHero { position:relative; margin:-2px calc(-1 * var(--pad)) 18px; height:230px; overflow:hidden; }
+  #streamsHero .sh-art { position:absolute; top:0; left:0; right:0; bottom:0; }
+  #streamsHero .sh-art img { width:100%; height:100%; object-fit:cover; object-position:center 25%; display:block; }
+  #streamsHero .sh-art::after { content:''; position:absolute; top:0; left:0; right:0; bottom:0;
+    background:linear-gradient(180deg, rgba(0,0,0,.30) 0%, rgba(0,0,0,.10) 40%, rgba(0,0,0,.72) 78%, #000 100%); }
+  .sh-info { position:absolute; z-index:2; left:var(--pad); right:var(--pad); bottom:16px; }
+  .sh-kick { color:rgba(235,235,245,.85); font-size:11px; font-weight:700; letter-spacing:.22em;
+    text-transform:uppercase; margin-bottom:4px; text-shadow:0 1px 8px rgba(0,0,0,.8); }
+  .sh-title { font-size:30px; font-weight:700; letter-spacing:-.025em; line-height:1.06;
+    text-shadow:0 2px 14px rgba(0,0,0,.7); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sh-sub { color:var(--label2); font-size:14px; margin-top:3px; text-shadow:0 1px 8px rgba(0,0,0,.8); }
+  #streamFilters { display:flex; overflow-x:auto; margin:0 0 16px; padding:4px 0 8px; scrollbar-width:none; }
+  #streamFilters::-webkit-scrollbar { display:none; }
+  #streamFilters .chip { flex:0 0 auto; margin-right:8px; white-space:nowrap; }
+  html.tv #streamsHero { height:290px; border-radius:0 0 26px 26px; }
+  html.tv .sh-title { font-size:40px; }
+  html.tv .sh-kick { font-size:14px; }
+  html.tv .sh-sub { font-size:18px; }
   .ep-main { flex:1; min-width:0; }
   .ep-titlerow { display:flex; align-items:center; }
   .ep-titlerow .stream-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -1045,7 +1063,18 @@
   <!-- STREAMS -->
   <div id="view-streams" class="view cols">
     <div class="topbar"><button class="focusable iconbtn" data-back title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="topbar-title" id="streamsTitle">Streams</div></div>
-    <div class="scroller"><div id="streamList" class="streams"></div></div>
+    <div class="scroller">
+      <div id="streamsHero" style="display:none">
+        <div class="sh-art" id="shArt"></div>
+        <div class="sh-info">
+          <div class="sh-kick" id="shKick"></div>
+          <div class="sh-title" id="shTitle"></div>
+          <div class="sh-sub" id="shSub"></div>
+        </div>
+      </div>
+      <div id="streamFilters" style="display:none"></div>
+      <div id="streamList" class="streams"></div>
+    </div>
   </div>
 
   <div id="status" class="info">Ready.</div>
@@ -1056,7 +1085,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.19';
+  var PLAYER_VERSION = '2026.09.01.20';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -2474,6 +2503,25 @@
   /** Pull the human facts out of a stream's title text: size, seeders, provider.
       Lines that only carried those (Torrentio's emoji line) are consumed;
       whatever text remains becomes the muted description. */
+  var LANG_NAMES = ['English','French','Italian','Spanish','German','Hindi','Tamil','Telugu','Malayalam','Kannada',
+    'Polish','Portuguese','Russian','Japanese','Korean','Chinese','Arabic','Turkish','Dutch','Latino','Multi'];
+  var LANG_RE = new RegExp('\\b(' + LANG_NAMES.join('|') + '|Dual\\s*Audio)\\b', 'ig');
+  var FLAG_LANGS = { '🇬🇧':'English','🇺🇸':'English','🇫🇷':'French','🇮🇹':'Italian','🇪🇸':'Spanish','🇩🇪':'German',
+    '🇮🇳':'Hindi','🇵🇱':'Polish','🇧🇷':'Portuguese','🇵🇹':'Portuguese','🇷🇺':'Russian','🇯🇵':'Japanese','🇰🇷':'Korean' };
+  function streamLangs(raw){
+    var seen = {}, out = [], m;
+    LANG_RE.lastIndex = 0;
+    while ((m = LANG_RE.exec(raw)) && out.length < 4){
+      var n = m[1].replace(/\s+/g, ' ');
+      n = n.charAt(0).toUpperCase() + n.slice(1).toLowerCase();
+      if (n === 'Dual audio') n = 'Dual Audio';
+      if (!seen[n]){ seen[n] = 1; out.push(n); }
+    }
+    Object.keys(FLAG_LANGS).forEach(function(f){
+      if (out.length < 4 && raw.indexOf(f) >= 0 && !seen[FLAG_LANGS[f]]){ seen[FLAG_LANGS[f]] = 1; out.push(FLAG_LANGS[f]); }
+    });
+    return out.slice(0, 3).join(' + ') + (out.length > 3 ? ' +' + (out.length - 3) : '');
+  }
   var RE_SIZE = /(\d+(?:[.,]\d+)?)\s*(GB|GiB|MB|MiB)\b/i;
   var RE_BITRATE = /~?\s*(\d+(?:\.\d+)?)\s*Mbps\b/i;
   var RE_SOURCE = /\bsource\s*:?\s+(.+)$/i;
@@ -2508,6 +2556,8 @@
           if (!tok) continue;
           if ((m = tok.match(RE_SOURCE))){ if (!provider) provider = m[1].trim(); continue; }
           if (RE_BITRATE.test(tok) || RE_SIZE.test(tok)) continue;
+          LANG_RE.lastIndex = 0;
+          if (tok.replace(LANG_RE, '').replace(/[\uD83C][\uDDE6-\uDDFF]/g, '').replace(/[+,&\/\s]|and/gi, '') === '') continue;
           var badged = false;
           for (var b = 0; firedBadges && b < firedBadges.length; b++){
             if (firedBadges[b].test(tok)){ badged = true; break; }
@@ -2523,6 +2573,8 @@
     if (size) facts.push(size);
     if (bitrate) facts.push(bitrate);
     if (seeds) facts.push(seeds + ' seeds');
+    var langs = streamLangs(String(text || ''));
+    if (langs) facts.push(langs);
     if (provider) facts.push(provider);
     return { facts: facts.join('  ·  '), desc: desc.join(' · ') };
   }
@@ -2929,11 +2981,69 @@
     ctx.playAddonUrl = ''; ctx.playPoster = ''; ctx.playShape = 'poster';
     ctx.seriesEpisodes = null; ctx.epIndex = -1;
   }
+  var lastStreamsReq = null;
+  function renderStreamsHero(type, id, titleText){
+    var hero = $id('streamsHero');
+    var art = (ctx.item && (ctx.item.background || ctx.item.poster)) || '';
+    if (!art){ hero.style.display = 'none'; $id('streamsTitle').textContent = titleText || 'Streams'; return; }
+    hero.style.display = '';
+    $id('streamsTitle').textContent = '';
+    $id('shArt').innerHTML = '<img src="' + esc(art) + '" alt="" decoding="async" onerror="this.remove()">';
+    var kick = '', title = titleText || 'Streams', sub = '';
+    if (type === 'series'){
+      var segs = String(id || '').split(':');
+      if (segs.length >= 3) kick = 'Season ' + segs[segs.length - 2] + ' · Episode ' + segs[segs.length - 1];
+      // epLabel is "Series · SxEy · Episode name" — the tail is the headline
+      var parts = String(titleText || '').split(' · ');
+      if (parts.length >= 3){ title = parts.slice(2).join(' · '); sub = parts[0]; }
+      else if (parts.length === 2){ title = parts[1]; sub = parts[0]; }
+      else sub = (ctx.seriesName || '');
+    } else {
+      var y = ctx.item && metaYear(ctx.item); if (y) kick = String(y);
+    }
+    $id('shKick').textContent = kick;
+    $id('shTitle').textContent = title;
+    $id('shSub').textContent = sub;
+  }
+  function updateStreamFilters(){
+    var bar = $id('streamFilters'), list = $id('streamList');
+    var secs = Array.prototype.filter.call(list.querySelectorAll('.streamsec'), function(b){
+      return b.querySelectorAll('.stream:not(.skel)').length > 0;
+    });
+    if (secs.length < 2){ bar.style.display = 'none'; bar.innerHTML = ''; return; }
+    bar.style.display = '';
+    bar.innerHTML = '';
+    function chip(label, on, fn){
+      var b = document.createElement('button');
+      b.className = 'chip focusable' + (on ? ' on' : '');
+      b.textContent = label; b.onclick = fn;
+      bar.appendChild(b);
+      return b;
+    }
+    chip('↻', false, function(){ if (lastStreamsReq) openStreams(lastStreamsReq.type, lastStreamsReq.id, lastStreamsReq.title); });
+    var cur = list.getAttribute('data-filter') || '';
+    chip('All', !cur, function(){ list.setAttribute('data-filter', ''); applyStreamFilter(); });
+    secs.forEach(function(b){
+      var an = b.getAttribute('data-an') || 'Add-on';
+      chip(an, cur === an, function(){ list.setAttribute('data-filter', an); applyStreamFilter(); });
+    });
+  }
+  function applyStreamFilter(){
+    var list = $id('streamList');
+    var cur = list.getAttribute('data-filter') || '';
+    Array.prototype.forEach.call(list.querySelectorAll('.streamsec'), function(b){
+      b.style.display = (!cur || b.getAttribute('data-an') === cur) ? '' : 'none';
+    });
+    updateStreamFilters();
+  }
   function openStreams(type, id, titleText){
     var seq = ++openSeq;
+    lastStreamsReq = { type: type, id: id, title: titleText };
     setPlayIdentity(type, id, titleText);
-    document.getElementById('streamsTitle').textContent = titleText || 'Streams';
+    renderStreamsHero(type, id, titleText);
+    var fb = $id('streamFilters'); fb.style.display = 'none'; fb.innerHTML = '';
     var list = document.getElementById('streamList');
+    list.setAttribute('data-filter', '');
     list.innerHTML = '<div class="streamsec" id="streamsLoading">' + streamSkeletons(4) + '</div>';
     list.parentNode.scrollTop = 0;
     show('streams'); setStatus('Loading streams…','info');
@@ -2985,10 +3095,12 @@
           if (!streams.length) return;
           removeLoading();
           sections++;
+          box.setAttribute('data-an', a.name || 'Add-on');
           if (order.length > 1){
             box.innerHTML = '<div class="rowhead"><span class="row-title">'+esc(a.name||'Add-on')+'</span></div>';
           }
           streams.forEach(function(s){ total++; box.appendChild(streamCard(s)); });
+          updateStreamFilters();
           if (sections === 1) focusFirst();
         });
       }).catch(function(){
