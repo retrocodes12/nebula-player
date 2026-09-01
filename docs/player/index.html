@@ -475,6 +475,8 @@
   .upnext-row .btn { padding:10px 18px; font-size:13.5px; }
 
   /* ---- featured hero + full-bleed detail + library + sync (Title Card) ---- */
+  #heroRow { display:contents; }
+  #heroSide { display:none; }
   #homeHero { position:relative; display:none; margin:-26px calc(-1 * var(--pad)) 24px;
     height:56vh; min-height:380px; max-height:640px; overflow:hidden; }
   #homeHero.on { display:block; }
@@ -582,13 +584,40 @@
     .streams { max-width:none; }
   }
 
-  /* ---- TV (webOS): 10-foot sizing ---- */
-  html.tv { font-size:20px; --navh:82px; --pad:56px; }
-  html.tv body.upd .view { top:calc(var(--navh) + 52px); }
-  html.tv .rail-brand { font-size:22px; margin-right:40px; }
+  /* ---- TV (webOS): 10-foot sizing + sidebar layout ---- */
+  html.tv { font-size:20px; --navh:82px; --pad:56px; --railw:264px; }
+  html.tv body.upd .view { top:52px; }
+  /* the nav becomes a left rail — the visionOS/tvOS sidebar language */
+  html.tv #rail { top:0; left:0; bottom:0; right:auto; width:var(--railw); height:auto;
+    flex-direction:column; align-items:stretch; padding:38px 16px;
+    background:rgba(12,12,16,.82); border-bottom:0; border-right:1px solid rgba(255,255,255,.06); }
+  html.tv .rail-brand { font-size:23px; margin:0 6px 36px 16px; }
   html.tv .rail-brand svg { width:24px; height:24px; }
-  html.tv .navitem { font-size:19px; padding:10px 22px; margin-right:8px; }
-  html.tv .navitem.focusable:focus { box-shadow:0 0 0 5px rgba(255,255,255,.5); }
+  html.tv .navitem { display:flex; width:100%; margin:0 0 8px; padding:14px 18px;
+    border-radius:14px; font-size:19px; font-weight:600; }
+  html.tv .navitem svg { display:block; width:22px; height:22px; margin-right:15px; flex:0 0 auto; }
+  html.tv .navitem.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); background:rgba(255,255,255,.16); color:#fff; }
+  html.tv .view { top:0; left:var(--railw); }
+  html.tv #view-player { left:0; }
+  /* home hero floats as a rounded featured card, two rotation previews beside it */
+  html.tv #heroRow { display:flex; align-items:stretch; margin:44px 0 6px; }
+  html.tv #homeHero { flex:1 1 auto; margin:0; border-radius:26px; min-height:440px; max-height:560px;
+    border:1px solid rgba(255,255,255,.08); box-shadow:0 30px 90px rgba(0,0,0,.55); }
+  html.tv #homeHero.on + #heroSide.on { display:flex; }
+  html.tv #heroSide { flex:0 0 330px; margin-left:22px; flex-direction:column; }
+  html.tv .hs-card { position:relative; flex:1 1 0; overflow:hidden; border-radius:22px; border:1px solid rgba(255,255,255,.08);
+    background:var(--l1); padding:0; cursor:pointer; text-align:left; }
+  html.tv .hs-card + .hs-card { margin-top:22px; }
+  html.tv .hs-card img { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; }
+  html.tv .hs-card::after { content:''; position:absolute; left:0; right:0; bottom:0; height:62%;
+    background:linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.78)); }
+  html.tv .hs-name { position:absolute; z-index:2; left:18px; right:18px; bottom:14px;
+    font-size:19px; font-weight:700; letter-spacing:-.02em; color:#fff;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-shadow:0 1px 8px rgba(0,0,0,.7); }
+  html.tv .hs-rate { position:absolute; z-index:2; top:12px; right:12px; font-family:var(--mono);
+    font-size:13px; color:#fff; background:rgba(0,0,0,.62); border-radius:8px; padding:3px 8px; }
+  html.tv .hs-card:focus { box-shadow:0 0 0 5px rgba(255,255,255,.5); }
+  html.tv .hf-info { left:44px; right:44px; bottom:36px; }
   html.tv .page-title { font-size:52px; }
   html.tv .topbar-title { font-size:44px; }
   html.tv .row-title { font-size:28px; }
@@ -738,7 +767,7 @@
 
   <!-- HOME: featured hero + content rows from every added add-on -->
   <div id="view-home" class="view active">
-    <div id="homeHero"></div>
+    <div id="heroRow"><div id="homeHero"></div><div id="heroSide"></div></div>
     <div id="homeRows"></div>
   </div>
 
@@ -882,7 +911,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.9';
+  var PLAYER_VERSION = '2026.09.01.10';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1820,6 +1849,7 @@
     heroState.items = []; heroState.idx = 0;
     clearInterval(heroState.timer); heroState.timer = null;
     var h = $id('homeHero'); if (h){ h.className = ''; h.innerHTML = ''; }
+    var hs = $id('heroSide'); if (hs){ hs.className = ''; hs.innerHTML = ''; }
   }
   function heroConsider(metas, a, m, c){
     if (heroState.items.length) return;
@@ -1878,6 +1908,31 @@
       toggleLibrary(meta.type || 'movie', meta, (it.addon && it.addon.url) || '');
       $id('hfList').textContent = inLibrary(meta.type, meta.id) ? '✓ In My List' : '+ My List';
     };
+    heroRenderSide();
+  }
+  /** TV only: the two upcoming rotation titles float beside the featured card. */
+  function heroRenderSide(){
+    var hs = $id('heroSide'); if (!hs) return;
+    var n = heroState.items.length;
+    if (!IS_TV || n < 3){ hs.className = ''; hs.innerHTML = ''; return; }
+    hs.innerHTML = '';
+    for (var k = 1; k <= 2; k++){
+      (function(itS){
+        var m = itS.meta;
+        var b = document.createElement('button');
+        b.className = 'hs-card focusable';
+        b.innerHTML = '<img src="' + esc(m.background || m.poster) + '" alt="" onerror="this.remove()">' +
+          (m.imdbRating ? '<span class="hs-rate">★ ' + esc(m.imdbRating) + '</span>' : '') +
+          '<div class="hs-name">' + esc(m.name) + '</div>';
+        b.onclick = function(){
+          ctx.addon = itS.addon; ctx.manifest = itS.manifest;
+          ctx.catalogs = (itS.manifest && itS.manifest.catalogs) || []; ctx.catalog = itS.catalog;
+          openItem(m);
+        };
+        hs.appendChild(b);
+      })(heroState.items[(heroState.idx + k) % n]);
+    }
+    hs.className = 'on';
   }
 
   var homeSig = null, homeBuiltAt = 0, homeSeq = 0;
