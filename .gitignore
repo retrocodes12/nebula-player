@@ -48,3 +48,4 @@ next-env.d.ts
 
 # cloud service run residue (groups written by local test runs)
 /cloud/data/
+.gstack/

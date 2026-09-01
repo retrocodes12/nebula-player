@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.02.2",
+  "version": "2026.09.02.3",
   "url": "https://play.rifflehq.in/",
-  "notes": "Nebula Profiles: sign in with a handle and password on every device, TVs join by code or QR approved from your phone, friends by @handle. No email, no tracking — a profile is optional"
+  "notes": "Pause and the screen tells you what you are watching, how long is left and what plays next. Press i for playback info — picture, codec, connection, buffer, dropped frames. Nudge subtitle timing from the Subtitles menu. Pick a picture quality policy in Settings, and jump back to the live edge with one button"
 }

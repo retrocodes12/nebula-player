@@ -667,7 +667,9 @@
     border-radius:var(--r-pill); border:0; background:rgba(80,80,88,.42); color:#fff; cursor:pointer;
     transition:background .18s var(--ease), transform .18s var(--ease); }
   .pui-round svg { width:20px; height:20px; }
+  .pui-round.on { background:rgba(255,255,255,.92); color:#000; }
   .pui-round:hover { background:rgba(110,110,120,.55); transform:scale(1.06); }
+  .pui-round.on:hover { background:#fff; }
   html.tv .pui-round.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
   .pui-round.focusable:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
   @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
@@ -780,6 +782,14 @@
   .qprev { margin:2px 6px 8px; padding:16px 10px; border-radius:10px; text-align:center; overflow:hidden;
     background:#2A3550; }
   .qprev-t { display:inline-block; padding:.06em .3em; line-height:1.3; border-radius:2px; white-space:normal; }
+  /* subtitle timing readout: one big number, the way a camera shows exposure offset */
+  .qtime { text-align:center; padding:10px 12px 12px; }
+  .qtime b { display:block; font-family:var(--mono); font-size:26px; font-weight:600; letter-spacing:-.01em; color:#fff;
+    font-variant-numeric:tabular-nums; line-height:1.1; }
+  .qtime small { display:block; font-family:var(--mono); font-size:10.5px; font-weight:600; letter-spacing:.14em;
+    text-transform:uppercase; color:rgba(235,235,245,.6); margin-top:6px; }
+  html.tv .qtime b { font-size:32px; }
+  html.tv .qtime small { font-size:12.5px; }
   #upnext { display:none; position:absolute; right:40px; bottom:130px; z-index:7; width:340px; max-width:72vw;
     background:rgba(44,44,46,.8); border:0; border-radius:var(--r-tile); padding:20px;
     box-shadow:0 24px 60px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.10); }
@@ -792,6 +802,52 @@
   .upnext-row { display:flex; }
   .upnext-row > * + * { margin-left:8px; }
   .upnext-row .btn { padding:10px 18px; font-size:13.5px; }
+  /* pause board: leave a film paused for a moment and it tells you what you're
+     looking at — title, episode, synopsis, what's left — the way a TV box does.
+     Any key or the pointer clears it; the transport stays where it was. */
+  .pui-dim { position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.52);
+    opacity:0; pointer-events:none; transition:opacity .5s var(--ease); }
+  #pui.pb-on .pui-dim { opacity:1; }
+  /* the board already says what's playing — don't say it twice */
+  .pui-titles { transition:opacity .35s var(--ease); }
+  #pui.pb-on .pui-titles { opacity:0; }
+  #pauseBoard { display:none; position:absolute; left:40px; top:104px; z-index:6; width:46%; max-width:640px;
+    pointer-events:none; }
+  #pui.pb-on #pauseBoard { display:block; animation:pbIn .55s var(--ease) both; }
+  @keyframes pbIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: reduce){ #pui.pb-on #pauseBoard { animation:none; } }
+  .pb-kick { font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    color:rgba(235,235,245,.62); margin-bottom:14px; }
+  .pb-kick b { color:#fff; font-weight:600; }
+  .pb-title { font-size:40px; font-weight:700; letter-spacing:-.03em; line-height:1.04; color:#fff;
+    text-shadow:0 2px 24px rgba(0,0,0,.5); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .pb-sub { font-size:17px; font-weight:500; color:rgba(235,235,245,.78); margin-top:10px; }
+  .pb-desc { font-size:15px; line-height:1.5; color:rgba(235,235,245,.7); margin:16px 0 0;
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .pb-desc:empty, .pb-sub:empty { display:none; }
+  .pb-meta { display:flex; flex-wrap:wrap; margin-top:20px; font-size:13px; font-weight:500;
+    color:rgba(235,235,245,.72); font-variant-numeric:tabular-nums; }
+  .pb-meta span { display:inline-block; margin:0 10px 6px 0; padding:7px 12px; border-radius:var(--r-pill);
+    background:rgba(80,80,88,.42); white-space:nowrap; }
+  .pb-meta span.next { background:transparent; box-shadow:inset 0 0 0 1px rgba(255,255,255,.22); }
+  /* playback info: an Apple-style HUD of the numbers behind the picture — stays
+     up while the chrome sleeps, so you can watch the bitrate settle */
+  #pinfo { display:none; position:absolute; right:32px; top:88px; z-index:6; min-width:250px;
+    background:rgba(44,44,46,.78); border-radius:14px; padding:12px 14px 10px;
+    box-shadow:0 20px 50px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.10); pointer-events:none; }
+  #pinfo.open { display:block; }
+  .pi-kick { font-family:var(--mono); font-size:10.5px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    color:rgba(235,235,245,.6); margin-bottom:8px; }
+  .pi-row { display:flex; justify-content:space-between; align-items:baseline; padding:4px 0;
+    border-top:1px solid rgba(255,255,255,.08); }
+  .pi-row:first-of-type { border-top:0; }
+  .pi-k { font-size:12px; font-weight:500; color:rgba(235,235,245,.6); margin-right:22px; white-space:nowrap; }
+  .pi-v { font-family:var(--mono); font-size:12.5px; font-weight:500; color:#fff; white-space:nowrap;
+    font-variant-numeric:tabular-nums; text-align:right; }
+  .pi-v.warn { color:#FFB340; }
+  /* live: a way back to the edge once you've drifted behind it */
+  #puiGoLive .dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--accent);
+    margin-right:7px; vertical-align:1px; }
 
   /* ---- featured hero + full-bleed detail + library + sync (Title Card) ---- */
   #heroRow { display:contents; }
@@ -1019,6 +1075,11 @@
     .pui-playpause { width:64px; height:64px; }
     .pui-skip { width:48px; height:48px; }
     .qmenu, #upnext { right:16px; bottom:150px; }
+    #pauseBoard { left:16px; top:72px; width:80%; }
+    .pb-title { font-size:26px; }
+    .pb-sub { font-size:14px; }
+    .pb-desc { font-size:13px; -webkit-line-clamp:2; }
+    #pinfo { right:16px; top:64px; min-width:0; }
     .rail-brand { margin-right:8px; font-size:14px; }
     .navitem { padding:6px 8px; font-size:12.5px; margin-right:0; }
     .page-title { font-size:28px; }
@@ -1102,10 +1163,6 @@
   html.tv .empty { font-size:19px; }
   html.tv .sub { font-size:19px; }
   html.tv #qrbox svg { width:360px; height:360px; }
-  html.tv .qmenu { min-width:300px; top:66px; }
-  html.tv .qopt { font-size:19px; padding:12px 16px; }
-  html.tv .qtitle { font-size:15px; }
-  html.tv .qmenu.wide { min-width:392px; }
   html.tv .pui-top { padding:34px 44px; }
   html.tv .pui-round { width:58px; height:58px; }
   html.tv .pui-round svg { width:26px; height:26px; }
@@ -1125,6 +1182,18 @@
   html.tv .qmenu.wide { min-width:392px; }
   html.tv #upnext { width:470px; right:56px; bottom:160px; padding:26px; }
   html.tv .upnext-title { font-size:24px; }
+  html.tv #pauseBoard { left:56px; top:136px; width:50%; max-width:900px; }
+  html.tv .pb-kick { font-size:14px; margin-bottom:18px; }
+  html.tv .pb-title { font-size:56px; }
+  html.tv .pb-sub { font-size:23px; margin-top:12px; }
+  html.tv .pb-desc { font-size:20px; margin-top:20px; }
+  html.tv .pb-meta { font-size:17px; margin-top:26px; }
+  html.tv .pb-meta span { padding:9px 16px; margin:0 12px 8px 0; }
+  html.tv #pinfo { right:56px; top:110px; min-width:330px; padding:16px 18px 14px; }
+  html.tv .pi-kick { font-size:13px; }
+  html.tv .pi-k { font-size:16px; }
+  html.tv .pi-v { font-size:16.5px; }
+  html.tv .pi-row { padding:6px 0; }
   html.tv #status { font-size:18px; padding:14px 24px 14px 42px; }
   html.tv #status::before { left:20px; width:9px; height:9px; margin-top:-4.5px; }
   html.tv #updBanner { padding:15px 26px; font-size:18px; }
@@ -1139,6 +1208,8 @@
   html.lite .card { transition:none; }
   html.lite .navitem { transition:none; }
   html.lite .hs-card { transition:none; }
+  html.lite .pui-dim { transition:none; }
+  html.lite #pui.pb-on #pauseBoard { animation:none; }
 
 </style>
 </head>
@@ -1163,6 +1234,7 @@
 
   <!-- custom player controls (shown during playback) — Apple TV layout -->
   <div id="pui">
+    <div class="pui-dim"></div>
     <div class="pui-shade pui-shade-top"></div>
     <div class="pui-shade pui-shade-bot"></div>
     <div class="pui-top pui-chrome">
@@ -1170,6 +1242,7 @@
       <div class="pui-winrow">
         <span id="puiPartyBadge" class="pui-live pui-party focusable" role="button" tabindex="0" style="display:none; cursor:pointer"></span>
         <span id="puiLiveBadge" class="pui-live hot" style="display:none">LIVE</span>
+        <button id="puiInfo" class="focusable pui-round" title="Playback info (i)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></button>
         <button id="puiPip" class="focusable pui-round" style="display:none" title="Picture-in-picture"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="12" width="7" height="5" rx="1" fill="currentColor" stroke="none"/></svg></button>
         <button id="puiMini" class="focusable pui-round" style="display:none" title="Mini player — small window that stays on top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="13" y="13" width="6" height="4" rx="1" fill="currentColor" stroke="none"/></svg></button>
         <button id="puiFull" class="focusable pui-round" style="display:none" title="Fullscreen (f)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4H4v4M16 4h4v4M8 20H4v-4M16 20h4v-4"/></svg></button>
@@ -1193,6 +1266,7 @@
           <div id="puiSub" class="pui-sub"></div>
         </div>
         <div class="pui-btns">
+          <button id="puiGoLive" class="focusable pui-btn" style="display:none" title="Jump to the live edge"><span class="dot"></span>Go live</button>
           <button id="puiNext" class="focusable pui-btn" style="display:none" title="Next episode">Next ›</button>
           <button id="puiSubs" class="focusable pui-btn" style="display:none">Subtitles</button>
           <button id="puiAudio" class="focusable pui-btn" style="display:none">Audio</button>
@@ -1210,6 +1284,14 @@
     <div id="puiSpin" class="pui-spin" style="display:none"></div>
     <!-- deliberately outside .pui-chrome: it must survive the controls auto-hiding -->
     <div id="reactLayer"></div>
+    <div id="pauseBoard" aria-live="polite">
+      <div class="pb-kick" id="pbKick">Paused</div>
+      <div class="pb-title" id="pbTitle"></div>
+      <div class="pb-sub" id="pbSub"></div>
+      <p class="pb-desc" id="pbDesc"></p>
+      <div class="pb-meta" id="pbMeta"></div>
+    </div>
+    <div id="pinfo"><div class="pi-kick">Playback info</div><div id="pinfoRows"></div></div>
     <div id="partyCard">
       <p class="pc-title">Watch together</p>
       <div class="pc-code" id="pcCode"></div>
@@ -1335,6 +1417,10 @@
         <div class="setrow">
           <span class="setname">Autoplay next episode<small>Count down and roll into the next one</small></span>
           <span id="setAutoplay" class="seg"></span>
+        </div>
+        <div class="setrow">
+          <span class="setname">Picture quality<small>Auto adapts to your connection · Start high opens at the best rendition · Data saver caps at 720p</small></span>
+          <span id="setQuality" class="seg"></span>
         </div>
         <div class="setrow">
           <span class="setname">Party name<small>How you appear to friends in a watch party</small></span>
@@ -1466,7 +1552,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.02.2';
+  var PLAYER_VERSION = '2026.09.02.3';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1644,7 +1730,7 @@
       var isBack = (k===461 || k===8 || e.key==='GoBack' || e.key==='BrowserBack');
       if (isBack){
         if (upnextState.open){ dismissUpNext(); }
-        else if (puiState.menu==='substyle'){ openPuiMenu('subs', puiState.opener); }
+        else if (puiState.menu==='substyle' || puiState.menu==='subtiming'){ openPuiMenu('subs', puiState.opener); }
         else if (puiState.menu){ closePuiMenu(true); }
         else if (pui.className !== 'idle'){ puiIdle(); }
         else { goBack(); }
@@ -1652,6 +1738,9 @@
       }
       if (k===70 && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey){
         toggleFullscreen(); e.preventDefault(); return;
+      }
+      if (k===73 && !inInput && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey){
+        pinfoSet(!pinfoOn); puiShow(); e.preventDefault(); return;
       }
       // while the up-next card is up it owns left/right and OK
       if (upnextState.open){
@@ -4352,6 +4441,9 @@
     try { flushProgress(true); } catch(e){}
     curPlay = null;
     closeUpNext();
+    pauseBoardHide();
+    pinfoSet(false);
+    subOffsetReset();
     clearInterval(puiState.tick);
     clearTimeout(puiState.idleTimer);
     closePuiMenu(false);
@@ -4416,6 +4508,7 @@
         manifest: { retryParameters: { maxAttempts: 4, baseDelay: 500, backoffFactor: 1.5 }, dash: { ignoreMinBufferTime: true } }
       });
     } catch(e){}
+    applyQualityPolicy();
     player.addEventListener('error', function(ev){ handlePlaybackError(seq, ev.detail || {}); });
     player.addEventListener('adaptation', function(){ if(!puiState.menu) puiRefreshButtons(); });
     player.addEventListener('trackschanged', function(){ if(!puiState.menu) puiRefreshButtons(); });
@@ -4750,8 +4843,14 @@
     $id('puiBuf').style.width = (buf*100)+'%';
     var live = puiIsLive();
     $id('puiLiveBadge').style.display = live ? '' : 'none';
+    // until the playhead has landed inside the window (first tick of a live
+    // load, currentTime still 0) the lag is meaningless — call it the edge
+    var lag = (live && t >= r.start - 1) ? r.end - t : 0;
+    $id('puiGoLive').style.display = (live && lag > 12) ? '' : 'none';
+    if (pinfoOn) pinfoRender();
+    if (subOffset) applySubOffset();
     if (live){
-      $id('puiTimeL').textContent = r.end - t > 12 ? '−'+fmtT(r.end - t)+' behind live' : 'At the live edge';
+      $id('puiTimeL').textContent = lag > 12 ? '−'+fmtT(lag)+' behind live' : 'At the live edge';
       $id('puiTimeR').textContent = 'LIVE';
     } else {
       $id('puiTimeL').textContent = fmtT(t - r.start);
@@ -4777,10 +4876,12 @@
     if (!pui) return;
     pui.className = '';
     document.body.classList.add('pui-on');
+    pauseBoardHide();
     clearTimeout(puiState.idleTimer);
     puiState.idleTimer = setTimeout(function(){
       if (!video.paused && !puiState.menu && !upnextState.open) puiIdle();
     }, 3500);
+    pauseBoardArm();
   }
   function puiIdle(){
     closePuiMenu(false);
@@ -4793,6 +4894,149 @@
     if (video.paused){ try { video.play(); } catch(e){} } else { video.pause(); }
     puiShow();
   }
+
+  // ---- pause board ----
+  // Leave the film paused and, after a beat, the frame dims and tells you what
+  // you're looking at. Anything — a key, the pointer, play — clears it.
+  var pbTimer = null;
+  function pauseBoardArm(){
+    clearTimeout(pbTimer);
+    if (!player || !video.paused || video.style.display !== 'block') return;
+    pbTimer = setTimeout(function(){
+      if (!player || !video.paused || puiState.menu || upnextState.open) return;
+      var pc = $id('partyCard'); if (pc && pc.classList.contains('open')) return;
+      if (video.currentTime < 1 && !video.played.length) return;   // still loading, nothing to describe
+      pauseBoardRender();
+      pui.classList.add('pb-on');
+    }, 1600);
+  }
+  function pauseBoardHide(){
+    clearTimeout(pbTimer);
+    if (pui) pui.classList.remove('pb-on');
+  }
+  function pauseBoardRender(){
+    var series = ctx.seriesName || '', ep = null;
+    if (ctx.seriesEpisodes && ctx.epIndex != null) ep = ctx.seriesEpisodes[ctx.epIndex] || null;
+    var title = series || (ctx.item && ctx.item.name) || (lastPlay && lastPlay.title) || $id('puiTitle').textContent || '';
+    var sub = '';
+    if (ep) sub = epTag(ep) + (ep.name ? ' · ' + ep.name : '');
+    else if (ctx.item && ctx.item.year) sub = String(ctx.item.year) + (ctx.item.genres && ctx.item.genres.length ? ' · ' + ctx.item.genres.slice(0,3).join(', ') : '');
+    var desc = (ep && (ep.overview || ep.description)) || (ctx.item && ctx.item.description) || '';
+    $id('pbKick').innerHTML = video.ended ? 'Finished' : (puiIsLive() ? '<b>Live</b> · Paused' : 'Paused');
+    $id('pbTitle').textContent = title;
+    $id('pbSub').textContent = sub;
+    $id('pbDesc').textContent = desc;
+    var meta = $id('pbMeta'); meta.innerHTML = '';
+    function chip(text, cls){ var sp = document.createElement('span'); if (cls) sp.className = cls; sp.textContent = text; meta.appendChild(sp); }
+    var r = puiRange(), t = video.currentTime;
+    if (video.ended){
+      /* nothing left to count down */
+    } else if (puiIsLive()){
+      chip(r.end - t > 12 ? fmtT(r.end - t) + ' behind live' : 'At the live edge');
+    } else if (r.end > r.start){
+      var remain = r.end - t, mins = Math.round(remain / 60);
+      chip(mins < 1 ? 'Under a minute left' : (mins + ' min left'));
+      var h = new Date(Date.now() + remain * 1000), hh = h.getHours(), mm = h.getMinutes();
+      chip('Ends ' + (hh % 12 || 12) + ':' + (mm < 10 ? '0' : '') + mm + (hh < 12 ? ' am' : ' pm'));
+    }
+    var nx = nextEpisode();
+    if (nx) chip('Up next · ' + epTag(nx.ep) + (nx.ep.name ? ' · ' + nx.ep.name : ''), 'next');
+  }
+
+  // ---- playback info ----
+  // The numbers behind the picture, laid out like a HUD rather than a debug dump.
+  // Toggled from the top-right button or the i key; redrawn every tick while open.
+  var pinfoOn = false;
+  function pinfoSet(on){
+    pinfoOn = !!on;
+    var el = $id('pinfo'); if (!el) return;
+    if (pinfoOn){ pinfoRender(); el.classList.add('open'); } else el.classList.remove('open');
+    var b = $id('puiInfo'); if (b) b.classList.toggle('on', pinfoOn);
+  }
+  function fmtBits(bps){
+    if (!bps || !isFinite(bps)) return '—';
+    return bps >= 1e6 ? (bps/1e6).toFixed(bps >= 10e6 ? 0 : 1) + ' Mb/s' : Math.round(bps/1e3) + ' kb/s';
+  }
+  function codecName(c){
+    if (!c) return '';
+    c = String(c).toLowerCase();
+    if (c.indexOf('avc') === 0 || c.indexOf('h264') === 0) return 'H.264';
+    if (c.indexOf('hvc') === 0 || c.indexOf('hev') === 0 || c.indexOf('h265') === 0) return 'HEVC';
+    if (c.indexOf('av01') === 0) return 'AV1';
+    if (c.indexOf('vp09') === 0 || c.indexOf('vp9') === 0) return 'VP9';
+    if (c.indexOf('mp4a') === 0) return 'AAC';
+    if (c.indexOf('ec-3') === 0) return 'Dolby Digital Plus';
+    if (c.indexOf('ac-3') === 0) return 'Dolby Digital';
+    if (c.indexOf('opus') === 0) return 'Opus';
+    return c.split('.')[0].toUpperCase();
+  }
+  function pinfoRender(){
+    var rows = $id('pinfoRows'); if (!rows || !player) return;
+    var st = null, act = null;
+    try { st = player.getStats(); } catch(e){}
+    try { (player.getVariantTracks()||[]).forEach(function(v){ if (v.active) act = v; }); } catch(e){}
+    var w = (st && st.width) || video.videoWidth || 0, h = (st && st.height) || video.videoHeight || 0;
+    var out = [];
+    function row(k, v, warn){ if (v === '' || v == null) return; out.push([k, v, !!warn]); }
+    var res = (w && h) ? (w + '×' + h) : '—';
+    if (act && act.frameRate) res += ' · ' + Math.round(act.frameRate) + ' fps';
+    if (act && act.hdr && /pq|hlg|smpte2084/i.test(String(act.hdr))) res += ' · HDR';
+    row('Picture', res);
+    var vc = act && codecName(act.videoCodec), ac = act && codecName(act.audioCodec);
+    if (vc || ac) row('Codec', [vc, ac].filter(Boolean).join(' / '));
+    if (st && st.streamBandwidth) row('Stream', fmtBits(st.streamBandwidth));
+    if (st && st.estimatedBandwidth) row('Connection', fmtBits(st.estimatedBandwidth), st.streamBandwidth && st.estimatedBandwidth < st.streamBandwidth * 1.15);
+    var ahead = 0; try { var b = video.buffered; if (b && b.length) ahead = b.end(b.length-1) - video.currentTime; } catch(e){}
+    row('Buffer', (ahead > 0 ? ahead.toFixed(1) : '0.0') + ' s ahead', ahead < 3 && !video.paused);
+    var dropped = null, decoded = null;
+    if (st && st.decodedFrames){ dropped = st.droppedFrames; decoded = st.decodedFrames; }
+    else { try { var q = video.getVideoPlaybackQuality(); dropped = q.droppedVideoFrames; decoded = q.totalVideoFrames; } catch(e){} }
+    if (decoded) row('Dropped frames', dropped + ' of ' + decoded, decoded > 100 && dropped / decoded > 0.01);
+    if (puiIsLive() && st && isFinite(st.liveLatency) && st.liveLatency > 0) row('Behind live', st.liveLatency.toFixed(1) + ' s');
+    if (st && st.stallsDetected) row('Stalls', String(st.stallsDetected), st.stallsDetected > 2);
+    if (video.playbackRate !== 1) row('Speed', video.playbackRate + '×');
+    if (lastPlay && lastPlay.keys) row('Encryption', 'Decrypted on device');
+    if (subOffset) row('Subtitle timing', (subOffset > 0 ? '+' : '−') + Math.abs(subOffset).toFixed(1) + ' s');
+    var html = '';
+    out.forEach(function(r){
+      html += '<div class="pi-row"><span class="pi-k">' + r[0] + '</span><span class="pi-v' + (r[2] ? ' warn' : '') + '">' + esc(r[1]) + '</span></div>';
+    });
+    rows.innerHTML = html;
+  }
+
+  // ---- subtitle timing ----
+  // Nudge every cue of the visible track by a few hundred ms without touching
+  // the source: cues remember their original start/end on first shift so the
+  // offset is absolute, not cumulative, and a new track picks it up on the next tick.
+  var subOffset = 0;
+  function applySubOffset(){
+    var tracks = video.textTracks; if (!tracks) return;
+    for (var i = 0; i < tracks.length; i++){
+      var tr = tracks[i];
+      if (tr.mode === 'disabled') continue;
+      var cues = tr.cues; if (!cues) continue;
+      for (var j = 0; j < cues.length; j++){
+        var c = cues[j];
+        if (c.__n0 == null){ c.__n0 = c.startTime; c.__n1 = c.endTime; }
+        var s0 = c.__n0 + subOffset, e0 = c.__n1 + subOffset;
+        if (s0 < 0){ e0 -= s0; s0 = 0; }
+        if (Math.abs(c.startTime - s0) > 0.001){ try { c.startTime = s0; c.endTime = e0; } catch(e){} }
+      }
+    }
+  }
+  function setSubOffset(v){
+    subOffset = Math.round(v * 10) / 10;
+    if (Math.abs(subOffset) < 0.05) subOffset = 0;
+    applySubOffset();
+    var t = puiMenuEl.querySelector('.qtime'); if (t) t.innerHTML = subOffsetHtml();
+    var on = puiMenuEl.querySelector('.qopt.on'); if (on) on.classList.remove('on');
+    if (!subOffset){ var last = puiMenuEl.querySelectorAll('.qopt'); if (last.length) last[last.length-1].classList.add('on'); }
+  }
+  function subOffsetHtml(){
+    if (!subOffset) return '<b>0.0 s</b><small>In sync</small>';
+    return '<b>' + (subOffset > 0 ? '+' : '−') + Math.abs(subOffset).toFixed(1) + ' s</b><small>Subtitles ' + (subOffset > 0 ? 'later' : 'earlier') + '</small>';
+  }
+  function subOffsetReset(){ subOffset = 0; }
 
   // ---- shared menu (quality / subtitles / audio / speed) ----
   function menuOpt(label, selected, fn){
@@ -4808,7 +5052,7 @@
     if (!player) return;
     puiMenuEl.innerHTML = '';
     var t=document.createElement('div'); t.className='qtitle';
-    t.textContent = { quality:'Quality', subs:'Subtitles', audio:'Audio', speed:'Speed', substyle:'Subtitle appearance' }[kind];
+    t.textContent = { quality:'Quality', subs:'Subtitles', audio:'Audio', speed:'Speed', substyle:'Subtitle appearance', subtiming:'Subtitle timing' }[kind];
     puiMenuEl.appendChild(t);
     if (kind==='substyle') puiMenuEl.classList.add('wide'); else puiMenuEl.classList.remove('wide');
     if (kind==='quality'){
@@ -4844,7 +5088,18 @@
         puiNote('No add-on subtitles for this title.');
       }
       puiSep();
+      menuOpt('Timing ›' + (subOffset ? '  ' + (subOffset > 0 ? '+' : '−') + Math.abs(subOffset).toFixed(1) + ' s' : ''), false, function(){ openPuiMenu('subtiming', puiState.opener); });
       menuOpt('Appearance ›', false, function(){ openPuiMenu('substyle', puiState.opener); });
+    } else if (kind==='subtiming'){
+      menuOpt('‹ Subtitles', false, function(){ openPuiMenu('subs', puiState.opener); });
+      var tp = document.createElement('div'); tp.className = 'qtime'; tp.innerHTML = subOffsetHtml(); puiMenuEl.appendChild(tp);
+      menuOpt('Later by 0.5 s', false, function(){ setSubOffset(subOffset + 0.5); });
+      menuOpt('Later by 0.1 s', false, function(){ setSubOffset(subOffset + 0.1); });
+      menuOpt('Earlier by 0.1 s', false, function(){ setSubOffset(subOffset - 0.1); });
+      menuOpt('Earlier by 0.5 s', false, function(){ setSubOffset(subOffset - 0.5); });
+      puiSep();
+      menuOpt('Back in sync', !subOffset, function(){ setSubOffset(0); });
+      puiNote('If the words arrive before the voices, choose Later.');
     } else if (kind==='substyle'){
       menuOpt('‹ Subtitles', false, function(){ openPuiMenu('subs', puiState.opener); });
       var prev = document.createElement('div'); prev.className = 'qprev';
@@ -4920,6 +5175,19 @@
     setStatus('Quality: '+(height?heightLabel(height):'Auto'),'ok');
     closePuiMenu(true);
   }
+  // Settings › Picture quality. Auto is Shaka's default ABR; Start high seeds the
+  // bandwidth estimate so the first segments come from the top rendition instead
+  // of ramping up; Data saver caps renditions at 720p. A manual pick in the
+  // Quality menu still overrides all three for the current stream.
+  function applyQualityPolicy(){
+    if (!player) return;
+    var q = getPrefs().quality || 'auto';
+    try {
+      if (q === 'saver') player.configure({ abr: { restrictions: { maxHeight: 720 }, defaultBandwidthEstimate: 1.5e6 } });
+      else if (q === 'high') player.configure({ abr: { restrictions: { maxHeight: Infinity }, defaultBandwidthEstimate: 30e6 } });
+      else player.configure({ abr: { restrictions: { maxHeight: Infinity }, defaultBandwidthEstimate: 1e6 } });
+    } catch(e){}
+  }
   function puiRefreshButtons(){
     if (!player) return;
     $id('puiQual').style.display = distinctHeights(videoTracks()).length >= 2 ? '' : 'none';
@@ -4964,7 +5232,9 @@
   $id('puiRew').onclick = function(){ seekBy(-10); };
   $id('puiFwd').onclick = function(){ seekBy(10); };
   $id('puiQual').onclick = function(){ if (puiState.menu==='quality') closePuiMenu(true); else openPuiMenu('quality', this); };
-  $id('puiSubs').onclick = function(){ if (puiState.menu==='subs' || puiState.menu==='substyle') closePuiMenu(true); else openPuiMenu('subs', this); };
+  $id('puiSubs').onclick = function(){ if (puiState.menu==='subs' || puiState.menu==='substyle' || puiState.menu==='subtiming') closePuiMenu(true); else openPuiMenu('subs', this); };
+  $id('puiInfo').onclick = function(){ pinfoSet(!pinfoOn); puiShow(); };
+  $id('puiGoLive').onclick = function(){ var r = puiRange(); if (r.end > r.start){ video.currentTime = Math.max(r.start, r.end - 1); puiTick(); } puiShow(); };
   $id('puiAudio').onclick = function(){ if (puiState.menu==='audio') closePuiMenu(true); else openPuiMenu('audio', this); };
   $id('puiSpeed').onclick = function(){ if (puiState.menu==='speed') closePuiMenu(true); else openPuiMenu('speed', this); };
 
@@ -5170,7 +5440,7 @@
   function partyCardToggle(force){
     var card = $id('partyCard'); if (!card) return;
     var open = force !== undefined ? force : !card.classList.contains('open');
-    if (open && party){ partyCardRender(); card.classList.add('open'); }
+    if (open && party){ partyCardRender(); card.classList.add('open'); pinfoSet(false); pauseBoardHide(); }
     else card.classList.remove('open');
   }
   function partyBadge(){
@@ -6229,6 +6499,11 @@
     var a2 = $id('setAutoplay'); a2.innerHTML = '';
     a2.appendChild(prefChip('On', pr.autoplay !== false, function(){ setPref('autoplay', true); }));
     a2.appendChild(prefChip('Off', pr.autoplay === false, function(){ setPref('autoplay', false); }));
+    var q = $id('setQuality'); if (q){ q.innerHTML = '';
+      [['Auto','auto'], ['Start high','high'], ['Data saver','saver']].forEach(function(o){
+        q.appendChild(prefChip(o[0], (pr.quality || 'auto') === o[1], function(){ setPref('quality', o[1]); applyQualityPolicy(); }));
+      });
+    }
     var he = $id('setHero'); if (he){ he.innerHTML = '';
       he.appendChild(prefChip('Show', pr.hero !== false, function(){ setPref('hero', true); buildHomeRows(true); }));
       he.appendChild(prefChip('Hide', pr.hero === false, function(){ setPref('hero', false); buildHomeRows(true); }));
