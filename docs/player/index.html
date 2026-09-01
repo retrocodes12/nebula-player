@@ -51,6 +51,9 @@
   }
   @media (max-width:820px){ :root { --pad:20px; } }
   * { box-sizing:border-box; }
+  /* buttons do not inherit the page face by default — episode rows, add-on
+     rows and card labels all quietly fell back to Arial */
+  button, input, select, textarea { font-family:inherit; }
   html, body { margin:0; height:100%; background:var(--bg); color:var(--label); overflow:hidden;
     font-family:var(--sans); letter-spacing:-.011em; -webkit-font-smoothing:antialiased; }
   ::selection { background:rgba(255,255,255,.22); }
@@ -81,7 +84,8 @@
   #updBanner a, #updBanner button { color:#000; background:#fff; border:0; border-radius:var(--r-pill);
     padding:7px 15px; font-weight:600; cursor:pointer; text-decoration:none; font-size:13px;
     font-family:var(--sans); }
-  #updBanner .focusable:focus { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
+  html.tv #updBanner .focusable:focus { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
+  #updBanner .focusable:focus-visible { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
   body.upd .view { top:calc(var(--navh) + 44px); }
   body.upd #rail { top:44px; }
   body.playing #updBanner { display:none; }
@@ -105,7 +109,8 @@
   .navitem svg { display:none; }
   .navitem:hover { color:var(--label); }
   .navitem.on { color:var(--label); background:rgba(255,255,255,.10); }
-  .navitem.focusable:focus { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+  html.tv .navitem.focusable:focus { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+  .navitem.focusable:focus-visible { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
   /* phones: five labelled tabs will not fit, so the rail goes icon-only —
      these must sit AFTER `.navitem svg { display:none }` to win on order */
   @media (max-width:820px){
@@ -123,23 +128,38 @@
   .swatch { width:36px; height:36px; border-radius:50%; border:0; cursor:pointer; margin:4px 10px 4px 0;
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.18); }
   .swatch.on { box-shadow:0 0 0 3px #000, 0 0 0 5px #fff; }
-  .swatch.focusable:focus { box-shadow:0 0 0 3px #000, 0 0 0 5px rgba(255,255,255,.6); }
+  html.tv .swatch.focusable:focus { box-shadow:0 0 0 3px #000, 0 0 0 5px rgba(255,255,255,.6); }
+  .swatch.focusable:focus-visible { box-shadow:0 0 0 3px #000, 0 0 0 5px rgba(255,255,255,.6); }
   html:not(.tv) #rowZoom { display:none; }   /* focus zoom only means something on a TV */
   html.tv .setname { font-size:19px; }
+  html.tv .setname small { font-size:16px; }
+  html.tv .setrow { padding:18px 0; }
+  html.tv .panel { padding:28px 34px 30px; max-width:1100px; }
   html.tv .swatch { width:46px; height:46px; }
+  /* Settings nests a scroller inside a padded view — the page gutter, once */
+  #view-settings .scroller { padding:0; overflow:visible; }
   @media (min-width:1400px){ .page-title { font-size:40px; } }
+  /* a phone: the panel gutter tightens so the seven swatches stay on one line */
+  @media (max-width:820px){
+    .panel { padding:18px 18px 20px; }
+    .swatch { margin-right:8px; }
+  }
 
   /* ---- rows ---- */
   .rowhead { display:flex; align-items:baseline; margin:26px 0 12px; }
   .rowhead:first-child { margin-top:8px; }
   .row-title { font-size:21px; font-weight:600; letter-spacing:-.021em; flex:0 1 auto; min-width:0;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .row-sub { color:var(--label2); font-size:14px; font-weight:400; margin-left:10px; letter-spacing:-.01em; }
+  .row-sub { color:var(--label3); font-family:var(--mono); font-size:11px; font-weight:500; margin-left:12px;
+    letter-spacing:.14em; text-transform:uppercase; white-space:nowrap; flex:0 1 auto; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; }
+  html.tv .row-sub { font-size:14px; }
   .seeall { margin-left:auto; flex:0 0 auto; font-family:var(--sans); font-size:13px; font-weight:500;
     color:var(--label2); background:transparent; border:0; border-radius:var(--r-pill);
     padding:6px 10px; cursor:pointer; white-space:nowrap; transition:color .2s var(--ease); }
   .seeall:hover { color:var(--label); }
-  .seeall.focusable:focus { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+  html.tv .seeall.focusable:focus { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+  .seeall.focusable:focus-visible { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
   .hrow { display:flex; overflow-x:auto; padding:10px 12px 18px; margin:0 -12px; scrollbar-width:none; }
   .hrow::-webkit-scrollbar { display:none; }
   .hrow .card { flex:0 0 150px; margin-right:16px; }
@@ -157,6 +177,11 @@
   #view-search .searchrow > * + * { margin-left:10px; }
   #view-search .searchrow .field { flex:1; margin:0; }
   #searchResults .grid { margin-bottom:26px; }
+  .search-idle { margin-top:6vh; max-width:560px; }
+  .search-idle p { color:var(--label2); font-size:15px; line-height:1.55; margin:8px 0 16px; max-width:44ch; }
+  .search-idle .chips { flex-wrap:wrap; padding:0; }
+  .search-idle .chip { margin:0 8px 8px 0; }
+  html.tv .search-idle p { font-size:19px; }
 
   /* ---- boot screen ---- */
   /* above the update banner (200) — a nag must not flash over the boot screen */
@@ -184,15 +209,34 @@
   .brand-mark { color:var(--accent); margin-right:.3em; }
   .brand-name { color:var(--label); }
   .tagline { color:var(--label2); margin:.6rem 0 0; font-size:15px; line-height:1.5; }
-  .panel { background:var(--l1); border:0; border-radius:var(--r-tile); padding:24px; max-width:860px;
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.06); }
+  /* a hairline group on the page, not a card on a card */
+  .panel { background:rgba(255,255,255,.03); border:1px solid var(--sep); border-radius:16px;
+    padding:22px 26px 24px; max-width:860px; }
   .panel + .panel { margin-top:16px; }
-  .lbl { color:var(--label2); font-size:13px; font-weight:500; letter-spacing:-.008em; }
+  /* the second type register: a tracked micro-caps eyebrow */
+  .lbl { color:var(--label3); font-family:var(--mono); font-size:11px; font-weight:500;
+    letter-spacing:.14em; text-transform:uppercase; }
+  .panel > .lbl { margin-bottom:8px; }
+  html.tv .lbl { font-size:14px; }
+  /* quiet text actions beside the real buttons */
+  .linkrow { display:flex; align-items:center; flex-wrap:wrap; margin-top:14px; padding-top:14px;
+    border-top:1px solid var(--sep); }
+  .linkrow .lbl { margin-right:6px; }
+  .textbtn { font-family:var(--sans); font-size:13.5px; font-weight:500; color:var(--label2);
+    background:transparent; border:0; border-radius:var(--r-pill); padding:6px 10px; cursor:pointer;
+    white-space:nowrap; transition:color .18s var(--ease), background .18s var(--ease); }
+  .textbtn:hover { color:var(--label); background:var(--fill); }
+  html.tv .textbtn.focusable:focus { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+  .textbtn.focusable:focus-visible { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+  html.tv .textbtn { font-size:17px; padding:9px 14px; }
   .field { width:100%; font-family:var(--sans); font-size:15px; padding:12px 14px; margin-top:8px;
     border-radius:var(--r-ctl); border:0; background:var(--fill); color:var(--label); outline:none;
     transition:box-shadow .2s var(--ease); }
   .field::placeholder { color:var(--label3); }
-  .field:focus { box-shadow:0 0 0 4px rgba(255,255,255,.30); }
+  /* a text field is always "keyboard-focused" to the browser, so the ring is
+     sized by device instead: a halo across a room, a hairline on a desk */
+  html.tv .field:focus { box-shadow:0 0 0 4px rgba(255,255,255,.30); }
+  html:not(.tv) .field:focus { box-shadow:0 0 0 1px rgba(255,255,255,.45); }
   input[type=search].field { border-radius:var(--r-pill); padding-left:2.5rem;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba(235,235,245,0.6)' stroke-width='1.9' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.6-3.6'/%3E%3C/svg%3E");
     background-repeat:no-repeat; background-position:.95rem 50%; background-size:1.05em; }
@@ -203,9 +247,11 @@
     padding:11px 22px; border-radius:var(--r-pill); border:0; background:#fff; color:#000; cursor:pointer;
     transition:transform .18s var(--ease), background .18s var(--ease); }
   .btn:hover { transform:scale(1.03); }
-  .btn.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.45); }
-  .btn.ghost { background:var(--fill2); color:var(--label); }
-  .btn.ghost:hover { background:rgba(118,118,128,.5); }
+  html.tv .btn.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.45); }
+  .btn.focusable:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.45); }
+  /* secondary actions are outlined, not a second grey blob */
+  .btn.ghost { background:transparent; color:var(--label); border:1px solid rgba(255,255,255,.28); padding:10px 21px; }
+  .btn.ghost:hover { background:rgba(255,255,255,.10); border-color:rgba(255,255,255,.4); }
   /* leading icon inside a .btn (hero "Details", detail "Play") — without these
      the unsized SVG balloons the button into a circle with a stacked label */
   .btn .btn-ic { display:inline-flex; vertical-align:-2px; margin-right:8px; }
@@ -223,7 +269,9 @@
     transition:transform .2s var(--ease), background .2s var(--ease); }
   .addon > * + * { margin-left:14px; }
   .addon:hover { background:var(--l2); }
-  .addon.focusable:focus { background:var(--l2); transform:scale(1.02);
+  html.tv .addon.focusable:focus { background:var(--l2); transform:scale(1.02);
+    box-shadow:0 12px 30px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
+  .addon.focusable:focus-visible { background:var(--l2); transform:scale(1.02);
     box-shadow:0 12px 30px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
   .addon-logo { width:46px; height:46px; border-radius:11px; object-fit:cover; background:#000; flex:0 0 auto; }
   .addon-logo.ph { display:flex; align-items:center; justify-content:center; font-size:19px;
@@ -243,7 +291,8 @@
      which on a touch screen left a live destructive control you couldn't see. */
   .addon-del:hover { background:var(--accent); color:#fff; }
   .addon:hover .addon-del, .addon:focus-within .addon-del, .addon.focusable:focus .addon-del { color:var(--label2); }
-  .addon-del.focusable:focus { background:var(--accent); color:#fff; }
+  html.tv .addon-del.focusable:focus { background:var(--accent); color:#fff; }
+  .addon-del.focusable:focus-visible { background:var(--accent); color:#fff; }
   /* Drag to rank. touch-action:none is load-bearing — without it a drag down
      the list scrolls the page instead. */
   .addon-grip { flex:0 0 auto; width:34px; height:38px; border:0; border-radius:9px; padding:0;
@@ -251,7 +300,8 @@
     display:flex; align-items:center; justify-content:center;
     transition:color .18s var(--ease), background .18s var(--ease); }
   .addon-grip:hover { color:var(--label2); }
-  .addon-grip.focusable:focus { background:var(--label); color:#000; }
+  html.tv .addon-grip.focusable:focus { background:var(--label); color:#000; }
+  .addon-grip.focusable:focus-visible { background:var(--label); color:#000; }
   .addon-grip svg { width:17px; height:17px; }
   .addons.dragging .addon { transition:transform .18s var(--ease); }
   .addons.dragging .addon.drag-src { transition:none; }
@@ -276,34 +326,48 @@
     justify-content:center; transition:background .18s var(--ease), transform .18s var(--ease); }
   .iconbtn svg { width:17px; height:17px; }
   .iconbtn:hover { background:var(--fill2); }
-  .iconbtn.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+  html.tv .iconbtn.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+  .iconbtn.focusable:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.35); }
   .topbar-title { font-size:30px; font-weight:700; letter-spacing:-.026em; line-height:1.1;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .topbar-titles { min-width:0; }
+  .topbar-kick { font-family:var(--mono); font-size:11px; font-weight:500; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--label3); margin-bottom:3px; }
+  .topbar-kick:empty { display:none; }
+  html.tv .topbar-kick { font-size:14px; }
   @media (min-width:1400px){ .topbar-title { font-size:36px; } }
 
   /* ---- chips ---- */
   .chips { display:flex; overflow-x:auto; padding:2px 0 12px; scrollbar-width:none; }
   .chips::-webkit-scrollbar { display:none; }
   .chip { flex:0 0 auto; font-family:var(--sans); font-size:13.5px; font-weight:500; letter-spacing:-.008em;
-    padding:8px 16px; border-radius:var(--r-pill); background:var(--fill); border:0; color:var(--label);
-    cursor:pointer; white-space:nowrap; transition:background .18s var(--ease); }
+    padding:7px 15px; border-radius:var(--r-pill); background:transparent; border:1px solid var(--sep);
+    color:var(--label2); cursor:pointer; white-space:nowrap;
+    transition:background .18s var(--ease), color .18s var(--ease), border-color .18s var(--ease); }
   .chip + .chip { margin-left:8px; }
-  .chip:hover { background:var(--fill2); }
-  .chip.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.35); }
-  .chip.on { background:#fff; color:#000; }
+  .chip:hover { background:var(--fill); color:var(--label); }
+  html.tv .chip.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.35); color:var(--label); }
+  .chip.focusable:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.35); color:var(--label); }
+  .chip.on { background:#fff; color:#000; border-color:#fff; }
+  /* a binary preference is one segmented control, not two loose pills */
+  .seg { display:inline-flex; align-items:center; padding:3px; border-radius:var(--r-pill);
+    border:1px solid var(--sep); }
+  .seg .chip, .setrow .seg .chip { margin:0; border-color:transparent; padding:6px 14px; }
+  .seg .chip.on { border-color:#fff; }
+  html.tv .seg .chip { padding:9px 20px; }
 
   /* ---- poster grid ---- */
   .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:20px 16px; align-items:start; }
   @media (min-width:1500px){ .grid { grid-template-columns:repeat(auto-fill,minmax(184px,1fr)); gap:26px 20px; } }
   .card { position:relative; display:block; text-align:left; padding:0; border:0; border-radius:0;
     background:transparent; color:var(--label); cursor:pointer;
-    transition:transform .32s var(--ease); }
+    transition:transform .2s var(--ease); }
   /* a hold on a card opens its sheet, so never let it start a text selection */
   .card { -webkit-user-select:none; -moz-user-select:none; -ms-user-select:none; user-select:none;
     -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
   .card .thumb { position:relative; width:100%; height:0; padding-top:150%; border-radius:var(--r-card);
     overflow:hidden; background:var(--l1); box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);
-    transition:box-shadow .32s var(--ease); }
+    transition:box-shadow .2s var(--ease); }
   .card.shape-landscape .thumb { padding-top:56.25%; }
   .card.shape-square .thumb { padding-top:100%; }
   .card .thumb img { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; display:block; }
@@ -311,16 +375,17 @@
     font-weight:600; color:var(--label3); }
   .card-label { padding:9px 2px 0; font-size:13px; font-weight:500; color:var(--label2); line-height:1.35;
     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
-    transition:color .32s var(--ease); }
+    transition:color .2s var(--ease); }
   .card-sub { padding:2px 2px 0; font-size:12px; color:var(--label3);
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   /* focus lifts and enlarges — it does not draw a box */
   .card:hover .thumb { box-shadow:0 14px 30px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.14); }
-  .card.focusable:focus { transform:scale(1.09); z-index:3; }
-  .card.focusable:focus .thumb { box-shadow:0 22px 46px rgba(0,0,0,.72), inset 0 0 0 1px rgba(255,255,255,.22); }
-  .card.focusable:focus .card-label { color:var(--label); }
-  .card.focusable:focus .thumb::after { content:''; position:absolute; top:0; left:0; right:0; bottom:0;
-    background:linear-gradient(160deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,0) 42%); }
+  html.tv .card.focusable:focus { transform:scale(1.09); z-index:3; }
+  .card.focusable:focus-visible { transform:scale(1.09); z-index:3; }
+  html.tv .card.focusable:focus .thumb { box-shadow:0 22px 46px rgba(0,0,0,.72), inset 0 0 0 1px rgba(255,255,255,.22); }
+  .card.focusable:focus-visible .thumb { box-shadow:0 22px 46px rgba(0,0,0,.72), inset 0 0 0 1px rgba(255,255,255,.22); }
+  html.tv .card.focusable:focus .card-label { color:var(--label); }
+  .card.focusable:focus-visible .card-label { color:var(--label); }
   @media (prefers-reduced-motion: reduce){ .card, .card.focusable:focus { transition:none; transform:none; } }
 
   /* ---- streams / episodes ---- */
@@ -344,8 +409,10 @@
   .s-plate i { display:block; font-style:normal; font-size:9px; letter-spacing:.1em;
     color:var(--label2); margin-top:3px; }
   .stream:hover .s-plate { background:var(--fill2); }
-  .stream.focusable:focus .s-plate { background:var(--accent); color:#fff; }
-  .stream.focusable:focus .s-plate i { color:rgba(255,255,255,.82); }
+  html.tv .stream.focusable:focus .s-plate { background:var(--accent); color:#fff; }
+  .stream.focusable:focus-visible .s-plate { background:var(--accent); color:#fff; }
+  html.tv .stream.focusable:focus .s-plate i { color:rgba(255,255,255,.82); }
+  .stream.focusable:focus-visible .s-plate i { color:rgba(255,255,255,.82); }
   .s-main { flex:1 1 auto; min-width:0; }
   .s-spec { flex:0 0 auto; text-align:right; font-family:var(--mono); font-size:12px;
     color:var(--label2); line-height:1.55; white-space:nowrap; }
@@ -356,7 +423,9 @@
   html.tv .s-spec { font-size:15px; }
   html.tv .s-spec b { font-size:17px; }
   .stream:hover { background:var(--l2); }
-  .stream.focusable:focus { background:var(--l2); transform:scale(1.015);
+  html.tv .stream.focusable:focus { background:var(--l2); transform:scale(1.015);
+    box-shadow:0 14px 32px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
+  .stream.focusable:focus-visible { background:var(--l2); transform:scale(1.015);
     box-shadow:0 14px 32px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
   .stream-name { display:block; font-size:15.5px; font-weight:600; letter-spacing:-.015em;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -368,13 +437,31 @@
   .sbadges img { height:16px; width:auto; display:inline-block; vertical-align:middle; margin:2px 8px 2px 0; }
   .stream-facts { display:block; color:var(--label2); font-size:12.5px; margin-top:4px; font-variant-numeric:tabular-nums; }
   .streamsec .rowhead { margin:6px 0 2px; }
-  .ep-thumb { width:124px; height:70px; flex:0 0 auto; border-radius:9px; object-fit:cover;
+  .ep-thumb { width:160px; height:90px; flex:0 0 auto; border-radius:8px; object-fit:cover;
     background:#000; display:block; }
-  .ep-thumb-ph { width:124px; height:70px; flex:0 0 auto; border-radius:9px; background:var(--l2);
+  .ep-thumb-ph { width:160px; height:90px; flex:0 0 auto; border-radius:8px; background:var(--l1);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.06); font-family:var(--mono);
     display:flex; align-items:center; justify-content:center; color:var(--label3); font-size:15px; font-weight:600; }
+  .ep-kick { display:block; font-family:var(--mono); font-size:11px; font-weight:500; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--label3); margin-bottom:4px; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; }
   .ep-sub { display:block; color:var(--label2); font-size:13px; margin-top:4px; line-height:1.45;
     overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
-  html.tv .ep-thumb, html.tv .ep-thumb-ph { width:180px; height:101px; }
+  /* episodes and upcoming are lists, not stacks of tiles: transparent rows
+     divided by hairlines, the row only lighting when it is the target */
+  .eplist { gap:0; }
+  .eplist .stream { background:transparent; border-radius:12px; padding:14px 10px; box-shadow:none; }
+  .eplist .stream + .stream { border-top:1px solid var(--sep); border-top-left-radius:0; border-top-right-radius:0; }
+  .eplist .stream:hover { background:var(--l1); }
+  .eplist .stream.ep-next, .eplist .stream.skel { box-shadow:none; }
+  .eplist .stream.ep-next .stream-name { color:var(--label); }
+  html.tv .ep-thumb, html.tv .ep-thumb-ph { width:224px; height:126px; }
+  html.tv .ep-kick { font-size:14px; }
+  html.tv .eplist .stream { padding:18px 14px; }
+  @media (max-width:700px){
+    .ep-thumb, .ep-thumb-ph { width:112px; height:63px; }
+    .eplist .stream { padding:12px 6px; }
+  }
 
   /* progress + marks */
   .prog { position:absolute; left:8px; right:8px; bottom:8px; height:3px; border-radius:2px;
@@ -392,30 +479,42 @@
     background:rgba(0,0,0,.66); color:var(--ok); font-size:11px; line-height:20px; text-align:center; font-weight:700; }
   html.tv .ep-done { width:28px; height:28px; line-height:28px; font-size:14px; }
   /* ---- ratings + friends (experimental) ---- */
-  .det-rate { display:flex; align-items:center; margin-top:14px; }
-  .det-rate .star { width:34px; height:34px; border:0; background:none; padding:0; cursor:pointer;
+  .det-rate { display:inline-flex; align-items:center; margin-top:18px; padding:4px 16px 4px 6px;
+    border-radius:var(--r-pill); border:1px solid var(--sep); }
+  .det-rate:empty { display:none; }
+  .det-rate .star { width:32px; height:32px; border:0; background:none; padding:0; cursor:pointer;
     color:var(--label3); display:flex; align-items:center; justify-content:center;
-    border-radius:9px; transition:color .15s var(--ease), transform .15s var(--ease); }
-  .det-rate .star svg { width:26px; height:26px; }
+    border-radius:var(--r-pill); transition:color .15s var(--ease), transform .15s var(--ease); }
+  .det-rate .star svg { width:22px; height:22px; }
   .det-rate .star.lit { color:var(--accent); }
-  .det-rate .star:hover { transform:scale(1.15); }
-  .det-rate .star.focusable:focus { background:var(--label); color:#000; }
-  .det-rate .rate-lbl { color:var(--label2); font-size:13px; margin-left:12px; }
-  html.tv .det-rate .star { width:46px; height:46px; }
-  html.tv .det-rate .star svg { width:34px; height:34px; }
-  html.tv .det-rate .rate-lbl { font-size:16px; }
+  .det-rate .star:hover { transform:scale(1.15); color:var(--label); }
+  .det-rate .star.lit:hover { color:var(--accent); }
+  html.tv .det-rate .star.focusable:focus { background:var(--label); color:#000; }
+  .det-rate .star.focusable:focus-visible { background:var(--label); color:#000; }
+  .det-rate .rate-lbl { font-family:var(--mono); font-size:11px; font-weight:500; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--label3); margin-left:12px; white-space:nowrap; }
+  html.tv .det-rate { padding:6px 22px 6px 8px; }
+  html.tv .det-rate .star { width:44px; height:44px; }
+  html.tv .det-rate .star svg { width:30px; height:30px; }
+  html.tv .det-rate .rate-lbl { font-size:14px; }
   .fr-head { display:flex; align-items:center; margin:4px 0 12px; }
-  .fr-head .row-title { flex:1; }
+  .fr-head .row-title { flex:0 0 auto; margin-right:16px; }
+  /* the code sits beside the title, labelled, outlined — not flung to the far edge */
   .fr-code { font-family:var(--mono); font-size:15px; letter-spacing:.12em; color:var(--label);
-    background:var(--l1); border-radius:10px; padding:7px 12px; }
+    border:1px solid var(--sep); border-radius:8px; padding:5px 12px; }
+  .fr-code::before { content:'Your code'; font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--label3); margin-right:12px; }
   html.tv .fr-code { font-size:20px; }
+  html.tv .fr-code::before { font-size:14px; }
   .fr-cards { display:flex; flex-wrap:wrap; }
   .fr-card { display:flex; align-items:center; border:0; cursor:pointer; text-align:left;
     background:var(--l1); border-radius:14px; padding:10px 16px 10px 10px; margin:0 10px 10px 0;
     color:var(--label); box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
     transition:background .18s var(--ease), transform .18s var(--ease); }
   .fr-card:hover { background:var(--l2); }
-  .fr-card.focusable:focus { background:var(--l2); transform:scale(1.04);
+  html.tv .fr-card.focusable:focus { background:var(--l2); transform:scale(1.04);
+    box-shadow:0 10px 26px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
+  .fr-card.focusable:focus-visible { background:var(--l2); transform:scale(1.04);
     box-shadow:0 10px 26px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
   .fr-card.on { box-shadow:inset 0 0 0 2px var(--accent); }
   .fr-av { width:40px; height:40px; border-radius:var(--r-pill); background:var(--accent); color:#fff;
@@ -426,7 +525,9 @@
   .rec-row { display:flex; align-items:center; width:100%; border:0; text-align:left; cursor:pointer;
     background:var(--l1); border-radius:12px; padding:10px 14px; margin-bottom:8px; color:var(--label);
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.06); }
-  .rec-row:hover, .rec-row.focusable:focus { background:var(--l2); }
+  .rec-row:hover { background:var(--l2); }
+  html.tv .rec-row.focusable:focus { background:var(--l2); }
+  .rec-row.focusable:focus-visible { background:var(--l2); }
   .rec-thumb { width:34px; height:50px; border-radius:7px; object-fit:cover; background:#000;
     margin-right:12px; flex:0 0 auto; }
   .rec-note { color:var(--label2); font-size:12.5px; margin-top:2px; }
@@ -464,7 +565,9 @@
   .sheet-act { display:flex; align-items:center; width:100%; border:0; background:none; cursor:pointer;
     padding:16px 18px; color:var(--label); font:inherit; font-size:15px; font-weight:500; text-align:left; }
   .sheet-act svg { width:21px; height:21px; flex:0 0 auto; margin-right:15px; }
-  .sheet-act:hover, .sheet-act.focusable:focus { background:rgba(255,255,255,.07); }
+  .sheet-act:hover { background:rgba(255,255,255,.07); }
+  html.tv .sheet-act.focusable:focus { background:rgba(255,255,255,.07); }
+  .sheet-act.focusable:focus-visible { background:rgba(255,255,255,.07); }
   .sheet-act.bad { color:#FF5A5F; }
   /* On a TV it is a centred panel, not a phone sheet — nothing is within thumb reach */
   html.tv .sheet { left:50%; right:auto; bottom:auto; top:50%; width:520px;
@@ -480,6 +583,17 @@
   html.tv .sheet-act { padding:18px 24px; font-size:19px; }
   html.tv .sheet-act svg { width:24px; height:24px; }
   html.lite .sheet, html.lite .sheet-scrim { transition:none; }
+  /* a laptop is not a phone either: past tablet width the sheet is a dialog */
+  @media (min-width:821px){
+    html:not(.tv) .sheet { left:50%; right:auto; bottom:auto; top:50%; width:440px;
+      transform:translate(-50%,-46%); opacity:0; border-radius:20px; border:1px solid var(--sep);
+      box-shadow:0 40px 100px rgba(0,0,0,.6); padding-bottom:8px;
+      transition:opacity .2s var(--ease), transform .24s var(--ease); }
+    html:not(.tv) .sheet.in { transform:translate(-50%,-50%); opacity:1; }
+    html:not(.tv) .sheet-grab { display:none; }
+    html:not(.tv) .sheet-head { padding:20px 22px; }
+    html:not(.tv) .sheet-act { padding:15px 22px; }
+  }
 
   .focusable { outline:none; }
 
@@ -561,7 +675,8 @@
     transition:background .18s var(--ease), transform .18s var(--ease); }
   .pui-round svg { width:20px; height:20px; }
   .pui-round:hover { background:rgba(110,110,120,.55); transform:scale(1.06); }
-  .pui-round.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
+  html.tv .pui-round.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
+  .pui-round.focusable:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
   @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
     .pui-round, .pui-btn, .qmenu, #upnext, .pui-live {
       -webkit-backdrop-filter:saturate(180%) blur(18px); backdrop-filter:saturate(180%) blur(18px); }
@@ -584,7 +699,8 @@
   #partyCard .pc-react button { flex:1; font-size:22px; background:var(--fill); border:0; border-radius:12px;
     padding:8px 0; margin-right:8px; cursor:pointer; }
   #partyCard .pc-react button:last-child { margin-right:0; }
-  #partyCard .pc-react button:focus { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
+  html.tv #partyCard .pc-react button:focus { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
+  #partyCard .pc-react button:focus-visible { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
   #partyCard .pc-close { margin-top:12px; }
   html.tv #partyCard { right:56px; top:110px; width:380px; }
   html.tv #partyCard .pc-code { font-size:36px; }
@@ -625,16 +741,20 @@
     color:#fff; cursor:pointer; transition:background .18s var(--ease); white-space:nowrap; }
   .pui-btn .pv { color:rgba(235,235,245,.66); margin-left:7px; font-weight:500; }
   .pui-btn:hover { background:rgba(110,110,120,.55); }
-  .pui-btn.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
+  html.tv .pui-btn.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
+  .pui-btn.focusable:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
   /* the Apple TV scrubber: thick, fully rounded, grows a touch under focus */
   .pui-seek { position:relative; padding:8px 0; cursor:pointer; outline:none; }
   .pui-rail { position:relative; height:8px; border-radius:5px; background:rgba(255,255,255,.24);
     overflow:hidden; transition:transform .18s var(--ease); }
-  .pui-seek:hover .pui-rail, .pui-seek:focus .pui-rail { transform:scaleY(1.25); }
+  .pui-seek:hover .pui-rail { transform:scaleY(1.25); }
+  html.tv .pui-seek:focus .pui-rail { transform:scaleY(1.25); }
+  .pui-seek:focus-visible .pui-rail { transform:scaleY(1.25); }
   .pui-buf { position:absolute; top:0; left:0; bottom:0; width:0; background:rgba(255,255,255,.38); }
   .pui-fill { position:absolute; top:0; left:0; bottom:0; width:0; background:#fff; }
   .pui-knob { display:none; }
-  .pui-seek:focus { box-shadow:0 0 0 4px rgba(255,255,255,.35); border-radius:8px; }
+  html.tv .pui-seek:focus { box-shadow:0 0 0 4px rgba(255,255,255,.35); border-radius:8px; }
+  .pui-seek:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.35); border-radius:8px; }
   .pui-times { display:flex; justify-content:space-between; margin-top:8px;
     font-size:12.5px; font-weight:500; color:rgba(235,235,245,.72); font-variant-numeric:tabular-nums; }
   .pui-spin { position:absolute; top:50%; left:50%; width:46px; height:46px; margin:-23px 0 0 -23px;
@@ -651,7 +771,8 @@
     background:transparent; color:#fff; font-family:var(--sans); font-size:14.5px; font-weight:500;
     cursor:pointer; white-space:nowrap; transition:background .15s var(--ease); }
   .qopt:hover { background:rgba(255,255,255,.10); }
-  .qopt.focusable:focus { background:rgba(255,255,255,.16); box-shadow:0 0 0 3px rgba(255,255,255,.35); }
+  html.tv .qopt.focusable:focus { background:rgba(255,255,255,.16); box-shadow:0 0 0 3px rgba(255,255,255,.35); }
+  .qopt.focusable:focus-visible { background:rgba(255,255,255,.16); box-shadow:0 0 0 3px rgba(255,255,255,.35); }
   .qopt.on { font-weight:600; }
   .qopt.on::after { content:' ✓'; color:rgba(235,235,245,.6); }
   .qsep { height:1px; margin:7px 12px; background:rgba(255,255,255,.14); }
@@ -660,7 +781,9 @@
   .qmenu.wide { min-width:292px; max-height:74vh; }
   .qset { display:flex; justify-content:space-between; align-items:center; }
   .qset .qv { color:rgba(235,235,245,.6); font-weight:500; margin-left:18px; white-space:nowrap; }
-  .qset:hover .qv, .qset.focusable:focus .qv { color:#fff; }
+  .qset:hover .qv { color:#fff; }
+  html.tv .qset.focusable:focus .qv { color:#fff; }
+  .qset.focusable:focus-visible .qv { color:#fff; }
   .qprev { margin:2px 6px 8px; padding:16px 10px; border-radius:10px; text-align:center; overflow:hidden;
     background:#2A3550; }
   .qprev-t { display:inline-block; padding:.06em .3em; line-height:1.3; border-radius:2px; white-space:normal; }
@@ -670,7 +793,7 @@
   #upnext.show { display:block; animation:upIn .34s var(--ease) both; }
   @keyframes upIn { from { opacity:0; transform:translateY(14px) scale(.97); } to { opacity:1; transform:none; } }
   @media (prefers-reduced-motion: reduce){ #upnext.show { animation:none; } }
-  #upnext .lbl { display:block; color:rgba(235,235,245,.6); font-size:13px; font-weight:500; margin-bottom:5px; }
+  #upnext .lbl { display:block; color:rgba(235,235,245,.6); font-size:11px; margin-bottom:6px; }
   .upnext-title { font-size:19px; font-weight:600; letter-spacing:-.02em; line-height:1.25; margin:0 0 15px;
     color:#fff; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .upnext-row { display:flex; }
@@ -711,24 +834,33 @@
   .det-back img { width:100%; height:100%; object-fit:cover; object-position:center 15%; display:block;
     animation:hfIn .8s var(--ease) both; }
   .det-back::after { content:''; position:absolute; top:0; left:0; right:0; bottom:0;
-    background:linear-gradient(180deg, rgba(0,0,0,.32) 0%, rgba(0,0,0,.12) 34%, rgba(0,0,0,.66) 72%, #000 100%); }
+    background:linear-gradient(180deg, rgba(0,0,0,.42) 0%, rgba(0,0,0,.18) 30%, rgba(0,0,0,.74) 68%, #000 100%); }
+  /* bright artwork behind white type: the copy column gets its own shade */
+  .det-back::before { content:''; position:absolute; top:0; left:0; right:0; bottom:0; z-index:1;
+    background:linear-gradient(90deg, rgba(0,0,0,.72) 0%, rgba(0,0,0,.30) 44%, rgba(0,0,0,0) 72%); }
   #view-detail .topbar { position:relative; z-index:2; }
   .det-body { position:relative; z-index:2; padding-top:20vh; max-width:1180px; }
   .det-logo { display:block; max-width:min(400px, 70%); max-height:140px; margin:0 0 16px;
     filter:drop-shadow(0 4px 18px rgba(0,0,0,.55)); }
   .det-name { font-size:44px; font-weight:700; letter-spacing:-.03em; line-height:1.04; margin:0 0 12px;
     text-shadow:0 2px 18px rgba(0,0,0,.6); }
-  .det-kicker { color:var(--label2); font-size:11px; font-weight:600; letter-spacing:.22em;
+  .det-kicker { color:rgba(235,235,245,.82); font-size:11px; font-weight:600; letter-spacing:.22em;
     text-transform:uppercase; margin:2px 0 10px; text-shadow:0 1px 8px rgba(0,0,0,.7); }
-  .det-desc { color:var(--label2); font-size:15px; line-height:1.6; margin:14px 0 6px; max-width:56ch;
-    display:-webkit-box; -webkit-line-clamp:6; -webkit-box-orient:vertical; overflow:hidden; }
+  .det-desc { color:rgba(235,235,245,.8); font-size:15px; line-height:1.6; margin:14px 0 6px; max-width:56ch;
+    display:-webkit-box; -webkit-line-clamp:6; -webkit-box-orient:vertical; overflow:hidden;
+    text-shadow:0 1px 10px rgba(0,0,0,.7); }
   .det-credits { color:var(--label3); font-size:13px; line-height:1.8; margin:8px 0 0; max-width:64ch; }
   .det-chips { display:flex; flex-wrap:wrap; margin-top:6px; }
-  .det-chips span { background:var(--fill); border-radius:var(--r-pill); padding:7px 15px; margin:0 8px 8px 0;
-    font-size:13px; font-weight:600; }
-  .det-chips.cast span { background:transparent; border:1px solid var(--sep); color:var(--label2); font-weight:400; }
-  .det-castlbl { color:var(--label2); font-size:11px; font-weight:700; letter-spacing:.16em; margin:12px 0 8px; }
-  .det-rate { background:var(--fill); border-radius:8px; padding:3px 9px; font-weight:700; letter-spacing:0; color:var(--label); }
+  .det-chips span { background:transparent; border:1px solid rgba(255,255,255,.22); border-radius:var(--r-pill);
+    padding:6px 14px; margin:0 8px 8px 0; font-size:13px; font-weight:500; color:var(--label); }
+  .det-chips.cast span { border-color:var(--sep); color:var(--label2); font-weight:400; }
+  .det-castlbl { color:var(--label3); font-family:var(--mono); font-size:11px; font-weight:500;
+    letter-spacing:.16em; margin:14px 0 8px; }
+  /* the catalogue's score: a small mono plate in the facts line */
+  .det-imdb { display:inline-block; vertical-align:middle; font-family:var(--mono); font-size:12px; font-weight:500;
+    letter-spacing:.06em; text-transform:none; color:var(--label); padding:2px 8px; margin-left:14px;
+    border:1px solid rgba(255,255,255,.3); border-radius:6px; text-shadow:none; }
+  html.tv .det-imdb { font-size:15px; padding:3px 10px; }
   .det-seasons { display:flex; overflow-x:auto; margin:24px 0 2px; padding:4px 0 8px; scrollbar-width:none; }
   .det-seasons::-webkit-scrollbar { display:none; }
   .det-seasons .chip { flex:0 0 auto; margin-right:8px; }
@@ -760,7 +892,8 @@
     box-shadow:inset 0 0 0 1px var(--sep); color:var(--label2); font-size:13px; padding:7px 15px; }
   #streamFilters .chip:hover { background:var(--fill); color:var(--label); }
   #streamFilters .chip.on { background:var(--label); color:#000; font-weight:600; box-shadow:none; }
-  #streamFilters .chip.focusable:focus { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
+  html.tv #streamFilters .chip.focusable:focus { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
+  #streamFilters .chip.focusable:focus-visible { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
   html.tv #streamsHero { height:400px; }
   html.tv .sh-title { font-size:46px; }
   html.tv .sh-kick { font-size:14px; }
@@ -773,15 +906,16 @@
   .ep-date { flex:0 0 auto; color:var(--label2); font-size:12.5px; margin-left:10px; }
   html.tv .det-chips span { font-size:16px; padding:9px 18px; }
   html.tv .det-castlbl { font-size:14px; }
+  html.tv .det-chips span { font-weight:500; }
   html.tv .ep-date { font-size:15px; }
   html.tv .det-eps { max-width:1600px; }
   .det-credits b { color:var(--label2); font-weight:500; margin-right:6px; }
   .det-rule { display:none; }
 
-  #libGrid { margin-top:14px; }
-  .up-day { color:var(--label2); font-size:12px; font-weight:600; letter-spacing:.12em;
-    text-transform:uppercase; margin:24px 0 10px; }
-  .up-day:first-child { margin-top:8px; }
+  #libGrid { margin-top:2px; }
+  .up-day { color:var(--label3); font-family:var(--mono); font-size:11px; font-weight:500; letter-spacing:.14em;
+    text-transform:uppercase; margin:22px 10px 6px; }
+  .up-day:first-child { margin-top:6px; }
   .up-poster { width:44px; height:66px; flex:0 0 auto; border-radius:8px; object-fit:cover; background:var(--l2); display:block; }
   .up-poster.ph { display:flex; align-items:center; justify-content:center; color:var(--label3);
     font-size:13px; font-weight:600; }
@@ -1105,7 +1239,7 @@
       <div class="det-castlbl" id="detCastLbl" style="display:none">CAST</div>
       <div class="det-chips cast" id="detCastRow"></div>
       <div class="det-seasons" id="detSeasonRow" style="display:none"></div>
-      <div id="detEpList" class="streams det-eps"></div>
+      <div id="detEpList" class="streams eplist det-eps"></div>
     </div>
   </div>
 
@@ -1122,26 +1256,26 @@
         </div>
         <div class="setrow" id="rowZoom">
           <span class="setname">Focus zoom<small>How much cards grow when highlighted</small></span>
-          <span id="setZoom"></span>
+          <span id="setZoom" class="seg"></span>
         </div>
         <div class="setrow">
           <span class="setname">Ratings on posters<small>The little star badges on artwork</small></span>
-          <span id="setRatings"></span>
+          <span id="setRatings" class="seg"></span>
         </div>
         <div class="setrow">
           <span class="setname">Featured carousel<small>The full-bleed showcase at the top of Home</small></span>
-          <span id="setHero"></span>
+          <span id="setHero" class="seg"></span>
         </div>
         <div class="setrow">
           <span class="setname">Continue Watching<small>Pick up where you left off, right on Home</small></span>
-          <span id="setCw"></span>
+          <span id="setCw" class="seg"></span>
         </div>
       </div>
       <div class="panel">
         <div class="lbl">Playback</div>
         <div class="setrow">
           <span class="setname">Autoplay next episode<small>Count down and roll into the next one</small></span>
-          <span id="setAutoplay"></span>
+          <span id="setAutoplay" class="seg"></span>
         </div>
         <div class="setrow">
           <span class="setname">Party name<small>How you appear to friends in a watch party</small></span>
@@ -1167,8 +1301,11 @@
       <div class="row">
         <button id="phoneBtn" class="focusable btn">Add via phone</button>
         <button id="addAddonBtn" class="focusable btn ghost">Add typed URL</button>
-        <button id="manualBtn" class="focusable btn ghost">Play a URL</button>
-        <button id="fileBtn" class="focusable btn ghost">Play a file</button>
+      </div>
+      <div class="linkrow">
+        <span class="lbl">Or play something directly</span>
+        <button id="manualBtn" class="focusable textbtn">Play a URL</button>
+        <button id="fileBtn" class="focusable textbtn">Play a file</button>
         <input id="filePick" type="file" accept="video/*,.mkv,.mp4,.webm,.m4v,.mov" style="display:none">
       </div>
     </div>
@@ -1233,7 +1370,7 @@
 
   <!-- CATALOG -->
   <div id="view-catalog" class="view cols">
-    <div class="topbar"><button class="focusable iconbtn" data-back title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="topbar-title" id="catTitle">Catalog</div></div>
+    <div class="topbar"><button class="focusable iconbtn" data-back title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="topbar-titles"><div class="topbar-kick" id="catKick"></div><div class="topbar-title" id="catTitle">Catalog</div></div></div>
     <div class="searchrow" id="searchRow" style="display:none">
       <input id="catSearch" class="focusable field" type="search" placeholder="Search" autocomplete="off" />
       <button id="catSearchClear" class="focusable iconbtn" title="Clear search" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
@@ -1246,7 +1383,7 @@
   <div id="view-episodes" class="view cols">
     <div class="topbar"><button class="focusable iconbtn" data-back title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="topbar-title" id="epTitle">Episodes</div></div>
     <div id="seasonRow" class="chips"></div>
-    <div class="scroller"><div id="epList" class="streams"></div></div>
+    <div class="scroller"><div id="epList" class="streams eplist"></div></div>
   </div>
 
   <!-- STREAMS -->
@@ -1275,7 +1412,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.29';
+  var PLAYER_VERSION = '2026.09.02.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1352,6 +1489,7 @@
     // must not sit behind a boot screen waiting for catalogues it won't show.
     if (name !== 'home'){ try { bootReady(); } catch(e){} }
     if (name === 'library'){ try { renderLibraryTab(); } catch(e){} }
+    if (name === 'search'){ try { searchIdle(); } catch(e){} }
     // back from playback: the episode list's ticks, bars and "up next" are stale
     if (name === 'episodes' && epView){ try { epView.refresh(); } catch(e){} }
     // coming back to a title after watching: the Resume label must be current
@@ -1360,13 +1498,21 @@
     document.body.classList.toggle('playing', name==='player');
     if (push !== false){ if (viewStack[viewStack.length-1] !== name) viewStack.push(name); }
     // light up the rail item for whichever tab this stack is rooted in
-    var tabs = { home:'navHome', search:'navSearch', library:'navLibrary', addons:'navAddons' };
+    var tabs = { home:'navHome', search:'navSearch', library:'navLibrary', addons:'navAddons', settings:'navSettings' };
     Object.keys(tabs).forEach(function(t){
       var b = document.getElementById(tabs[t]); if (b) b.classList.toggle('on', viewStack[0]===t);
     });
     setTimeout(function(){ focusFirst(back); }, 30);
   }
+  // A pointer user should not land on a page with one card already lit — the
+  // rings and the zoom are for remotes and keyboards. Until a key is pressed
+  // on a non-TV device focus stays on the body; the first arrow or Tab places
+  // it (moveFocus2D handles the no-current-focus case).
+  var kbUsed = false;
+  document.addEventListener('mousedown', function(){ kbUsed = false; }, true);
+  document.addEventListener('touchstart', function(){ kbUsed = false; }, true);
   function focusFirst(preserveScroll){
+    if (!IS_TV && !kbUsed) return;
     var ae = document.activeElement;
     if (ae && ae.tagName === 'INPUT' && ae.offsetParent !== null) return; // never yank focus from a field being typed in
     var v = document.querySelector('.view.active'); if(!v) return;
@@ -1397,7 +1543,11 @@
   function moveFocus2D(dx, dy){
     var list = focusables(); if(!list.length) return;
     var cur = document.activeElement;
-    if (list.indexOf(cur) < 0){ list[0].focus(); return; }
+    if (list.indexOf(cur) < 0){
+      // nothing lit yet: start in the page itself, not on the rail
+      var v = document.querySelector('.view.active'), f = v && v.querySelector('.focusable');
+      (f && list.indexOf(f) >= 0 ? f : list[0]).focus(); return;
+    }
     var cr = cur.getBoundingClientRect(), cx = cr.left+cr.width/2, cy = cr.top+cr.height/2;
     var best=null, bestScore=Infinity;
     list.forEach(function(el){ if(el===cur) return;
@@ -1432,6 +1582,7 @@
 
   document.addEventListener('keydown', function(e){
     var k = e.keyCode, inInput = document.activeElement && document.activeElement.tagName==='INPUT';
+    if (k === 9 || k === 13 || (k >= 37 && k <= 40)) kbUsed = true;
     // While playing, the quality overlay owns D-pad/keys (so it's reachable on TV).
     if (video.style.display==='block'){
       var isBack = (k===461 || k===8 || e.key==='GoBack' || e.key==='BrowserBack');
@@ -2225,9 +2376,33 @@
       ctx.catalogs = (m.catalogs||[]);
       if (!ctx.catalogs.length){ setStatus('This add-on has no catalogs to browse.', 'err'); return; }
       ctx.catalog = ctx.catalogs[0]; ctx.genre = null; clearSearchInput();
-      document.getElementById('catTitle').textContent = a.name || 'Catalog';
-      renderGenres(); show('catalog'); loadCatalog();
+      setCatalogTitle(); renderGenres(); show('catalog'); loadCatalog();
     } catch(err){ setStatus('Failed: '+err.message, 'err'); }
+  }
+  function typeLabel(t){
+    return { movie:'Movies', series:'Series', channel:'Channels', tv:'TV' }[t] ||
+      (t ? t.charAt(0).toUpperCase() + t.slice(1) : '');
+  }
+  /** "Popular · Movies" — the type is appended whenever the add-on's catalogs
+      span more than one type or two share a name, so "Popular, Popular" can't
+      happen. A lone catalog keeps its bare name. */
+  function catalogLabel(c, cats){
+    var name = c.name || c.id || 'Catalog';
+    var types = {}, dupe = false;
+    (cats || []).forEach(function(o){
+      types[o.type || ''] = 1;
+      if (o !== c && (o.name || o.id) === (c.name || c.id)) dupe = true;
+    });
+    return name + ((dupe || Object.keys(types).length > 1) && c.type ? ' · ' + typeLabel(c.type) : '');
+  }
+  /** Catalog page header: the add-on as an eyebrow, the catalog as the title —
+      unless the add-on has a single catalog, when its own name is the title. */
+  function setCatalogTitle(){
+    var a = ctx.addon || {}, m = ctx.manifest || {}, cats = ctx.catalogs || [];
+    var addonName = a.name || m.name || 'Catalog';
+    var multi = cats.length > 1 && ctx.catalog;
+    $id('catKick').textContent = multi ? addonName : '';
+    $id('catTitle').textContent = multi ? catalogLabel(ctx.catalog, cats) : addonName;
   }
   function currentGenres(){
     var extra = (ctx.catalog.extra||[]);
@@ -2260,8 +2435,8 @@
     if (ctx.catalogs.length > 1){
       ctx.catalogs.forEach(function(c){
         var b=document.createElement('button'); b.className='chip focusable'+(c===ctx.catalog && !ctx.query?' on':'');
-        b.textContent = c.name || c.id;
-        b.onclick=function(){ ctx.catalog=c; ctx.genre=null; clearSearchInput(); renderGenres(); loadCatalog(); };
+        b.textContent = catalogLabel(c, ctx.catalogs);
+        b.onclick=function(){ ctx.catalog=c; ctx.genre=null; clearSearchInput(); setCatalogTitle(); renderGenres(); loadCatalog(); };
         row.appendChild(b);
       });
     }
@@ -2427,8 +2602,7 @@
   }
   function openCatalogFor(a, m, c){
     ctx.addon=a; ctx.manifest=m; ctx.catalogs=(m.catalogs||[]); ctx.catalog=c; ctx.genre=null; clearSearchInput();
-    document.getElementById('catTitle').textContent = a.name || m.name || 'Catalog';
-    renderGenres(); show('catalog'); loadCatalog();
+    setCatalogTitle(); renderGenres(); show('catalog'); loadCatalog();
   }
   // ---------- long-press card sheet ----------
   // Cards used to wear a delete cross. It was the loudest pixel in the row and
@@ -2774,9 +2948,10 @@
         catsLeft += cats.length;
         cats.forEach(function(c){
           var head = document.createElement('div'); head.className='rowhead';
-          var sub = (c.name||c.id||'') + (c.type ? ' · ' + c.type.charAt(0).toUpperCase()+c.type.slice(1) : '');
-          head.innerHTML = '<span class="row-title">'+esc(a.name||m.name||'Add-on')+
-            (cats.length>1 ? ' <span class="row-sub">'+esc(sub)+'</span>' : '')+'</span>';
+          var addonName = a.name||m.name||'Add-on';
+          head.innerHTML = cats.length > 1
+            ? '<span class="row-title">'+esc(catalogLabel(c, m.catalogs||[]))+'</span><span class="row-sub">'+esc(addonName)+'</span>'
+            : '<span class="row-title">'+esc(addonName)+'</span>';
           var sa = document.createElement('button'); sa.className='seeall focusable'; sa.textContent='See all ›';
           sa.onclick = function(){ openCatalogFor(a, m, c); };
           head.appendChild(sa);
@@ -2812,7 +2987,7 @@
     document.getElementById('globalSearchClear').style.display = q ? '' : 'none';
     var wrap = document.getElementById('searchResults');
     wrap.innerHTML = '';
-    if (!q) return;
+    if (!q){ searchIdle(); return; }
     var addons = getAddons();
     if (!addons.length){ wrap.innerHTML='<div class="empty">Add an add-on first — then one search covers everything it has.</div>'; return; }
     setStatus('Searching…','info');
@@ -2861,10 +3036,31 @@
         if (!pending && seq === searchSeq){
           dropSearchSkel();
           if (!any) wrap.innerHTML = '<div class="empty">No matches for “'+esc(q)+'”.</div>';
-          setStatus(any ? 'Here\'s what matched.' : 'No matches.', any ? 'ok' : 'info');
+          if (any) clearStatus(); else setStatus('No matches.', 'info');
         }
       });
     });
+  }
+
+  /** Before a query: what one search covers, each add-on a chip into its catalogs. */
+  function searchIdle(){
+    var wrap = document.getElementById('searchResults'); if (!wrap) return;
+    if ((document.getElementById('globalSearch').value || '').trim()) return;
+    var addons = getAddons();
+    var box = document.createElement('div'); box.className = 'search-idle';
+    box.innerHTML = '<div class="lbl">' + (addons.length ? 'One search · ' + addons.length + ' add-on' + (addons.length > 1 ? 's' : '') : 'Nothing to search yet') + '</div>' +
+      '<p>' + (addons.length ? 'Titles, series and episodes from every add-on you have added, in one place.'
+        : 'Add an add-on first — then one search covers everything it has.') + '</p>';
+    if (addons.length){
+      var chips = document.createElement('div'); chips.className = 'chips';
+      addons.forEach(function(a){
+        var b = document.createElement('button'); b.className = 'chip focusable';
+        b.textContent = a.name || 'Add-on'; b.onclick = function(){ openAddon(a); };
+        chips.appendChild(b);
+      });
+      box.appendChild(chips);
+    }
+    wrap.innerHTML = ''; wrap.appendChild(box);
   }
 
   // ---------- library tab: My List grid + upcoming episodes ----------
@@ -3013,7 +3209,7 @@
     var bar = document.createElement('div'); bar.className = 'row';
     bar.innerHTML = '<input id="frCodeIn" class="field focusable" style="max-width:220px" ' +
       'placeholder="Friend’s code" autocomplete="off" autocapitalize="characters">' +
-      '<button id="frAdd" class="btn ghost focusable">Add friend</button>' +
+      '<button id="frAdd" class="btn focusable">Add friend</button>' +
       '<button id="frOff" class="btn ghost focusable" title="Deletes your profile and code from the server">Turn off</button>';
     wrap.appendChild(bar);
     $id('frAdd').onclick = function(){
@@ -3167,6 +3363,10 @@
       wrap.appendChild(e);
       return;
     }
+    var head = document.createElement('div'); head.className = 'rowhead';
+    head.innerHTML = '<span class="row-title">My List</span><span class="row-sub">' +
+      items.length + ' title' + (items.length === 1 ? '' : 's') + '</span>';
+    wrap.appendChild(head);
     var grid = document.createElement('div'); grid.className = 'grid'; grid.id = 'libGrid';
     items.forEach(function(r){ grid.appendChild(libCard(r)); });
     wrap.appendChild(grid);
@@ -3247,14 +3447,16 @@
   function renderUpcoming(wrap){
     var series = libraryList().filter(function(r){ return r.type === 'series'; });
     if (!series.length) return;
-    var head = document.createElement('div'); head.className = 'section-title'; head.textContent = 'Upcoming';
-    var box = document.createElement('div'); box.id = 'upcomingList';
+    var head = document.createElement('div'); head.className = 'rowhead';
+    head.innerHTML = '<span class="row-title">Upcoming</span><span class="row-sub">' +
+      series.length + ' series</span>';
+    var box = document.createElement('div'); box.id = 'upcomingList'; box.className = 'streams eplist';
     wrap.appendChild(head); wrap.appendChild(box);
     if (upcomingCache.rows && Date.now() - upcomingCache.at < 1800000){
       paintUpcoming(box, upcomingCache.rows);
       return;
     }
-    box.innerHTML = '<div class="streamsec">' + episodeSkeletons(3) + '</div>';
+    box.innerHTML = episodeSkeletons(3);
     loadUpcoming(series).then(function(rows){
       upcomingCache = { at: Date.now(), rows: rows };
       if (document.getElementById('upcomingList') === box) paintUpcoming(box, rows);
@@ -3536,7 +3738,7 @@
       if (n) bits.push(n + ' Season' + (n > 1 ? 's' : ''));
     }
     $id('detMeta').innerHTML = esc(bits.join('   ·   ')) +
-      (meta.imdbRating ? (bits.length ? '&nbsp;&nbsp;&nbsp;' : '') + '<span class="det-rate">★ ' + esc(String(meta.imdbRating)) + '</span>' : '');
+      (meta.imdbRating ? '<span class="det-imdb">★ ' + esc(String(meta.imdbRating)) + '</span>' : '');
     $id('detDesc').textContent = meta.description || meta.overview || '';
     var g = meta.genres || meta.genre || [];
     $id('detGenres').innerHTML = g.slice(0, 6).map(function(x){ return '<span>' + esc(x) + '</span>'; }).join('');
@@ -3848,11 +4050,14 @@
       var pct = Math.max(0, Math.min(100, (pr.pos / pr.dur) * 100));
       mark = '<span class="prog"><i style="width:' + pct.toFixed(1) + '%"></i></span>';
     }
-    var title = (e != null ? e + '. ' : '') + esc(v.name || v.title || ('Episode ' + (e != null ? e : '')));
+    var title = esc(v.name || v.title || ('Episode ' + (e != null ? e : '')));
     var date = fmtAirDate(v.released);
+    // an unnamed episode is already called "Episode 3" — don't say it twice
+    var generic = /^episode\s*\d+$/i.test(v.name || v.title || '');
+    var kick = [e != null && !generic ? 'Episode ' + e : '', date].filter(Boolean).join(' · ');
     row.innerHTML = '<span class="ep-thumbwrap">' + thumb + mark + '</span>' +
-      '<span class="ep-main"><span class="ep-titlerow"><span class="stream-name">' + title + '</span>' +
-      (date ? '<span class="ep-date">' + esc(date) + '</span>' : '') +
+      '<span class="ep-main">' + (kick ? '<span class="ep-kick">' + esc(kick) + '</span>' : '') +
+      '<span class="ep-titlerow"><span class="stream-name">' + title + '</span>' +
       (upNext ? '<span class="ep-upnext">Up next</span>' : '') + '</span>' +
       (v.overview ? '<span class="ep-sub">' + esc(v.overview) + '</span>' : '') + '</span>';
     row.onclick = function(){
@@ -3991,7 +4196,9 @@
         if (seq !== openSeq) return;
         boxPending = true;
         removeLoading();                       // this add-on's own rows stand in now
-        box.innerHTML = streamSkeletons(3);
+        // a catalog-only origin is still asked, but never shimmers as if it
+        // had streams coming — that skeleton sat above the real sources
+        box.innerHTML = canStream(m, type, id) ? streamSkeletons(3) : '';
         var u = a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json';
         return getJson(u).then(function(d){
           if (seq !== openSeq) return;
