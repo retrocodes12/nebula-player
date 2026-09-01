@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.01.14",
+  "version": "2026.09.01.15",
   "url": "https://play.rifflehq.in/",
-  "notes": "Fix: older installs now get the starter add-ons (Cinemeta) they missed \u2014 deliberate removals stay respected"
+  "notes": "Party viewers get subtitles and progress; TV audio menu now sees embedded tracks in plain files"
 }

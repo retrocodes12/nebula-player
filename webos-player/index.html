@@ -988,7 +988,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.14';
+  var PLAYER_VERSION = '2026.09.01.15';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -3425,14 +3425,27 @@
       });
     } else if (kind==='audio'){
       var langs=[]; try { langs = player.getAudioLanguagesAndRoles()||[]; } catch(e){}
-      var curLang=''; try { (player.getVariantTracks()||[]).forEach(function(v){ if(v.active) curLang=v.language; }); } catch(e){}
-      langs.forEach(function(l){
-        var label = l.label || (langName(l.language) + (l.role ? ' ('+l.role+')' : ''));
-        menuOpt(label, l.language===curLang, function(){
-          try { player.selectAudioLanguage(l.language, l.role); } catch(e){}
-          setStatus('Audio: '+label,'ok'); closePuiMenu(true);
+      if (langs.length >= 2){
+        var curLang=''; try { (player.getVariantTracks()||[]).forEach(function(v){ if(v.active) curLang=v.language; }); } catch(e){}
+        langs.forEach(function(l){
+          var label = l.label || (langName(l.language) + (l.role ? ' ('+l.role+')' : ''));
+          menuOpt(label, l.language===curLang, function(){
+            try { player.selectAudioLanguage(l.language, l.role); } catch(e){}
+            setStatus('Audio: '+label,'ok'); closePuiMenu(true);
+          });
         });
-      });
+      } else if (video.audioTracks && video.audioTracks.length >= 2){
+        // native track switching for progressive containers (mkv/mp4 via src=)
+        Array.prototype.forEach.call(video.audioTracks, function(tr, i){
+          var label = tr.label || langName(tr.language) || ('Track ' + (i + 1));
+          menuOpt(label, !!tr.enabled, function(){
+            try {
+              for (var k = 0; k < video.audioTracks.length; k++) video.audioTracks[k].enabled = (k === i);
+            } catch(e){}
+            setStatus('Audio: '+label,'ok'); closePuiMenu(true);
+          });
+        });
+      }
     } else if (kind==='speed'){
       [0.5,0.75,1,1.25,1.5,2].forEach(function(rate){
         menuOpt(rate+'×', video.playbackRate===rate, function(){
@@ -3484,7 +3497,10 @@
     // always offered: even with no embedded track, add-ons may have one
     $id('puiSubs').style.display = '';
     var langs=[]; try { langs = player.getAudioLanguagesAndRoles()||[]; } catch(e){}
-    $id('puiAudio').style.display = langs.length >= 2 ? '' : 'none';
+    // progressive files play through src= where Shaka can't see the container's
+    // tracks — the element's native audioTracks list can (webOS supports it)
+    var nativeAud = 0; try { nativeAud = (video.audioTracks && video.audioTracks.length) || 0; } catch(e){}
+    $id('puiAudio').style.display = (langs.length >= 2 || nativeAud >= 2) ? '' : 'none';
     $id('puiNext').style.display = nextEpisode() ? '' : 'none';
   }
   function puiReset(title){
@@ -3648,8 +3664,24 @@
     return {
       url: lastPlay.url, title: lastPlay.title || 'Watch party',
       keys: lastPlay.keys || undefined,
-      subs: (lastPlay.subs && lastPlay.subs.length) ? lastPlay.subs : undefined
+      subs: (lastPlay.subs && lastPlay.subs.length) ? lastPlay.subs : undefined,
+      // identity travels with the party so viewers get subtitles + progress
+      type: ctx.playType || undefined, id: ctx.playId || undefined,
+      name: ctx.playTitle || undefined, poster: ctx.playPoster || undefined,
+      addonUrl: ctx.playAddonUrl || undefined
     };
+  }
+  /** A viewer adopts the host's content identity when the message carries one
+      (older hosts don't send it) — that lights up subtitles and progress. */
+  function adoptPartyIdentity(st){
+    if (st && st.type && st.id){
+      ctx.playType = st.type; ctx.playId = st.id;
+      ctx.playTitle = st.name || st.title || '';
+      ctx.playAddonUrl = st.addonUrl || ''; ctx.playPoster = st.poster || '';
+      ctx.playShape = 'poster';
+    } else {
+      clearPlayIdentity();
+    }
   }
   function partyBadge(){
     var b = $id('puiPartyBadge'), btn = $id('puiParty');
@@ -3754,7 +3786,7 @@
       setStatus('Joined party ' + m.code + '.','ok');
       // the host owns the position here — nothing to resume, nothing to remember
       if (m.stream && m.stream.url){
-        clearPlayIdentity();
+        adoptPartyIdentity(m.stream);
         playUrl(m.stream.url, m.stream.keys || null, m.stream.title || 'Watch party', m.stream.subs || []);
       }
       return;
@@ -3770,7 +3802,7 @@
       if (!party.isHost && m.stream && m.stream.url){
         setStatus('Host switched streams.','info');
         party.lastState = { playing:true, pos:0, live:false, atLocal: Date.now() };
-        clearPlayIdentity();
+        adoptPartyIdentity(m.stream);
         playUrl(m.stream.url, m.stream.keys || null, m.stream.title || 'Watch party', m.stream.subs || []);
       }
     } else if (m.t === 'peers'){
