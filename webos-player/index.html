@@ -275,7 +275,8 @@
   .streams { display:grid; grid-template-columns:1fr; gap:10px; max-width:960px; }
   .streamsec { display:grid; grid-template-columns:1fr; gap:10px; }
   .streamsec:empty { display:none; }
-  .stream { display:flex; align-items:center; text-align:left; cursor:pointer; background:var(--l1);
+  .streams > * { min-width:0; }
+  .stream { min-width:0; display:flex; align-items:center; text-align:left; cursor:pointer; background:var(--l1);
     border:0; border-radius:var(--r-tile); padding:14px 16px; color:var(--label);
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
     transition:background .18s var(--ease), transform .2s var(--ease); }
@@ -305,7 +306,8 @@
   .stream:hover { background:var(--l2); }
   .stream.focusable:focus { background:var(--l2); transform:scale(1.015);
     box-shadow:0 14px 32px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
-  .stream-name { display:block; font-size:15.5px; font-weight:600; letter-spacing:-.015em; }
+  .stream-name { display:block; font-size:15.5px; font-weight:600; letter-spacing:-.015em;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .stream-sub { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
     overflow:hidden; word-break:break-word; color:var(--label2); font-size:13px; margin-top:3px; }
   .sbadges { display:block; margin-top:6px; line-height:0; white-space:nowrap; overflow:hidden;
@@ -598,24 +600,40 @@
   .det-seasons::-webkit-scrollbar { display:none; }
   .det-seasons .chip { flex:0 0 auto; margin-right:8px; }
   .det-eps { margin-top:10px; padding-bottom:40px; max-width:960px; }
-  #streamsHero { position:relative; margin:-2px calc(-1 * var(--pad)) 18px; height:230px; overflow:hidden; }
+  /* the art runs to every edge and dissolves into the page — no card seam,
+     with the back button floating on it instead of pushing it down */
+  #view-streams.hero .topbar { position:absolute; top:0; left:0; right:0; z-index:6; padding-top:20px; }
+  #view-streams.hero .scroller { padding-top:0; }
+  #streamsHero { position:relative; margin:0 calc(-1 * var(--pad)) 6px; height:300px; }
   #streamsHero .sh-art { position:absolute; top:0; left:0; right:0; bottom:0; }
-  #streamsHero .sh-art img { width:100%; height:100%; object-fit:cover; object-position:center 25%; display:block; }
+  #streamsHero .sh-art img { width:100%; height:100%; object-fit:cover; object-position:center 22%; display:block; }
   #streamsHero .sh-art::after { content:''; position:absolute; top:0; left:0; right:0; bottom:0;
-    background:linear-gradient(180deg, rgba(0,0,0,.30) 0%, rgba(0,0,0,.10) 40%, rgba(0,0,0,.72) 78%, #000 100%); }
-  .sh-info { position:absolute; z-index:2; left:var(--pad); right:var(--pad); bottom:16px; }
-  .sh-kick { color:rgba(235,235,245,.85); font-size:11px; font-weight:700; letter-spacing:.22em;
-    text-transform:uppercase; margin-bottom:4px; text-shadow:0 1px 8px rgba(0,0,0,.8); }
-  .sh-title { font-size:30px; font-weight:700; letter-spacing:-.025em; line-height:1.06;
-    text-shadow:0 2px 14px rgba(0,0,0,.7); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .sh-sub { color:var(--label2); font-size:14px; margin-top:3px; text-shadow:0 1px 8px rgba(0,0,0,.8); }
-  #streamFilters { display:flex; overflow-x:auto; margin:0 0 16px; padding:4px 0 8px; scrollbar-width:none; }
+    background:linear-gradient(180deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,.12) 26%, rgba(0,0,0,.55) 62%,
+      rgba(0,0,0,.88) 84%, var(--bg) 100%); }
+  #streamsHero .sh-art::before { content:''; position:absolute; top:0; left:0; right:0; bottom:0; z-index:1;
+    background:linear-gradient(90deg, rgba(0,0,0,.62) 0%, rgba(0,0,0,.10) 55%, rgba(0,0,0,0) 80%); }
+  .sh-info { position:absolute; z-index:2; left:var(--pad); right:var(--pad); bottom:18px; }
+  .sh-kick { color:rgba(235,235,245,.9); font-size:11px; font-weight:700; letter-spacing:.24em;
+    text-transform:uppercase; margin-bottom:6px; text-shadow:0 1px 10px rgba(0,0,0,.9); }
+  .sh-title { font-size:32px; font-weight:700; letter-spacing:-.03em; line-height:1.04;
+    text-shadow:0 2px 18px rgba(0,0,0,.75); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sh-sub { color:rgba(235,235,245,.72); font-size:14px; margin-top:4px; text-shadow:0 1px 10px rgba(0,0,0,.9); }
+  .sh-count { color:var(--label3); font-family:var(--mono); font-size:11px; letter-spacing:.08em;
+    margin-top:8px; text-transform:uppercase; }
+  /* quiet outlined filters — only the active one carries fill */
+  #streamFilters { display:flex; overflow-x:auto; margin:0 0 18px; padding:2px 0 6px; scrollbar-width:none; }
   #streamFilters::-webkit-scrollbar { display:none; }
-  #streamFilters .chip { flex:0 0 auto; margin-right:8px; white-space:nowrap; }
-  html.tv #streamsHero { height:290px; border-radius:0 0 26px 26px; }
-  html.tv .sh-title { font-size:40px; }
+  #streamFilters .chip { flex:0 0 auto; margin-right:7px; white-space:nowrap; background:transparent;
+    box-shadow:inset 0 0 0 1px var(--sep); color:var(--label2); font-size:13px; padding:7px 15px; }
+  #streamFilters .chip:hover { background:var(--fill); color:var(--label); }
+  #streamFilters .chip.on { background:var(--label); color:#000; font-weight:600; box-shadow:none; }
+  #streamFilters .chip.focusable:focus { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
+  html.tv #streamsHero { height:400px; }
+  html.tv .sh-title { font-size:46px; }
   html.tv .sh-kick { font-size:14px; }
-  html.tv .sh-sub { font-size:18px; }
+  html.tv .sh-sub { font-size:19px; }
+  html.tv .sh-count { font-size:14px; }
+  html.tv #streamFilters .chip { font-size:17px; padding:10px 20px; }
   .ep-main { flex:1; min-width:0; }
   .ep-titlerow { display:flex; align-items:center; }
   .ep-titlerow .stream-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -1089,6 +1107,7 @@
           <div class="sh-kick" id="shKick"></div>
           <div class="sh-title" id="shTitle"></div>
           <div class="sh-sub" id="shSub"></div>
+          <div class="sh-count" id="shCount"></div>
         </div>
       </div>
       <div id="streamFilters" style="display:none"></div>
@@ -1104,7 +1123,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.21';
+  var PLAYER_VERSION = '2026.09.01.22';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -3049,10 +3068,15 @@
   }
   var lastStreamsReq = null;
   function renderStreamsHero(type, id, titleText){
-    var hero = $id('streamsHero');
+    var hero = $id('streamsHero'), view = $id('view-streams');
     var art = (ctx.item && (ctx.item.background || ctx.item.poster)) || '';
-    if (!art){ hero.style.display = 'none'; $id('streamsTitle').textContent = titleText || 'Streams'; return; }
-    hero.style.display = '';
+    if (!art){
+      hero.style.display = 'none'; view.classList.remove('hero');
+      $id('streamsTitle').textContent = titleText || 'Streams';
+      return;
+    }
+    hero.style.display = ''; view.classList.add('hero');
+    $id('shCount').textContent = '';
     $id('streamsTitle').textContent = '';
     $id('shArt').innerHTML = '<img src="' + esc(art) + '" alt="" decoding="async" onerror="this.remove()">';
     var kick = '', title = titleText || 'Streams', sub = '';
@@ -3135,7 +3159,10 @@
           : '<div class="empty">No playable streams right now (the event may be offline).</div>';
         setStatus('No streams.','info');
       } else {
-        setStatus(total+' stream'+(total>1?'s':'')+(sections>1?' from '+sections+' add-ons':''),'ok');
+        var summary = total + ' stream' + (total > 1 ? 's' : '') + (sections > 1 ? ' · ' + sections + ' sources' : '');
+        var cnt = $id('shCount');
+        if ($id('view-streams').classList.contains('hero')){ cnt.textContent = summary; clearStatus(); }
+        else setStatus(summary, 'ok');
       }
     }
     // one placeholder per add-on, filled as answers arrive, so order is stable

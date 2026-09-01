@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.01.21",
+  "version": "2026.09.01.22",
   "url": "https://play.rifflehq.in/",
-  "notes": "Stream rows rebuilt: a resolution plate leads each row, names are clean, size and bitrate get their own column"
+  "notes": "Stream header reborn: artwork to every edge, quiet filters, and rows that fit their screen"
 }
