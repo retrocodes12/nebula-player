@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.01.5",
+  "version": "2026.09.01.6",
   "url": "https://play.rifflehq.in/",
-  "notes": "Badges load instantly (bundled art, 75x smaller), one tidy row, and stream text no longer repeats what the badges say"
+  "notes": "Polish pass: no more clipped cards or stray toasts, tidier stream text, wider TV layout, cleaner search and sync"
 }
