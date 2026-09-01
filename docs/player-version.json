@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.01.10",
+  "version": "2026.09.01.11",
   "url": "https://play.rifflehq.in/",
-  "notes": "A new TV look: sidebar navigation and a floating featured board with up-next previews"
+  "notes": "The TV sidebar now collapses to icons and expands over the content when you focus it"
 }

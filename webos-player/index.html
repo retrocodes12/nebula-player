@@ -585,15 +585,22 @@
   }
 
   /* ---- TV (webOS): 10-foot sizing + sidebar layout ---- */
-  html.tv { font-size:20px; --navh:82px; --pad:56px; --railw:264px; }
+  html.tv { font-size:20px; --navh:82px; --pad:56px; --railw:92px; }
   html.tv body.upd .view { top:52px; }
-  /* the nav becomes a left rail — the visionOS/tvOS sidebar language */
+  /* the nav is a collapsed icon rail; focus (or the pointer) inside it
+     expands it OVER the content — tvOS style, so views never reflow */
   html.tv #rail { top:0; left:0; bottom:0; right:auto; width:var(--railw); height:auto;
-    flex-direction:column; align-items:stretch; padding:38px 16px;
-    background:rgba(12,12,16,.82); border-bottom:0; border-right:1px solid rgba(255,255,255,.06); }
-  html.tv .rail-brand { font-size:23px; margin:0 6px 36px 16px; }
-  html.tv .rail-brand svg { width:24px; height:24px; }
-  html.tv .navitem { display:flex; width:100%; margin:0 0 8px; padding:14px 18px;
+    flex-direction:column; align-items:stretch; padding:38px 16px; overflow:hidden;
+    background:rgba(12,12,16,.82); border-bottom:0; border-right:1px solid rgba(255,255,255,.06);
+    transition:width .24s var(--ease), background .24s var(--ease); }
+  html.tv #rail.open { width:264px; background:rgba(11,11,15,.96);
+    box-shadow:40px 0 90px rgba(0,0,0,.55); }
+  html.tv .rail-brand { font-size:23px; margin:0 6px 36px 8px; }
+  html.tv .rail-brand svg { width:24px; height:24px; margin-right:15px; flex:0 0 auto; }
+  html.tv .rail-brand span, html.tv .navitem span { opacity:0; white-space:nowrap;
+    transition:opacity .18s var(--ease); }
+  html.tv #rail.open .rail-brand span, html.tv #rail.open .navitem span { opacity:1; }
+  html.tv .navitem { display:flex; width:100%; margin:0 0 8px; padding:14px 16px;
     border-radius:14px; font-size:19px; font-weight:600; }
   html.tv .navitem svg { display:block; width:22px; height:22px; margin-right:15px; flex:0 0 auto; }
   html.tv .navitem.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); background:rgba(255,255,255,.16); color:#fff; }
@@ -750,7 +757,7 @@
 
   <!-- nav rail (Home / Search / Add-ons) -->
   <div id="rail">
-    <div class="rail-brand"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6 21.4 12 12 21.4 2.6 12 12 2.6Z"/></svg>Nebula</div>
+    <div class="rail-brand"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6 21.4 12 12 21.4 2.6 12 12 2.6Z"/></svg><span>Nebula</span></div>
     <button id="navHome" class="navitem focusable on" data-tab="home" title="Home">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
       <span>Home</span></button>
@@ -911,7 +918,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.10';
+  var PLAYER_VERSION = '2026.09.01.11';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -4078,6 +4085,20 @@
     i.addEventListener('keydown', function(e){ if (e.keyCode === 13){ e.preventDefault(); syncJoin(); } });
   })();
   syncPanelRender();
+  (function(){
+    var rail = document.getElementById('rail');
+    function open(){ rail.classList.add('open'); }
+    function close(){ rail.classList.remove('open'); }
+    rail.addEventListener('focusin', open);
+    rail.addEventListener('focusout', function(){
+      // focusout fires before the new focus lands — close only if it left the rail
+      setTimeout(function(){ if (!rail.contains(document.activeElement)) close(); }, 0);
+    });
+    rail.addEventListener('mouseenter', open);
+    rail.addEventListener('mouseleave', function(){
+      if (!rail.contains(document.activeElement)) close();
+    });
+  })();
   document.addEventListener('visibilitychange', function(){
     if (document.visibilityState === 'visible') cloudPullAll(false);
   });
