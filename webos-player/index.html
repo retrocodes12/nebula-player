@@ -619,6 +619,7 @@
   html.tv .stream-play { width:54px; height:54px; }
   html.tv .stream-play svg { width:20px; height:20px; }
   html.tv .streams { max-width:1600px; }
+  html.tv .privacy-link { display:none; }   /* a TV app can't open external pages */
   html.tv .ep-sub { font-size:16px; }
   html.tv .empty { font-size:19px; }
   html.tv .sub { font-size:19px; }
@@ -817,6 +818,9 @@
     </div>
     <div class="section-title">Your add-ons</div>
     <div id="addonList" class="addons"></div>
+    <p class="sub privacy-link" style="margin:26px 0 0">
+      No accounts, no tracking — <a href="https://play.rifflehq.in/privacy.html" target="_blank" rel="noopener" style="color:inherit">how Nebula handles your data</a>.
+    </p>
   </div>
 
   <!-- ADD VIA PHONE -->
@@ -878,7 +882,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.7';
+  var PLAYER_VERSION = '2026.09.01.8';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its

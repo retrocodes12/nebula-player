@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy — Nebula</title>
+<meta name="description" content="What Nebula stores, what its servers see, and what never happens with your data.">
+<style>
+  :root {
+    --red:#E50914;
+    --bg:#0a0a0c; --surface:#141419;
+    --line:#26262e; --text:#f2f2f4; --muted:#9aa3af;
+    --disp:"Archivo", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --body:system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:var(--body); line-height:1.65; }
+  .wrap { max-width:720px; margin:0 auto; padding:0 24px; }
+  header { padding:28px 0 8px; }
+  header a { color:var(--muted); text-decoration:none; font-size:.9rem; }
+  header a:hover { color:#fff; }
+  .brand { display:flex; align-items:center; gap:10px; font-family:var(--disp); font-weight:700; font-size:1.05rem; }
+  .brand .dia { color:var(--red); }
+  h1 { font-family:var(--disp); font-weight:800; font-size:clamp(1.9rem, 5vw, 2.6rem); letter-spacing:-.02em; margin:28px 0 6px; }
+  .date { color:var(--muted); font-size:.9rem; margin-bottom:34px; }
+  h2 { font-family:var(--disp); font-weight:700; font-size:1.15rem; letter-spacing:-.01em; margin:38px 0 10px; }
+  p, li { color:#cfd4db; font-size:.98rem; }
+  ul { padding-left:22px; margin:10px 0; }
+  li { margin:7px 0; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:18px 20px; margin:24px 0; }
+  .card p { margin:6px 0; }
+  a { color:#c9ced6; }
+  a:hover { color:#fff; }
+  footer { border-top:1px solid var(--line); margin-top:56px; padding:26px 0 40px; color:var(--muted); font-size:.86rem; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="brand"><span class="dia">◆</span> Nebula &nbsp;·&nbsp; <a href="/">← nebula home</a></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>Privacy</h1>
+  <div class="date">Effective 1 September 2026</div>
+
+  <div class="card">
+    <p><b>The short version:</b> Nebula has no accounts, no sign-up, no ads, no analytics and no trackers.
+    Your library, watch progress and settings live on your device. The only data our servers ever hold is
+    what you explicitly opt into (sync, watch party), it is tied to a random code rather than to you,
+    and nothing is ever sold or shared.</p>
+  </div>
+
+  <h2>What stays on your device</h2>
+  <p>Your add-on list, watch progress, My List, subtitle style and player settings are stored locally —
+  in your browser's storage on the web, and in app storage on Android, Windows and LG TVs. You can clear
+  them at any time by removing items in the app, clearing site data, or uninstalling.</p>
+
+  <h2>What our server sees</h2>
+  <ul>
+    <li><b>Ordinary web logs.</b> Like every web server, ours (play.rifflehq.in) keeps standard access
+    logs — IP address, browser type, requested URL and time — used only to keep the service running and
+    to stop abuse. They are rotated automatically and kept for about two weeks.</li>
+    <li><b>Update checks.</b> The app fetches a small version file on launch to offer updates. That is a
+    normal web request with no identifiers in it. Android checks GitHub's API for releases instead.</li>
+    <li><b>Sync — only if you turn it on.</b> "Sync between devices" stores your add-on list, watch
+    progress, My List and subtitle style on our server so your other devices can pull them. The data sits
+    under a random group id, readable only with a secret your device holds — no email, no name, no
+    account. Linking codes expire after 15 minutes. Groups that go unused are deleted automatically after
+    about 13 months, and "Stop syncing" disconnects a device immediately.</li>
+    <li><b>Watch party — only if you start or join one.</b> The relay passes the stream link and playback
+    positions between party members while the party is open. Rooms disappear when everyone leaves, or
+    after 12 hours at most. Nothing about a party is stored.</li>
+    <li><b>Compatibility fetches.</b> When an add-on blocks browser requests, the app may fetch it
+    through our server instead. The requested URL passes through, is size- and rate-limited, and is not
+    stored beyond the ordinary logs above.</li>
+  </ul>
+
+  <h2>Third parties</h2>
+  <ul>
+    <li><b>Your add-ons are independent services.</b> When you browse, search or play, Nebula sends those
+    requests to the add-ons you installed — they see the titles you look up and the streams you request,
+    under their own privacy practices. The starter add-ons (Cinemeta, OpenSubtitles) are run by the
+    Stremio community, and you can remove them.</li>
+    <li><b>Artwork and metadata</b> load directly from your catalog add-ons and their image hosts.</li>
+    <li><b>Downloads and updates</b> are served from GitHub, which keeps its own logs under its own
+    policy.</li>
+    <li><b>Plain-HTTP add-ons.</b> Some community add-ons and streams only work over plain HTTP.
+    Nebula allows those connections for compatibility; anything you request from such an add-on travels
+    unencrypted between you and it.</li>
+  </ul>
+
+  <h2>What never happens</h2>
+  <ul>
+    <li>No accounts and no sign-up — we could not identify you if we wanted to.</li>
+    <li>No analytics, tracking pixels or fingerprinting, in the apps or on this site.</li>
+    <li>No advertising, and no selling or sharing of any data with anyone.</li>
+  </ul>
+
+  <h2>Children</h2>
+  <p>Nebula is not directed at children and collects no personal information from anyone.</p>
+
+  <h2>Deletion and questions</h2>
+  <p>Stop syncing on your devices and your sync group simply expires and is deleted; if you want it gone
+  sooner, or have any question about this policy, open an issue on
+  <a href="https://github.com/retrocodes12/nebula-player/issues">GitHub</a> and we'll handle it there.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy changes, the date at the top changes with it. The apps will never interrupt you
+  about it.</p>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span><span style="color:var(--red)">◆</span> Nebula · open source (GPL-3.0)</span>
+  </div>
+</footer>
+</body>
+</html>
