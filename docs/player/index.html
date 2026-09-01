@@ -264,6 +264,9 @@
     box-shadow:0 14px 32px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
   .stream-name { display:block; font-size:15.5px; font-weight:600; letter-spacing:-.015em; }
   .stream-sub { display:block; color:var(--label2); font-size:13px; margin-top:3px; }
+  .sbadges { display:block; margin-top:6px; line-height:0; }
+  .sbadges img { height:16px; width:auto; display:inline-block; vertical-align:middle; margin:2px 8px 2px 0; }
+  .stream-facts { display:block; color:var(--label2); font-size:12.5px; margin-top:4px; font-variant-numeric:tabular-nums; }
   .streamsec .rowhead { margin:6px 0 2px; }
   .ep-thumb { width:124px; height:70px; flex:0 0 auto; border-radius:9px; object-fit:cover;
     background:#000; display:block; }
@@ -602,6 +605,8 @@
   html.tv .stream { padding:20px 24px; }
   html.tv .stream-name { font-size:21px; }
   html.tv .stream-sub { font-size:16px; }
+  html.tv .sbadges img { height:22px; margin-right:10px; }
+  html.tv .stream-facts { font-size:15.5px; }
   html.tv .stream-play { width:54px; height:54px; }
   html.tv .stream-play svg { width:20px; height:20px; }
   html.tv .streams { max-width:1360px; }
@@ -864,7 +869,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.01.3';
+  var PLAYER_VERSION = '2026.09.01.4';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -2140,9 +2145,110 @@
   function canStream(m, type, id){ return supports(m, 'stream', type, id); }
   function canMeta(m, type, id){ return supports(m, 'meta', type, id); }
   function canSubs(m, type, id){ return supports(m, 'subtitles', type, id); }
+  // ---------- stream badges (Elite "fusion" pack — the default set) ----------
+  // Matched against the stream's raw name+title text; first hit per group wins,
+  // and within a group the table runs specific -> generic (HDR10+ before HDR).
+  var BADGE_IMG_BASE = 'https://raw.githubusercontent.com/leonevz/Elite-Badges/main/Badges/';
+  var BADGE_PACK = [
+    ['resolution', "\\b(4k|2160p|uhd|ultra\\s*hd)\\b", "4k_ultra_hd.png"],
+    ['resolution', "\\b(1080p|fhd|full\\s*hd)\\b", "1080p_full_hd.png"],
+    ['resolution', "\\b720p\\b", "720p_hd.png"],
+    ['resolution', "\\b480p\\b", "480p_sd.png"],
+    ['video-tech', "\\b(dolby\\s*vision|dovi|dv)\\b", "dolby_vision.png"],
+    ['video-tech', "\\b(hdr10\\+|hdr10\\s*plus\\b|hdr\\s*10\\s*\\+)", "hdr10_plus.png"],
+    ['video-tech', "\\b(hdr10|hdr\\s*10)\\b(?!\\s*\\+|\\s*plus)", "hdr10.png"],
+    ['video-tech', "\\bhdr\\b", "hdr.png"],
+    ['video-tech', "\\bsdr\\b", "SDR_transparent_4x.png"],
+    ['video-tech', "\\b(imax[\\s._-]*enhanced)\\b", "imax_enhanced.png"],
+    ['video-tech', "\\b(imax)\\b(?![\\s._-]*enhanced)", "imax.png"],
+    ['source', "\\bremux\\b", "remux.png"],
+    ['source', "\\b(blu[\\s._-]?ray|bluray|bdrip|bdremux)\\b", "blu_ray_disc.png"],
+    ['source', "\\b(web[\\s._-]?dl|webdl)\\b", "WEBDL_transparent_4x.png"],
+    ['source', "\\b(web[\\s._-]?rip|webrip)\\b", "WEBRip_transparent_4x.png"],
+    ['source', "\\bhdtv\\b", "HDTV_transparent_4x.png"],
+    ['source', "\\b(dvd[\\s._-]?rip|dvdrip)\\b", "DVD_RIP_transparent_4x.png"],
+    ['video-codec', "\\b(hevc|h[\\s._-]?265|x265)\\b", "HEVC_transparent_4x.png"],
+    ['video-codec', "\\b(avc|h[\\s._-]?264|x264)\\b", "AVC_transparent_4x.png"],
+    ['bit-depth', "\\b(10[\\s._-]?bit|10b|hi10p)\\b", "10Bit_transparent_4x.png"],
+    ['bit-depth', "\\b(8[\\s._-]?bit|8b)\\b", "8Bit_transparent_4x.png"],
+    ['audio-tech', "\\b(dolby\\s*atmos|atmos)\\b", "dolby_atmos.png"],
+    ['audio-tech', "\\b(truehd|true\\s*hd|dolby\\s*truehd)\\b", "truehd.png"],
+    ['audio-tech', "\\b(ddp[\\s._-]*[0-9][\\s._-]*[0-9]|ddp|dd\\+|dolby[\\s._-]*digital[\\s._-]*plus|e-?ac-?3)(?![a-z])", "dolby_digital_plus.png"],
+    ['audio-tech', "\\b(dd[\\s._-]*[0-9][\\s._-]*[0-9]|dd|dolby[\\s._-]*digital|ac-?3)(?![\\s._-]*plus|\\+|p|[a-z])", "dolby_digital.png"],
+    ['audio-tech', "\\b(dts[:\\s._-]*x)\\b", "dts_x.png"],
+    ['audio-tech', "\\b(dts[\\s._-]*hd[\\s._-]*ma|dtshd\\s*ma|dts[\\s._-]*hd[\\s._-]*master)\\b", "dts_hd_master_audio.png"],
+    ['audio-tech', "\\b(dts[\\s._-]*hd|dtshd)(?![\\s._-]*(ma|master)|ma)\\b", "dts_hd.png"],
+    ['audio-tech', "\\bdts\\b(?![\\s._:-]*(x|hd))", "dts.png"],
+    ['audio-channels', "\\b(7\\.1|7-1|8ch|8\\s*channel)\\b", "7_1_audio.png"],
+    ['audio-channels', "\\b(5\\.1|5-1|6ch|6\\s*channel)\\b", "5_1_audio.png"],
+  ];
+  var badgeRe = null;
+  function streamBadges(raw){
+    var i;
+    if (!badgeRe){
+      badgeRe = [];
+      for (i=0;i<BADGE_PACK.length;i++){
+        try { badgeRe.push(new RegExp(BADGE_PACK[i][1], 'i')); } catch(e){ badgeRe.push(null); }
+      }
+    }
+    var seen = {}, out = '', shown = 0;
+    for (i=0;i<BADGE_PACK.length && shown < 7;i++){
+      var g = BADGE_PACK[i][0];
+      if (seen[g] || !badgeRe[i] || !badgeRe[i].test(raw)) continue;
+      seen[g] = 1; shown++;
+      out += '<img loading="lazy" alt="" src="' + BADGE_IMG_BASE + BADGE_PACK[i][2] +
+        '" onerror="this.style.display=\'none\'">';
+    }
+    return out;
+  }
+  function fmtBytes(n){
+    var g = n / 1073741824;
+    if (g >= 1) return (g >= 10 ? Math.round(g) : g.toFixed(1)) + ' GB';
+    return Math.round(n / 1048576) + ' MB';
+  }
+  /** Pull the human facts out of a stream's title text: size, seeders, provider.
+      Lines that only carried those (Torrentio's emoji line) are consumed;
+      whatever text remains becomes the muted description. */
+  function streamFacts(s, text){
+    var size = null, seeds = null, provider = null, desc = [];
+    var bh = s.behaviorHints || {};
+    if (bh.videoSize > 0) size = fmtBytes(bh.videoSize);
+    var lines = String(text || '').split('\n');
+    for (var i = 0; i < lines.length; i++){
+      var ln = lines[i], m;
+      var factLine = ln.indexOf('👤') >= 0 || ln.indexOf('💾') >= 0 || ln.indexOf('⚙') >= 0;
+      if (!size && (m = ln.match(/(\d+(?:[.,]\d+)?)\s*(GB|GiB|MB|MiB)\b/i))){
+        var unit = m[2].length === 3 ? m[2].charAt(0).toUpperCase() + 'iB' : m[2].toUpperCase();
+        size = m[1].replace(',', '.') + ' ' + unit;
+      }
+      if (!seeds && (m = ln.match(/👤\s*(\d+)/) || ln.match(/\b(?:seeds?|seeders?)[:\s]+(\d+)/i))) seeds = m[1];
+      if (!provider){
+        var ix = ln.indexOf('⚙');
+        if (ix >= 0){
+          var pv = ln.slice(ix + 1).replace(/^\uFE0F?\s*/, '').split('👤')[0].split('💾')[0].trim();
+          if (pv) provider = pv;
+        }
+      }
+      if (!factLine && ln.replace(/\s/g, '')) desc.push(ln);
+    }
+    var facts = [];
+    if (size) facts.push(size);
+    if (seeds) facts.push(seeds + ' seeds');
+    if (provider) facts.push(provider);
+    return { facts: facts.join('  ·  '), desc: desc.join(' · ') };
+  }
   function streamCard(s){
     var card=document.createElement('button'); card.className='stream focusable';
-    card.innerHTML = '<span class="stream-play"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span><span class="stream-name">'+esc(s.name||'Stream')+'</span><span class="stream-sub">'+esc((s.title||'').replace(/\n/g,' · '))+'</span></span>';
+    var text = (s.title || s.description || '');
+    var badges = streamBadges((s.name || '') + '\n' + text);
+    var f = streamFacts(s, text);
+    var name = (s.name || 'Stream').replace(/\n/g, ' ');
+    card.innerHTML = '<span class="stream-play"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span>' +
+      '<span class="stream-name">' + esc(name) + '</span>' +
+      (badges ? '<span class="sbadges">' + badges + '</span>' : '') +
+      (f.facts ? '<span class="stream-facts">' + esc(f.facts) + '</span>' : '') +
+      (f.desc ? '<span class="stream-sub">' + esc(f.desc) + '</span>' : '') +
+      '</span>';
     card.onclick=function(){ playStream(s); };
     return card;
   }
