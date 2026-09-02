@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.02.10",
+  "version": "2026.09.02.11",
   "url": "https://play.rifflehq.in/",
-  "notes": "Scrub preview. Move along the timeline and a small card shows the time you would land on, with a picture of that moment when the stream allows it. On a remote, Left and Right on the scrubber preview the jump and OK takes it; Back steps out. Turn the pictures off in Settings > Playback if a TV stutters. Also fixed: the Up next card no longer sits on top of the subtitles panel."
+  "notes": "A finish pass. On phones the navigation is a floating bar at the bottom with labels, the featured board has one button and a centred title, and title pages run edge to edge. On the TV, Settings is a two-pane console that uses the whole screen. Library has tabs for My List, Continue Watching and Upcoming, each with a clear empty state. Screens fade into one another, loading rows shimmer, and messages sit under the navigation instead of over your rows. Continue Watching cards show the episode, the time left and a progress bar."
 }

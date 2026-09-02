@@ -195,6 +195,111 @@ test('skip segments: shaped, cached, misses and failures handled, ids validated'
   }
 });
 
+test('releases: one feed, shaped, cached, stale through outages, a bad repo is null', async () => {
+  // a stand-in for api.github.com: three repos, each switchable to a failure
+  const hits = [];
+  const mode = { 'nebula-player': 200, 'nebula-android': 200, 'nebula-desktop': 404 };
+  const ago = (h) => new Date(Date.now() - h * 3600_000).toISOString();
+  const T159 = ago(0.5);
+  const stub = require('http').createServer((req, res) => {
+    const u = new URL(req.url, 'http://x');
+    const repo = u.pathname.split('/')[3];
+    hits.push(repo + u.search);
+    const st = mode[repo] || 404;
+    if (st !== 200) { res.writeHead(st); return res.end('{"message":"nope"}'); }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    const dl = 'https://github.com/retrocodes12/' + repo + '/releases/download/';
+    if (repo === 'nebula-player') {
+      return res.end(JSON.stringify([
+        { tag_name: 'webos-v1.0.0', published_at: ago(2), assets: [{ name: 'legacy.ipk', browser_download_url: dl + 'webos-v1.0.0/legacy.ipk', size: 1 }] },
+        { tag_name: 'player-v1.60.0', prerelease: true, published_at: ago(1), assets: [] },
+        { tag_name: 'player-v1.59.0', published_at: T159, assets: [
+          { name: 'com.nuvio.clearkey.player_1.59.0_all.ipk', browser_download_url: dl + 'player-v1.59.0/com.nuvio.clearkey.player_1.59.0_all.ipk', size: 871344 },
+          { name: 'webosbrew.manifest.json', browser_download_url: dl + 'player-v1.59.0/webosbrew.manifest.json', size: 512 },
+          { name: 'evil', browser_download_url: 'http://insecure/x', size: 3 },
+        ] },
+        { tag_name: 'player-v1.58.0', published_at: ago(40), assets: [] },
+        { tag_name: 'player-v1.40.0', published_at: ago(24 * 60), assets: [] },
+      ]));
+    }
+    if (repo === 'nebula-android') {
+      return res.end(JSON.stringify([
+        { tag_name: 'v1.54.0', draft: false, prerelease: false, published_at: ago(3), assets: [
+          { name: 'Nebula.apk', browser_download_url: dl + 'v1.54.0/Nebula.apk', size: 9000000 },
+          { name: 'Nebula-1.54.0.apk', browser_download_url: dl + 'v1.54.0/Nebula-1.54.0.apk', size: 9000000 },
+        ] },
+      ]));
+    }
+    return res.end(JSON.stringify([
+      { tag_name: 'v1.53.0', published_at: ago(5), assets: [
+        { name: 'Nebula-Setup.exe', browser_download_url: dl + 'v1.53.0/Nebula-Setup.exe', size: 70000000 },
+      ] },
+    ]));
+  });
+  await new Promise((ok) => stub.listen(0, '127.0.0.1', ok));
+  process.env.RELEASES_UPSTREAM = 'http://127.0.0.1:' + stub.address().port + '/repos/retrocodes12';
+  try {
+    // nothing on the shelf and every repo failing is the one case that is an error
+    for (const k of Object.keys(mode)) mode[k] = 500;
+    const dead = await fetch(base + '/v1/releases');
+    assert.equal(dead.status, 502);
+    assert.equal(dead.headers.get('cache-control'), 'no-store');
+    assert.equal(hits.length, 3);
+    assert.ok(hits.every((h) => /\?per_page=10$/.test(h)), 'asks for ten releases per repo');
+
+    // let the failed attempts expire, then the real shape: player = first player-v* that is not a prerelease
+    process.env.RELEASES_TTL_MS = '1';
+    mode['nebula-player'] = 200; mode['nebula-android'] = 200; mode['nebula-desktop'] = 404;
+    const r1 = await fetch(base + '/cloud/v1/releases');
+    assert.equal(r1.status, 200);
+    assert.equal(r1.headers.get('cache-control'), 'public, max-age=300');
+    assert.equal(r1.headers.get('access-control-allow-origin'), '*');
+    const b1 = await r1.json();
+    assert.deepEqual(Object.keys(b1).sort(), ['android', 'desktop', 'player']);
+    assert.equal(b1.player.version, '1.59.0');
+    assert.equal(b1.player.tag, 'player-v1.59.0');
+    assert.equal(b1.player.published_at, T159);
+    assert.deepEqual(b1.player.assets.map((a) => a.name), ['com.nuvio.clearkey.player_1.59.0_all.ipk', 'webosbrew.manifest.json']);   // the http asset is dropped
+    assert.equal(b1.player.assets[0].size, 871344);
+    assert.equal(b1.player.recent, 2, 'player-v* releases in the last 30 days: 1.59 + 1.58, not the prerelease, the legacy tag or the 60-day-old one');
+    assert.match(b1.player.assets[0].url, /^https:\/\/github\.com\/retrocodes12\/nebula-player\/releases\/download\/player-v1\.59\.0\//);
+    assert.equal(b1.android.version, '1.54.0');
+    assert.equal(b1.android.tag, 'v1.54.0');
+    assert.equal(b1.android.recent, 1);
+    assert.equal(b1.android.assets.find((a) => a.name === 'Nebula.apk').url, 'https://github.com/retrocodes12/nebula-android/releases/download/v1.54.0/Nebula.apk');
+    assert.equal(b1.desktop, null, 'a repo GitHub 404s is null, not an error');
+    assert.equal(hits.length, 6);
+
+    // within the TTL the second ask is answered from memory
+    delete process.env.RELEASES_TTL_MS;
+    const b2 = await (await fetch(base + '/v1/releases')).json();
+    assert.deepEqual(b2, b1);
+    assert.equal(hits.length, 6, 'served from memory');
+
+    // GitHub falls over: the last good copy keeps being served, with a 200
+    process.env.RELEASES_TTL_MS = '1';
+    for (const k of Object.keys(mode)) mode[k] = 500;
+    const r3 = await fetch(base + '/v1/releases');
+    assert.equal(r3.status, 200);
+    const b3 = await r3.json();
+    assert.deepEqual(b3.player, b1.player);
+    assert.deepEqual(b3.android, b1.android);
+    assert.equal(b3.desktop, null);
+    assert.equal(hits.length, 9, 'it did try upstream again');
+
+    // the missing repo comes online → it appears on the next refresh
+    mode['nebula-player'] = 200; mode['nebula-android'] = 200; mode['nebula-desktop'] = 200;
+    const b4 = await (await fetch(base + '/v1/releases')).json();
+    assert.equal(b4.desktop.version, '1.53.0');
+    assert.equal(b4.desktop.assets[0].name, 'Nebula-Setup.exe');
+    assert.equal(b4.player.version, '1.59.0');
+  } finally {
+    delete process.env.RELEASES_UPSTREAM;
+    delete process.env.RELEASES_TTL_MS;
+    stub.close();
+  }
+});
+
 test('join brute force hits the rate limit', async () => {
   let limited = false;
   for (let i = 0; i < 20; i++) {

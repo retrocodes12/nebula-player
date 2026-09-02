@@ -255,7 +255,7 @@
 
     <div class="panel on" id="panel-phone" role="tabpanel">
       <div>
-        <h3>Nebula for Android phones and tablets<span class="ver" data-ver="android">v1.54.0</span></h3>
+        <h3>Nebula for Android phones and tablets<span class="ver" data-ver="android">v1.55.0</span></h3>
         <p>Browse, search and play on the phone. Sign in with a profile and your library and progress carry over to the TV. One file covers phones, tablets and Android TV.</p>
       </div>
       <div class="right">
@@ -274,7 +274,7 @@
 
     <div class="panel" id="panel-tv" role="tabpanel">
       <div>
-        <h3>Nebula for Android TV and LG TVs<span class="ver" data-ver="webos">v1.59.0</span></h3>
+        <h3>Nebula for Android TV and LG TVs<span class="ver" data-ver="webos">v1.60.0</span></h3>
         <p>The whole player, laid out for a remote. On Android TV, type a short code into the Downloader app. On an LG TV, add the repository in the Homebrew Channel and install from its list.</p>
         <details>
           <summary>Install notes</summary>
@@ -290,14 +290,14 @@
         <span class="label">LG TV repository for the Homebrew Channel</span>
         <div class="codebox"><code id="repourl">https://retrocodes12.github.io/nebula-player/apps.json</code><button class="copybtn" data-copy="repourl" type="button">Copy</button></div>
         <div class="row" style="margin-top:6px">
-          <a class="dl alt" data-dl="ipk" href="https://github.com/retrocodes12/nebula-player/releases/download/player-v1.59.0/com.nuvio.clearkey.player_1.59.0_all.ipk"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>LG TV file<span class="sz">851 KB</span></a>
+          <a class="dl alt" data-dl="ipk" href="https://github.com/retrocodes12/nebula-player/releases/download/player-v1.60.0/com.nuvio.clearkey.player_1.60.0_all.ipk"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>LG TV file<span class="sz">858 KB</span></a>
         </div>
       </div>
     </div>
 
     <div class="panel" id="panel-desktop" role="tabpanel">
       <div>
-        <h3>Nebula for Windows<span class="ver" data-ver="desktop">v1.53.0</span></h3>
+        <h3>Nebula for Windows<span class="ver" data-ver="desktop">v1.54.0</span></h3>
         <p>The same player in a window, with a mini player that stays on top while you work. Windows 10 and 11, 64-bit.</p>
         <details>
           <summary>Install notes</summary>
@@ -431,9 +431,9 @@
         <div class="rel">
           <span class="eyebrow">Latest releases</span>
           <div class="cards" id="relCards">
-            <div class="card"><span class="eyebrow">nebula-player</span><b id="rel-player">webOS 1.59.0</b><span id="reld-player">Sep 2, 2026</span></div>
-            <div class="card"><span class="eyebrow">nebula-android</span><b id="rel-android">1.54.0</b><span id="reld-android">Sep 2, 2026</span></div>
-            <div class="card"><span class="eyebrow">nebula-desktop</span><b id="rel-desktop">1.53.0</b><span id="reld-desktop">Sep 2, 2026</span></div>
+            <div class="card"><span class="eyebrow">nebula-player</span><b id="rel-player">webOS 1.60.0</b><span id="reld-player">Sep 2, 2026</span></div>
+            <div class="card"><span class="eyebrow">nebula-android</span><b id="rel-android">1.55.0</b><span id="reld-android">Sep 2, 2026</span></div>
+            <div class="card"><span class="eyebrow">nebula-desktop</span><b id="rel-desktop">1.54.0</b><span id="reld-desktop">Sep 2, 2026</span></div>
           </div>
           <a class="more" href="https://github.com/retrocodes12/nebula-player/releases">See every release</a>
         </div>
@@ -505,43 +505,46 @@
     });
   });
 
-  // live versions, links, dates and stars from GitHub (the built-in values stand in when offline)
+  // live versions, links, dates and the release count, from ONE feed: the cloud asks GitHub once
+  // for everybody (a household's phones, TVs and this page used to burn the per-IP quota between
+  // them). The built-in values stand in when it is unreachable.
   function fmtMB(bytes) { return bytes >= 1048576 ? Math.round(bytes / 1048576) + " MB" : Math.round(bytes / 1024) + " KB"; }
   function fmtDate(iso) { try { return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); } catch (e) { return ""; } }
-  var recent = 0;
-  function refresh(repo, verKey, picks, relKey) {
-    fetch("https://api.github.com/repos/retrocodes12/" + repo + "/releases?per_page=10")
-      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
-      .then(function (list) {
-        var cutoff = Date.now() - 30 * 86400000;
-        list.forEach(function (rel) { if (new Date(rel.published_at).getTime() > cutoff) recent++; });
-        var rel = list.filter(function (x) { return relKey !== "player" || /^player-/.test(x.tag_name); })[0];
-        if (!rel) return;
-        var v = rel.tag_name.replace(/^player-/, "");
-        var ver = document.querySelector('[data-ver="' + verKey + '"]'); if (ver) ver.textContent = v;
-        var rb = document.getElementById("rel-" + relKey), rd = document.getElementById("reld-" + relKey);
-        if (rb) rb.textContent = (relKey === "player" ? "webOS " : "") + v.replace(/^v/, "");
-        if (rd) rd.textContent = fmtDate(rel.published_at);
-        (rel.assets || []).forEach(function (a) {
-          Object.keys(picks).forEach(function (key) {
-            if (picks[key].test(a.name)) {
-              var el = document.querySelector('[data-dl="' + key + '"]');
-              if (el) {
-                el.href = a.browser_download_url;
-                var sz = el.querySelector(".sz"); if (sz) sz.textContent = fmtMB(a.size);
-                if (key === "portable" && os === "windows") smart.href = a.browser_download_url;
-                if (key === "apk" && os === "android") smart.href = a.browser_download_url;
-              }
-            }
-          });
-        });
-        document.getElementById("statReleases").textContent = String(recent);
-      })
-      .catch(function () {});
+  var FEED = {
+    player:  { verKey: "webos",   picks: { ipk: /\.ipk$/i } },
+    android: { verKey: "android", picks: { apk: /^Nebula\.apk$/i } },
+    desktop: { verKey: "desktop", picks: { portable: /Portable.*\.exe$/i, setup: /Setup.*\.exe$/i } }
+  };
+  function applyRelease(key, rel) {
+    var spec = FEED[key];
+    if (!spec || !rel || !rel.version) return;
+    var v = String(rel.version).replace(/^v/, "");
+    var ver = document.querySelector('[data-ver="' + spec.verKey + '"]'); if (ver) ver.textContent = "v" + v;
+    var rb = document.getElementById("rel-" + key), rd = document.getElementById("reld-" + key);
+    if (rb) rb.textContent = (key === "player" ? "webOS " : "") + v;
+    if (rd && rel.published_at) rd.textContent = fmtDate(rel.published_at);
+    (rel.assets || []).forEach(function (a) {
+      Object.keys(spec.picks).forEach(function (k) {
+        if (!spec.picks[k].test(a.name || "")) return;
+        var el = document.querySelector('[data-dl="' + k + '"]'); if (!el) return;
+        el.href = a.url;
+        var sz = el.querySelector(".sz"); if (sz && a.size) sz.textContent = fmtMB(a.size);
+        if (k === "portable" && os === "windows") smart.href = a.url;
+        if (k === "apk" && os === "android") smart.href = a.url;
+      });
+    });
   }
-  refresh("nebula-desktop", "desktop", { portable: /Portable.*\.exe$/i, setup: /Setup.*\.exe$/i }, "desktop");
-  refresh("nebula-android", "android", { apk: /^Nebula\.apk$/i }, "android");
-  refresh("nebula-player", "webos", { ipk: /\.ipk$/i }, "player");
+  fetch("https://play.rifflehq.in/cloud/v1/releases")
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+    .then(function (all) {
+      var recent = 0;
+      Object.keys(FEED).forEach(function (k) {
+        applyRelease(k, all[k]);
+        if (all[k] && all[k].recent) recent += all[k].recent;
+      });
+      if (recent) document.getElementById("statReleases").textContent = String(recent);
+    })
+    .catch(function () {});
 })();
 </script>
 </body>

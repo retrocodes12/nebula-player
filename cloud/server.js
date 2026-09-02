@@ -20,6 +20,11 @@
 //   /v1/profile/*, /v1/tv/*, /v1/device    → profile.js
 //   /v1/social/*                           → friends, below
 //   GET  /v1/skip?id=tt…:S:E               → {intro, recap, outro} timestamps (cached, no auth)
+//   GET  /v1/releases                      → {player, android, desktop} latest GitHub releases, each
+//                                            {version, tag, published_at, assets:[{name,url,size}], recent} or null
+//                                            (recent = that repo's releases in the last 30 days, for the landing stat);
+//                                            one GitHub call per repo per 10 min, last good copy kept
+//                                            through outages, max-age=300, no auth (landing + update checks)
 //   GET  /p?u=<url>                        → CORS/mixed-content rescue proxy
 //
 // Auth: "Authorization: Bearer <gid>.<secret or device token>".
@@ -349,6 +354,93 @@ async function handleSkip(req, res, id, ip) {
   return json(res, hit.status, Object.assign({ id }, hit.body), hit.status === 200 ? 3600 : 0);
 }
 
+// ---------- releases (the one feed the landing page and the apps' update checks share) ----------
+// GitHub allows 60 unauthenticated API calls an hour per public IP, so a household
+// whose landing page, phone and TV each asked GitHub directly ran dry and saw
+// "could not reach the release feed". This proxy asks once per repo per ten
+// minutes from the VPS and everybody reads the copy. A GitHub failure keeps the
+// last good answer on the shelf (stale-while-error); a repo that has never
+// answered is null, and only when no repo has ever answered is the call an error.
+const RELEASES_UPSTREAM = () => process.env.RELEASES_UPSTREAM || 'https://api.github.com/repos/retrocodes12';
+const RELEASES_TTL = () => Number(process.env.RELEASES_TTL_MS) || 10 * 60_000;
+const RELEASES_TIMEOUT_MS = 8000, RELEASES_RETRY_MS = 60_000;
+const RELEASE_REPOS = {
+  player: { repo: 'nebula-player', tag: /^player-v\d/ },   // the ipk lives under player-v*; other tags there are the legacy app
+  android: { repo: 'nebula-android', tag: /^v\d/ },
+  desktop: { repo: 'nebula-desktop', tag: /^v\d/ },
+};
+const releasesCache = {};     // key -> {at, ok, body}   body = last GOOD copy, kept across failures
+const releasesPending = {};   // key -> Promise           one upstream call per repo at a time
+function releaseShape(list, spec) {
+  if (!Array.isArray(list)) return null;
+  const cutoff = Date.now() - 30 * 86400_000;
+  let recent = 0;
+  for (const r of list) {
+    if (!r || typeof r !== 'object' || r.draft || r.prerelease || !spec.tag.test(String(r.tag_name || ''))) continue;
+    if (Date.parse(r.published_at) > cutoff) recent++;
+  }
+  for (const r of list) {
+    if (!r || typeof r !== 'object' || r.draft || r.prerelease) continue;
+    const tag = String(r.tag_name || '');
+    if (!spec.tag.test(tag)) continue;
+    const assets = [];
+    for (const a of Array.isArray(r.assets) ? r.assets : []) {
+      if (!a || typeof a !== 'object' || !/^https:\/\//.test(String(a.browser_download_url || ''))) continue;
+      assets.push({ name: String(a.name || '').slice(0, 120), url: String(a.browser_download_url).slice(0, 400), size: Number(a.size) || 0 });
+    }
+    return { version: tag.replace(/^player-v|^v/, ''), tag, published_at: String(r.published_at || ''), assets, recent };
+  }
+  return null;
+}
+async function releasesFetch(key) {
+  const spec = RELEASE_REPOS[key];
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), RELEASES_TIMEOUT_MS);
+  try {
+    const r = await fetch(RELEASES_UPSTREAM() + '/' + spec.repo + '/releases?per_page=10', {
+      signal: ctrl.signal,
+      headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'NebulaCloud/1.0 (+https://play.rifflehq.in)' },
+    });
+    if (!r.ok) return null;
+    const shaped = releaseShape(await r.json(), spec);
+    return shaped ? { ok: true, body: shaped } : null;
+  } catch (e) {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+function releasesRefresh(key) {
+  const now = Date.now();
+  const hit = releasesCache[key];
+  // a good answer rests for the TTL; a failed attempt is retried sooner, but never in a storm
+  if (hit && now - hit.at < (hit.ok ? RELEASES_TTL() : Math.min(RELEASES_TTL(), RELEASES_RETRY_MS))) return Promise.resolve();
+  let pend = releasesPending[key];
+  if (!pend) {
+    pend = releasesFetch(key).then((got) => {
+      const prev = releasesCache[key];
+      releasesCache[key] = got ? { at: Date.now(), ok: true, body: got.body }
+        : { at: Date.now(), ok: false, body: prev ? prev.body : null };
+    }).finally(() => { delete releasesPending[key]; });
+    releasesPending[key] = pend;
+  }
+  return pend;
+}
+async function handleReleases(req, res, ip) {
+  if (!allow('releases', ip, 120, 40)) return json(res, 429, { error: 'rate limited' });
+  await Promise.all(Object.keys(RELEASE_REPOS).map(releasesRefresh));
+  const out = {};
+  let any = false;
+  for (const key of Object.keys(RELEASE_REPOS)) {
+    const hit = releasesCache[key];
+    out[key] = hit && hit.body ? hit.body : null;
+    if (out[key]) any = true;
+  }
+  if (!any) return json(res, 502, { error: 'upstream unreachable' });
+  return json(res, 200, out, 300);
+}
+
 // ---------- friends (social layer) ----------
 // The social self is the group's profile: friends add each other by @handle,
 // and every device in the group shares it for free. What is shared is opaque
@@ -579,6 +671,10 @@ const server = http.createServer((req, res) => {
 
   if (p === '/v1/skip' && req.method === 'GET') {
     return void handleSkip(req, res, u.searchParams.get('id') || '', ip);
+  }
+
+  if (p === '/v1/releases' && req.method === 'GET') {
+    return void handleReleases(req, res, ip);
   }
 
   if (p === '/v1/group' && req.method === 'POST') {

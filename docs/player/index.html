@@ -57,9 +57,15 @@
   .view { position:fixed; top:var(--navh); left:0; right:0; bottom:0; z-index:2; overflow-y:auto; display:none;
     padding:26px var(--pad) 40px; scrollbar-width:none; }
   .view::-webkit-scrollbar { display:none; }
-  .view.active { display:block; animation:viewIn .28s var(--ease) both; }
+  .view.active { display:block; animation:viewIn .18s var(--ease) both; }
+  /* the view being left stays one beat underneath, fading — a cross-fade, not a cut */
+  .view.leaving { display:block; z-index:1; pointer-events:none; animation:viewOut .18s var(--ease) both; }
+  .view.cols.leaving { display:flex; flex-direction:column; overflow:hidden; }
   @keyframes viewIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
-  @media (prefers-reduced-motion: reduce){ .view.active { animation:none; } }
+  @keyframes viewOut { from { opacity:1; } to { opacity:0; } }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+  @keyframes riseIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: reduce){ .view.active { animation:none; } .view.leaving { display:none; animation:none; } }
   .view.cols { padding:0; }
   .view.cols.active { display:flex; flex-direction:column; overflow:hidden; }
   .view.cols .topbar { flex:0 0 auto; padding:24px var(--pad) 14px; }
@@ -212,6 +218,51 @@
     letter-spacing:.14em; text-transform:uppercase; }
   .panel > .lbl { margin-bottom:8px; }
   html.tv .lbl { font-size:14px; }
+  /* ---- settings console: every section carries a title and a one-line subtitle; on a TV it is
+     ONE surface — the sections down the left as pill rows, the chosen one filling the right ---- */
+  .con-title { font-size:22px; font-weight:700; letter-spacing:-.022em; margin:0; color:var(--label); }
+  .con-sub { color:var(--label2); font-size:14px; line-height:1.45; margin:4px 0 6px; }
+  #view-settings .panel, #view-settings .pcard { border-radius:28px; }
+  #view-settings .pcard { margin:12px 0 0; }
+  .con-sec + .con-sec { margin-top:16px; }
+  #setPane > .con-sec:first-child { margin-top:18px; }
+  .det-chips .sk-chip { border:0; padding:0; }
+  .con-nav { display:none; }
+  .con-item { display:flex; align-items:center; width:100%; text-align:left; cursor:pointer; border:0;
+    border-radius:var(--r-pill); background:rgba(255,255,255,.04); color:var(--label2); font-family:var(--sans);
+    font-size:21px; font-weight:600; letter-spacing:-.015em; padding:20px 26px; margin:0 0 14px;
+    transition:background .18s var(--ease), color .18s var(--ease); }
+  .con-item > svg { width:26px; height:26px; flex:0 0 auto; margin-right:18px; }
+  .con-item > span { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .con-item .con-chev { width:20px; height:20px; margin:0 0 0 12px; color:var(--label3); }
+  .con-item:hover { color:var(--label); }
+  .con-item.on { color:var(--label); background:rgba(255,255,255,.09); }
+  html.tv .con-item.focusable:focus { color:var(--label); background:rgba(255,255,255,.09); box-shadow:0 0 0 3px #fff; }
+  .con-item.focusable:focus-visible { color:var(--label); box-shadow:0 0 0 3px #fff; }
+  html.tv #view-settings { padding:26px 40px 26px 26px; }
+  html.tv #view-settings .page-title { display:none; }
+  html.tv #setConsole { display:flex; align-items:stretch; height:calc(100vh - 52px); background:rgba(255,255,255,.03);
+    border:1px solid var(--sep); border-radius:28px; padding:30px 34px 30px 30px; overflow:hidden; }
+  html.tv body.upd #setConsole { height:calc(100vh - 104px); }
+  html.tv .con-nav { display:block; flex:0 0 430px; overflow-y:auto; padding:4px 26px 4px 4px; scrollbar-width:none; }
+  html.tv .con-nav::-webkit-scrollbar { display:none; }
+  html.tv .con-pane { flex:1 1 auto; min-width:0; overflow-y:auto; padding:4px 8px 24px; scrollbar-width:none; }
+  html.tv .con-pane::-webkit-scrollbar { display:none; }
+  html.tv .con-sec { display:none; }
+  html.tv .con-sec.on { display:block; margin:0; }
+  html.tv .con-pane .panel { background:transparent; border:0; border-radius:0; padding:0; margin:0; max-width:none; }
+  html.tv .con-title { font-size:40px; letter-spacing:-.028em; }
+  html.tv .con-sub { font-size:19px; margin:6px 0 22px; }
+  html.tv .con-pane .pcard { margin-top:8px; max-width:none; }
+  html.tv .con-pane .setrow:first-of-type { border-top:1px solid var(--sep); }
+  /* library: tabs as one segmented pill, Friends as a quiet hairline row at the foot */
+  #libTabs { margin:14px 0 18px; }
+  .lib-friends { margin-top:38px; padding-top:22px; border-top:1px solid var(--sep); }
+  .fr-quiet { display:flex; align-items:center; flex-wrap:wrap; }
+  .fr-quiet p { flex:1 1 300px; color:var(--label2); font-size:14px; line-height:1.5; margin:0 16px 8px 0; }
+  .fr-quiet p b { display:block; color:var(--label); font-weight:600; margin-bottom:2px; }
+  .fr-quiet .btn { margin:0 0 8px; }
+  html.tv .fr-quiet p { font-size:17px; }
   /* quiet text actions beside the real buttons */
   .linkrow { display:flex; align-items:center; flex-wrap:wrap; margin-top:14px; padding-top:14px;
     border-top:1px solid var(--sep); }
@@ -386,6 +437,8 @@
   html.tv .chip.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.35); color:var(--label); }
   .chip.focusable:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.35); color:var(--label); }
   .chip.on { background:#fff; color:#000; border-color:#fff; }
+  html.tv .chip.on.focusable:focus { color:#000; }
+  .chip.on.focusable:focus-visible { color:#000; }
   /* a binary preference is one segmented control, not two loose pills */
   .seg { display:inline-flex; align-items:center; padding:3px; border-radius:var(--r-pill);
     border:1px solid var(--sep); }
@@ -398,13 +451,13 @@
   @media (min-width:1500px){ .grid { grid-template-columns:repeat(auto-fill,minmax(184px,1fr)); gap:26px 20px; } }
   .card { position:relative; display:block; text-align:left; padding:0; border:0; border-radius:0;
     background:transparent; color:var(--label); cursor:pointer;
-    transition:transform .2s var(--ease); }
+    transition:transform .18s var(--ease); }
   /* a hold on a card opens its sheet, so never let it start a text selection */
   .card { -webkit-user-select:none; -moz-user-select:none; -ms-user-select:none; user-select:none;
     -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
   .card .thumb { position:relative; width:100%; height:0; padding-top:150%; border-radius:var(--r-card);
     overflow:hidden; background:var(--l1); box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);
-    transition:box-shadow .2s var(--ease); }
+    transition:box-shadow .18s var(--ease); }
   .card.shape-landscape .thumb { padding-top:56.25%; }
   .card.shape-square .thumb { padding-top:100%; }
   .card .thumb img { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; display:block; }
@@ -412,7 +465,7 @@
     font-weight:600; color:var(--label3); }
   .card-label { padding:9px 2px 0; font-size:13px; font-weight:500; color:var(--label2); line-height:1.35;
     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
-    transition:color .2s var(--ease); }
+    transition:color .18s var(--ease); }
   .card-sub { padding:2px 2px 0; font-size:12px; color:var(--label3);
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   /* focus lifts and enlarges — it does not draw a box */
@@ -512,6 +565,50 @@
     letter-spacing:.04em; color:#fff; background:rgba(118,118,128,.4); border-radius:var(--r-pill);
     padding:5px 11px; white-space:nowrap; }
   html.tv .ep-upnext { font-size:14px; padding:7px 14px; }
+  /* ---- Continue Watching: a 16:9 still with the context on the art — episode eyebrow, title,
+     episode name, time left as a glass chip, and the bar along the bottom edge ---- */
+  .hrow .card.cw { flex-basis:300px; }
+  html.tv .hrow .card.cw { flex-basis:400px; }
+  .card.cw .thumb img { object-position:center 25%; }
+  .cw-shade { position:absolute; left:0; right:0; bottom:0; height:64%;
+    background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.74) 100%); }
+  .cw-txt { position:absolute; left:14px; right:14px; bottom:14px; text-align:left; text-shadow:0 1px 8px rgba(0,0,0,.6); }
+  .cw-ep { display:block; font-family:var(--mono); font-size:11px; font-weight:500; letter-spacing:.14em;
+    text-transform:uppercase; color:rgba(235,235,245,.78); margin-bottom:3px; }
+  .cw-name { display:block; font-size:16px; font-weight:600; letter-spacing:-.015em; color:#fff;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cw-sub { display:block; font-size:13px; color:rgba(235,235,245,.72); margin-top:2px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cw-left { position:absolute; top:10px; right:10px; font-size:12px; font-weight:500; color:#fff; padding:5px 10px;
+    border-radius:var(--r-pill); background:rgba(28,28,30,.66); box-shadow:inset 0 0 0 1px rgba(255,255,255,.12); }
+  @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
+    .cw-left { background:rgba(28,28,30,.5); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
+  }
+  .card.cw .prog { left:0; right:0; bottom:0; height:3px; border-radius:0; background:rgba(255,255,255,.22); }
+  .card.cw .prog i { border-radius:0; }
+  html.tv .cw-txt { left:18px; right:18px; bottom:18px; }
+  html.tv .cw-ep { font-size:14px; }
+  html.tv .cw-name { font-size:21px; }
+  html.tv .cw-sub { font-size:16px; }
+  html.tv .cw-left { font-size:15px; padding:7px 13px; top:14px; right:14px; }
+  html.tv .card.cw .prog { height:4px; }
+  .cwgrid { grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); }
+  @media (min-width:1500px){ .cwgrid { grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); } }
+
+  /* ---- empty states: a glyph, a line, a sentence and one way forward — never a bare sentence ---- */
+  .es { display:flex; flex-direction:column; align-items:center; text-align:center; padding:8vh 20px 6vh;
+    max-width:460px; margin:0 auto; }
+  .es > svg { width:28px; height:28px; color:var(--label2); margin-bottom:16px; }
+  .es-title { font-size:19px; font-weight:600; letter-spacing:-.018em; color:var(--label); }
+  .es p { color:var(--label2); font-size:14.5px; line-height:1.5; margin:8px 0 18px; max-width:40ch; }
+  .es .btn { margin:0; }
+  .streams .es, .eplist .es { padding:6vh 20px 4vh; }
+  html.tv .es > svg { width:40px; height:40px; }
+  html.tv .es-title { font-size:26px; }
+  html.tv .es p { font-size:18px; }
+  .sk-chip { display:inline-block; width:84px; height:32px; border-radius:var(--r-pill); margin:0 8px 8px 0; }
+  .det-desc .sk-line { display:block; height:.7em; margin:0 0 10px; }
+  .sk-line.w60 { width:60%; }
   .ep-done { position:absolute; top:6px; right:6px; width:20px; height:20px; border-radius:var(--r-pill);
     background:rgba(0,0,0,.66); color:var(--ok); font-size:11px; line-height:20px; text-align:center; font-weight:700; }
   html.tv .ep-done { width:28px; height:28px; line-height:28px; font-size:14px; }
@@ -581,7 +678,7 @@
   .sheet-scrim.in { opacity:1; }
   .sheet { position:fixed; left:0; right:0; bottom:0; z-index:61; background:#141418;
     border-top:1px solid var(--sep); border-radius:24px 24px 0 0; padding-bottom:14px;
-    transform:translateY(101%); transition:transform .28s var(--ease); }
+    transform:translateY(101%); transition:transform .16s var(--ease); }
   .sheet.in { transform:translateY(0); }
   .sheet-grab { width:38px; height:4px; border-radius:2px; background:rgba(255,255,255,.20);
     margin:10px auto 0; }
@@ -609,7 +706,7 @@
   /* On a TV it is a centred panel, not a phone sheet — nothing is within thumb reach */
   html.tv .sheet { left:50%; right:auto; bottom:auto; top:50%; width:520px;
     transform:translate(-50%,-44%); opacity:0; border-radius:22px; border:1px solid var(--sep);
-    transition:opacity .2s var(--ease), transform .24s var(--ease); }
+    transition:opacity .16s var(--ease), transform .16s var(--ease); }
   html.tv .sheet.in { transform:translate(-50%,-50%); opacity:1; }
   html.tv .sheet-grab { display:none; }
   html.tv .sheet-head { padding:22px 24px; }
@@ -625,7 +722,7 @@
     html:not(.tv) .sheet { left:50%; right:auto; bottom:auto; top:50%; width:440px;
       transform:translate(-50%,-46%); opacity:0; border-radius:20px; border:1px solid var(--sep);
       box-shadow:0 40px 100px rgba(0,0,0,.6); padding-bottom:8px;
-      transition:opacity .2s var(--ease), transform .24s var(--ease); }
+      transition:opacity .16s var(--ease), transform .16s var(--ease); }
     html:not(.tv) .sheet.in { transform:translate(-50%,-50%); opacity:1; }
     html:not(.tv) .sheet-grab { display:none; }
     html:not(.tv) .sheet-head { padding:20px 22px; }
@@ -641,7 +738,7 @@
     max-height:calc(100vh - 40px); overflow:auto; background:#141418; border:1px solid var(--sep);
     border-radius:20px; box-shadow:0 40px 100px rgba(0,0,0,.6); padding:26px 30px 22px;
     transform:translate(-50%,-46%); opacity:0;
-    transition:opacity .2s var(--ease), transform .24s var(--ease); }
+    transition:opacity .16s var(--ease), transform .16s var(--ease); }
   .kbh.in { transform:translate(-50%,-50%); opacity:1; }
   .kbh-head { display:flex; align-items:flex-end; margin-bottom:14px; }
   .kbh-head .textbtn { margin-left:auto; }
@@ -673,9 +770,9 @@
 
   /* ---- skeletons ---- */
   .skel { pointer-events:none; }
-  .skel .thumb, .card-label.sk, .sk-line, .sk-box, .sk-blob, .sk-head {
+  .skel .thumb, .card-label.sk, .sk-line, .sk-box, .sk-blob, .sk-head, .sk-chip {
     background:linear-gradient(100deg,#141416 30%,#232326 50%,#141416 70%);
-    background-size:200% 100%; animation:sh 1.4s linear infinite; }
+    background-size:200% 100%; animation:sh 1.2s linear infinite; }
   .card-label.sk { height:.86em; border-radius:5px; margin:11px 2px 0; }
   @keyframes sh { to { background-position:-200% 0; } }
   .stream.skel { box-shadow:inset 0 0 0 1px rgba(255,255,255,.05); }
@@ -689,7 +786,9 @@
   html.tv .sk-box { width:180px; height:101px; }
   .sk-head { height:1em; width:200px; border-radius:6px; margin:26px 0 12px; }
   @media (prefers-reduced-motion: reduce){
-    .skel .thumb, .card-label.sk, .sk-line, .sk-box, .sk-blob, .sk-head { animation:none; background:var(--l1); }
+    .skel .thumb, .card-label.sk, .sk-line, .sk-box, .sk-blob, .sk-head, .sk-chip { animation:none; background:var(--l1); }
+    .qmenu.open, #subPanel.open .sp-cols, .hf-art img, .hf-info { animation:none; }
+    .sheet, .sheet-scrim, .kbh, .kbh-scrim, .hf-dot { transition:none; }
   }
 
   /* ---- status toast ---- */
@@ -709,6 +808,11 @@
   #status.err::before { background:var(--red); }
   #status.ok::before { background:var(--ok); }
   #status.info::before { background:var(--label2); }
+  /* browsing: a small pill under the nav — never over the rows' bottom edge; the player keeps it low */
+  body:not(.playing) #status { top:calc(var(--navh) + 12px); bottom:auto; transform:translate(-50%,-180%); }
+  body:not(.playing) #status.show { transform:translate(-50%,0); }
+  body.upd:not(.playing) #status { top:calc(var(--navh) + 56px); }
+  html.tv body:not(.playing) #status { left:calc(50% + var(--railw) / 2); top:24px; }
   /* with the player chrome up, the toast clears the toolbar */
   body.pui-on #status { bottom:88px; }
   html.tv body.pui-on #status { bottom:112px; }
@@ -898,7 +1002,7 @@
     overflow-y:auto; background:rgba(44,44,46,.78); border:0; border-radius:14px; padding:6px;
     box-shadow:0 20px 50px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.10); scrollbar-width:none; }
   .qmenu::-webkit-scrollbar { display:none; }
-  .qmenu.open { display:block; }
+  .qmenu.open { display:block; animation:riseIn .16s var(--ease) both; }
   .qtitle { color:rgba(235,235,245,.6); font-size:12px; font-weight:600; padding:8px 12px 6px; }
   .qopt { display:block; width:100%; text-align:left; padding:9px 12px; border-radius:9px; border:0;
     background:transparent; color:#fff; font-family:var(--sans); font-size:14.5px; font-weight:500;
@@ -1018,6 +1122,7 @@
   .sp-head { position:absolute; left:40px; right:40px; top:34px; }
   .sp-title { font-size:28px; font-weight:600; letter-spacing:-.02em; color:#fff; }
   .sp-cols { position:absolute; left:40px; right:40px; top:96px; bottom:36px; display:flex; }
+  #subPanel.open .sp-cols { animation:riseIn .16s var(--ease) both; }
   .sp-col { flex:1 1 0; min-width:0; display:flex; flex-direction:column; padding:0 24px;
     border-left:1px solid rgba(255,255,255,.12); }
   .sp-col:first-child { border-left:0; padding-left:0; }
@@ -1087,14 +1192,17 @@
   #homeHero.on { display:block; }
   .hf-art { position:absolute; top:0; left:0; right:0; bottom:0; }
   .hf-art img { width:100%; height:100%; object-fit:cover; object-position:center 20%; display:block;
-    animation:hfIn .8s var(--ease) both; }
+    animation:hfIn .4s var(--ease) both; }
+  .hf-art img.hf-prev { position:absolute; top:0; left:0; animation:none; }
+  .hf-art img + img { position:absolute; top:0; left:0; }
+  .hf-meta { display:none; }
   @keyframes hfIn { from { opacity:0; } to { opacity:1; } }
   .hf-art::after { content:''; position:absolute; top:0; left:0; right:0; bottom:0;
     background:linear-gradient(180deg, rgba(0,0,0,.14) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,.52) 70%, #000 100%); }
   .hf-art::before { content:''; position:absolute; top:0; left:0; right:0; bottom:0; z-index:1;
     background:linear-gradient(90deg, rgba(0,0,0,.66) 0%, rgba(0,0,0,.18) 46%, rgba(0,0,0,0) 68%); }
   .hf-info { position:absolute; z-index:2; left:var(--pad); right:var(--pad); bottom:30px; max-width:640px;
-    animation:viewIn .5s var(--ease) both; }
+    animation:viewIn .4s var(--ease) both; }
   .hf-script { display:none; }
   .hf-logo { display:block; max-width:min(400px, 62%); max-height:120px; margin:0 0 14px;
     filter:drop-shadow(0 4px 18px rgba(0,0,0,.55)); }
@@ -1106,7 +1214,8 @@
     display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
     text-shadow:0 1px 10px rgba(0,0,0,.7); }
   .hf-dots { position:absolute; z-index:2; right:var(--pad); bottom:34px; display:flex; }
-  .hf-dot { width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,.32); margin-left:8px; }
+  .hf-dot { width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,.32); margin-left:8px;
+    transition:width .18s var(--ease), background .18s var(--ease); }
   .hf-dot.on { background:#fff; }
 
   .det-back { position:absolute; top:0; left:0; right:0; height:58vh; overflow:hidden; }
@@ -1197,7 +1306,7 @@
   html.tv .det-eps { max-width:1600px; }
   .det-credits b { color:var(--label2); font-weight:500; margin-right:6px; }
   .det-rule { display:none; }
-  /* TV only (html.tv .det-facts.on): status · runtime · country under the actions, hairline-separated */
+  /* TV and phones (.det-facts.on): status · runtime · country under the actions, hairline-separated */
   .det-facts { display:none; align-items:center; flex-wrap:wrap; margin:22px 0 2px; color:var(--label2); font-size:17px; }
   .det-facts span { display:inline-flex; align-items:center; }
   .det-facts span + span::before { content:''; display:inline-block; width:1px; height:1.1em; background:rgba(255,255,255,.28); margin:0 18px; }
@@ -1280,15 +1389,6 @@
   html.tv .pdev-ic { width:46px; height:46px; }
   @media (max-width:700px){ .pcode { font-size:34px; min-width:0; } }
 
-  @media (max-width:700px){
-    #homeHero { height:46vh; min-height:300px; }
-    .hf-title { font-size:22px; }
-    .hf-logo { max-height:84px; }
-    .hf-desc { display:none; }
-    .det-body { padding-top:16vh; }
-    .det-name { font-size:22px; }
-    .det-logo { max-height:90px; }
-  }
   html.tv #homeHero { height:60vh; }
   html.tv .hf-title { font-size:62px; }
   html.tv .hf-logo { max-width:520px; max-height:170px; }
@@ -1513,10 +1613,71 @@
   html.tv #status { font-size:18px; padding:14px 24px 14px 42px; }
   html.tv #status::before { left:20px; width:9px; height:9px; margin-top:-4.5px; }
   html.tv #updBanner { padding:15px 26px; font-size:18px; }
+
+  /* ---- phones (a coarse pointer, or a narrow window): the nav is a floating glass pill at the
+     bottom with a label under every icon; views run to the top edge and pad the pill out at the
+     foot; the hero centres its title over art that dissolves into the page ---- */
+  @media (max-width:700px), (pointer:coarse){
+    html:not(.tv) { --navh:0px; --navb:76px; }
+    html:not(.tv) #rail { top:auto; left:16px; right:16px; height:auto; bottom:12px;
+      bottom:calc(12px + env(safe-area-inset-bottom)); padding:6px; border-radius:var(--r-pill);
+      border:1px solid rgba(255,255,255,.10); background:rgba(28,28,30,.86); box-shadow:0 18px 40px rgba(0,0,0,.5);
+      justify-content:space-between; }
+    html:not(.tv) body.upd #rail { top:auto; }
+    html:not(.tv) .rail-brand { display:none; }
+    html:not(.tv) .navitem { flex:1 1 0; flex-direction:column; justify-content:center; padding:7px 4px 6px; margin:0;
+      border-radius:var(--r-pill); font-size:11px; font-weight:600; color:var(--label2); }
+    html:not(.tv) .navitem svg { display:block; width:22px; height:22px; margin:0 0 3px; }
+    html:not(.tv) .navitem span { display:block; font-size:11px; line-height:1; letter-spacing:-.005em; white-space:nowrap; }
+    html:not(.tv) .navitem.on { color:#000; background:#fff; }
+    html:not(.tv) .navitem.focusable:focus-visible { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
+    html:not(.tv) .view { padding-bottom:calc(var(--navb) + 24px); }
+    html:not(.tv) .view.cols { padding-bottom:0; }
+    html:not(.tv) .scroller { padding-bottom:calc(var(--navb) + 24px); }
+    html:not(.tv) .det-eps { padding-bottom:12px; }
+    /* the hero: centred title art, one meta line, one white pill, the dots under it */
+    html:not(.tv) #homeHero { height:62vh; min-height:420px; max-height:680px; margin-bottom:8px; }
+    html:not(.tv) .hf-art img { object-position:center 30%; }
+    html:not(.tv) .hf-art::before { display:none; }
+    html:not(.tv) .hf-art::after { background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 34%, rgba(0,0,0,.6) 66%, var(--bg) 100%); }
+    html:not(.tv) .hf-info { left:16px; right:16px; bottom:44px; max-width:none; text-align:center; }
+    html:not(.tv) .hf-facts, html:not(.tv) .hf-desc, html:not(.tv) #hfList, html:not(.tv) #hfOpen .btn-ic { display:none; }
+    html:not(.tv) .hf-meta { display:block; color:rgba(235,235,245,.84); font-size:14px; font-weight:500;
+      margin:0 0 14px; text-shadow:0 1px 8px rgba(0,0,0,.7); }
+    html:not(.tv) .hf-logo { margin:0 auto 12px; max-width:78%; max-height:110px; }
+    html:not(.tv) .hf-title { font-size:34px; margin:0 0 10px; }
+    html:not(.tv) .hf-info .row { justify-content:center; margin-top:4px; }
+    html:not(.tv) .hf-info .row > * { margin:0; }
+    html:not(.tv) #hfOpen { padding:12px 30px; font-size:15px; }
+    html:not(.tv) .hf-dots { left:0; right:0; bottom:16px; justify-content:center; }
+    html:not(.tv) .hf-dot { margin:0 4px; }
+    html:not(.tv) .hf-dot.on { width:22px; border-radius:3px; }
+    html:not(.tv) .hrow .card.cw { flex-basis:280px; }
+    /* detail: the art runs under the top edge and dissolves into the page; the back button floats on it */
+    html:not(.tv) #view-detail { padding-top:14px; }
+    html:not(.tv) .det-back { height:64vh; }
+    html:not(.tv) .det-back::after { background:linear-gradient(180deg, rgba(0,0,0,.30) 0%, rgba(0,0,0,.04) 30%, rgba(0,0,0,.66) 70%, var(--bg) 100%); }
+    html:not(.tv) .det-back::before { background:linear-gradient(90deg, rgba(0,0,0,.42) 0%, rgba(0,0,0,.10) 52%, rgba(0,0,0,0) 80%); }
+    html:not(.tv) .det-body { padding-top:34vh; }
+    html:not(.tv) .det-name { font-size:34px; }
+    html:not(.tv) .det-logo { max-height:110px; max-width:76%; }
+    html:not(.tv) .det-facts.on { display:flex; font-size:14px; margin:18px 0 0; }
+    html:not(.tv) .det-facts span + span::before { margin:0 12px; }
+    html:not(.tv) .det-facts .df-status { font-size:11px; padding:4px 9px; }
+    html:not(.tv) .con-title { font-size:20px; }
+    html:not(.tv) .es { padding:6vh 16px 4vh; }
+  }
+  /* the glass of the pill needs the blur where the engine has it */
+  @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
+    @media (max-width:700px), (pointer:coarse){
+      html:not(.tv) #rail { background:rgba(28,28,30,.66); -webkit-backdrop-filter:saturate(160%) blur(24px);
+        backdrop-filter:saturate(160%) blur(24px); }
+    }
+  }
   /* ---- lite (real TVs): identical layout, cheap rendering ---- */
   html.lite * { -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
-  html.lite #rail { transition:none; }
-  html.lite #rail.open { box-shadow:none; border-right:1px solid rgba(255,255,255,.14); }
+  html.lite #rail { transition:none; box-shadow:none; }
+  html.lite #rail.open { border-right:1px solid rgba(255,255,255,.14); }
   html.lite .rail-brand span, html.lite .navitem span { transition:none; }
   html.lite #homeHero { box-shadow:none; }
   html.lite .hf-art img { animation:none; }
@@ -1528,6 +1689,14 @@
   html.lite .pui-time, html.lite .sp-opt, html.lite .sp-card, html.lite .sp-step { transition:none; }
   html.lite .pui-tip { box-shadow:inset 0 0 0 1px rgba(255,255,255,.10); }
   html.lite .pui-tipframe { transition:none; }
+  html.lite .view.active { animation-name:fadeIn; }
+  html.lite .view.leaving { display:none; animation:none; }
+  html.lite .hf-info { animation:none; }
+  html.lite .qmenu.open, html.lite #subPanel.open .sp-cols { animation-name:fadeIn; }
+  html.lite .hf-dot, html.lite .con-item { transition:none; }
+  html.lite .skel .thumb, html.lite .card-label.sk, html.lite .sk-line, html.lite .sk-box, html.lite .sk-blob,
+  html.lite .sk-head, html.lite .sk-chip { animation:none; background:var(--l1); }
+  html.lite .cw-left { background:rgba(28,28,30,.9); }
 
 </style>
 </head>
@@ -1735,18 +1904,35 @@
   </div>
 
   <!-- ADD-ONS: manage sources -->
-  <!-- SETTINGS: appearance + playback preferences (device-local) -->
+  <!-- SETTINGS: one console — the sections down the left on a TV (one shown at a time), stacked
+       titled panels everywhere else; preferences are device-local -->
   <div id="view-settings" class="view">
     <div class="scroller">
       <h1 class="page-title">Settings</h1>
-      <!-- the identity row: who this device belongs to, or the invitation to have one -->
-      <button id="setProfile" class="focusable pcard">
-        <span class="pav" id="setProfileAv" aria-hidden="true"></span>
-        <span class="pcard-txt"><span class="pcard-name" id="setProfileName">Profile</span><small id="setProfileSub"></small></span>
-        <span class="pcard-chev" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
-      </button>
-      <div class="panel">
-        <div class="lbl">Appearance</div>
+      <div id="setConsole" class="console">
+        <div id="setNav" class="con-nav">
+          <button class="con-item focusable on" data-sec="profile" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Profile</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <button class="con-item focusable" data-sec="appearance" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z"/></svg><span>Appearance</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <button class="con-item focusable" data-sec="home" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg><span>Home</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <button class="con-item focusable" data-sec="playback" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z"/></svg><span>Playback</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <button class="con-item focusable" data-sec="addons" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg><span>Add-ons</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <button class="con-item focusable" data-sec="party" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.3 2.9-6 6.5-6s6.5 2.7 6.5 6"/><path d="M16 4.6a3.2 3.2 0 0 1 0 6.4M17.5 14.4c2.4.6 4 2.5 4 5.6"/></svg><span>Party</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <button class="con-item focusable" data-sec="about" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>About</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+        </div>
+        <div id="setPane" class="con-pane">
+      <section class="con-sec on" data-sec="profile">
+        <h2 class="con-title">Profile</h2>
+        <p class="con-sub">Sign in once and your add-ons, progress and My List follow you to every device.</p>
+        <!-- the identity row: who this device belongs to, or the invitation to have one -->
+        <button id="setProfile" class="focusable pcard">
+          <span class="pav" id="setProfileAv" aria-hidden="true"></span>
+          <span class="pcard-txt"><span class="pcard-name" id="setProfileName">Profile</span><small id="setProfileSub"></small></span>
+          <span class="pcard-chev" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+        </button>
+      </section>
+      <section class="con-sec panel" data-sec="appearance">
+        <h2 class="con-title">Appearance</h2>
+        <p class="con-sub">The accent colour, how focus grows and what shows on artwork.</p>
         <div class="setrow">
           <span class="setname">Accent<small>Colours the brand, play buttons and badges</small></span>
           <span id="setAccent"></span>
@@ -1759,10 +1945,11 @@
           <span class="setname">Ratings on posters<small>The little star badges on artwork</small></span>
           <span id="setRatings" class="seg"></span>
         </div>
-      </div>
+      </section>
       <!-- what Home is made of: the showcase, the resume row, then the catalog rows in your order -->
-      <div class="panel" id="setHomePanel">
-        <div class="lbl">Home</div>
+      <section class="con-sec panel" data-sec="home" id="setHomePanel">
+        <h2 class="con-title">Home</h2>
+        <p class="con-sub">What Home is made of, and the order it comes in.</p>
         <div class="setrow">
           <span class="setname">Featured carousel<small>The full-bleed showcase at the top of Home</small></span>
           <span id="setHero" class="seg"></span>
@@ -1776,9 +1963,10 @@
           <button id="setRowsReset" class="textbtn focusable" style="display:none">Reset</button>
         </div>
         <div id="setRows" class="hrmlist"></div>
-      </div>
-      <div class="panel">
-        <div class="lbl">Playback</div>
+      </section>
+      <section class="con-sec panel" data-sec="playback">
+        <h2 class="con-title">Playback</h2>
+        <p class="con-sub">How episodes roll on, skip ahead and preview while you scrub.</p>
         <div class="setrow">
           <span class="setname">Autoplay next episode<small>Count down and roll into the next one</small></span>
           <span id="setAutoplay" class="seg"></span>
@@ -1799,17 +1987,40 @@
           <span class="setname">Keyboard shortcuts<small>Press ? anywhere to see them</small></span>
           <button id="setKb" class="textbtn focusable">Show</button>
         </div>
+      </section>
+      <section class="con-sec panel" data-sec="addons">
+        <h2 class="con-title">Add-ons</h2>
+        <p class="con-sub">Where Home, search and streams come from.</p>
+        <div class="setrow">
+          <span class="setname">Your add-ons<small id="setAddonsSub">Add, remove and rank them</small></span>
+          <button id="setAddonsOpen" class="btn ghost focusable">Manage add-ons</button>
+        </div>
+        <div class="setrow">
+          <span class="setname">Play something directly<small>A stream URL, or a file on this device</small></span>
+          <button id="setPlayUrl" class="textbtn focusable">Play a URL</button>
+        </div>
+      </section>
+      <section class="con-sec panel" data-sec="party">
+        <h2 class="con-title">Party</h2>
+        <p class="con-sub">Watch in sync with friends on their own screens.</p>
         <div class="setrow">
           <span class="setname">Party name<small>How you appear to friends in a watch party</small></span>
           <input id="setPname" class="focusable field" type="text" maxlength="40" autocomplete="off" style="flex:0 1 240px" />
         </div>
-      </div>
-      <div class="panel">
-        <div class="lbl">About</div>
+        <div class="setrow">
+          <span class="setname">Join a party<small>Enter a friend's code · To start one, press Party in the player</small></span>
+          <button id="setPartyJoin" class="textbtn focusable">Enter a code</button>
+        </div>
+      </section>
+      <section class="con-sec panel" data-sec="about">
+        <h2 class="con-title">About</h2>
+        <p class="con-sub">This build, and how your data is handled.</p>
         <p class="sub" id="setAbout" style="margin:8px 0 0"></p>
         <p class="sub privacy-link" style="margin:10px 0 0">
           No email, no tracking — a profile is optional. <a href="https://play.rifflehq.in/privacy.html" target="_blank" rel="noopener" style="color:inherit">How Nebula handles your data</a>.
         </p>
+      </section>
+        </div>
       </div>
     </div>
   </div>
@@ -1930,7 +2141,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.02.10';
+  var PLAYER_VERSION = '2026.09.02.11';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1974,11 +2185,17 @@
 
   var statusTimer = null;
   var statusAt = 0;
-  function setStatus(m, k){
+  function setStatus(m, k, ms){
     statusAt = Date.now();
     statusEl.textContent = m; statusEl.className = (k||'info') + ' show';
     clearTimeout(statusTimer);
-    if (k !== 'err') statusTimer = setTimeout(function(){ statusEl.classList.remove('show'); }, 3500);
+    if (k !== 'err') statusTimer = setTimeout(function(){ statusEl.classList.remove('show'); }, ms || 3500);
+  }
+  /** A phone-shaped screen: a coarse pointer, or a narrow window (never the TV). */
+  function isPhone(){
+    if (IS_TV) return false;
+    try { if (window.matchMedia && window.matchMedia('(pointer:coarse)').matches) return true; } catch(e){}
+    return window.innerWidth <= 700;
   }
   // Errors are sticky (no auto-timeout) so they can be read — which means they
   // must be dismissed explicitly when their context goes away, or a playback
@@ -2003,7 +2220,15 @@
     // and one set moments ago (goBack's "Left the party.") is the new view's own
     if (statusEl.classList.contains('show') && !statusEl.classList.contains('err') &&
         Date.now() - statusAt > 400) clearStatus();
-    document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
+    var wasPlaying = document.body.className.indexOf('playing') !== -1;
+    document.querySelectorAll('.view').forEach(function(v){
+      // the view being left fades under the new one — not to or from the player, which owns the screen
+      if (v.classList.contains('active') && !wasPlaying && name !== 'player' && v.id !== 'view-'+name){
+        v.classList.add('leaving');
+        setTimeout(function(){ v.classList.remove('leaving'); }, 220);
+      }
+      v.classList.remove('active');
+    });
     var el = document.getElementById('view-'+name);
     if (el){ el.classList.add('active'); if (!back) el.scrollTop = 0; }
     // cheap and synchronous — keeps Continue watching honest after playback
@@ -2080,6 +2305,11 @@
       var v = document.querySelector('.view.active'), f = v && v.querySelector('.focusable');
       (f && list.indexOf(f) >= 0 ? f : list[0]).focus(); return;
     }
+    var best = pickNearest(list, cur, dx, dy);
+    if (best){ best.focus(); best.scrollIntoView({block:'nearest', inline:'nearest'}); }
+  }
+  /** The element of `list` nearest to `cur` in direction (dx, dy), or null. */
+  function pickNearest(list, cur, dx, dy){
     var cr = cur.getBoundingClientRect(), cx = cr.left+cr.width/2, cy = cr.top+cr.height/2;
     var best=null, bestScore=Infinity;
     list.forEach(function(el){ if(el===cur) return;
@@ -2091,7 +2321,7 @@
       var score = primary + cross*2.2;
       if (score < bestScore){ bestScore=score; best=el; }
     });
-    if (best){ best.focus(); best.scrollIntoView({block:'nearest', inline:'nearest'}); }
+    return best;
   }
   function goBack(){
     stopPairing(); pfTvStop();
@@ -2364,6 +2594,56 @@
       if (inInput){ document.activeElement.blur(); } else { goBack(); }
       e.preventDefault(); return;
     }
+    // the TV settings console: ↑/↓ walk the section list, → steps into the open section, ← comes
+    // back from its left edge; inside the pane ↑/↓ stay in the pane
+    if (IS_TV && !inInput && k >= 37 && k <= 40){
+      var sv = document.querySelector('.view.active'), sae = document.activeElement;
+      var navEl = $id('setNav'), paneEl = $id('setPane');
+      if (sv && sv.id === 'view-settings' && sae && navEl && paneEl){
+        if (navEl.contains(sae)){
+          if (k===38 || k===40){
+            var its = setNavItems(), ni = its.indexOf(sae) + (k===40 ? 1 : -1);
+            if (ni >= 0 && ni < its.length){ its[ni].focus(); try { its[ni].scrollIntoView({ block:'nearest' }); } catch(err){} }
+            e.preventDefault(); return;
+          }
+          if (k===39){ setSection(sae.getAttribute('data-sec'), true); e.preventDefault(); return; }
+        } else if (paneEl.contains(sae)){
+          var paneList = Array.prototype.filter.call(paneEl.querySelectorAll('.focusable'), function(x){ return x.offsetParent !== null; });
+          if (k===38 || k===40){
+            var pb = pickNearest(paneList, sae, 0, k===40 ? 1 : -1);
+            if (pb){ pb.focus(); try { pb.scrollIntoView({ block:'nearest' }); } catch(err){} }
+            e.preventDefault(); return;
+          }
+          // sideways stays on the row (a segmented control walks itself); ← with nothing left on the
+          // row goes back to the section list
+          var r0 = sae.getBoundingClientRect();
+          var mates = paneList.filter(function(x){ if (x === sae) return false; var r = x.getBoundingClientRect(); return r.bottom > r0.top + 4 && r.top < r0.bottom - 4; });
+          var side = pickNearest(mates, sae, k===39 ? 1 : -1, 0);
+          if (side){ side.focus(); e.preventDefault(); return; }
+          if (k===37){
+            var curItem = navEl.querySelector('.con-item.on') || navEl.querySelector('.con-item');
+            if (curItem){ curItem.focus(); e.preventDefault(); return; }
+          }
+          e.preventDefault(); return;
+        }
+      }
+    }
+    // the library: ↓ from the tabs goes to what the tab shows (its centred empty-state button is nearer
+    // the rail by distance than it is to the tabs), and ↑ from the first control there comes back to the tab
+    if (!inInput && (k===38 || k===40)){
+      var lv = document.querySelector('.view.active'), lae = document.activeElement, tabsEl = $id('libTabs');
+      if (lv && lv.id === 'view-library' && tabsEl && lae){
+        var bodyList = Array.prototype.filter.call(lv.querySelectorAll('#libBody .focusable, #friendsSec .focusable'), function(x){ return x.offsetParent !== null; });
+        if (k===40 && tabsEl.contains(lae) && bodyList.length){
+          bodyList[0].focus(); try { bodyList[0].scrollIntoView({ block:'nearest' }); } catch(err){}
+          e.preventDefault(); return;
+        }
+        if (k===38 && bodyList.length && lae === bodyList[0]){
+          var onTab = tabsEl.querySelector('.chip.on') || tabsEl.querySelector('.chip');
+          if (onTab){ onTab.focus(); e.preventDefault(); return; }
+        }
+      }
+    }
     if (k===37){ if(!inInput){ moveFocus2D(-1,0); e.preventDefault(); } }
     else if (k===39){ if(!inInput){ moveFocus2D(1,0); e.preventDefault(); } }
     else if (k===38){ moveFocus2D(0,-1); e.preventDefault(); }
@@ -2632,7 +2912,7 @@
     }
     p[k] = {
       type: c.type, id: c.id, name: c.name || '',
-      poster: c.poster || '', shape: c.shape || 'poster',
+      poster: c.poster || '', shape: c.shape || 'poster', back: c.back || '',
       addonUrl: c.addonUrl || '', pos: pos, dur: dur, at: Date.now()
     };
     saveProgress(false);
@@ -3008,7 +3288,11 @@
     // re-arms it straight after, and leaving the view can't strand the flag
     if (liftSpec === ADDON_DRAG){ liftIdx = null; liftSpec = null; }
     var addons = getAddons();
-    if (!addons.length){ wrap.innerHTML = '<div class="empty">No add-ons yet — paste a manifest URL above, or use <b>Add via phone</b>.</div>'; return; }
+    if (!addons.length){
+      wrap.appendChild(esBlock('addons', 'No add-ons yet', 'Paste a manifest URL above, or send one over from your phone.',
+        'Add via phone', function(){ var b = $id('phoneBtn'); if (b) b.click(); }, 'addonsEmptyBtn'));
+      return;
+    }
     if (addons.length > 1){
       var hint = document.createElement('div'); hint.className = 'addon-hint';
       hint.textContent = 'Drag by the handle to rank them. Home rows follow this order, ' +
@@ -3465,18 +3749,39 @@
 
   /** Resume what you were watching. Rendered from local storage, so it paints
       instantly and survives every add-on being unreachable. */
+  /** "Show · S05E14 · Episode" is stored as one string; the card reads its parts back. */
+  function cwParts(r){
+    var parts = String(r.name || r.id || '').split(' · '), ep = null;
+    if (parts.length > 1){
+      var m = /^s(\d+)e(\d+)$/i.exec(parts[1].trim());
+      if (m) ep = 'S' + parseInt(m[1], 10) + ' E' + parseInt(m[2], 10);
+    }
+    return { title: ep ? parts[0] : parts.join(' · '), ep: ep, sub: ep ? parts.slice(2).join(' · ') : '' };
+  }
+  /** Seconds → "1h 2m left" / "12m left". */
+  function fmtLeft(sec){
+    if (!isFinite(sec) || sec <= 0) return '';
+    var m = Math.round(sec / 60);
+    if (m < 1) return 'Under a minute left';
+    var h = Math.floor(m / 60), mm = m % 60;
+    return (h ? h + 'h' + (mm ? ' ' + mm + 'm' : '') : mm + 'm') + ' left';
+  }
   function continueCard(r){
     var card = document.createElement('button');
-    card.className = 'card focusable shape-' + (r.shape || 'poster');
+    card.className = 'card cw focusable shape-landscape';
     var pct = r.dur > 0 ? Math.max(0, Math.min(100, (r.pos / r.dur) * 100)) : 0;
-    var thumb = r.poster
-      ? posterImg(r.poster, r.name)
+    var art = r.back || r.poster;
+    var thumb = art
+      ? posterImg(art, r.name)
       : '<span class="thumb-ph">' + phFor(r.name) + '</span>';
-    var left = (r.dur - r.pos) > 0 ? fmtT(r.dur - r.pos) + ' left' : '';
-    card.innerHTML = '<div class="thumb">' + thumb +
-      '<div class="prog"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' +
-      '<div class="card-label">' + esc(r.name || r.id) + '</div>' +
-      (left ? '<div class="card-sub">' + esc(left) + '</div>' : '');
+    var left = fmtLeft(r.dur - r.pos), cp = cwParts(r);
+    // a 16:9 still with the context on the art: eyebrow, title, episode, time left, the bar at the foot
+    card.innerHTML = '<div class="thumb">' + thumb + '<div class="cw-shade"></div>' +
+      (left ? '<span class="cw-left">' + esc(left) + '</span>' : '') +
+      '<div class="cw-txt">' + (cp.ep ? '<span class="cw-ep">' + esc(cp.ep) + '</span>' : '') +
+        '<span class="cw-name">' + esc(cp.title) + '</span>' +
+        (cp.sub ? '<span class="cw-sub">' + esc(cp.sub) + '</span>' : '') + '</div>' +
+      '<div class="prog"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>';
     function resume(fresh){
       var a = addonByUrl(r.addonUrl);
       if (a) ctx.addon = a;
@@ -3580,16 +3885,24 @@
       if (g && g.length) facts.push(g.slice(0, 2).join(' · '));
     }
     var art = meta.background || meta.poster;
+    // the phone reads one line under the title: "Series · Drama · 2026–" (type · first genre · years)
+    var kind2 = { movie:'Movie', series:'Series' }[meta.type] || typeLabel(meta.type);
+    var metaLine = [kind2, g && g.length ? g[0] : '', y].filter(Boolean).join('  ·  ');
     var head = meta.logo
       ? '<img class="hf-logo" src="'+esc(meta.logo)+'" alt="'+esc(meta.name)+'">'
       : '<div class="hf-title">'+esc(meta.name)+'</div>';
     var dots = heroState.items.map(function(_, i){
       return '<span class="hf-dot'+(i === heroState.idx ? ' on' : '')+'"></span>';
     }).join('');
+    // the frame on screen stays under the new one while it fades in — a cross-fade, not a cut to black
+    var prevImg = h.querySelector('.hf-art img:not(.hf-prev)');
+    var prevSrc = prevImg && prevImg.getAttribute('src') !== art ? prevImg.getAttribute('src') : '';
     h.innerHTML =
-      '<div class="hf-art"><img src="'+esc(art)+'" alt="" decoding="async" onerror="this.remove()"></div>' +
+      '<div class="hf-art">' + (prevSrc ? '<img class="hf-prev" src="'+esc(prevSrc)+'" alt="" aria-hidden="true">' : '') +
+        '<img src="'+esc(art)+'" alt="" decoding="async" onerror="this.remove()"></div>' +
       '<div class="hf-info">' +
         '<div class="hf-facts">'+esc(facts.join('  ·  '))+'</div>' + head +
+        '<div class="hf-meta">'+esc(metaLine)+'</div>' +
         (meta.description ? '<p class="hf-desc">'+esc(meta.description)+'</p>' : '') +
         '<div class="row" style="margin-top:4px">' +
           '<button id="hfOpen" class="focusable btn"><span class="btn-ic"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span>Details</button>' +
@@ -3598,6 +3911,7 @@
       '</div>' +
       '<div class="hf-dots">'+dots+'</div>';
     h.className = 'on';
+    if (prevSrc) setTimeout(function(){ var pv = h.querySelector('.hf-prev'); if (pv && pv.parentNode) pv.parentNode.removeChild(pv); }, 450);
     var lg = h.querySelector('.hf-logo');
     if (lg) lg.onerror = function(){
       var d = document.createElement('div'); d.className = 'hf-title'; d.textContent = meta.name;
@@ -3690,6 +4004,7 @@
   /** Settings → Home, scrolled to the rows list with its first row lit. */
   function openRowManager(){
     setTab('settings');
+    setSection('home', false);
     (rowMgr.p || Promise.resolve()).then(function(){
       var panel = $id('setHomePanel'); if (!panel) return;
       try { panel.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch(e){ panel.scrollIntoView(); }
@@ -3918,8 +4233,30 @@
     wrap.innerHTML = ''; wrap.appendChild(box);
   }
 
-  // ---------- library tab: My List grid + upcoming episodes ----------
+  // ---------- empty states ----------
+  // A glyph, a line, a sentence and one button that goes somewhere useful — never a bare sentence.
+  var ES_SVG = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+  var ES_ICONS = {
+    bookmark: '<svg ' + ES_SVG + '><path d="M6 4h12a1 1 0 0 1 1 1v15l-7-4-7 4V5a1 1 0 0 1 1-1Z"/></svg>',
+    play: '<svg ' + ES_SVG + '><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z"/></svg>',
+    calendar: '<svg ' + ES_SVG + '><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+    addons: '<svg ' + ES_SVG + '><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg>',
+    signal: '<svg ' + ES_SVG + '><path d="M12 20v-6"/><circle cx="12" cy="12" r="2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"/></svg>'
+  };
+  function esBlock(icon, title, text, btnLabel, fn, id){
+    var el = document.createElement('div'); el.className = 'es';
+    el.innerHTML = (ES_ICONS[icon] || '') + '<div class="es-title">' + esc(title) + '</div><p>' + esc(text) + '</p>';
+    if (btnLabel){
+      var b = document.createElement('button'); b.className = 'btn focusable'; b.textContent = btnLabel;
+      if (id) b.id = id;
+      b.onclick = fn; el.appendChild(b);
+    }
+    return el;
+  }
+
+  // ---------- library tab: My List · Continue Watching · Upcoming ----------
   var upcomingCache = { at: 0, rows: null };
+  var libTab = 'list';
   function libCard(r){
     var card = document.createElement('button');
     card.className = 'card focusable shape-' + (r.shape || 'poster');
@@ -4052,12 +4389,10 @@
   function renderFriends(wrap){
     wrap.innerHTML = '';
     if (!socialOn()){
-      var p = document.createElement('div'); p.className = 'panel';
-      p.innerHTML = '<div class="lbl">Friends · experimental</div>' +
-        '<p class="tagline" style="margin:.5rem 0 1rem">Rate what you watch, see what your friends are watching, ' +
-        'and trade recommendations. Turning it on shares your ratings, recent watches and My List ' +
-        '— with friends you add by @handle, and no one else.</p>' +
-        '<button class="btn focusable" id="frOn">' + (profile ? 'Turn on Friends' : 'Sign in to use Friends') + '</button>';
+      var p = document.createElement('div'); p.className = 'fr-quiet';
+      p.innerHTML = '<p><b>Friends</b>Rate what you watch, see what your friends are watching and trade recommendations. ' +
+        'Turning it on shares your ratings, recent watches and My List with the friends you add by @handle, and no one else.</p>' +
+        '<button class="btn ghost focusable" id="frOn">' + (profile ? 'Turn on Friends' : 'Sign in to use Friends') + '</button>';
       wrap.appendChild(p);
       $id('frOn').onclick = socialEnable;
       return;
@@ -4228,27 +4563,57 @@
     };
   }
 
-  function renderLibraryTab(){
+  function renderLibraryTab(fromTab){
     var wrap = $id('libraryBody'); if (!wrap) return;
     wrap.innerHTML = '';
-    var fr = document.createElement('div'); fr.id = 'friendsSec'; wrap.appendChild(fr);
+    // the three shelves as one segmented pill; Friends waits at the foot as a quiet hairline row
+    var tabs = document.createElement('div'); tabs.className = 'seg'; tabs.id = 'libTabs';
+    [['list','My List'], ['cw','Continue Watching'], ['up','Upcoming']].forEach(function(t){
+      var c = prefChip(t[1], libTab === t[0], function(){ libTab = t[0]; renderLibraryTab(true); });
+      c.setAttribute('data-tab', t[0]); tabs.appendChild(c);
+    });
+    wrap.appendChild(tabs);
+    var body = document.createElement('div'); body.id = 'libBody'; wrap.appendChild(body);
+    if (libTab === 'list') renderLibList(body);
+    else if (libTab === 'cw') renderLibContinue(body);
+    else renderUpcoming(body);
+    var fr = document.createElement('div'); fr.id = 'friendsSec'; fr.className = 'lib-friends'; wrap.appendChild(fr);
     renderFriends(fr);
+    if (fromTab && (IS_TV || kbUsed)){
+      var on = tabs.querySelector('.chip.on');
+      if (on){ try { on.focus({ preventScroll: true }); } catch(e){ on.focus(); } }
+    }
+  }
+  function shelfHead(wrap, title, sub){
+    var head = document.createElement('div'); head.className = 'rowhead';
+    head.innerHTML = '<span class="row-title">' + esc(title) + '</span><span class="row-sub">' + esc(sub) + '</span>';
+    wrap.appendChild(head);
+  }
+  function renderLibList(body){
     var items = libraryList();
     if (!items.length){
-      var e = document.createElement('div'); e.className = 'empty';
-      e.innerHTML = 'Nothing saved yet — open any title and press <b>+ My List</b>. ' +
-        'New episodes of saved series appear here under Upcoming.';
-      wrap.appendChild(e);
+      body.appendChild(esBlock('bookmark', 'Nothing saved yet',
+        'Open any title and press + My List to keep it here. New episodes of saved series show up under Upcoming.',
+        'Browse Home', function(){ setTab('home'); }, 'libEmptyBtn'));
       return;
     }
-    var head = document.createElement('div'); head.className = 'rowhead';
-    head.innerHTML = '<span class="row-title">My List</span><span class="row-sub">' +
-      items.length + ' title' + (items.length === 1 ? '' : 's') + '</span>';
-    wrap.appendChild(head);
+    shelfHead(body, 'My List', items.length + ' title' + (items.length === 1 ? '' : 's'));
     var grid = document.createElement('div'); grid.className = 'grid'; grid.id = 'libGrid';
     items.forEach(function(r){ grid.appendChild(libCard(r)); });
-    wrap.appendChild(grid);
-    renderUpcoming(wrap);
+    body.appendChild(grid);
+  }
+  function renderLibContinue(body){
+    var items = continueList();
+    if (!items.length){
+      body.appendChild(esBlock('play', 'Nothing in progress',
+        'Start watching something and it waits here, right where you left it.',
+        'Browse Home', function(){ setTab('home'); }, 'libEmptyBtn'));
+      return;
+    }
+    shelfHead(body, 'Continue Watching', items.length + ' title' + (items.length === 1 ? '' : 's'));
+    var grid = document.createElement('div'); grid.className = 'grid cwgrid'; grid.id = 'libCw';
+    items.forEach(function(r){ grid.appendChild(continueCard(r)); });
+    body.appendChild(grid);
   }
   function dayLabel(t){
     var d = new Date(t), now = new Date();
@@ -4308,7 +4673,9 @@
   function paintUpcoming(box, rows){
     box.innerHTML = '';
     if (!rows.length){
-      box.innerHTML = '<div class="empty">No dated episodes coming up for your saved series.</div>';
+      box.appendChild(esBlock('calendar', 'Nothing dated yet',
+        'None of your saved series has an episode dated in the next six weeks.',
+        'Browse Home', function(){ setTab('home'); }, 'libEmptyBtn'));
       return;
     }
     var lastDay = null;
@@ -4324,12 +4691,15 @@
   }
   function renderUpcoming(wrap){
     var series = libraryList().filter(function(r){ return r.type === 'series'; });
-    if (!series.length) return;
-    var head = document.createElement('div'); head.className = 'rowhead';
-    head.innerHTML = '<span class="row-title">Upcoming</span><span class="row-sub">' +
-      series.length + ' series</span>';
+    if (!series.length){
+      wrap.appendChild(esBlock('calendar', 'No episodes coming up',
+        'Save a series to My List and its next episodes appear here as they air.',
+        'Browse Home', function(){ setTab('home'); }, 'libEmptyBtn'));
+      return;
+    }
+    shelfHead(wrap, 'Upcoming', series.length + ' series');
     var box = document.createElement('div'); box.id = 'upcomingList'; box.className = 'streams eplist';
-    wrap.appendChild(head); wrap.appendChild(box);
+    wrap.appendChild(box);
     if (upcomingCache.rows && Date.now() - upcomingCache.at < 1800000){
       paintUpcoming(box, upcomingCache.rows);
       return;
@@ -4706,7 +5076,7 @@
     // TV: status · runtime · country as a hairline row under the actions (whatever the
     // catalogue gives); the runtime then leaves the kicker so nothing is said twice
     var row = [];
-    if (IS_TV){
+    if (IS_TV || isPhone()){
       if (meta.status) row.push(['status', String(meta.status)]);
       if (meta.runtime) row.push(['runtime', String(meta.runtime)]);
       var cty = meta.country;
@@ -4719,7 +5089,7 @@
     }
     var bits = [];
     var y = metaYear(meta); if (y) bits.push(y);
-    if (meta.runtime && !(IS_TV && row.length)) bits.push(String(meta.runtime));
+    if (meta.runtime && !row.length) bits.push(String(meta.runtime));
     if (meta.videos && meta.videos.length){
       var sn = {}; meta.videos.forEach(function(v){ var x = seasonNum(v); if (x > 0) sn[x] = 1; });
       var n = Object.keys(sn).length;
@@ -4766,7 +5136,7 @@
     var grouped = groupEpisodes(meta.videos);
     var bySeason = grouped.bySeason, seasons = grouped.seasons, flat = grouped.flat;
     ctx.seriesType = type;
-    ctx.seriesEpisodes = flat; ctx.seriesName = meta.name || ''; ctx.seriesPoster = meta.poster || '';
+    ctx.seriesEpisodes = flat; ctx.seriesName = meta.name || ''; ctx.seriesPoster = meta.poster || ''; ctx.seriesBack = meta.background || '';
     var pool = surprisePool(flat);
     if (pool.length >= 2){
       sh.style.display = '';
@@ -4884,6 +5254,7 @@
     renderDetailArt(meta);
     renderDetailSeries(meta, type);
     syncDetButtons();
+    detSkeleton(meta);
     show('detail');
     // land focus on Play, not the back button — one OK press should start it
     setTimeout(function(){
@@ -4891,7 +5262,8 @@
       if (v && v.id === 'view-detail') $id('detPlay').focus();
     }, 60);
     fetchFullMeta(type, meta.id).then(function(full){
-      if (seq !== detSeq || !full) return;
+      if (seq !== detSeq) return;
+      if (!full){ detSkeletonClear(); return; }
       // enhance in place: the full meta wins wherever it actually has something
       var merged = {};
       Object.keys(meta).forEach(function(k){ merged[k] = meta[k]; });
@@ -4901,6 +5273,20 @@
       renderDetailArt(merged);
       renderDetailSeries(merged, type);
       syncDetButtons();
+    });
+  }
+
+  /** Placeholders for the description, facts and genres a catalogue card did not carry; the
+      full render writes over them, and a failed fetch clears them. */
+  function detSkeleton(meta){
+    if (!(meta.description || meta.overview)) $id('detDesc').innerHTML = '<span class="sk-line"></span><span class="sk-line"></span><span class="sk-line w60"></span>';
+    var g = meta.genres || meta.genre;
+    if (!(g && g.length)) $id('detGenres').innerHTML = '<span class="sk-chip"></span><span class="sk-chip"></span><span class="sk-chip"></span>';
+    if (!$id('detMeta').textContent.trim()) $id('detMeta').innerHTML = '<span class="sk-line" style="display:inline-block;width:160px"></span>';
+  }
+  function detSkeletonClear(){
+    ['detDesc', 'detGenres', 'detMeta'].forEach(function(id){
+      var el = $id(id); if (el && el.querySelector('.sk-line, .sk-chip')) el.innerHTML = '';
     });
   }
 
@@ -4983,7 +5369,7 @@
     var bySeason = grouped.bySeason, seasons = grouped.seasons, flat = grouped.flat;
     ctx.seriesEpisodes = flat;
     ctx.seriesName = meta.name || '';
-    ctx.seriesPoster = meta.poster || '';
+    ctx.seriesPoster = meta.poster || ''; ctx.seriesBack = meta.background || '';
     var row = document.getElementById('seasonRow');
     row.innerHTML = '';
     var upIdx = -1;
@@ -5041,6 +5427,7 @@
     ctx.seriesType = type;
     ctx.seriesName = (res.meta && res.meta.name) || ctx.seriesName || '';
     ctx.seriesPoster = (res.meta && res.meta.poster) || ctx.seriesPoster || '';
+    ctx.seriesBack = (res.meta && res.meta.background) || ctx.seriesBack || '';
     ctx.epIndex = -1;
     for (var i=0;i<grouped.flat.length;i++){
       if (grouped.flat[i].id === episodeId){ ctx.epIndex = i; break; }
@@ -5094,13 +5481,14 @@
     ctx.playType = type || ''; ctx.playId = id || ''; ctx.playTitle = title || '';
     ctx.playAddonUrl = (ctx.addon && ctx.addon.url) || '';
     ctx.playPoster = (ctx.item && ctx.item.poster) || ctx.seriesPoster || '';
+    ctx.playBack = (ctx.item && ctx.item.background) || ctx.seriesBack || '';
     ctx.playShape = (ctx.item && ctx.item.posterShape) || 'poster';
   }
   /** For playback with no catalogue identity (a pasted URL, a party stream):
       nothing to resume and nothing worth remembering. */
   function clearPlayIdentity(){
     ctx.playType = ''; ctx.playId = ''; ctx.playTitle = '';
-    ctx.playAddonUrl = ''; ctx.playPoster = ''; ctx.playShape = 'poster';
+    ctx.playAddonUrl = ''; ctx.playPoster = ''; ctx.playBack = ''; ctx.playShape = 'poster';
     ctx.seriesEpisodes = null; ctx.epIndex = -1;
     ctx.playSig = null;                 // no stream row behind this: the source line stays empty
   }
@@ -5204,7 +5592,12 @@
     var origin = ctx.addon || null;
     var order = origin ? [origin] : [];
     getAddons().forEach(function(a){ if (!origin || a.url !== origin.url) order.push(a); });
-    if (!order.length){ list.innerHTML = '<div class="empty">No add-ons.</div>'; return; }
+    if (!order.length){
+      list.innerHTML = '';
+      list.appendChild(esBlock('addons', 'No add-ons yet', 'Add an add-on and its streams show up here.',
+        'Add an add-on', function(){ setTab('addons'); }, 'streamsAddons'));
+      return;
+    }
 
     var pending = order.length, total = 0, sections = 0, failures = 0;
     function removeLoading(){
@@ -5217,9 +5610,12 @@
       if (pending) return;
       removeLoading();
       if (!total){
-        list.innerHTML = failures === order.length
-          ? '<div class="empty">Failed to load streams — check your connection and try again.</div>'
-          : '<div class="empty">No playable streams right now (the event may be offline).</div>';
+        var req = lastStreamsReq, allDown = failures === order.length;
+        list.innerHTML = '';
+        list.appendChild(esBlock('signal',
+          allDown ? 'Could not reach your add-ons' : 'No streams right now',
+          allDown ? 'Check the connection and try again.' : 'No add-on has a stream for this yet — the event may be offline, or it may turn up later.',
+          'Try again', function(){ if (req) openStreams(req.type, req.id, req.title, ctx.startOver); }, 'streamsRetry'));
         setStatus('No streams.','info');
       } else {
         var summary = total + ' stream' + (total > 1 ? 's' : '') + (sections > 1 ? ' · ' + sections + ' sources' : '');
@@ -5386,7 +5782,8 @@
     // promote the staged selection: from here on this is what progress is written against
     curPlay = ctx.playId ? {
       type: ctx.playType, id: ctx.playId, name: ctx.playTitle || title || '',
-      poster: ctx.playPoster || '', shape: ctx.playShape || 'poster', addonUrl: ctx.playAddonUrl || ''
+      poster: ctx.playPoster || '', shape: ctx.playShape || 'poster', back: ctx.playBack || '',
+      addonUrl: ctx.playAddonUrl || ''
     } : null;
     show('player');
     puiReset(title || '');
@@ -7983,9 +8380,40 @@
     b.textContent = label; b.onclick = fn;
     return b;
   }
+  // ---- settings console: which section is open (a TV shows one at a time; elsewhere all stack) ----
+  var setSecCur = 'profile';
+  function setSection(sec, focusPane){
+    setSecCur = sec;
+    Array.prototype.forEach.call(document.querySelectorAll('#setNav .con-item'), function(b){ b.classList.toggle('on', b.getAttribute('data-sec') === sec); });
+    Array.prototype.forEach.call(document.querySelectorAll('#setPane .con-sec'), function(x){ x.classList.toggle('on', x.getAttribute('data-sec') === sec); });
+    if (focusPane){
+      var pane = document.querySelector('#setPane .con-sec.on'), f = pane && pane.querySelector('.focusable');
+      if (f){ try { f.focus({ preventScroll: true }); } catch(e){ f.focus(); } try { f.scrollIntoView({ block: 'nearest' }); } catch(e2){} }
+    }
+  }
+  function setNavItems(){ return Array.prototype.filter.call(document.querySelectorAll('#setNav .con-item'), function(b){ return b.offsetParent !== null; }); }
+  (function(){
+    Array.prototype.forEach.call(document.querySelectorAll('#setNav .con-item'), function(b){
+      b.onclick = function(){ setSection(b.getAttribute('data-sec'), false); };
+      // on a TV the pane follows the highlight, so it always shows what the lit row says
+      b.addEventListener('focus', function(){ if (IS_TV) setSection(b.getAttribute('data-sec'), false); });
+    });
+    var ao = $id('setAddonsOpen'); if (ao) ao.onclick = function(){ setTab('addons'); };
+    var pu = $id('setPlayUrl'); if (pu) pu.onclick = function(){ show('manual'); };
+    var pj = $id('setPartyJoin'); if (pj) pj.onclick = function(){
+      setTab('addons');
+      setTimeout(function(){ var i = $id('partyCode'); if (i){ try { i.scrollIntoView({ block: 'center' }); } catch(e){} i.focus(); } }, 80);
+    };
+  })();
   function settingsRender(){
     var pr = getPrefs();
     var acc = $id('setAccent'); if (!acc) return;
+    // every control below is rebuilt, which would drop the remote's focus on the floor: remember which
+    // chip or swatch had it (its group and its label) and hand it back to the rebuilt one
+    var keepAe = document.activeElement, keepGrp = null, keepLbl = '';
+    if (keepAe && keepAe.parentNode && keepAe.parentNode.id && /^set(Accent|Zoom|Ratings|Autoplay|Skip|Scrub|Quality|Hero|Cw)$/.test(keepAe.parentNode.id)){
+      keepGrp = keepAe.parentNode.id; keepLbl = keepAe.title || keepAe.textContent || '';
+    }
     acc.innerHTML = '';
     PREF_ACCENTS.forEach(function(a){
       var b = document.createElement('button');
@@ -8035,7 +8463,14 @@
     pn.placeholder = partyName();
     $id('setAbout').textContent = 'Nebula · build ' + PLAYER_VERSION +
       ' · plays every add-on format, on-device';
+    var asub = $id('setAddonsSub'), an = getAddons().length;
+    if (asub) asub.textContent = an ? an + ' add-on' + (an === 1 ? '' : 's') + ' · Add, remove and rank them' : 'None yet — add one and its catalogs fill Home';
     profileCardRender();
+    if (keepGrp){
+      var grp = $id(keepGrp), again = null;
+      if (grp) Array.prototype.forEach.call(grp.children, function(c){ if (!again && (c.title || c.textContent || '') === keepLbl) again = c; });
+      if (again){ try { again.focus({ preventScroll: true }); } catch(e){ again.focus(); } }
+    }
   }
 
   // ---------- Home rows manager (Settings → Home → Rows) ----------
@@ -8267,7 +8702,7 @@
     pfPendingLink = m[1].toUpperCase();
     setTimeout(function(){ setTab('settings'); show('profile'); }, 300);
   })();
-  setStatus(getAddons().length ? 'Welcome back.' : 'Ready. Add your add-on to begin.','info');
+  setStatus(getAddons().length ? 'Welcome back.' : 'Ready. Add your add-on to begin.', 'info', getAddons().length ? 2000 : 3500);
   focusFirst();
 })();
 </script>
