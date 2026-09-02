@@ -3,567 +3,545 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nebula — a player for your add-ons, on every screen</title>
-<meta name="description" content="Nebula plays the streams your add-ons point it to, on your TV, desktop and phone. Every format decrypted on the device, profiles without an email, watch parties, skip intro. Free.">
-<meta name="theme-color" content="#0a0a0c">
-<meta property="og:title" content="Nebula — a player for your add-ons, on every screen">
-<meta property="og:description" content="Add a source, browse its catalogs, press play. Windows · Android · Android TV · LG webOS · Web. Free, no email.">
+<title>Nebula — plays your add-ons on every screen you own</title>
+<meta name="description" content="Nebula is a free player for the TV, the desktop and the phone. Add a source and it turns into a library, with artwork, episode lists, subtitles and your place kept across screens. No account, no email.">
+<meta name="theme-color" content="#07080b">
+<meta property="og:title" content="Nebula — plays your add-ons on every screen you own">
+<meta property="og:description" content="A free player for the TV, the desktop and the phone. Windows · Android · Android TV · LG webOS · Web.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://play.rifflehq.in/">
 <meta property="og:image" content="https://play.rifflehq.in/site/player.jpg">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0a0c'/%3E%3Cpath d='M32 12 52 32 32 52 12 32Z' fill='%23E50914'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2307080b'/%3E%3Cpath d='M32 12 52 32 32 52 12 32Z' fill='%23E50914'/%3E%3C/svg%3E">
 <link rel="preload" href="player/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   @font-face { font-family:'Geist'; src:url('player/fonts/geist.woff2') format('woff2'); font-weight:100 900; font-display:swap; }
-  @font-face { font-family:'GeistMono'; src:url('player/fonts/geistmono.woff2') format('woff2'); font-weight:100 900; font-display:swap; }
   :root {
-    --accent:#E50914; --bg:#0a0a0c; --ink:#f2f2f4; --ink2:#c9ced6; --muted:#8e97a3; --muted2:#6b7280;
-    --surface:#111114; --surface2:#17171b; --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.18);
-    --sans:'Geist', system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --mono:'GeistMono', ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    --r:14px; --r2:20px; --ease:cubic-bezier(.2,.7,.2,1);
+    --dark:#07080b; --dark2:#0b0c10; --dark3:#14151a; --ink:#f6f7f9; --ink66:rgba(246,247,249,.66); --ink45:rgba(246,247,249,.45);
+    --light:#ffffff; --text:#090a0e; --gray:#5b6070; --gray2:#8a90a0; --hair:#e6e8ec; --hair2:#d6d9df; --accent:#E50914;
+    --font:'Geist', system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
   * { box-sizing:border-box; }
   html { scroll-behavior:smooth; }
-  body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); line-height:1.55;
+  body { margin:0; background:var(--light); color:var(--text); font-family:var(--font); font-size:15px; line-height:1.6;
     -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
   a { color:inherit; }
   img { display:block; max-width:100%; height:auto; }
-  :focus-visible { outline:2px solid #fff; outline-offset:3px; border-radius:6px; }
-  .wrap { max-width:1180px; margin:0 auto; padding:0 24px; }
-  .eyebrow { font-family:var(--mono); font-size:.72rem; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
-  .eyebrow .dot { color:var(--accent); margin:0 .5em; }
-  h1, h2, h3 { margin:0; font-weight:600; letter-spacing:-.025em; line-height:1.08; text-wrap:balance; }
-  h2 { font-size:clamp(1.9rem, 3.6vw, 2.9rem); }
-  h3 { font-size:1.25rem; letter-spacing:-.015em; }
   p { margin:0; }
-  .lede { color:var(--ink2); font-size:1.12rem; line-height:1.6; max-width:38em; }
-  .btn { display:inline-flex; align-items:center; gap:10px; padding:.9rem 1.35rem; border-radius:999px; font-weight:600;
-    font-size:1rem; text-decoration:none; border:1px solid transparent; cursor:pointer; font-family:var(--sans);
-    transition:background .16s var(--ease), border-color .16s var(--ease), color .16s var(--ease); white-space:nowrap; }
-  .btn.solid { background:#fff; color:#000; }
-  .btn.solid:hover { background:#e6e6ea; }
-  .btn.ghost { background:transparent; color:var(--ink); border-color:var(--line2); }
-  .btn.ghost:hover { border-color:#fff; }
-  .btn svg { width:18px; height:18px; fill:currentColor; flex:0 0 auto; }
+  h1, h2, h3 { margin:0; font-weight:600; letter-spacing:-.032em; line-height:1.02; text-wrap:balance; }
+  h1 { font-size:clamp(2.6rem, 5.9vw, 5.25rem); letter-spacing:-.035em; }
+  h2 { font-size:clamp(2rem, 3.9vw, 3.5rem); }
+  h3 { font-size:1.5rem; letter-spacing:-.02em; line-height:1.15; }
+  .wrap { max-width:1248px; margin:0 auto; padding:0 24px; }
+  .sub { color:var(--gray); font-size:15px; line-height:1.65; max-width:36em; margin-top:16px; }
+  .eyebrow { font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--gray2); }
+  :focus-visible { outline:2px solid var(--text); outline-offset:3px; border-radius:6px; }
+  .dark :focus-visible { outline-color:var(--ink); }
 
-  /* ---------- nav ---------- */
-  .nav { position:sticky; top:0; z-index:20; background:rgba(10,10,12,.72); border-bottom:1px solid var(--line);
-    -webkit-backdrop-filter:saturate(180%) blur(18px); backdrop-filter:saturate(180%) blur(18px); }
-  .nav .wrap { display:flex; align-items:center; justify-content:space-between; height:60px; gap:16px; }
-  .brand { display:flex; align-items:center; gap:10px; text-decoration:none; font-weight:600; letter-spacing:.18em; font-size:.88rem; }
-  .brand .dia { color:var(--accent); font-size:.8em; }
-  .nav nav { display:flex; align-items:center; gap:22px; }
-  .nav nav a { color:var(--muted); text-decoration:none; font-size:.92rem; }
-  .nav nav a:hover { color:var(--ink); }
-  .nav .btn { padding:.5rem 1rem; font-size:.9rem; }
-  @media (max-width:720px){ .nav nav a.hide { display:none; } }
-  @media (max-width:560px){ .nav .btn { display:none; } .nav nav { gap:16px; } }
+  /* buttons */
+  .btn { display:inline-flex; align-items:center; gap:9px; height:44px; padding:0 22px; border-radius:9999px; font:600 15px var(--font);
+    text-decoration:none; border:1px solid transparent; cursor:pointer; white-space:nowrap; transition:background .15s, border-color .15s, color .15s; }
+  .btn svg { width:16px; height:16px; fill:currentColor; flex:0 0 auto; }
+  .dark .btn.solid { background:var(--ink); color:var(--dark); }
+  .dark .btn.solid:hover { background:#dfe2e8; }
+  .dark .btn.ghost { background:rgba(255,255,255,.07); color:var(--ink); border-color:rgba(255,255,255,.16); }
+  .dark .btn.ghost:hover { background:rgba(255,255,255,.12); }
+  .light .btn.solid, .btn.solid.onlight { background:var(--text); color:#fff; }
+  .light .btn.solid:hover { background:#25272e; }
+  .light .btn.ghost { background:#fff; color:var(--text); border-color:var(--hair2); }
+  .light .btn.ghost:hover { border-color:#9aa0ad; }
 
-  /* ---------- hero ---------- */
-  .hero { padding:88px 0 40px; text-align:center; }
-  .hero h1 { font-size:clamp(2.7rem, 6.6vw, 5.4rem); margin:18px auto 0; max-width:14em; }
-  .hero .lede { margin:26px auto 0; text-align:center; }
-  .hero .cta { margin-top:36px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
-  .hero .plats { margin-top:18px; color:var(--muted2); font-size:.9rem; }
-  .shot-wrap { margin:60px auto 0; max-width:1180px; padding:0 24px; }
-  .shot { position:relative; border-radius:var(--r2); overflow:hidden; border:1px solid var(--line2);
-    background:#000; box-shadow:0 40px 120px rgba(0,0,0,.6); }
-  .shot img { width:100%; }
-  .facts { display:flex; justify-content:center; gap:14px 34px; flex-wrap:wrap; margin-top:28px; }
-  .facts span { font-family:var(--mono); font-size:.74rem; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
-  .facts span::before { content:"◆"; color:var(--accent); font-size:.7em; margin-right:.9em; }
+  /* nav */
+  .navbar { position:absolute; top:22px; left:0; right:0; display:flex; justify-content:center; z-index:10; padding:0 16px; }
+  .pillnav { display:flex; align-items:center; gap:4px; padding:5px; border-radius:9999px; background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.10); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
+  .pillnav .logo { display:flex; align-items:center; gap:8px; padding:0 12px 0 10px; color:var(--ink); text-decoration:none; font-weight:600; letter-spacing:.12em; font-size:13px; }
+  .pillnav .logo .dia { color:var(--accent); font-size:12px; }
+  .pillnav a.item { color:var(--ink66); text-decoration:none; font-size:14px; font-weight:500; padding:0 14px; height:36px; display:inline-flex; align-items:center; border-radius:9999px; }
+  .pillnav a.item:hover { color:var(--ink); }
+  .pillnav a.item.on { background:var(--ink); color:var(--dark); font-weight:600; }
+  .pillnav a.gh { color:var(--ink66); display:inline-flex; align-items:center; padding:0 8px; }
+  .pillnav a.gh svg { width:16px; height:16px; fill:currentColor; }
+  .pillnav a.gh:hover { color:var(--ink); }
+  .pillnav .navcta { height:36px; padding:0 16px; font-size:14px; }
+  @media (max-width:640px){ .pillnav a.item.hide, .pillnav a.gh { display:none; } .pillnav .logo { padding-right:6px; } }
 
-  /* ---------- sections ---------- */
-  section { padding:96px 0 0; }
-  .sect-head { max-width:40em; }
-  .sect-head .eyebrow { display:block; margin-bottom:14px; }
-  .sect-head .lede { margin-top:16px; }
+  /* hero */
+  .hero { background:var(--dark); color:var(--ink); position:relative; padding:150px 0 0; overflow:hidden; }
+  .hero .wrap { text-align:center; }
+  .hero h1 { max-width:12em; margin:0 auto; }
+  .hero .lede { margin:26px auto 0; max-width:36em; color:var(--ink66); font-size:clamp(1.05rem, 1.5vw, 1.31rem); line-height:1.55; }
+  .hero .cta { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:34px; }
+  .hero .fine { margin-top:22px; color:var(--ink45); font-size:13px; }
+  .mock { position:relative; max-width:1152px; margin:64px auto 0; padding:0 24px; }
+  .tv { border-radius:22px; background:#15161b; padding:10px; box-shadow:0 30px 90px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.08); }
+  .tv .screen { border-radius:14px; overflow:hidden; background:#000; }
+  .tv .screen img { width:100%; }
+  .phone { position:absolute; left:0; bottom:-26px; width:34%; min-width:220px; border-radius:26px; background:#15161b; padding:7px;
+    box-shadow:0 26px 70px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.10); }
+  .phone .screen { border-radius:20px; overflow:hidden; background:#000; }
+  .phone .screen img { width:100%; }
+  @media (max-width:640px){ .phone { display:none; } .hero { padding-top:120px; } .mock { margin-top:44px; } }
+  .strip { background:var(--dark2); border-top:1px solid rgba(255,255,255,.06); margin-top:56px; }
+  .strip .wrap { display:flex; justify-content:center; gap:10px 34px; flex-wrap:wrap; padding:20px 24px; color:var(--ink66); font-size:13px; font-weight:500; }
+  .strip span { display:inline-flex; align-items:center; gap:8px; }
+  .strip svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
 
-  /* ---------- screens ---------- */
-  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap:16px; margin-top:40px; }
-  .card { position:relative; background:var(--surface); border:1px solid var(--line); border-radius:var(--r2); padding:26px 24px 22px;
-    display:flex; flex-direction:column; gap:16px; }
-  .card.you { border-color:var(--line2); box-shadow:inset 0 0 0 1px var(--line2); }
-  .youtag { display:none; position:absolute; top:-11px; right:18px; background:#fff; color:#000; font-size:.68rem; font-weight:700;
-    letter-spacing:.12em; text-transform:uppercase; padding:.25rem .7rem; border-radius:999px; }
-  .card.you .youtag { display:inline-block; }
-  .chead { display:flex; align-items:center; gap:14px; }
-  .cico { width:44px; height:44px; flex:0 0 auto; border-radius:12px; display:grid; place-items:center; border:1px solid var(--line); background:var(--surface2); }
-  .cico svg { width:22px; height:22px; fill:none; stroke:var(--ink); stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
-  .chead h3 { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
-  .chead .meta { color:var(--muted); font-size:.86rem; margin-top:2px; }
-  .ver { display:inline-block; padding:.08rem .55rem; border-radius:999px; border:1px solid var(--line2); color:var(--ink2);
-    font-family:var(--mono); font-size:.68rem; font-weight:500; letter-spacing:.04em; font-variant-numeric:tabular-nums; }
-  .dls { display:flex; flex-direction:column; gap:10px; }
-  .dl { display:flex; align-items:center; justify-content:space-between; gap:12px; text-decoration:none; border:1px solid var(--line);
-    border-radius:12px; padding:.72rem .95rem; transition:border-color .16s var(--ease), background .16s var(--ease); }
-  .dl:hover { border-color:var(--line2); background:var(--surface2); }
-  .dl.main { background:#fff; color:#000; border-color:#fff; }
-  .dl.main:hover { background:#e6e6ea; border-color:#e6e6ea; }
-  .dl .l { display:flex; align-items:center; gap:10px; font-weight:600; font-size:.95rem; }
-  .dl svg { width:17px; height:17px; fill:currentColor; flex:0 0 auto; }
-  .dl .sz { font-family:var(--mono); font-size:.74rem; color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums; }
-  .dl.main .sz { color:rgba(0,0,0,.6); }
-  .copyrow { display:flex; gap:8px; align-items:stretch; }
-  .copyrow code { flex:1; min-width:0; display:block; background:#000; color:var(--ink2); border:1px solid var(--line); border-radius:12px;
-    padding:.7rem .85rem; font-family:var(--mono); font-size:.76rem; overflow-x:auto; white-space:nowrap; scrollbar-width:none; }
-  .copyrow code.tvcode { font-size:1.3rem; letter-spacing:.3em; font-weight:600; color:#fff; text-align:center; }
-  .copybtn { flex:0 0 auto; border:1px solid var(--line2); background:transparent; color:var(--ink); border-radius:12px; padding:0 .95rem;
-    font:600 .85rem var(--sans); cursor:pointer; transition:border-color .16s var(--ease); }
-  .copybtn:hover { border-color:#fff; }
-  .note { color:var(--muted); font-size:.84rem; line-height:1.5; }
-  .note b { color:var(--ink2); font-weight:600; }
-  .card details { border-top:1px solid var(--line); padding-top:12px; margin-top:auto; }
-  .card summary { cursor:pointer; color:var(--muted); font-size:.86rem; font-weight:600; list-style:none; display:flex; align-items:center; gap:8px; }
-  .card summary::-webkit-details-marker { display:none; }
-  .card summary::before { content:"›"; color:var(--ink2); display:inline-block; transition:transform .15s var(--ease); }
-  .card details[open] summary::before { transform:rotate(90deg); }
-  .card details ol { margin:.7rem 0 .2rem; padding-left:1.2rem; color:var(--ink2); font-size:.88rem; line-height:1.6; }
-  .card details li + li { margin-top:.3rem; }
-  .card details code { font-family:var(--mono); font-size:.82em; color:#fff; }
-  .card details a { color:var(--ink); }
+  /* sections */
+  .light { background:var(--light); color:var(--text); }
+  .dark { background:var(--dark); color:var(--ink); }
+  .section { padding:128px 0; }
+  .section.tight { padding:96px 0; }
+  .divider { height:1px; background:var(--hair); margin:0; }
 
-  /* ---------- feature rows ---------- */
-  .feature { display:grid; grid-template-columns:minmax(0, 5fr) minmax(0, 4fr); gap:56px; align-items:center; margin-top:64px; }
-  .feature:first-of-type { margin-top:48px; }
-  .feature.flip .fig { order:2; }
-  .fig { border-radius:var(--r2); overflow:hidden; border:1px solid var(--line); background:#000; }
-  .fig img { width:100%; }
-  .ftext .eyebrow { display:block; margin-bottom:12px; }
-  .ftext h3 { font-size:clamp(1.5rem, 2.4vw, 2rem); letter-spacing:-.02em; }
-  .ftext p { margin-top:14px; color:var(--ink2); font-size:1.03rem; max-width:32em; }
-  .ftext p + p { margin-top:10px; }
-  @media (max-width:860px){ .feature { grid-template-columns:1fr; gap:22px; margin-top:52px; } .feature.flip .fig { order:0; } }
+  /* pick your screen */
+  .tabs { display:inline-flex; gap:4px; padding:5px; margin-top:40px; border:1px solid var(--hair); border-radius:14px; background:#fff; }
+  .tab { display:inline-flex; align-items:center; gap:8px; height:36px; padding:0 16px; border-radius:10px; border:0; background:transparent;
+    color:var(--gray); font:500 14px var(--font); cursor:pointer; }
+  .tab svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+  .tab[aria-selected="true"] { background:var(--text); color:#fff; font-weight:600; }
+  .panel { display:none; margin-top:24px; background:var(--dark2); color:var(--ink); border-radius:28px; padding:48px; }
+  .panel.on { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:40px; align-items:center; }
+  .panel h3 { font-size:1.6rem; }
+  .panel p { color:var(--ink66); margin-top:12px; max-width:30em; }
+  .panel .right { display:flex; flex-direction:column; gap:12px; align-items:flex-start; }
+  .panel .row { display:flex; gap:10px; flex-wrap:wrap; }
+  .panel .ver { display:inline-block; margin-left:10px; vertical-align:middle; padding:2px 9px; border-radius:9999px; border:1px solid rgba(255,255,255,.16);
+    color:var(--ink66); font-size:12px; font-weight:500; letter-spacing:.02em; font-variant-numeric:tabular-nums; }
+  .panel .dl { display:inline-flex; align-items:center; gap:9px; height:44px; padding:0 20px; border-radius:9999px; text-decoration:none; font-weight:600;
+    background:var(--ink); color:var(--dark); border:1px solid transparent; }
+  .panel .dl:hover { background:#dfe2e8; }
+  .panel .dl.alt { background:rgba(255,255,255,.07); color:var(--ink); border-color:rgba(255,255,255,.16); }
+  .panel .dl.alt:hover { background:rgba(255,255,255,.12); }
+  .panel .dl svg { width:16px; height:16px; fill:currentColor; }
+  .panel .dl .sz { font-weight:400; opacity:.65; font-size:13px; margin-left:2px; }
+  .panel .label { font-size:12px; color:var(--ink45); margin-top:6px; }
+  .codebox { display:flex; gap:8px; width:100%; max-width:420px; }
+  .codebox code { flex:1; min-width:0; display:block; background:#000; color:var(--ink); border:1px solid rgba(255,255,255,.14); border-radius:12px;
+    padding:11px 14px; font:500 13px ui-monospace, "SF Mono", Menlo, Consolas, monospace; overflow-x:auto; white-space:nowrap; scrollbar-width:none; }
+  .codebox code.tvcode { font-size:22px; letter-spacing:.28em; text-align:center; font-weight:600; }
+  .copybtn { flex:0 0 auto; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.07); color:var(--ink); border-radius:12px; padding:0 16px; font:600 14px var(--font); cursor:pointer; }
+  .copybtn:hover { background:rgba(255,255,255,.12); }
+  .panel details { margin-top:8px; }
+  .panel summary { cursor:pointer; color:var(--ink66); font-size:14px; list-style:none; }
+  .panel summary::-webkit-details-marker { display:none; }
+  .panel summary::after { content:" ›"; }
+  .panel details[open] summary::after { content:" ˇ"; }
+  .panel details ol { margin:10px 0 0; padding-left:18px; color:var(--ink66); font-size:14px; line-height:1.6; }
+  .panel details a { color:var(--ink); }
+  .panel details code { font:500 .9em ui-monospace, "SF Mono", Menlo, Consolas, monospace; color:var(--ink); }
+  @media (max-width:820px){ .panel.on { grid-template-columns:1fr; gap:28px; } .panel { padding:32px 26px; } .tabs { display:flex; overflow-x:auto; } }
 
-  /* ---------- quiet parts ---------- */
-  .quiet { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap:0; margin-top:40px;
-    border-top:1px solid var(--line); border-left:1px solid var(--line); }
-  .q { padding:26px 26px 28px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); }
-  .q svg { width:24px; height:24px; fill:none; stroke:var(--ink); stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; margin-bottom:16px; }
-  .q h3 { font-size:1.06rem; }
-  .q p { margin-top:8px; color:var(--muted); font-size:.95rem; }
+  /* feature rows */
+  .row2 { display:grid; grid-template-columns:minmax(0, 5fr) minmax(0, 6fr); gap:64px; align-items:center; padding:56px 0; }
+  .row2.flip .text { order:2; }
+  .row2 .text h3 { font-size:clamp(1.4rem, 2vw, 1.75rem); }
+  .row2 .text p { margin-top:14px; color:var(--gray); max-width:30em; }
+  .dark .row2 .text p { color:var(--ink66); }
+  .frame { border-radius:18px; background:#15161b; padding:8px; box-shadow:0 24px 70px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.08); }
+  .frame .screen { border-radius:11px; overflow:hidden; background:#000; }
+  .frame .screen img { width:100%; }
+  .checks { list-style:none; padding:0; margin:22px 0 0; display:grid; gap:12px; }
+  .checks li { display:flex; gap:12px; align-items:flex-start; color:var(--ink); font-size:14px; }
+  .checks li svg { width:16px; height:16px; flex:0 0 auto; margin-top:3px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .tvcode-card { border-radius:18px; background:#0e0f14; color:var(--ink); padding:36px 32px; box-shadow:0 24px 70px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.08); }
+  .tvcode-card .eyebrow { color:var(--ink45); }
+  .tvcode-card .code { font:600 44px ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing:.24em; margin:12px 0 10px; }
+  .tvcode-card p { color:var(--ink66); font-size:14px; max-width:26em; }
+  .tvcode-card .who { margin-top:24px; display:flex; align-items:center; gap:12px; font-size:14px; }
+  .tvcode-card .who .av { width:34px; height:34px; border-radius:50%; background:var(--accent); color:#fff; display:grid; place-items:center; font-weight:600; }
+  @media (max-width:820px){ .row2 { grid-template-columns:1fr; gap:26px; padding:44px 0; } .row2.flip .text { order:0; } }
 
-  /* ---------- privacy band ---------- */
-  .band { margin-top:96px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:64px 0; }
-  .band .wrap { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:40px; align-items:start; }
-  .band ul { margin:18px 0 0; padding:0; list-style:none; display:grid; gap:12px; }
-  .band li { display:flex; gap:12px; color:var(--ink2); font-size:1rem; }
-  .band li::before { content:"◆"; color:var(--accent); font-size:.65em; line-height:2.2; }
-  .band .lede { margin-top:14px; }
-  @media (max-width:760px){ .band .wrap { grid-template-columns:1fr; } }
+  /* add-ons */
+  .parts { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:16px; margin-top:44px; }
+  .part { border:1px solid var(--hair); border-radius:18px; padding:22px 22px 24px; }
+  .part svg { width:24px; height:24px; fill:none; stroke:var(--text); stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+  .part h3 { font-size:1.05rem; margin-top:16px; }
+  .part p { color:var(--gray); font-size:14px; margin-top:6px; }
+  @media (max-width:860px){ .parts { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+  @media (max-width:480px){ .parts { grid-template-columns:1fr; } }
 
-  /* ---------- open ---------- */
-  .repos { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap:16px; margin-top:36px; }
-  .repo { display:block; text-decoration:none; border:1px solid var(--line); border-radius:var(--r); padding:22px 22px 20px; background:var(--surface);
-    transition:border-color .16s var(--ease); }
-  .repo:hover { border-color:var(--line2); }
-  .repo .eyebrow { display:block; margin-bottom:10px; }
-  .repo h3 { font-size:1.05rem; }
-  .repo p { margin-top:8px; color:var(--muted); font-size:.92rem; }
-  .repo .path { display:block; margin-top:14px; font-family:var(--mono); font-size:.72rem; color:var(--muted2); }
+  /* made in the open */
+  .open { display:grid; grid-template-columns:minmax(0, 4fr) minmax(0, 7fr); gap:64px; align-items:start; }
+  .stats { display:grid; gap:26px; margin-top:34px; }
+  .stat b { display:block; font-size:2.25rem; font-weight:600; letter-spacing:-.03em; line-height:1; }
+  .stat span { display:block; color:var(--gray); font-size:13px; margin-top:6px; }
+  .repos { display:grid; gap:12px; }
+  .repo { display:block; text-decoration:none; border:1px solid var(--hair); border-radius:16px; padding:18px 20px; }
+  .repo:hover { border-color:var(--hair2); }
+  .repo .eyebrow { display:block; }
+  .repo b { display:block; font-size:1.05rem; font-weight:600; margin-top:6px; letter-spacing:-.01em; }
+  .repo p { color:var(--gray); font-size:14px; margin-top:4px; }
+  .rel { margin-top:40px; }
+  .rel .cards { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); border:1px solid var(--hair); border-radius:16px; overflow:hidden; margin-top:12px; }
+  .rel .card { padding:18px 20px; border-left:1px solid var(--hair); }
+  .rel .card:first-child { border-left:0; }
+  .rel .card .eyebrow { display:block; }
+  .rel .card b { display:block; font-size:1.05rem; font-weight:600; margin-top:8px; }
+  .rel .card span { display:block; color:var(--gray2); font-size:12px; margin-top:4px; }
+  .rel a.more { display:inline-block; margin-top:14px; color:var(--text); font-size:14px; font-weight:500; }
+  @media (max-width:860px){ .open { grid-template-columns:1fr; gap:36px; } .rel .cards { grid-template-columns:1fr; } .rel .card { border-left:0; border-top:1px solid var(--hair); } .rel .card:first-child { border-top:0; } }
 
-  /* ---------- final cta + footer ---------- */
-  .final { text-align:center; padding:104px 0 24px; }
-  .final h2 { max-width:16em; margin:0 auto; }
-  .final .lede { margin:18px auto 0; text-align:center; }
-  .final .cta { margin-top:32px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
-  footer { margin-top:72px; border-top:1px solid var(--line); padding:32px 0 44px; color:var(--muted); font-size:.86rem; }
-  footer .wrap { display:grid; gap:18px; }
-  footer .row { display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; align-items:center; }
-  footer nav { display:flex; gap:20px; flex-wrap:wrap; }
-  footer a { color:var(--ink2); text-decoration:none; }
-  footer a:hover { color:#fff; }
-  footer .fine { color:var(--muted2); font-size:.8rem; line-height:1.55; max-width:70em; }
-  @media (prefers-reduced-motion: reduce){ html { scroll-behavior:auto; } .btn, .dl, .repo, .card summary::before { transition:none; } }
-  @media (max-width:560px){ .hero { padding:60px 0 30px; } .hero .cta .btn, .final .cta .btn { width:100%; justify-content:center; } section { padding-top:72px; } }
+  /* closing band + footer */
+  .band { text-align:center; padding:128px 0; }
+  .band h2 { max-width:14em; margin:0 auto; }
+  .band .lede { margin:22px auto 0; color:var(--ink66); max-width:32em; font-size:1.05rem; }
+  .band .cta { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:32px; }
+  footer { background:var(--dark); color:var(--ink); border-top:1px solid rgba(255,255,255,.08); padding:72px 0 56px; }
+  .isnot { display:grid; grid-template-columns:minmax(0, 3fr) minmax(0, 8fr); gap:48px; }
+  .isnot h3 { font-size:1.15rem; }
+  .isnot p { color:var(--ink66); font-size:14px; line-height:1.7; }
+  .isnot p + p { margin-top:14px; }
+  .isnot a { color:var(--ink); }
+  .foot { display:grid; grid-template-columns:minmax(0, 3fr) repeat(3, minmax(0, 2fr)); gap:32px; margin-top:72px; padding-top:40px; border-top:1px solid rgba(255,255,255,.08); font-size:14px; }
+  .foot .brand { display:flex; align-items:center; gap:8px; font-weight:600; letter-spacing:.12em; font-size:13px; }
+  .foot .brand .dia { color:var(--accent); }
+  .foot .small { color:var(--ink45); font-size:12px; margin-top:10px; line-height:1.6; }
+  .foot ul { list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+  .foot a { color:var(--ink66); text-decoration:none; }
+  .foot a:hover { color:var(--ink); }
+  @media (max-width:820px){ .isnot { grid-template-columns:1fr; gap:16px; } .foot { grid-template-columns:1fr 1fr; } }
+  @media (prefers-reduced-motion: reduce){ html { scroll-behavior:auto; } .btn, .copybtn, .repo { transition:none; } }
 </style>
 </head>
 <body>
 
-<header class="nav">
-  <div class="wrap">
-    <a class="brand" href="#"><span class="dia" aria-hidden="true">◆</span>NEBULA</a>
-    <nav>
-      <a href="#platforms">Download</a>
-      <a class="hide" href="#features">Features</a>
-      <a class="hide" href="#open">Source</a>
-      <a class="hide" href="/privacy.html">Privacy</a>
-      <a class="btn ghost" href="./player/">Open the web player</a>
+<section class="hero dark">
+  <div class="navbar">
+    <nav class="pillnav" aria-label="Site">
+      <a class="logo" href="#"><span class="dia" aria-hidden="true">◆</span>NEBULA</a>
+      <a class="item on" href="#">Home</a>
+      <a class="item" href="#screens">Download</a>
+      <a class="item hide" href="#features">Features</a>
+      <a class="item hide" href="#open">Source</a>
+      <a class="gh" href="https://github.com/retrocodes12/nebula-player" aria-label="GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+      <a class="btn solid navcta" href="./player/">Web player</a>
     </nav>
   </div>
-</header>
-
-<main>
-  <section class="hero" style="padding-top:88px">
-    <div class="wrap">
-      <p class="eyebrow">Free<span class="dot">◆</span>No email<span class="dot">◆</span>Your add-ons</p>
-      <h1>Your add-ons. Every screen you own.</h1>
-      <p class="lede">Nebula is a player for the TV, the desktop and the phone. Add a source, browse its catalogs, press play. It decrypts on the device, remembers where you stopped on every screen, and skips the parts you would skip.</p>
-      <div class="cta">
-        <a class="btn solid" id="smartdl" href="#platforms">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>
-          <span id="smartlabel">Download Nebula</span>
-        </a>
-        <a class="btn ghost" href="#platforms">Every screen</a>
-      </div>
-      <p class="plats">Windows · Android · Android&nbsp;TV · LG&nbsp;webOS · Web</p>
-    </div>
-    <div class="shot-wrap">
-      <figure class="shot" style="margin:0"><img src="site/player.jpg" width="1600" height="900" alt="The Nebula player on a TV: the film with the title and its source under it, the scrubber, and one toolbar of controls" fetchpriority="high"></figure>
-      <div class="facts"><span>Decrypts on the device</span><span>Profiles without an email</span><span>Watch parties</span><span>Skip intro</span></div>
-    </div>
-  </section>
-
-  <section id="platforms">
-    <div class="wrap">
-      <div class="sect-head">
-        <span class="eyebrow">Pick your screen</span>
-        <h2>One player, built for each screen it runs on.</h2>
-        <p class="lede">Installing over an older version keeps your add-ons, progress and settings. Sign in with a profile and they follow you to every other screen.</p>
-      </div>
-      <div class="grid">
-
-        <article class="card" id="card-webos">
-          <span class="youtag">Your device</span>
-          <div class="chead">
-            <span class="cico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="12" rx="1.6"/><path d="M8 20.5h8"/></svg></span>
-            <div>
-              <h3>LG TV<span class="ver" data-ver="webos">v1.58.0</span></h3>
-              <div class="meta">webOS 5 and newer · through the Homebrew Channel</div>
-            </div>
-          </div>
-          <div class="copyrow">
-            <code id="repourl">https://retrocodes12.github.io/nebula-player/apps.json</code>
-            <button class="copybtn" data-copy="repourl" type="button">Copy</button>
-          </div>
-          <div class="dls">
-            <a class="dl" data-dl="ipk" href="https://github.com/retrocodes12/nebula-player/releases/download/player-v1.58.0/com.nuvio.clearkey.player_1.58.0_all.ipk">
-              <span class="l"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Direct download for the TV</span>
-              <span class="sz">846 KB</span>
-            </a>
-          </div>
-          <details>
-            <summary>How to install</summary>
-            <ol>
-              <li>Install the <a href="https://github.com/webosbrew/webos-homebrew-channel">Homebrew Channel</a> on the TV once (it needs developer mode).</li>
-              <li>In the Homebrew Channel open <b>Settings → Add repository</b> and paste the address above.</li>
-              <li>Back in the list, open <b>Nebula</b> and press <b>Install</b>. Updates arrive in the same place.</li>
-            </ol>
-          </details>
-        </article>
-
-        <article class="card" id="card-android">
-          <span class="youtag">Your device</span>
-          <div class="chead">
-            <span class="cico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/></svg></span>
-            <div>
-              <h3>Android<span class="ver" data-ver="android">v1.53.0</span></h3>
-              <div class="meta">One app for phones, tablets and Android&nbsp;TV</div>
-            </div>
-          </div>
-          <div class="dls">
-            <a class="dl main" data-dl="apk" href="https://github.com/retrocodes12/nebula-android/releases/latest/download/Nebula.apk">
-              <span class="l"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Download for Android</span>
-              <span class="sz">15 MB</span>
-            </a>
-          </div>
-          <p class="note"><b>Android TV:</b> in the Downloader app, enter this code.</p>
-          <div class="copyrow">
-            <code class="tvcode" id="tvcode">7664693</code>
-            <button class="copybtn" data-copy="tvcode" type="button">Copy</button>
-          </div>
-          <p class="note">Voice remotes work too. Or type <code style="font-family:var(--mono)">da.gd/nebulaapk</code> for the same file.</p>
-          <details>
-            <summary>How to install</summary>
-            <ol>
-              <li><b>Phone or tablet:</b> open the file, allow your browser to install apps when asked, install.</li>
-              <li><b>Android TV:</b> install Downloader from the store, enter <code>7664693</code>, allow it to install apps when asked.</li>
-              <li>Nebula appears in the TV's launcher row; updates install in place.</li>
-            </ol>
-          </details>
-        </article>
-
-        <article class="card" id="card-windows">
-          <span class="youtag">Your device</span>
-          <div class="chead">
-            <span class="cico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12.5" rx="1.6"/><path d="M9 21h6M12 17v4"/></svg></span>
-            <div>
-              <h3>Windows<span class="ver" data-ver="desktop">v1.52.0</span></h3>
-              <div class="meta">Windows 10 and 11 · 64-bit</div>
-            </div>
-          </div>
-          <div class="dls">
-            <a class="dl main" data-dl="portable" href="https://github.com/retrocodes12/nebula-desktop/releases/latest/download/Nebula-Portable.exe">
-              <span class="l"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Portable, just run it</span>
-              <span class="sz">75 MB</span>
-            </a>
-            <a class="dl" data-dl="setup" href="https://github.com/retrocodes12/nebula-desktop/releases/latest/download/Nebula-Setup.exe">
-              <span class="l"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Installer</span>
-              <span class="sz">76 MB</span>
-            </a>
-          </div>
-          <details>
-            <summary>How to install</summary>
-            <ol>
-              <li><b>Portable</b> needs no install. Download it and double-click.</li>
-              <li>The app is unsigned, so Windows may warn once. Choose <b>More info → Run anyway</b>.</li>
-              <li>A mini player keeps a match in the corner while you work.</li>
-            </ol>
-          </details>
-        </article>
-
-        <article class="card" id="card-web">
-          <span class="youtag">Your device</span>
-          <div class="chead">
-            <span class="cico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.4 3.8 5.6 3.8 9S14.5 18.6 12 21c-2.5-2.4-3.8-5.6-3.8-9S9.5 5.4 12 3z"/></svg></span>
-            <div>
-              <h3>Web</h3>
-              <div class="meta">Nothing to install. The same player, in the browser.</div>
-            </div>
-          </div>
-          <div class="dls">
-            <a class="dl main" href="./player/">
-              <span class="l"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Open the web player</span>
-              <span class="sz">instant</span>
-            </a>
-          </div>
-          <p class="note">Best in Chrome or Edge, which carry the decryption module. Your add-ons stay in the browser, or in your profile.</p>
-        </article>
-
-      </div>
-    </div>
-  </section>
-
-  <section id="features">
-    <div class="wrap">
-      <div class="sect-head">
-        <span class="eyebrow">What it is like to use</span>
-        <h2>The polish of a big streaming app, pointed at your own sources.</h2>
-        <p class="lede">Nebula does not hand you a catalog. You bring the add-ons. What it adds is everything around them.</p>
-      </div>
-
-      <div class="feature">
-        <figure class="fig" style="margin:0"><img src="site/skip.jpg" width="1600" height="900" loading="lazy" alt="A film's opening titles with a Skip intro pill in the corner"></figure>
-        <div class="ftext">
-          <span class="eyebrow">Skip intro</span>
-          <h3>It knows where the titles are.</h3>
-          <p>A pill appears over an episode's recap and opening titles. Press it, or let Nebula skip them for you. The closing credits bring the next episode forward, so a six-episode evening never touches the scrub bar.</p>
-        </div>
-      </div>
-
-      <div class="feature flip">
-        <figure class="fig" style="margin:0"><img src="site/subtitles.jpg" width="1600" height="900" loading="lazy" alt="The Subtitles panel: languages with counts, the tracks in each, and timing and appearance alongside"></figure>
-        <div class="ftext">
-          <span class="eyebrow">Subtitles</span>
-          <h3>Every subtitle, one panel.</h3>
-          <p>Languages with a count of what is available, each language's tracks and where they came from, and the timing and look of the words beside them. Nudge a track that arrives early, make it larger for the sofa, and it stays that way on every screen.</p>
-        </div>
-      </div>
-
-      <div class="feature">
-        <figure class="fig" style="margin:0"><img src="site/upnext.jpg" width="1600" height="900" loading="lazy" alt="An Up next card naming the next chapter with its source already chosen"></figure>
-        <div class="ftext">
-          <span class="eyebrow">Instant next episode</span>
-          <h3>The next one is ready before this one ends.</h3>
-          <p>Nebula remembers which source you chose for a show and finds the next episode's stream while you are still watching. Play now starts it at once, from the same source and quality, with no list to pick from.</p>
-        </div>
-      </div>
-
-      <div class="feature flip">
-        <figure class="fig" style="margin:0"><img src="site/pause.jpg" width="1600" height="900" loading="lazy" alt="The player paused, with the title, the source and the time remaining"></figure>
-        <div class="ftext">
-          <span class="eyebrow">The quiet parts</span>
-          <h3>Pause, and it tells you where you are.</h3>
-          <p>A moment after you pause, the title, synopsis, time left and what plays next fade in. The clock top right says when it ends. On a TV, one toolbar holds everything the remote needs: next, subtitles, audio, quality, speed, a sleep timer and the party.</p>
-        </div>
-      </div>
-
-      <div class="quiet">
-        <div class="q">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9c0-.5 0-1-.1-1.5A6.5 6.5 0 0 1 13.5 3.1C13 3 12.5 3 12 3Z"/></svg>
-          <h3>Evenings, sorted</h3>
-          <p>A sleep timer that pauses after 15 to 90 minutes, or when the episode you are on ends, and rides along into the next one.</p>
-        </div>
-        <div class="q">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-          <h3>Profiles without an email</h3>
-          <p>A handle and a password. Add-ons, progress, your list and ratings follow you to every screen. A TV signs in with a short code you approve from your phone.</p>
-        </div>
-        <div class="q">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M2.5 20c0-3 2.5-5 5.5-5s5.5 2 5.5 5M10.5 20c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
-          <h3>Watch together</h3>
-          <p>A five-letter code or a QR puts friends on the same second, live streams included, with reactions and who is in the room.</p>
-        </div>
-        <div class="q">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          <h3>Decrypts on the device</h3>
-          <p>Protected streams play through the platform's own pipeline, on the TV, the PC or the phone. Nothing is re-streamed through a server.</p>
-        </div>
-        <div class="q">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M8 10l2 2 2-2M14 10h3"/></svg>
-          <h3>Made for the couch</h3>
-          <p>Full remote navigation, an icon rail, a full-bleed featured board, and a light paint mode for TV chipsets. Your accent colour, your row order.</p>
-        </div>
-        <div class="q">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg>
-          <h3>Keyboard first on the desktop</h3>
-          <p>Press ? for every shortcut: K, J, L for playback, S, A, Q for the pickers, N for the next episode, Z for the sleep timer, digits to jump.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="band" style="padding-top:64px">
-    <div class="wrap">
-      <div>
-        <span class="eyebrow">Private by design</span>
-        <h2>Nothing to sign up for.</h2>
-        <p class="lede">Nebula works with no account at all. A profile is optional, and it asks for a handle and a password, never an email, a phone number or a name.</p>
-      </div>
-      <ul>
-        <li>Your add-on list, progress and settings live on your device unless you create a profile.</li>
-        <li>No trackers, no analytics, no advertising identifiers on any screen.</li>
-        <li>Streams decrypt on the device. The server only relays sync, parties and the odd add-on that blocks browsers.</li>
-        <li>Everything the server ever sees is written down in the <a href="/privacy.html" style="color:var(--ink)">privacy page</a>, from the code.</li>
-      </ul>
-    </div>
-  </section>
-
-  <section id="open">
-    <div class="wrap">
-      <div class="sect-head">
-        <span class="eyebrow">Made in the open</span>
-        <h2>Every screen's app is public on GitHub.</h2>
-        <p class="lede">Read it, build it yourself, or send a patch. Releases are built by the repositories' own workflows, so what you download is what you can read.</p>
-      </div>
-      <div class="repos">
-        <a class="repo" href="https://github.com/retrocodes12/nebula-player">
-          <span class="eyebrow">Web · LG TV · server</span>
-          <h3>nebula-player</h3>
-          <p>The shared player, the TV package, this site and the small sync service behind profiles and parties.</p>
-          <span class="path">github.com/retrocodes12/nebula-player</span>
-        </a>
-        <a class="repo" href="https://github.com/retrocodes12/nebula-android">
-          <span class="eyebrow">Android · Android TV</span>
-          <h3>nebula-android</h3>
-          <p>The native app: the same player layout, remote navigation, picture-in-picture, one file for phones and TVs.</p>
-          <span class="path">github.com/retrocodes12/nebula-android</span>
-        </a>
-        <a class="repo" href="https://github.com/retrocodes12/nebula-desktop">
-          <span class="eyebrow">Windows</span>
-          <h3>nebula-desktop</h3>
-          <p>A thin desktop shell around the shared player, with a mini player that stays on top while you work.</p>
-          <span class="path">github.com/retrocodes12/nebula-desktop</span>
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <section class="final">
-    <div class="wrap">
-      <h2>Put it on the screen in front of you.</h2>
-      <p class="lede">A minute to install. Add a source once, and every other screen you sign in on comes back to the same library.</p>
-      <div class="cta">
-        <a class="btn solid" href="#platforms"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Get Nebula</a>
-        <a class="btn ghost" href="./player/">Open the web player</a>
-      </div>
-    </div>
-  </section>
-</main>
-
-<footer>
   <div class="wrap">
-    <div class="row">
-      <span><span class="dia" style="color:var(--accent)">◆</span> Nebula</span>
-      <nav>
-        <a href="https://github.com/retrocodes12/nebula-player">Source</a>
-        <a href="/privacy.html">Privacy</a>
-        <a href="https://github.com/retrocodes12/nebula-player/security/policy">Security</a>
-        <a href="./player/">Web player</a>
-      </nav>
+    <h1>Plays your add-ons on every screen you own.</h1>
+    <p class="lede">Nebula is a free player for the TV, the desktop and the phone. Add a source and it turns into a library, with artwork, episode lists, subtitles and your place kept across screens. There is no account to make and no email to give.</p>
+    <div class="cta">
+      <a class="btn solid" id="smartdl" href="#screens"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg><span id="smartlabel">Get Nebula</span></a>
+      <a class="btn ghost" href="https://github.com/retrocodes12/nebula-player"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>Read the source</a>
     </div>
-    <p class="fine">Nebula is a player. It browses catalogs and plays streams supplied by the add-ons you install; it does not host, store or provide any media, and it is meant for content you are entitled to watch. It is not affiliated with any add-on or content provider. The screenshots on this page show <a href="https://durian.blender.org/">Sintel</a>, © Blender Foundation, licensed CC BY 3.0.</p>
+    <p class="fine">Free to use. Nebula does not host, store or provide any media.</p>
+  </div>
+  <div class="mock">
+    <div class="tv"><div class="screen"><img src="site/player.jpg" width="1600" height="900" alt="Nebula playing a film on a TV, with the title, its source and the toolbar showing" fetchpriority="high"></div></div>
+    <div class="phone"><div class="screen"><img src="site/phone.jpg" width="1200" height="555" alt="The same film playing on a phone held sideways" loading="lazy"></div></div>
+  </div>
+  <div class="strip">
+    <div class="wrap">
+      <span><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/></svg>Android</span>
+      <span><svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="12" rx="1.6"/><path d="M8 20.5h8"/></svg>Android TV</span>
+      <span><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12.5" rx="1.6"/><path d="M9 21h6M12 17v4"/></svg>Windows</span>
+      <span><svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="12" rx="1.6"/><path d="M8 20.5h8"/></svg>LG webOS</span>
+      <span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.4 3.8 5.6 3.8 9S14.5 18.6 12 21c-2.5-2.4-3.8-5.6-3.8-9S9.5 5.4 12 3z"/></svg>Web</span>
+    </div>
+  </div>
+</section>
+
+<section class="light section" id="screens">
+  <div class="wrap">
+    <h2>Pick your screen.</h2>
+    <p class="sub">Each version is made for the screen it runs on. Choose yours and the download is right here.</p>
+    <div class="tabs" role="tablist" aria-label="Screens">
+      <button class="tab" role="tab" data-tab="phone" aria-selected="true"><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/></svg>Phone</button>
+      <button class="tab" role="tab" data-tab="tv" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="12" rx="1.6"/><path d="M8 20.5h8"/></svg>TV</button>
+      <button class="tab" role="tab" data-tab="desktop" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12.5" rx="1.6"/><path d="M9 21h6M12 17v4"/></svg>Desktop</button>
+      <button class="tab" role="tab" data-tab="web" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.4 3.8 5.6 3.8 9S14.5 18.6 12 21c-2.5-2.4-3.8-5.6-3.8-9S9.5 5.4 12 3z"/></svg>Web</button>
+    </div>
+
+    <div class="panel on" id="panel-phone" role="tabpanel">
+      <div>
+        <h3>Nebula for Android phones and tablets<span class="ver" data-ver="android">v1.53.0</span></h3>
+        <p>Browse, search and play on the phone. Sign in with a profile and your library and progress carry over to the TV. One file covers phones, tablets and Android TV.</p>
+      </div>
+      <div class="right">
+        <div class="row">
+          <a class="dl" data-dl="apk" href="https://github.com/retrocodes12/nebula-android/releases/latest/download/Nebula.apk"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Download for Android<span class="sz">15 MB</span></a>
+        </div>
+        <details>
+          <summary>Install notes</summary>
+          <ol>
+            <li>Open the downloaded file. Android asks once to allow installs from your browser.</li>
+            <li>Updates install over the old version and keep your add-ons and progress.</li>
+          </ol>
+        </details>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-tv" role="tabpanel">
+      <div>
+        <h3>Nebula for Android TV and LG TVs<span class="ver" data-ver="webos">v1.58.0</span></h3>
+        <p>The whole player, laid out for a remote. On Android TV, type a short code into the Downloader app. On an LG TV, add the repository in the Homebrew Channel and install from its list.</p>
+        <details>
+          <summary>Install notes</summary>
+          <ol>
+            <li><b>Android TV:</b> install Downloader from the store, enter <code>7664693</code>, and allow it to install apps when asked. Voice remotes can read the code out.</li>
+            <li><b>LG TV:</b> install the <a href="https://github.com/webosbrew/webos-homebrew-channel">Homebrew Channel</a> once (it needs developer mode), then Settings → Add repository → paste the address. Nebula appears in the list; updates arrive there too.</li>
+          </ol>
+        </details>
+      </div>
+      <div class="right">
+        <span class="label">Android TV code for the Downloader app</span>
+        <div class="codebox"><code class="tvcode" id="tvcode">7664693</code><button class="copybtn" data-copy="tvcode" type="button">Copy</button></div>
+        <span class="label">LG TV repository for the Homebrew Channel</span>
+        <div class="codebox"><code id="repourl">https://retrocodes12.github.io/nebula-player/apps.json</code><button class="copybtn" data-copy="repourl" type="button">Copy</button></div>
+        <div class="row" style="margin-top:6px">
+          <a class="dl alt" data-dl="ipk" href="https://github.com/retrocodes12/nebula-player/releases/download/player-v1.58.0/com.nuvio.clearkey.player_1.58.0_all.ipk"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>LG TV file<span class="sz">846 KB</span></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-desktop" role="tabpanel">
+      <div>
+        <h3>Nebula for Windows<span class="ver" data-ver="desktop">v1.52.0</span></h3>
+        <p>The same player in a window, with a mini player that stays on top while you work. Windows 10 and 11, 64-bit.</p>
+        <details>
+          <summary>Install notes</summary>
+          <ol>
+            <li>Portable needs no install. Download it and double-click.</li>
+            <li>The app is not signed, so Windows may warn the first time. Choose More info, then Run anyway.</li>
+          </ol>
+        </details>
+      </div>
+      <div class="right">
+        <div class="row">
+          <a class="dl" data-dl="portable" href="https://github.com/retrocodes12/nebula-desktop/releases/latest/download/Nebula-Portable.exe"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Portable<span class="sz">75 MB</span></a>
+          <a class="dl alt" data-dl="setup" href="https://github.com/retrocodes12/nebula-desktop/releases/latest/download/Nebula-Setup.exe"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Installer<span class="sz">76 MB</span></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-web" role="tabpanel">
+      <div>
+        <h3>Nebula in the browser</h3>
+        <p>Nothing to install. It is the same player, and it works best in Chrome or Edge, which carry the decryption module. Your add-ons stay in the browser, or in your profile if you make one.</p>
+      </div>
+      <div class="right">
+        <div class="row"><a class="dl" href="./player/"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Open the web player</a></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="light section tight" id="features" style="padding-top:0">
+  <div class="wrap">
+    <h2>What it is like to use.</h2>
+    <p class="sub">You bring the add-ons. Nebula makes the pages, finds the pictures and the subtitles, and takes care of the small things that make an evening of episodes easy.</p>
+    <div class="divider" style="margin-top:56px"></div>
+
+    <div class="row2">
+      <div class="text">
+        <h3>Subtitles, sorted by language</h3>
+        <p>Open the panel and every subtitle for the film is there, grouped by language with a count, whether it came with the file or from an add-on. Timing and size sit next to the list, so a track that runs early can be nudged without leaving the picture.</p>
+      </div>
+      <div class="frame"><div class="screen"><img src="site/subtitles.jpg" width="1600" height="900" loading="lazy" alt="The subtitles panel: languages with counts, the tracks for one language, and timing and appearance controls"></div></div>
+    </div>
+    <div class="divider"></div>
+
+    <div class="row2 flip">
+      <div class="text">
+        <h3>The next episode is already lined up</h3>
+        <p>Nebula remembers which source you picked for a show. Near the end it fetches the next episode from the same place, so Play now starts it straight away, and if you do nothing it rolls on by itself.</p>
+      </div>
+      <div class="frame"><div class="screen"><img src="site/upnext.jpg" width="1600" height="900" loading="lazy" alt="An Up next card over the closing scene, with the source already chosen"></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="dark section tight">
+  <div class="wrap">
+    <div class="row2" style="padding:0">
+      <div class="text">
+        <h3>Playback that keeps out of the way</h3>
+        <p>Press play and it plays. Nebula skips the recap and the opening when it knows where they are, and the closing credits bring the next episode forward. A whole season in one sitting, without reaching for the scrub bar.</p>
+        <ul class="checks">
+          <li><svg viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg>Skips intros and recaps, on its own if you prefer</li>
+          <li><svg viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg>Finds the next episode's stream while you are still watching</li>
+          <li><svg viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg>A sleep timer for the last episode of the night</li>
+          <li><svg viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg>Picture quality set once: automatic, best available, or data saver</li>
+        </ul>
+      </div>
+      <div class="frame"><div class="screen"><img src="site/skip.jpg" width="1600" height="900" loading="lazy" alt="A film's opening titles with a Skip intro button in the corner"></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="light section tight">
+  <div class="wrap">
+    <div class="row2 flip" style="padding-top:0">
+      <div class="text">
+        <h3>Pause, and the details show up</h3>
+        <p>Leave it paused for a moment and the title, the synopsis and the time left fade in, with the time it will finish. The clock sits in the corner while the controls are up, so you can tell whether there is room for one more.</p>
+      </div>
+      <div class="frame"><div class="screen"><img src="site/pause.jpg" width="1600" height="900" loading="lazy" alt="The player paused, showing the title, synopsis and time remaining"></div></div>
+    </div>
+    <div class="divider"></div>
+    <div class="row2">
+      <div class="text">
+        <h3>A profile without an email</h3>
+        <p>Pick a handle and a password. Your add-ons, progress, list and ratings follow you to every screen you sign in on. A TV signs in with a short code that you approve from your phone, so there is nothing to type with the remote.</p>
+      </div>
+      <div class="tvcode-card" aria-hidden="true">
+        <span class="eyebrow">Sign in on this TV</span>
+        <div class="code">K7RQ2M</div>
+        <p>Open Nebula on your phone, go to Profile, and enter this code. It expires in ten minutes.</p>
+        <div class="who"><span class="av">S</span><span>Approved from <b>Sohil's phone</b> · just now</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="light section tight" style="padding-top:0">
+  <div class="wrap">
+    <div class="divider" style="margin-bottom:96px"></div>
+    <h2>Works with the add-ons you already have.</h2>
+    <p class="sub">Catalogs and streams come from the add-ons you install. Paste a link once, or scan a code from your phone to add one to the TV. Nebula asks each add-on for four things and lays them out the way a streaming app would.</p>
+    <div class="parts">
+      <div class="part"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/></svg><h3>Catalogs</h3><p>Rows on Home, in the order you choose. Hide the ones you never open.</p></div>
+      <div class="part"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><h3>Title pages</h3><p>Artwork, cast, ratings, seasons and episodes, with your place marked.</p></div>
+      <div class="part"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><h3>Streams</h3><p>Every add-on's streams in one list, labelled by resolution, size and language.</p></div>
+      <div class="part"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15h5M14 15h3M7 11h3M12 11h5"/></svg><h3>Subtitles</h3><p>Downloaded, cleaned up and re-timed on the device, in the style you set.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="light section tight" id="open" style="padding-top:0">
+  <div class="wrap">
+    <div class="divider" style="margin-bottom:96px"></div>
+    <div class="open">
+      <div>
+        <h2>Made in the open.</h2>
+        <p class="sub">The player, the Android app and the Windows app are public on GitHub. Read the code, build it yourself, or send a patch. Every release is built by the repository's own workflow.</p>
+        <div class="stats">
+          <div class="stat"><b id="statReleases">—</b><span>Releases in the last 30 days</span></div>
+          <div class="stat"><b>5</b><span>Screens: Android, Android TV, LG TV, Windows and the web</span></div>
+        </div>
+        <a class="btn solid onlight" href="https://github.com/retrocodes12" style="margin-top:28px"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>Open on GitHub</a>
+      </div>
+      <div>
+        <div class="repos">
+          <a class="repo" href="https://github.com/retrocodes12/nebula-player"><span class="eyebrow">Web · LG TV · server</span><b>nebula-player</b><p>The shared player, the TV package, this site and the small service behind profiles and parties.</p></a>
+          <a class="repo" href="https://github.com/retrocodes12/nebula-android"><span class="eyebrow">Android · Android TV</span><b>nebula-android</b><p>The native app. One file for phones, tablets and TVs.</p></a>
+          <a class="repo" href="https://github.com/retrocodes12/nebula-desktop"><span class="eyebrow">Windows</span><b>nebula-desktop</b><p>A thin desktop shell around the shared player, with the mini player.</p></a>
+        </div>
+        <div class="rel">
+          <span class="eyebrow">Latest releases</span>
+          <div class="cards" id="relCards">
+            <div class="card"><span class="eyebrow">nebula-player</span><b id="rel-player">webOS 1.58.0</b><span id="reld-player">Sep 2, 2026</span></div>
+            <div class="card"><span class="eyebrow">nebula-android</span><b id="rel-android">1.53.0</b><span id="reld-android">Sep 2, 2026</span></div>
+            <div class="card"><span class="eyebrow">nebula-desktop</span><b id="rel-desktop">1.52.0</b><span id="reld-desktop">Sep 2, 2026</span></div>
+          </div>
+          <a class="more" href="https://github.com/retrocodes12/nebula-player/releases">See every release</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="dark band">
+  <div class="wrap">
+    <h2>Set it up once, on whichever screen is nearest.</h2>
+    <p class="lede">Install takes a minute. Sign in with a profile on one screen and the others pick up where you left off.</p>
+    <div class="cta">
+      <a class="btn solid" href="#screens"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Get Nebula</a>
+      <a class="btn ghost" href="/privacy.html">How your data is handled</a>
+    </div>
+  </div>
+</section>
+
+<footer class="dark">
+  <div class="wrap">
+    <div class="isnot">
+      <h3>What Nebula is not.</h3>
+      <div>
+        <p>Nebula is a player. It browses catalogs and plays streams supplied by the add-ons you install, or links you give it, and it is meant for content you are entitled to watch. It does not host, store or distribute media.</p>
+        <p>Nebula is not affiliated with any add-on, catalog, source or content provider.</p>
+        <p>The screenshots on this page show <a href="https://durian.blender.org/">Sintel</a>, an open film by the Blender Foundation, licensed CC BY 3.0. The title and source lines in them were filled in for the picture; the interface is the real one. In the app, artwork and details come from the add-ons you install.</p>
+      </div>
+    </div>
+    <div class="foot">
+      <div>
+        <div class="brand"><span class="dia" aria-hidden="true">◆</span>NEBULA</div>
+        <p class="small">© 2026 Nebula<br>Free to use. Built in the open.</p>
+      </div>
+      <ul><li><a href="#screens">Download</a></li><li><a href="./player/">Web player</a></li><li><a href="/privacy.html">Privacy</a></li></ul>
+      <ul><li><a href="https://github.com/retrocodes12/nebula-player">nebula-player</a></li><li><a href="https://github.com/retrocodes12/nebula-android">nebula-android</a></li><li><a href="https://github.com/retrocodes12/nebula-desktop">nebula-desktop</a></li></ul>
+      <ul><li><a href="https://github.com/retrocodes12/nebula-player/security/policy">Security</a></li><li><a href="https://github.com/retrocodes12/nebula-player/releases">Releases</a></li><li><a href="https://github.com/retrocodes12">GitHub</a></li></ul>
+    </div>
   </div>
 </footer>
 
 <script>
 (function () {
   var ua = navigator.userAgent;
-  var os = /Windows/i.test(ua) ? "windows"
-         : /Android/i.test(ua) ? "android"
-         : /Web0S|webOS|NetCast/i.test(ua) ? "webos"
-         : null;
+  var os = /Windows/i.test(ua) ? "windows" : /Android/i.test(ua) ? "android" : /Web0S|webOS|NetCast/i.test(ua) ? "webos" : null;
 
-  // Highlight the visitor's platform + point the hero button at it
-  var smart = document.getElementById("smartdl");
-  var label = document.getElementById("smartlabel");
-  if (os) {
-    var card = document.getElementById("card-" + os);
-    if (card) card.classList.add("you");
-    if (os === "windows") {
-      smart.href = document.querySelector('[data-dl="portable"]').href;
-      label.textContent = "Download for Windows";
-    } else if (os === "android") {
-      smart.href = document.querySelector('[data-dl="apk"]').href;
-      label.textContent = "Download for Android";
-    } else if (os === "webos") {
-      smart.href = "#card-webos";
-      label.textContent = "Install on this TV";
-    }
-  } else {
-    document.getElementById("card-web").classList.add("you");
-    smart.href = "./player/";
-    label.textContent = "Open the web player";
+  // tabs
+  var tabs = document.querySelectorAll(".tab");
+  function showTab(name) {
+    tabs.forEach(function (t) { t.setAttribute("aria-selected", t.getAttribute("data-tab") === name ? "true" : "false"); });
+    document.querySelectorAll(".panel").forEach(function (p) { p.classList.toggle("on", p.id === "panel-" + name); });
   }
+  tabs.forEach(function (t) { t.addEventListener("click", function () { showTab(t.getAttribute("data-tab")); }); });
 
-  // Copy buttons (Homebrew repo URL, Android TV short code)
+  // the visitor's platform: preselect the tab and point the hero button at the right file
+  var smart = document.getElementById("smartdl"), label = document.getElementById("smartlabel");
+  if (os === "windows") { showTab("desktop"); smart.href = document.querySelector('[data-dl="portable"]').href; label.textContent = "Download for Windows"; }
+  else if (os === "android") { showTab("phone"); smart.href = document.querySelector('[data-dl="apk"]').href; label.textContent = "Download for Android"; }
+  else if (os === "webos") { showTab("tv"); smart.href = "#screens"; label.textContent = "Install on this TV"; }
+  else { showTab("web"); smart.href = "./player/"; label.textContent = "Open the web player"; }
+
+  // copy buttons
   document.querySelectorAll(".copybtn[data-copy]").forEach(function (btn) {
     btn.addEventListener("click", function () {
       var text = document.getElementById(btn.getAttribute("data-copy")).textContent;
-      function done() {
-        btn.textContent = "Copied";
-        setTimeout(function () { btn.textContent = "Copy"; }, 1600);
-      }
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done, function () { window.prompt("Copy this:", text); });
-      } else {
-        window.prompt("Copy this:", text);
-      }
+      function done() { btn.textContent = "Copied"; setTimeout(function () { btn.textContent = "Copy"; }, 1600); }
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () { window.prompt("Copy this:", text); });
+      else window.prompt("Copy this:", text);
     });
   });
 
-  // Keep versions + links fresh from GitHub releases (fallback: the hard-coded links above)
-  function fmtMB(bytes) {
-    return bytes >= 1048576 ? Math.round(bytes / 1048576) + " MB" : Math.round(bytes / 1024) + " KB";
-  }
-  function refresh(repo, verKey, picks) {
-    fetch("https://api.github.com/repos/retrocodes12/" + repo + "/releases/latest")
+  // live versions, links, dates and stars from GitHub (the built-in values stand in when offline)
+  function fmtMB(bytes) { return bytes >= 1048576 ? Math.round(bytes / 1048576) + " MB" : Math.round(bytes / 1024) + " KB"; }
+  function fmtDate(iso) { try { return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); } catch (e) { return ""; } }
+  var recent = 0;
+  function refresh(repo, verKey, picks, relKey) {
+    fetch("https://api.github.com/repos/retrocodes12/" + repo + "/releases?per_page=10")
       .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
-      .then(function (rel) {
-        var ver = document.querySelector('[data-ver="' + verKey + '"]');
-        if (ver && rel.tag_name) ver.textContent = rel.tag_name.replace(/^player-/, "");
+      .then(function (list) {
+        var cutoff = Date.now() - 30 * 86400000;
+        list.forEach(function (rel) { if (new Date(rel.published_at).getTime() > cutoff) recent++; });
+        var rel = list.filter(function (x) { return relKey !== "player" || /^player-/.test(x.tag_name); })[0];
+        if (!rel) return;
+        var v = rel.tag_name.replace(/^player-/, "");
+        var ver = document.querySelector('[data-ver="' + verKey + '"]'); if (ver) ver.textContent = v;
+        var rb = document.getElementById("rel-" + relKey), rd = document.getElementById("reld-" + relKey);
+        if (rb) rb.textContent = (relKey === "player" ? "webOS " : "") + v.replace(/^v/, "");
+        if (rd) rd.textContent = fmtDate(rel.published_at);
         (rel.assets || []).forEach(function (a) {
           Object.keys(picks).forEach(function (key) {
             if (picks[key].test(a.name)) {
               var el = document.querySelector('[data-dl="' + key + '"]');
               if (el) {
                 el.href = a.browser_download_url;
-                var sz = el.querySelector(".sz");
-                if (sz) sz.textContent = fmtMB(a.size);
+                var sz = el.querySelector(".sz"); if (sz) sz.textContent = fmtMB(a.size);
                 if (key === "portable" && os === "windows") smart.href = a.browser_download_url;
                 if (key === "apk" && os === "android") smart.href = a.browser_download_url;
               }
             }
           });
         });
+        document.getElementById("statReleases").textContent = String(recent);
       })
-      .catch(function () { /* offline or rate-limited — keep the built-in links */ });
+      .catch(function () {});
   }
-  refresh("nebula-desktop", "desktop", { portable: /Portable.*\.exe$/i, setup: /Setup.*\.exe$/i });
-  refresh("nebula-android", "android", { apk: /^Nebula\.apk$/i });
-  refresh("nebula-player", "webos", { ipk: /\.ipk$/i });
+  refresh("nebula-desktop", "desktop", { portable: /Portable.*\.exe$/i, setup: /Setup.*\.exe$/i }, "desktop");
+  refresh("nebula-android", "android", { apk: /^Nebula\.apk$/i }, "android");
+  refresh("nebula-player", "webos", { ipk: /\.ipk$/i }, "player");
 })();
 </script>
 </body>
