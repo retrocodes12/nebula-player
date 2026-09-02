@@ -760,7 +760,7 @@
   html.tv .pui-round.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
   .pui-round.focusable:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
   @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
-    .pui-round, .pui-btn, .pui-time, .pui-bar, .qmenu, #upnext, .pui-live {
+    .pui-round, .pui-btn, .pui-time, .pui-bar, .qmenu, #upnext, .pui-live, .pui-tip {
       -webkit-backdrop-filter:saturate(180%) blur(18px); backdrop-filter:saturate(180%) blur(18px); }
   }
   .pui-winrow { margin-left:auto; display:flex; align-items:center; }
@@ -842,6 +842,25 @@
   .pui-buf { position:absolute; top:0; left:0; bottom:0; width:0; background:rgba(255,255,255,.38); }
   .pui-fill { position:absolute; top:0; left:0; bottom:0; width:0; background:#fff; }
   .pui-knob { display:none; }
+  /* scrub preview: a ghost knob where the jump would land and, above it, one glass card —
+     the time and the jump, with a frame of that moment when one can be had */
+  .pui-ghost { display:none; position:absolute; top:50%; left:0; width:14px; height:14px; margin:-7px 0 0 -7px; border-radius:50%;
+    background:rgba(255,255,255,.6); box-shadow:0 0 0 2px rgba(0,0,0,.3); pointer-events:none; z-index:2; }
+  .pui-tip { display:none; position:absolute; bottom:100%; left:0; margin-bottom:10px; padding:5px; border-radius:14px; text-align:center;
+    background:rgba(44,44,46,.78); box-shadow:0 12px 32px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.10);
+    pointer-events:none; white-space:nowrap; z-index:3; }
+  .pui-seek.scrub .pui-ghost, .pui-seek.scrub .pui-tip { display:block; }
+  .pui-tipframe { display:none; width:160px; height:90px; margin:0 auto 5px; border-radius:8px; overflow:hidden; background-color:#000;
+    background-repeat:no-repeat; box-shadow:inset 0 0 0 1px rgba(255,255,255,.12); transition:opacity .18s var(--ease); }
+  .pui-tip.frame .pui-tipframe { display:block; }
+  .pui-tipframe.stale { opacity:.55; }
+  .pui-tipframe canvas { display:block; width:100%; height:100%; }
+  .pui-tipline { display:flex; align-items:baseline; justify-content:center; padding:3px 9px 4px; }
+  .pui-tipt { font-family:var(--mono); font-size:14px; font-weight:500; color:#fff; font-variant-numeric:tabular-nums; letter-spacing:.01em; }
+  .pui-tipd { font-family:var(--mono); font-size:12px; color:rgba(235,235,245,.6); margin-left:8px; font-variant-numeric:tabular-nums; }
+  .pui-tipd:empty { display:none; }
+  /* the shadow copy that supplies frames: present, silent, off-screen */
+  #puiShadow { position:fixed; left:-9999px; top:0; width:2px; height:2px; opacity:0; pointer-events:none; }
   html.tv .pui-seek:focus { box-shadow:0 0 0 4px rgba(255,255,255,.35); border-radius:8px; }
   .pui-seek:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.35); border-radius:8px; }
   /* under the scrubber: a time pill at each end, then one glass toolbar centred beneath them */
@@ -928,6 +947,10 @@
   #skipBtn.show { display:block; animation:upIn .28s var(--ease) both; }
   #pui.idle #skipBtn { bottom:40px; }
   @media (prefers-reduced-motion: reduce){ #skipBtn.show { animation:none; } }
+  /* while a finger or the pointer scrubs, the up-next card and the skip pill (same corner, a higher layer) step out of the card's way */
+  body.scrubbing #upnext, body.scrubbing #skipBtn { visibility:hidden; }
+  /* the Up next card and the Skip pill stay under the subtitles panel while it is open */
+  body.sp-on #upnext, body.sp-on #skipBtn { visibility:hidden; }
   /* the row that matches what you picked last time — same source, same quality */
   .stream.usual { box-shadow:inset 0 0 0 1px rgba(255,255,255,.16); }
   .s-usual { display:block; font-family:var(--mono); font-size:10px; font-weight:500; letter-spacing:.14em;
@@ -942,6 +965,8 @@
   /* the board already says what's playing — don't say it twice */
   .pui-titles { transition:opacity .35s var(--ease); }
   #pui.pb-on .pui-titles { opacity:0; }
+  /* while the scrub card is up the title block steps back so the card reads over it at the rail's left end */
+  body.scrubbing .pui-titles { opacity:.3; }
   #pauseBoard { display:none; position:absolute; left:40px; top:104px; z-index:6; width:46%; max-width:640px;
     pointer-events:none; }
   #pui.pb-on #pauseBoard { display:block; animation:pbIn .55s var(--ease) both; }
@@ -1320,7 +1345,7 @@
     .streams { max-width:none; }
   }
   /* an upright phone has no room for the clock beside the round buttons (its status bar has one) */
-  @media (max-width:480px){ .pui-clock { display:none; } }
+  @media (max-width:480px){ .pui-clock { display:none; } .pui-tipframe { width:128px; height:72px; } }
   /* a phone on its side: a smaller title block, and the time pills flank the toolbar on one row */
   @media (max-height:480px){
     .pui-bottom { padding-bottom:16px; }
@@ -1328,6 +1353,7 @@
     .pui-title { font-size:17px; }
     .pui-sub { font-size:12px; margin-top:3px; }
     .pui-src { display:none; }
+    .pui-tipframe { width:128px; height:72px; }
     .pui-foot { flex-wrap:nowrap; margin-top:8px; }
     #puiTimeR { order:2; }
     .pui-barwrap { order:1; flex:1 1 auto; width:auto; margin:0 10px; }
@@ -1432,6 +1458,12 @@
   html.tv .pui-sub { font-size:18px; margin-top:6px; }
   html.tv .pui-btn { font-size:17px; padding:12px 22px; }
   html.tv .pui-rail { height:11px; border-radius:7px; }
+  html.tv .pui-ghost { width:18px; height:18px; margin:-9px 0 0 -9px; }
+  html.tv .pui-tip { margin-bottom:14px; padding:6px; border-radius:18px; }
+  html.tv .pui-tipframe { width:240px; height:135px; margin-bottom:6px; }
+  html.tv .pui-tipline { padding:4px 12px 6px; }
+  html.tv .pui-tipt { font-size:20px; }
+  html.tv .pui-tipd { font-size:16px; margin-left:10px; }
   html.tv .pui-foot { margin-top:12px; }
   html.tv .pui-time { font-size:15px; padding:8px 15px; }
   html.tv .pui-barwrap { margin-top:16px; }
@@ -1494,6 +1526,8 @@
   html.lite .pui-dim { transition:none; }
   html.lite #pui.pb-on #pauseBoard { animation:none; }
   html.lite .pui-time, html.lite .sp-opt, html.lite .sp-card, html.lite .sp-step { transition:none; }
+  html.lite .pui-tip { box-shadow:inset 0 0 0 1px rgba(255,255,255,.10); }
+  html.lite .pui-tipframe { transition:none; }
 
 </style>
 </head>
@@ -1509,6 +1543,8 @@
   </div>
 
   <video id="video" autoplay playsinline></video>
+  <!-- scrub preview: a silent second copy of a plain progressive stream that only ever seeks, for the frame in the tip -->
+  <video id="puiShadow" muted playsinline preload="metadata" tabindex="-1"></video>
 
   <div id="updBanner">
     <span id="updText"></span>
@@ -1563,8 +1599,11 @@
           <div id="puiSub" class="pui-sub"></div>
         </div>
       </div>
-      <div id="puiSeek" class="focusable pui-seek" tabindex="0" title="Seek">
+      <div id="puiSeek" class="focusable pui-seek" tabindex="0" aria-label="Seek">
         <div class="pui-rail"><div id="puiBuf" class="pui-buf"></div><div id="puiFill" class="pui-fill"></div><div id="puiKnob" class="pui-knob"></div></div>
+        <!-- scrub preview: the ghost knob and the card above it (time · jump, and a frame when there is one) -->
+        <div id="puiGhost" class="pui-ghost"></div>
+        <div id="puiTip" class="pui-tip" aria-hidden="true"><div id="puiTipFrame" class="pui-tipframe"></div><div class="pui-tipline"><span id="puiTipT" class="pui-tipt">0:00</span><span id="puiTipD" class="pui-tipd"></span></div></div>
       </div>
       <!-- elapsed at the left, what is left at the right (press it for the total), then the toolbar -->
       <div class="pui-foot">
@@ -1749,6 +1788,10 @@
           <span id="setSkip" class="seg"></span>
         </div>
         <div class="setrow">
+          <span class="setname">Preview frames while scrubbing<small>A picture of where you are about to jump · Turn it off if playback stutters on your TV</small></span>
+          <span id="setScrub" class="seg"></span>
+        </div>
+        <div class="setrow">
           <span class="setname">Picture quality<small>Auto adapts to your connection · Start high opens at the best rendition · Data saver caps at 720p</small></span>
           <span id="setQuality" class="seg"></span>
         </div>
@@ -1887,7 +1930,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.02.9';
+  var PLAYER_VERSION = '2026.09.02.10';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -2198,7 +2241,8 @@
     if (video.style.display==='block'){
       var isBack = (k===461 || k===8 || e.key==='GoBack' || e.key==='BrowserBack');
       if (isBack){
-        if (upnextState.open){ dismissUpNext(); }
+        if (scrubState.on){ scrubCancel(); puiShow(); }    // a pending jump is its own layer; the controls stay
+        else if (upnextState.open){ dismissUpNext(); }
         else if (puiState.menu){ closePuiMenu(true); }
         else if (pui.className !== 'idle'){ puiIdle(); }
         else { goBack(); }
@@ -2212,7 +2256,8 @@
       }
       if (!inInput && !mod && !e.shiftKey){
         if (k===27){                                          // Esc peels one layer at a time
-          if (puiState.menu) closePuiMenu(true);
+          if (scrubState.on){ scrubCancel(); puiShow(); }
+          else if (puiState.menu) closePuiMenu(true);
           else if (upnextState.open) dismissUpNext();
           else if (pui.className !== 'idle') puiIdle();
           e.preventDefault(); return;
@@ -2272,10 +2317,16 @@
         else if (k===13){ setTimeout(function(){ $id('puiPlay').focus(); }, 30); }
         e.preventDefault(); return;
       }
-      // controls visible: arrows move focus (left/right on the seek bar seek)
+      // controls visible: arrows move focus (the focused seek bar is scrub mode)
       puiShow();
       var ae = document.activeElement;
-      if (ae && ae.id==='puiSeek' && (k===37||k===39)){ seekBy(k===37?-10:10); e.preventDefault(); return; }
+      if (ae && ae.id==='puiSeek'){
+        // ←/→ move a preview along the rail (faster under quick repeated presses), OK jumps there,
+        // Back/Esc drops it, and so do four quiet seconds — nothing moves until you say so
+        if (k===37||k===39){ scrubStep(k===37?-1:1); e.preventDefault(); return; }
+        if (k===13 && scrubState.on){ scrubCommit(); e.preventDefault(); return; }
+        if ((k===38||k===40) && scrubState.on) scrubCancel();   // leaving the rail drops the preview
+      }
       // the toolbar is one row: ←/→ stay on it (the bar is centred, so the nearest thing sideways
       // was the Back button in the far corner); past its last item → reaches the right time pill
       var barEl = $id('puiBar'), timeR = $id('puiTimeR');
@@ -5292,6 +5343,8 @@
     clearInterval(puiState.tick);
     clearTimeout(puiState.idleTimer);
     closePuiMenu(false);
+    scrubCancel();
+    shadowTeardown();                    // the shadow copy goes with the stream, cache and all
     exitPip();
     resetSubs();
     if (miniOn) setMini(false);
@@ -5407,6 +5460,7 @@
       try { await video.play(); } catch(e){}
       $id('puiSpin').style.display = 'none';
       puiRefreshButtons(); puiTick();
+      shadowArm();                       // a frame source for the scrub preview, when this stream allows one
       // ask the subtitle add-ons what they have for this title (candidates only —
       // nothing is downloaded until one is picked)
       if (curPlay && curPlay.type && curPlay.id) loadAddonSubs(curPlay.type, curPlay.id, seq);
@@ -5693,6 +5747,211 @@
     if (p<0) p=0; if (p>1) p=1;
     video.currentTime = r.start + (r.end-r.start)*p; puiTick();
   }
+
+  // ---- scrub preview ----
+  // A glass card above the scrubber: the moment you are about to jump to, how far
+  // that is from here and, when a frame can be had, a picture of it. The mouse
+  // hovers it, a finger drags it, and on the focused rail ←/→ move a ghost knob
+  // that OK commits and Back drops. Frames come from the stream's own thumbnails
+  // first; a plain progressive file gets a silent shadow copy that only seeks.
+  var scrubState = { on:false, t:0, run:0, lastAt:0, timer:null, hideTimer:null, req:0 };
+  var SCRUB_HOLD = 4000, SCRUB_DEBOUNCE = 120, SHADOW_CAP = 240, SHADOW_STALL = 4000;
+  var shadow = $id('puiShadow'), shadowCache = new Map();
+  var shadowState = { armed:false, want:-1, busy:false, busyAt:0, reqT:0, timer:null };
+  /** Frames from the shadow copy: on by default, off on the TV itself (a second decode can stall the one playing). */
+  function scrubFramesOn(){ var pr = getPrefs(); return IS_WEBOS ? pr.scrubFrames === true : pr.scrubFrames !== false; }
+  function tipFrameSize(){
+    if (IS_TV) return [240, 135];
+    return (window.innerWidth <= 480 || window.innerHeight <= 480) ? [128, 72] : [160, 90];
+  }
+  function scrubShowing(){ var s = $id('puiSeek'); return !!(s && s.classList.contains('scrub')); }
+  /** Put the ghost and the card at the preview position, the card clamped inside the rail. */
+  function scrubPlace(){
+    var seek = $id('puiSeek'), tip = $id('puiTip'), r = puiRange();
+    if (!seek || !tip || r.end <= r.start) return;
+    var w = seek.clientWidth || 0, x = (scrubState.t - r.start) / (r.end - r.start) * w;
+    $id('puiGhost').style.left = x.toFixed(1) + 'px';
+    var tw = tip.offsetWidth || 0, left = x - tw / 2;
+    if (left + tw > w) left = w - tw;
+    if (left < 0) left = 0;
+    tip.style.left = Math.round(left) + 'px';
+  }
+  /** Show the preview for media time t: the time, the jump from here, and a frame if one can be had. */
+  function scrubRender(t){
+    var r = puiRange(); if (r.end <= r.start) return;
+    if (t < r.start) t = r.start; if (t > r.end) t = r.end;
+    scrubState.t = t;
+    $id('puiSeek').classList.add('scrub');
+    document.body.classList.add('scrubbing');   // on body: puiShow() rewrites #pui's className wholesale
+    if (puiIsLive()){
+      var lag = r.end - t;
+      $id('puiTipT').textContent = lag > 12 ? '−' + fmtT(lag) + ' behind live' : 'At the live edge';
+      $id('puiTipD').textContent = '';
+      scrubFrameClear();                       // a live stream never gets a frame
+    } else {
+      var d = t - video.currentTime;
+      $id('puiTipT').textContent = fmtT(t - r.start);
+      $id('puiTipD').textContent = Math.abs(d) < 0.5 ? '' : (d > 0 ? '+' : '−') + fmtT(Math.abs(d));
+      scrubFrameFor(t);
+    }
+    scrubPlace();
+  }
+  function scrubHide(){
+    clearTimeout(scrubState.hideTimer); scrubState.hideTimer = null;
+    var seek = $id('puiSeek'); if (seek) seek.classList.remove('scrub');
+    document.body.classList.remove('scrubbing');
+    scrubState.req++;                          // a thumbnail still in flight lands on nothing
+    shadowState.want = -1; clearTimeout(shadowState.timer); shadowState.timer = null;
+  }
+  /** ←/→ on the focused rail: move the preview — 10 s a press, 30 s after five quick ones, 60 s after ten. */
+  function scrubStep(dir){
+    var now = Date.now();
+    scrubState.run = (now - scrubState.lastAt < 400) ? scrubState.run + 1 : 1;
+    scrubState.lastAt = now;
+    var step = scrubState.run > 10 ? 60 : (scrubState.run > 5 ? 30 : 10);
+    var from = scrubState.on ? scrubState.t : video.currentTime;
+    scrubState.on = true;
+    scrubRender(from + dir * step);
+    clearTimeout(scrubState.timer);
+    scrubState.timer = setTimeout(function(){ scrubCancel(); puiShow(); }, SCRUB_HOLD);   // quiet → dropped, never committed
+  }
+  /** OK on the rail: jump to the preview. */
+  function scrubCommit(){
+    if (!scrubState.on) return;
+    var t = scrubState.t, r = puiRange();
+    scrubCancel();
+    if (r.end > r.start){ if (t < r.start) t = r.start; if (t > r.end) t = r.end; video.currentTime = t; }
+    puiTick(); puiShow();
+  }
+  function scrubCancel(){
+    clearTimeout(scrubState.timer); scrubState.timer = null;
+    scrubState.on = false; scrubState.run = 0;
+    scrubHide();
+  }
+  // -- frames --
+  function imageTrackId(){
+    try {
+      if (!player || !player.getImageTracks) return null;
+      var tr = player.getImageTracks(); if (!tr || !tr.length) return null;
+      for (var i = 0; i < tr.length; i++) if (tr[i].active) return tr[i].id;
+      return tr[0].id;
+    } catch(e){ return null; }
+  }
+  function scrubFrameFor(t){
+    var trackId = imageTrackId();
+    if (trackId !== null){ scrubThumb(trackId, t); return; }          // the stream brought its own
+    if (!shadowState.armed){ scrubFrameClear(); return; }
+    var b = shadowBucket(t), hit = shadowCache.get(b) || shadowCache.get(b - 1) || shadowCache.get(b + 1);
+    if (hit) scrubFrameSet(hit, !shadowCache.has(b)); else scrubFrameStale();   // the nearest we have, now; the exact one follows
+    shadowState.want = t;
+    clearTimeout(shadowState.timer);
+    shadowState.timer = setTimeout(shadowPump, SCRUB_DEBOUNCE);
+  }
+  /** A stream-provided thumbnail: paint its sprite region into the tile. */
+  function scrubThumb(trackId, t){
+    var seq = ++scrubState.req, pr = null;
+    try { pr = player.getThumbnails(trackId, t); } catch(e){ pr = null; }
+    if (!pr || !pr.then){ scrubFrameClear(); return; }
+    pr.then(function(th){
+      if (seq !== scrubState.req) return;
+      if (!th || !th.uris || !th.uris.length){ scrubFrameClear(); return; }
+      var f = $id('puiTipFrame'), sz = tipFrameSize();
+      var sx = th.width ? sz[0] / th.width : 1, sy = th.height ? sz[1] / th.height : 1;
+      var iw = th.imageWidth || th.width || sz[0], ih = th.imageHeight || th.height || sz[1];
+      while (f.firstChild) f.removeChild(f.firstChild);
+      f.style.backgroundImage = 'url("' + String(th.uris[0]).replace(/"/g, '%22') + '")';
+      f.style.backgroundSize = Math.round(iw * sx) + 'px ' + Math.round(ih * sy) + 'px';
+      f.style.backgroundPosition = (-Math.round((th.positionX || 0) * sx)) + 'px ' + (-Math.round((th.positionY || 0) * sy)) + 'px';
+      f.classList.remove('stale');
+      $id('puiTip').classList.add('frame');
+      scrubPlace();
+    }, function(){ if (seq === scrubState.req) scrubFrameClear(); });
+  }
+  function scrubFrameSet(canvas, stale){
+    var f = $id('puiTipFrame');
+    f.style.backgroundImage = ''; f.style.backgroundSize = ''; f.style.backgroundPosition = '';
+    if (f.firstChild !== canvas){ while (f.firstChild) f.removeChild(f.firstChild); f.appendChild(canvas); }
+    f.classList[stale ? 'add' : 'remove']('stale');
+    $id('puiTip').classList.add('frame');
+    scrubPlace();
+  }
+  function scrubFrameStale(){ if ($id('puiTip').classList.contains('frame')) $id('puiTipFrame').classList.add('stale'); }
+  function scrubFrameClear(){
+    var tip = $id('puiTip'), f = $id('puiTipFrame');
+    if (!tip.classList.contains('frame')) return;
+    tip.classList.remove('frame'); f.classList.remove('stale');
+    while (f.firstChild) f.removeChild(f.firstChild);
+    f.style.backgroundImage = '';
+    scrubPlace();
+  }
+  // -- the shadow copy --
+  function shadowBucket(t){ return Math.floor(t / 10); }
+  /** Arm the shadow for what is playing: a plain progressive http(s) file, in the clear, not live, setting on. */
+  function shadowArm(){
+    shadowTeardown();
+    if (!shadow || !lastPlay || !lastPlay.url || lastPlay.keys || puiIsLive() || !scrubFramesOn()) return;
+    var u = cleanUrl(lastPlay.url);
+    if (!/^https?:/i.test(u) || /\.(mpd|m3u8)(\?|#|$)/i.test(u)) return;
+    shadowState.armed = true;
+    try { shadow.src = u; shadow.load(); } catch(e){ shadowState.armed = false; }
+  }
+  function shadowTeardown(){
+    shadowState.armed = false; shadowState.want = -1; shadowState.busy = false;
+    clearTimeout(shadowState.timer); shadowState.timer = null;
+    shadowCache.clear();
+    scrubFrameClear();                       // the tile must not carry the last film into the next one
+    if (!shadow) return;
+    try { if (shadow.hasAttribute('src')){ shadow.removeAttribute('src'); shadow.load(); } } catch(e){}
+  }
+  /** One seek in flight at a time; the latest request wins, the rest are dropped. */
+  function shadowPump(){
+    if (!shadowState.armed || shadowState.want < 0) return;
+    if (shadowState.busy && Date.now() - shadowState.busyAt < SHADOW_STALL) return;
+    if (shadow.readyState < 1) return;              // metadata not in yet: loadedmetadata pumps again
+    var t = shadowState.want; shadowState.want = -1;
+    var b = shadowBucket(t), hit = shadowCache.get(b);
+    if (hit){ if (scrubShowing() && Math.abs(scrubState.t - t) < 10) scrubFrameSet(hit, false); return; }
+    shadowState.busy = true; shadowState.busyAt = Date.now(); shadowState.reqT = t;
+    try { shadow.currentTime = t; } catch(e){ shadowState.busy = false; }
+  }
+  /** The frame the shadow sits on, drawn to a canvas at the tile size (kept as a canvas: a
+      cross-origin frame can be shown but never read back). */
+  function shadowDraw(){
+    var w = shadow.videoWidth, h = shadow.videoHeight; if (!w || !h) return null;
+    var sz = tipFrameSize(), k = Math.min(2, window.devicePixelRatio || 1);
+    var c = document.createElement('canvas'); c.width = Math.round(sz[0] * k); c.height = Math.round(sz[1] * k);
+    try {
+      var g = c.getContext('2d'); if (!g) return null;
+      var s = Math.max(c.width / w, c.height / h), dw = w * s, dh = h * s;   // fill the 16:9 tile, centred
+      g.drawImage(shadow, (c.width - dw) / 2, (c.height - dh) / 2, dw, dh);
+    } catch(e){ return null; }
+    return c;
+  }
+  if (shadow){
+    shadow.addEventListener('loadedmetadata', function(){ if (shadowState.want >= 0) shadowPump(); });
+    shadow.addEventListener('seeked', function(){
+      shadowState.busy = false;
+      if (!shadowState.armed) return;
+      var t = shadowState.reqT, c = shadowDraw();
+      if (c){
+        var b = shadowBucket(t);
+        if (shadowCache.has(b)) shadowCache.delete(b);          // re-insert: the freshest sits last
+        shadowCache.set(b, c);
+        while (shadowCache.size > SHADOW_CAP) shadowCache.delete(shadowCache.keys().next().value);
+        if (scrubShowing() && Math.abs(scrubState.t - t) < 10) scrubFrameSet(c, shadowBucket(scrubState.t) !== b);
+      }
+      if (shadowState.want >= 0) shadowPump();                  // a newer request was waiting
+    });
+    // any trouble (a container this browser lacks, the network) → the bubble alone, quietly, no retries
+    shadow.addEventListener('error', function(){
+      if (!shadowState.armed) return;
+      shadowState.armed = false; shadowState.want = -1; shadowState.busy = false;
+      shadowCache.clear();
+      try { shadow.removeAttribute('src'); shadow.load(); } catch(e){}
+      if (scrubShowing()) scrubFrameClear();
+    });
+  }
+
   var lastTickT = -1, progTicks = 0;
   function puiTick(){
     if (!player) return;
@@ -5758,11 +6017,12 @@
     pauseBoardHide();
     clearTimeout(puiState.idleTimer);
     puiState.idleTimer = setTimeout(function(){
-      if (!video.paused && !puiState.menu && !upnextState.open) puiIdle();
+      if (!video.paused && !puiState.menu && !upnextState.open && !scrubState.on) puiIdle();
     }, 3500);
     pauseBoardArm();
   }
   function puiIdle(){
+    scrubCancel();                       // the preview card never outlives the chrome
     closePuiMenu(false);
     document.body.classList.remove('pui-on');
     if (document.activeElement && pui.contains(document.activeElement)) document.activeElement.blur();
@@ -6296,6 +6556,8 @@
     closeUpNext(); upnextState.dismissed = false;
     $id('puiNext').style.display = 'none';
     closePuiMenu(false);
+    scrubCancel();
+    shadowTeardown();                    // the last stream's frames must not answer for this one
     $id('puiSpin').style.display = 'block';
     $id('puiFill').style.width='0%'; $id('puiBuf').style.width='0%'; $id('puiKnob').style.left='0%';
     $id('puiSubs').style.display=''; $id('puiAudio').style.display=''; $id('puiQual').style.display='none';
@@ -6915,20 +7177,32 @@
     var cls = e.target && e.target.className ? String(e.target.className) : '';
     if (e.target === pui || cls.indexOf('pui-shade') !== -1) toggleFullscreen();
   });
-  // seek bar: click + drag (mouse and touch)
+  // seek bar: click + drag (mouse and touch). The pointer also previews: hovering shows the card
+  // without seeking, a drag seeks live with the card following, a finger keeps it 600 ms after lifting
   (function(){
-    var bar = $id('puiSeek'), dragging = false;
+    var bar = $id('puiSeek'), dragging = false, hovering = false, lastTouchAt = 0;
     function pctFromEvent(ev){
       var rect = bar.getBoundingClientRect();
       var cx = (ev.touches && ev.touches[0]) ? ev.touches[0].clientX : ev.clientX;
       return rect.width > 0 ? (cx - rect.left) / rect.width : 0;
     }
-    bar.addEventListener('mousedown', function(ev){ dragging=true; puiSeekPct(pctFromEvent(ev)); ev.preventDefault(); });
-    document.addEventListener('mousemove', function(ev){ if (dragging) puiSeekPct(pctFromEvent(ev)); });
-    document.addEventListener('mouseup', function(){ dragging=false; });
-    bar.addEventListener('touchstart', function(ev){ dragging=true; puiSeekPct(pctFromEvent(ev)); }, {passive:true});
-    bar.addEventListener('touchmove', function(ev){ if (dragging) puiSeekPct(pctFromEvent(ev)); }, {passive:true});
-    bar.addEventListener('touchend', function(){ dragging=false; });
+    function preview(ev){
+      var r = puiRange(); if (r.end <= r.start) return;
+      var p = pctFromEvent(ev); if (p < 0) p = 0; if (p > 1) p = 1;
+      if (scrubState.on) scrubCancel();          // the pointer outranks a pending remote/keyboard preview
+      scrubRender(r.start + (r.end - r.start) * p);
+    }
+    function afterTouch(){ return Date.now() - lastTouchAt < 800; }   // a tap's synthetic mouse events
+    bar.addEventListener('mousedown', function(ev){ if (afterTouch()) return; dragging=true; puiSeekPct(pctFromEvent(ev)); preview(ev); ev.preventDefault(); });
+    document.addEventListener('mousemove', function(ev){ if (dragging){ puiSeekPct(pctFromEvent(ev)); preview(ev); } });
+    document.addEventListener('mouseup', function(){ if (!dragging) return; dragging=false; if (!hovering) scrubHide(); });
+    bar.addEventListener('mousemove', function(ev){ if (afterTouch()) return; hovering = true; if (!dragging) preview(ev); });
+    bar.addEventListener('mouseleave', function(){ hovering = false; if (!dragging) scrubHide(); });
+    bar.addEventListener('touchstart', function(ev){ lastTouchAt = Date.now(); dragging=true; clearTimeout(scrubState.hideTimer); puiSeekPct(pctFromEvent(ev)); preview(ev); }, {passive:true});
+    bar.addEventListener('touchmove', function(ev){ lastTouchAt = Date.now(); if (dragging){ puiSeekPct(pctFromEvent(ev)); preview(ev); } }, {passive:true});
+    function lift(){ lastTouchAt = Date.now(); dragging=false; clearTimeout(scrubState.hideTimer); scrubState.hideTimer = setTimeout(scrubHide, 600); }
+    bar.addEventListener('touchend', lift);
+    bar.addEventListener('touchcancel', lift);
   })();
 
   // ---------- manual ----------
@@ -7734,6 +8008,10 @@
       [['Show button','button'], ['Auto','auto'], ['Off','off']].forEach(function(o){
         sk.appendChild(prefChip(o[0], skipMode() === o[1], function(){ setPref('skip', o[1]); }));
       });
+    }
+    var sc = $id('setScrub'); if (sc){ sc.innerHTML = '';
+      sc.appendChild(prefChip('On', scrubFramesOn(), function(){ setPref('scrubFrames', true); }));
+      sc.appendChild(prefChip('Off', !scrubFramesOn(), function(){ setPref('scrubFrames', false); }));
     }
     var q = $id('setQuality'); if (q){ q.innerHTML = '';
       [['Auto','auto'], ['Start high','high'], ['Data saver','saver']].forEach(function(o){
