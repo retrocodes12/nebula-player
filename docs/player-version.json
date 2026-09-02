@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.02.4",
+  "version": "2026.09.02.5",
   "url": "https://play.rifflehq.in/",
-  "notes": "The next episode is chosen while this one is still playing — same source, same quality as the stream you picked — so Play now starts it without a trip through the list. On the stream list the row that matches your last pick heads its section, marked Same as last time, and the remote lands on it. Lists open on their first row, not the Back button"
+  "notes": "Home is yours to arrange. Settings has a new Home panel where every catalog your add-ons offer is listed — switch rows on or off, drag them (or pick one up with OK on a remote) into the order you want, and Reset when you change your mind. Home draws its rows in that order, and a Customise Home link sits under the last row. Search remembers your recent searches as chips, newest first, with a Clear"
 }

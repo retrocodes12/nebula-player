@@ -311,6 +311,50 @@
   html.tv .addon-hint { font-size:16px; }
   .empty { color:var(--label2); padding:12px 2px; font-size:15px; }
 
+  /* ---- Home rows manager (Settings → Home → Rows) ---- */
+  /* One column with a check per row: the list IS the order Home comes in, and
+     a row switched off keeps its place so it comes back where it was. The
+     hairline is inset to the text, the way a grouped list draws it. */
+  .hrmlist { display:flex; flex-direction:column; margin:-6px 0 2px; }
+  .hrmlist .empty { padding:6px 2px 10px; }
+  .hrm { position:relative; display:flex; align-items:center; text-align:left; cursor:pointer;
+    padding:10px 8px 10px 2px; border-radius:12px; color:var(--label);
+    transition:background .18s var(--ease), transform .2s var(--ease); }
+  .hrm > * + * { margin-left:12px; }
+  .hrm + .hrm::before { content:''; position:absolute; left:48px; right:8px; top:0; height:1px; background:var(--sep); }
+  .hrm:hover { background:var(--l1); }
+  html.tv .hrm.focusable:focus { background:var(--l1); z-index:2; box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+  .hrm.focusable:focus-visible { background:var(--l1); z-index:2; box-shadow:0 0 0 4px rgba(255,255,255,.35); }
+  .hrm-txt { flex:1 1 auto; min-width:0; }
+  .hrm-name { display:block; font-size:15px; font-weight:600; letter-spacing:-.012em;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hrm-sub { display:block; color:var(--label3); font-family:var(--mono); font-size:11px; font-weight:500;
+    letter-spacing:.14em; text-transform:uppercase; margin-top:3px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hrm-check { flex:0 0 auto; width:22px; height:22px; color:var(--accent);
+    display:flex; align-items:center; justify-content:center; }
+  .hrm-check svg { width:22px; height:22px; }
+  .hrm.off .hrm-name { color:var(--label2); font-weight:500; }
+  .hrm.off .hrm-sub { opacity:.7; }
+  .hrm.off .hrm-check { visibility:hidden; }
+  .hrmlist.dragging .hrm { transition:transform .18s var(--ease); }
+  .hrmlist.dragging .hrm.drag-src { transition:none; }
+  .hrm.drag-src, .hrm.lifted { z-index:6; background:var(--l2); box-shadow:0 20px 44px rgba(0,0,0,.62); }
+  .hrm.drag-src::before, .hrm.lifted::before { display:none; }
+  .hrm.drag-src .addon-grip, .hrm.lifted .addon-grip { color:var(--label); }
+  .hrm.lifted { transform:scale(1.02); }
+  html.tv .hrm { padding:14px 10px 14px 4px; }
+  html.tv .hrm + .hrm::before { left:62px; }
+  html.tv .hrm-name { font-size:19px; }
+  html.tv .hrm-sub { font-size:14px; }
+  html.tv .hrm-check, html.tv .hrm-check svg { width:28px; height:28px; }
+  /* the way into the arrangement, centred under the last row */
+  .home-foot { display:flex; justify-content:center; padding:26px 0 10px; }
+  /* recent searches sit above the "one search" intro on the idle Search page */
+  .search-idle .recent { margin-bottom:26px; }
+  .search-idle .recent-head { display:flex; align-items:center; margin-bottom:10px; }
+  .search-idle .recent-head .textbtn { margin-left:auto; }
+
   /* ---- top bar inside views ---- */
   .topbar { display:flex; align-items:center; padding:0 0 8px; }
   .topbar > * + * { margin-left:16px; }
@@ -1414,6 +1458,10 @@
           <span class="setname">Ratings on posters<small>The little star badges on artwork</small></span>
           <span id="setRatings" class="seg"></span>
         </div>
+      </div>
+      <!-- what Home is made of: the showcase, the resume row, then the catalog rows in your order -->
+      <div class="panel" id="setHomePanel">
+        <div class="lbl">Home</div>
         <div class="setrow">
           <span class="setname">Featured carousel<small>The full-bleed showcase at the top of Home</small></span>
           <span id="setHero" class="seg"></span>
@@ -1422,6 +1470,11 @@
           <span class="setname">Continue Watching<small>Pick up where you left off, right on Home</small></span>
           <span id="setCw" class="seg"></span>
         </div>
+        <div class="setrow">
+          <span class="setname">Rows<small>Choose which catalogs make up Home, and the order they come in</small></span>
+          <button id="setRowsReset" class="textbtn focusable" style="display:none">Reset</button>
+        </div>
+        <div id="setRows" class="hrmlist"></div>
       </div>
       <div class="panel">
         <div class="lbl">Playback</div>
@@ -1563,7 +1616,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.02.4';
+  var PLAYER_VERSION = '2026.09.02.5';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1641,6 +1694,9 @@
     if (name !== 'home'){ try { bootReady(); } catch(e){} }
     if (name === 'library'){ try { renderLibraryTab(); } catch(e){} }
     if (name === 'search'){ try { searchIdle(); } catch(e){} }
+    // the rows list is built from live manifests: an add-on added since is in it
+    if (name === 'settings'){ try { renderRowManager(); } catch(e){} }
+    try { cancelLift(); } catch(e){}      // a row picked up on a remote is put down on leaving
     // back from playback: the episode list's ticks, bars and "up next" are stale
     if (name === 'episodes' && epView){ try { epView.refresh(); } catch(e){} }
     // coming back to a title after watching: the Resume label must be current
@@ -2295,7 +2351,8 @@
     '<circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/>' +
     '<circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
   var dragSt = null;      // pointer drag in flight
-  var liftIdx = null;     // row picked up with OK on a remote
+  var liftIdx = null;     // row picked up with OK on a remote…
+  var liftSpec = null;    // …and which list it belongs to
   function addonRows(){ return [].slice.call(document.querySelectorAll('#addonList .addon')); }
   /** Commit a move and re-render. Returns the row's new index. */
   function commitAddonMove(from, to){
@@ -2307,18 +2364,23 @@
     saveAddons(arr);
     return to;
   }
-  function beginDrag(idx, clientY){
-    var rows = addonRows(); if (rows.length < 2) return;
+  /** The add-on list and the Home rows list (Settings) share one drag. A spec
+      says which rows, which wrapper carries the dragging class, what scrolls,
+      how a move is committed and how the list is repainted. */
+  var ADDON_DRAG = { rows: addonRows, wrap: 'addonList', cls: 'addons', scroller: 'view-addons',
+    move: commitAddonMove, render: function(){ renderAddons(); }, label: 'Reorder this add-on' };
+  function beginDrag(spec, idx, clientY){
+    var rows = spec.rows(); if (rows.length < 2) return;
     // offsetTop, not getBoundingClientRect: the list can scroll mid-drag and
     // viewport coordinates would drift out from under the maths
     var rects = rows.map(function(r){ return { top: r.offsetTop, h: r.offsetHeight }; });
-    var sc = document.getElementById('view-addons');
+    var sc = document.getElementById(spec.scroller);
     dragSt = {
-      from: idx, to: idx, y0: clientY, rows: rows, rects: rects,
+      spec: spec, from: idx, to: idx, y0: clientY, rows: rows, rects: rects,
       sc: sc, scroll0: sc ? sc.scrollTop : 0,
       gap: rects.length > 1 ? Math.max(0, rects[1].top - (rects[0].top + rects[0].h)) : 12,
     };
-    document.getElementById('addonList').className = 'addons dragging';
+    var w = document.getElementById(spec.wrap); if (w) w.className = spec.cls + ' dragging';
     rows[idx].className += ' drag-src';
   }
   function dragTo(st, dy){
@@ -2360,50 +2422,57 @@
       r.style.transform = '';
       r.className = r.className.replace(' drag-src', '');
     });
-    var wrap = document.getElementById('addonList');
-    if (wrap) wrap.className = 'addons';
-    var landed = commit ? commitAddonMove(st.from, st.to) : st.from;
-    renderAddons();
-    var row = addonRows()[landed];
+    var wrap = document.getElementById(st.spec.wrap);
+    if (wrap) wrap.className = st.spec.cls;
+    var landed = commit ? st.spec.move(st.from, st.to) : st.from;
+    st.spec.render();
+    focusGrip(st.spec, landed);
+  }
+  function focusGrip(spec, idx){
+    var row = spec.rows()[idx];
     if (row){ var g = row.querySelector('.addon-grip'); try { (g || row).focus(); } catch(e){} }
   }
   /** Remote path: OK picks the row up, arrows walk it, OK or Back drops it. */
-  function setLift(idx){
-    liftIdx = idx;
-    var rows = addonRows();
-    rows.forEach(function(r, i){
+  function setLift(spec, idx){
+    liftIdx = idx; liftSpec = idx === null ? null : spec;
+    spec.rows().forEach(function(r, i){
       r.className = r.className.replace(' lifted', '') + (i === idx ? ' lifted' : '');
     });
     if (idx !== null) setStatus('Moving it — use up and down, then OK to drop.', 'info');
   }
   function liftStep(dir){
-    if (liftIdx === null) return;
-    var landed = commitAddonMove(liftIdx, liftIdx + dir);
-    renderAddons();
-    setLift(landed);
-    var row = addonRows()[landed];
-    if (row){ var g = row.querySelector('.addon-grip'); try { (g || row).focus(); } catch(e){} }
+    if (liftIdx === null || !liftSpec) return;
+    var spec = liftSpec;
+    var landed = spec.move(liftIdx, liftIdx + dir);
+    spec.render();
+    setLift(spec, landed);
+    focusGrip(spec, landed);
   }
   function dropLift(){
-    if (liftIdx === null) return;
-    var at = liftIdx;
-    setLift(null); liftIdx = null;
+    if (liftIdx === null || !liftSpec) return;
+    var spec = liftSpec, at = liftIdx;
+    setLift(spec, null);
     clearStatus();
-    var row = addonRows()[at];
-    if (row){ var g = row.querySelector('.addon-grip'); try { (g || row).focus(); } catch(e){} }
+    focusGrip(spec, at);
   }
-  function gripFor(idx){
+  /** Leaving the view mid-move: put the row down where it is, quietly. */
+  function cancelLift(){
+    if (liftIdx === null) return;
+    if (liftSpec) setLift(liftSpec, null);
+    liftIdx = null; liftSpec = null;
+  }
+  function gripFor(spec, idx){
     var g = document.createElement('button');
     g.className = 'addon-grip focusable';
     g.innerHTML = GRIP_SVG;
     g.title = 'Drag to reorder';
-    g.setAttribute('aria-label', 'Reorder this add-on');
+    g.setAttribute('aria-label', spec.label);
     g.addEventListener('pointerdown', function(e){
       if (liftIdx !== null) return;
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       e.preventDefault(); e.stopPropagation();
       try { g.setPointerCapture(e.pointerId); } catch(err){}
-      beginDrag(idx, e.clientY);
+      beginDrag(spec, idx, e.clientY);
     });
     g.addEventListener('pointermove', function(e){ if (dragSt){ e.preventDefault(); moveDrag(e.clientY); } });
     g.addEventListener('pointerup', function(e){ if (dragSt){ e.preventDefault(); endDrag(true); } });
@@ -2413,7 +2482,7 @@
       var k = e.keyCode;
       if (k === 13){
         e.preventDefault(); e.stopPropagation();
-        if (liftIdx === null) setLift(idx); else dropLift();
+        if (liftIdx === null) setLift(spec, idx); else dropLift();
       } else if (liftIdx !== null && (k === 38 || k === 40)){
         e.preventDefault(); e.stopPropagation();
         liftStep(k === 38 ? -1 : 1);
@@ -2429,7 +2498,7 @@
     var wrap = document.getElementById('addonList'); wrap.innerHTML='';
     // the rows are about to be rebuilt, so any pick-up dies with them — liftStep
     // re-arms it straight after, and leaving the view can't strand the flag
-    liftIdx = null;
+    if (liftSpec === ADDON_DRAG){ liftIdx = null; liftSpec = null; }
     var addons = getAddons();
     if (!addons.length){ wrap.innerHTML = '<div class="empty">No add-ons yet — paste a manifest URL above, or use <b>Add via phone</b>.</div>'; return; }
     if (addons.length > 1){
@@ -2446,7 +2515,7 @@
       card.innerHTML = logo + '<div class="addon-meta"><div class="addon-name">'+esc(a.name||a.url)+'</div><div class="addon-url">'+esc(a.url.replace(/^https?:\/\//,''))+'</div></div>';
       card.onclick = function(){ openAddon(a); };
       card.onkeydown = function(ev){ if(ev.keyCode===13) openAddon(a); };
-      if (addons.length > 1) card.appendChild(gripFor(idx));
+      if (addons.length > 1) card.appendChild(gripFor(ADDON_DRAG, idx));
       var del = document.createElement('button'); del.className='addon-del focusable'; del.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>'; del.title='Remove';
       del.onclick = function(ev){ ev.stopPropagation(); var arr=getAddons(); arr.splice(idx,1); saveAddons(arr); renderAddons(); focusFirst(); };
       card.appendChild(del);
@@ -3068,6 +3137,56 @@
   }
   bootTimer = setTimeout(endBoot, BOOT_MAX);
 
+  // ---------- which catalogs make Home, and in what order ----------
+  // Device-local like the other preferences. `rowVis` holds the rows switched
+  // on or off by hand (an unnamed row shows iff it is one of the add-on's first
+  // three); `rowOrder` is the full arrangement once a row has been moved.
+  function rowKey(a, c){ return a.url + '|' + (c.type || '') + '|' + (c.id || ''); }
+  /** A catalog Home can ask for as it is. One that only answers to a list of
+      ids (Cinemeta's "Last videos") or to a search term has no page to show. */
+  function catalogBrowsable(c){
+    if (!c || !c.type || !c.id) return false;
+    var extra = c.extra || [], req = {};
+    (c.extraRequired || []).forEach(function(n){ req[n] = 1; });
+    extra.forEach(function(x){ if (x && x.isRequired) req[x.name] = 1; });
+    return Object.keys(req).every(function(n){
+      var x = extra.filter(function(o){ return o && o.name === n; })[0];
+      return !!(x && x.options && x.options.length);
+    });
+  }
+  function rowVisible(pr, key, nat){
+    var v = pr.rowVis || {};
+    return Object.prototype.hasOwnProperty.call(v, key) ? !!v[key] : nat < 3;
+  }
+  /** Where a row sits: its place in the arrangement, else after every arranged
+      row in add-on-then-catalog order. */
+  function rowOrderIndex(pr, key, ai, ci){
+    var i = (pr.rowOrder || []).indexOf(key);
+    return i >= 0 ? i : 1000 + ai * 100 + ci;
+  }
+  /** Home rows are appended as their add-ons answer, which is network order —
+      so each pair is slotted in by its order index instead. */
+  function placeHomeRow(rowsWrap, head, row, oi){
+    head.setAttribute('data-oi', oi);
+    var kids = rowsWrap.children, before = null;
+    for (var i = 0; i < kids.length; i++){
+      var k = kids[i];
+      if (k.className.indexOf('rowhead') === -1) continue;
+      if (Number(k.getAttribute('data-oi')) > oi){ before = k; break; }
+    }
+    rowsWrap.insertBefore(head, before); rowsWrap.insertBefore(row, before);
+  }
+  /** Settings → Home, scrolled to the rows list with its first row lit. */
+  function openRowManager(){
+    setTab('settings');
+    (rowMgr.p || Promise.resolve()).then(function(){
+      var panel = $id('setHomePanel'); if (!panel) return;
+      try { panel.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch(e){ panel.scrollIntoView(); }
+      var first = document.querySelector('#setRows .hrm');
+      if (first && (IS_TV || kbUsed)){ try { first.focus({ preventScroll: true }); } catch(e){ first.focus(); } }
+    });
+  }
+
   function buildHomeRows(force){
     var wrap = document.getElementById('homeRows'); if (!wrap) return;
     var addons = getAddons();
@@ -3092,24 +3211,42 @@
     wrap.innerHTML = '';
     var cwSec = document.createElement('div'); cwSec.id = 'cwSection'; wrap.appendChild(cwSec);
     var rowsWrap = document.createElement('div'); rowsWrap.id = 'addonRows'; wrap.appendChild(rowsWrap);
+    // the way into the arrangement, at the foot of the rows it arranges
+    var foot = document.createElement('div'); foot.id = 'homeFoot'; foot.className = 'home-foot'; foot.style.display = 'none';
+    var cust = document.createElement('button'); cust.className = 'textbtn focusable'; cust.id = 'homeCustomise';
+    cust.textContent = 'Customise Home'; cust.onclick = openRowManager;
+    foot.appendChild(cust); wrap.appendChild(foot);
     renderContinue();
-    var manifestsLeft = addons.length, catsLeft = 0, rowsShown = 0;
+    var pr = getPrefs();
+    var manifestsLeft = addons.length, catsLeft = 0, rowsShown = 0, hidden = 0, wanted = 0;
     function settle(){
       if (seq !== homeSeq || manifestsLeft || catsLeft || rowsShown) return;
-      rowsWrap.innerHTML = '<div class="empty">Couldn’t reach your add-ons right now. ' +
-        '<button class="seeall focusable" id="homeRetry" style="margin-left:8px">Retry</button></div>';
-      document.getElementById('homeRetry').onclick = function(){ buildHomeRows(true); };
+      if (hidden && !wanted){
+        // every row was switched off by hand — that is not an outage
+        rowsWrap.innerHTML = '<div class="empty">Every row is switched off. ' +
+          '<button class="seeall focusable" id="homeRetry" style="margin-left:8px">Customise Home</button></div>';
+        document.getElementById('homeRetry').onclick = openRowManager;
+      } else {
+        rowsWrap.innerHTML = '<div class="empty">Couldn’t reach your add-ons right now. ' +
+          '<button class="seeall focusable" id="homeRetry" style="margin-left:8px">Retry</button></div>';
+        document.getElementById('homeRetry').onclick = function(){ buildHomeRows(true); };
+      }
       bootReady();                       // every add-on failed — show them that
     }
-    addons.forEach(function(a){
+    addons.forEach(function(a, ai){
       getManifest(a.url).then(function(m){
         if (seq !== homeSeq) return;
-        var cats = (m.catalogs||[]).slice(0,3);
-        catsLeft += cats.length;
-        cats.forEach(function(c){
+        var all = (m.catalogs||[]).filter(catalogBrowsable), cats = [];
+        all.forEach(function(c, ci){
+          if (rowVisible(pr, rowKey(a, c), ci)) cats.push({ c: c, oi: rowOrderIndex(pr, rowKey(a, c), ai, ci) });
+          else hidden++;
+        });
+        wanted += cats.length; catsLeft += cats.length;
+        cats.forEach(function(it){
+          var c = it.c;
           var head = document.createElement('div'); head.className='rowhead';
           var addonName = a.name||m.name||'Add-on';
-          head.innerHTML = cats.length > 1
+          head.innerHTML = all.length > 1
             ? '<span class="row-title">'+esc(catalogLabel(c, m.catalogs||[]))+'</span><span class="row-sub">'+esc(addonName)+'</span>'
             : '<span class="row-title">'+esc(addonName)+'</span>';
           var sa = document.createElement('button'); sa.className='seeall focusable'; sa.textContent='See all ›';
@@ -3117,7 +3254,7 @@
           head.appendChild(sa);
           var row = document.createElement('div'); row.className='hrow';
           row.innerHTML = skeletons(6);
-          rowsWrap.appendChild(head); rowsWrap.appendChild(row);
+          placeHomeRow(rowsWrap, head, row, it.oi);
           var u = a.base + '/catalog/' + encodeURIComponent(c.type) + '/' + encodeURIComponent(c.id) + '.json';
           getJson(u).then(function(d){
             if (seq !== homeSeq) return;
@@ -3127,7 +3264,7 @@
             if (!metas.length){ head.style.display='none'; row.style.display='none'; return; }
             rowsShown++;
             metas.forEach(function(meta){ row.appendChild(cardEl(meta, a, m, c)); });
-            if (rowsShown === 1) bootReady();   // first real row on screen
+            if (rowsShown === 1){ bootReady(); foot.style.display = ''; }   // first real row on screen
             // boot on TV: give the first loaded row focus if nothing has it yet
             if (document.activeElement === document.body) focusFirst();
           }).catch(function(){
@@ -3188,6 +3325,11 @@
               count++;
               g.appendChild(cardEl(meta, a, m, c));
             });
+            // a recent-search chip that was pressed is gone with the idle box, so the
+            // first result takes the remote's focus; a field being typed in keeps it
+            if (shown && document.activeElement === document.body && (IS_TV || kbUsed)){
+              var fc = g.querySelector('.focusable'); if (fc) fc.focus();
+            }
             if (shown) countEl.textContent = count + ' result' + (count>1?'s':'');
           }).catch(function(){});
         }));
@@ -3202,15 +3344,56 @@
     });
   }
 
-  /** Before a query: what one search covers, each add-on a chip into its catalogs. */
+  // ---------- recent searches (device-local, the last eight) ----------
+  // Typing a title on a remote is the slowest thing in the app, so a search
+  // that was worth pressing OK for is kept to press again.
+  function recentSearches(){
+    try { var a = JSON.parse(LS.getItem('recent_q') || '[]'); return Array.isArray(a) ? a : []; } catch(e){ return []; }
+  }
+  function noteRecent(q){
+    q = (q || '').trim(); if (q.length < 2) return;
+    var lc = q.toLowerCase();
+    var arr = recentSearches().filter(function(x){ return String(x).toLowerCase() !== lc; });
+    arr.unshift(q);
+    try { LS.setItem('recent_q', JSON.stringify(arr.slice(0, 8))); } catch(e){}
+  }
+  function clearRecent(){ try { LS.removeItem('recent_q'); } catch(e){} }
+  /** Before a query: recent searches to press again, then what one search
+      covers, each add-on a chip into its catalogs. */
   function searchIdle(){
     var wrap = document.getElementById('searchResults'); if (!wrap) return;
     if ((document.getElementById('globalSearch').value || '').trim()) return;
     var addons = getAddons();
     var box = document.createElement('div'); box.className = 'search-idle';
-    box.innerHTML = '<div class="lbl">' + (addons.length ? 'One search · ' + addons.length + ' add-on' + (addons.length > 1 ? 's' : '') : 'Nothing to search yet') + '</div>' +
+    var recent = addons.length ? recentSearches() : [];
+    if (recent.length){
+      var rec = document.createElement('div'); rec.className = 'recent';
+      var rh = document.createElement('div'); rh.className = 'recent-head';
+      rh.innerHTML = '<span class="lbl">Recent</span>';
+      var clr = document.createElement('button'); clr.className = 'textbtn focusable'; clr.id = 'recentClear';
+      clr.textContent = 'Clear';
+      clr.onclick = function(){
+        clearRecent(); searchIdle();
+        var f = wrap.querySelector('.focusable');          // the button is gone from under the remote
+        if (f && (IS_TV || kbUsed)) f.focus();
+      };
+      rh.appendChild(clr); rec.appendChild(rh);
+      var rc = document.createElement('div'); rc.className = 'chips';
+      recent.forEach(function(q){
+        var b = document.createElement('button'); b.className = 'chip focusable'; b.textContent = q;
+        b.onclick = function(){
+          var i = document.getElementById('globalSearch'); i.value = q;
+          noteRecent(q); runGlobalSearch();
+        };
+        rc.appendChild(b);
+      });
+      rec.appendChild(rc); box.appendChild(rec);
+    }
+    var intro = document.createElement('div');
+    intro.innerHTML = '<div class="lbl">' + (addons.length ? 'One search · ' + addons.length + ' add-on' + (addons.length > 1 ? 's' : '') : 'Nothing to search yet') + '</div>' +
       '<p>' + (addons.length ? 'Titles, series and episodes from every add-on you have added, in one place.'
         : 'Add an add-on first — then one search covers everything it has.') + '</p>';
+    while (intro.firstChild) box.appendChild(intro.firstChild);
     if (addons.length){
       var chips = document.createElement('div'); chips.className = 'chips';
       addons.forEach(function(a){
@@ -6634,9 +6817,10 @@
     ['Emerald', '#30D158'], ['Violet', '#BF5AF2'], ['Amber', '#FF9F0A'], ['Rose', '#FF375F'],
   ];
   function getPrefs(){ try { return JSON.parse(LS.getItem('prefs_v1') || '{}') || {}; } catch(e){ return {}; } }
+  function writePrefs(pr){ try { LS.setItem('prefs_v1', JSON.stringify(pr)); } catch(e){} }
   function setPref(k, v){
     var pr = getPrefs(); pr[k] = v;
-    try { LS.setItem('prefs_v1', JSON.stringify(pr)); } catch(e){}
+    writePrefs(pr);
     applyPrefs(); settingsRender();
   }
   function applyPrefs(){
@@ -6695,6 +6879,108 @@
       ' · plays every add-on format, on-device';
     profileCardRender();
   }
+
+  // ---------- Home rows manager (Settings → Home → Rows) ----------
+  // One list, in Home's order: every browsable catalog of every add-on, a check
+  // on the ones Home shows. A row switched off keeps its place in the order, so
+  // switching it back on returns it to where it was.
+  var CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" ' +
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.6 4.5L19 7.5"/></svg>';
+  var rowMgr = { seq: 0, items: null, p: null };
+  function rowMgrRows(){ return [].slice.call(document.querySelectorAll('#setRows .hrm')); }
+  /** A move rewrites the whole arrangement — the list on screen IS the order. */
+  function commitRowMove(from, to){
+    var items = rowMgr.items || [];
+    if (to < 0) to = 0; if (to >= items.length) to = items.length - 1;
+    if (from === to) return from;
+    items.splice(to, 0, items.splice(from, 1)[0]);
+    var pr = getPrefs(); pr.rowOrder = items.map(function(it){ return it.key; });
+    writePrefs(pr); homeSig = null;            // Home rebuilds next time it is shown
+    return to;
+  }
+  var ROW_DRAG = { rows: rowMgrRows, wrap: 'setRows', cls: 'hrmlist', scroller: 'view-settings',
+    move: commitRowMove, render: function(){ rowMgrPaint(); }, label: 'Reorder this row' };
+  function toggleRow(it){
+    var pr = getPrefs(); pr.rowVis = pr.rowVis || {};
+    pr.rowVis[it.key] = !rowVisible(pr, it.key, it.nat);
+    writePrefs(pr); homeSig = null;
+    rowMgrPaint();
+  }
+  function resetRows(){
+    var pr = getPrefs(); delete pr.rowOrder; delete pr.rowVis;
+    writePrefs(pr); homeSig = null;
+    rowMgrPaint();
+    setStatus('Home is back to its original rows.', 'ok');
+  }
+  /** Gather the rows from live manifests, then paint. Returns the promise. */
+  function renderRowManager(){
+    var list = $id('setRows'); if (!list) return Promise.resolve();
+    var seq = ++rowMgr.seq, addons = getAddons();
+    if (!rowMgr.items && addons.length) list.innerHTML = '<div class="empty">Loading your add-ons…</div>';
+    rowMgr.p = Promise.all(addons.map(function(a){ return getManifest(a.url).catch(function(){ return null; }); }))
+      .then(function(ms){
+        if (seq !== rowMgr.seq) return;
+        var items = [];
+        addons.forEach(function(a, ai){
+          var m = ms[ai]; if (!m) return;
+          var all = (m.catalogs || []).filter(catalogBrowsable), name = a.name || m.name || 'Add-on';
+          all.forEach(function(c, ci){
+            // titled the way Home titles the row: the catalog, or the add-on when it has only one
+            var label = catalogLabel(c, m.catalogs || []);
+            items.push({ key: rowKey(a, c), a: a, m: m, c: c, ai: ai, nat: ci,
+              name: all.length > 1 ? label : name, sub: all.length > 1 ? name : label });
+          });
+        });
+        rowMgr.items = items;
+        rowMgrPaint();
+      });
+    return rowMgr.p;
+  }
+  function rowMgrPaint(){
+    var list = $id('setRows'); if (!list) return;
+    var pr = getPrefs(), items = rowMgr.items || [];
+    var reset = $id('setRowsReset'); if (reset) reset.style.display = (pr.rowOrder || pr.rowVis) ? '' : 'none';
+    items.forEach(function(it){ it.oi = rowOrderIndex(pr, it.key, it.ai, it.nat); });
+    items.sort(function(x, y){ return x.oi - y.oi; });
+    // the row that has focus is about to be rebuilt — find it again by key
+    var ae = document.activeElement, focusKey = null, onGrip = false;
+    if (ae && list.contains(ae)){
+      var host = ae;
+      while (host && host !== list && !(host.classList && host.classList.contains('hrm'))) host = host.parentNode;
+      if (host && host !== list){ focusKey = host.getAttribute('data-key'); onGrip = ae !== host; }
+    }
+    if (liftSpec === ROW_DRAG){ liftIdx = null; liftSpec = null; }
+    list.innerHTML = '';
+    if (!items.length){
+      list.innerHTML = '<div class="empty">' + (getAddons().length
+        ? 'Nothing to arrange yet — your add-ons have no catalogs.'
+        : 'Add an add-on first — its catalogs become rows here.') + '</div>';
+      return;
+    }
+    items.forEach(function(it, idx){
+      var on = rowVisible(pr, it.key, it.nat);
+      var row = document.createElement('div');
+      row.className = 'hrm focusable' + (on ? '' : ' off'); row.tabIndex = 0;
+      row.setAttribute('role', 'checkbox'); row.setAttribute('aria-checked', on ? 'true' : 'false');
+      row.setAttribute('data-key', it.key);
+      if (items.length > 1) row.appendChild(gripFor(ROW_DRAG, idx));
+      var txt = document.createElement('span'); txt.className = 'hrm-txt';
+      txt.innerHTML = '<span class="hrm-name">' + esc(it.name) + '</span><span class="hrm-sub">' + esc(it.sub) + '</span>';
+      row.appendChild(txt);
+      var chk = document.createElement('span'); chk.className = 'hrm-check'; chk.innerHTML = CHECK_SVG;
+      row.appendChild(chk);
+      row.onclick = function(){ toggleRow(it); };
+      row.onkeydown = function(ev){ if (ev.keyCode === 13){ ev.preventDefault(); toggleRow(it); } };
+      list.appendChild(row);
+    });
+    if (focusKey){
+      var again = rowMgrRows().filter(function(r){ return r.getAttribute('data-key') === focusKey; })[0];
+      if (again){ var g = onGrip ? again.querySelector('.addon-grip') : null; try { (g || again).focus({ preventScroll: true }); } catch(e){ (g || again).focus(); } }
+    }
+  }
+  (function(){
+    var r = $id('setRowsReset'); if (r) r.onclick = resetRows;
+  })();
   applyPrefs();
   settingsRender();
   ctx.pickedFrom = loadPick();
@@ -6754,7 +7040,18 @@
     var i = document.getElementById('globalSearch'), c = document.getElementById('globalSearchClear');
     if (!i || !c) return;
     var searchDeb = null;
-    i.addEventListener('keydown', function(e){ if (e.key==='Enter' || e.keyCode===13){ e.preventDefault(); clearTimeout(searchDeb); runGlobalSearch(); } });
+    i.addEventListener('keydown', function(e){ if (e.key==='Enter' || e.keyCode===13){ e.preventDefault(); clearTimeout(searchDeb); noteRecent(i.value); runGlobalSearch(); } });
+    // a result opened straight from the as-you-type list counts as a search worth keeping
+    var results = document.getElementById('searchResults');
+    function fromCard(e){
+      var t = e.target; while (t && t !== results && !(t.classList && t.classList.contains('card'))) t = t.parentNode;
+      if (t && t !== results) noteRecent(i.value);
+    }
+    if (results){
+      results.addEventListener('click', fromCard, true);
+      // a remote opens a card on the release of OK, without a click
+      results.addEventListener('keyup', function(e){ if (e.keyCode === 13) fromCard(e); }, true);
+    }
     i.addEventListener('input', function(){
       clearTimeout(searchDeb);
       var q = i.value.trim();
