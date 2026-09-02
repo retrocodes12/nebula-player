@@ -20,11 +20,23 @@ a native app with the same screens.
 - **Add-ons.** Point it at an add-on and its catalogs, title pages, streams and subtitles show up.
   Several add-ons combine into one row of streams, labelled by resolution, size and language.
 - **Playback.** Adaptive and encrypted streams play natively; quality, audio track, subtitle and
-  speed pickers; add-on subtitles with your own styling; picture-in-picture and a desktop mini
-  player; next-episode autoplay with a countdown card.
+  speed pickers; add-on subtitles with your own styling and a timing nudge; a picture-quality
+  policy (auto, best available, data saver); picture-in-picture and a desktop mini player.
+- **The quiet parts.** Pause for a moment and a board fades in with the title, synopsis, time
+  left and what plays next. A playback HUD (`i`) shows resolution, bitrate, buffer and latency
+  the way a TV settings page would, not a debug dump. Live streams get a lag guard and Go live.
+- **Instant next episode.** The player remembers which source you chose for a show and resolves
+  the next episode's stream during the last minutes, so autoplay starts without a source list.
+  Play now skips the countdown.
+- **Evenings.** A sleep timer that pauses after 15–90 minutes or when the episode ends, and
+  survives the hop into the next one. Start over from the streams page or a Continue Watching
+  card. Surprise me picks a random aired episode.
 - **Series.** One page per show: seasons, episodes, air dates, and a watch cursor that knows
   where you left off.
-- **My List, Continue Watching, ratings, an upcoming-episode calendar.**
+- **My List, Continue Watching, ratings, an upcoming-episode calendar.** Home rows can be hidden
+  and reordered in Settings; Search remembers your recent looks.
+- **Keyboard.** `?` lists every shortcut on desktop: K/J/L, M, S/A/Q for the pickers, N for the
+  next episode, Z for the sleep timer, I for the HUD, digits to jump, `/` to search.
 - **Nebula Profile.** An @handle and a password — no email. Add-ons, progress, My List and
   ratings follow you to every device; a TV signs in with a short code you approve from a phone.
   A profile is optional; everything works without one.
