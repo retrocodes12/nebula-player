@@ -28,6 +28,10 @@ a native app with the same screens.
 - **Instant next episode.** The player remembers which source you chose for a show and resolves
   the next episode's stream during the last minutes, so autoplay starts without a source list.
   Play now skips the countdown.
+- **Skip intro.** A pill appears over an episode's recap and opening titles (OK on a remote, a
+  click elsewhere), or Auto jumps past them for you; the closing credits bring Up next forward.
+  Timestamps come from [IntroDB](https://introdb.app), a community database, looked up per episode
+  through Nebula's own server; Off in Settings never asks.
 - **Evenings.** A sleep timer that pauses after 15–90 minutes or when the episode ends, and
   survives the hop into the next one. Start over from the streams page or a Continue Watching
   card. Surprise me picks a random aired episode.

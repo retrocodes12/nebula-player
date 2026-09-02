@@ -19,6 +19,7 @@
 //   PUT  /v1/kv/:key {v}                   → {rev}                     (auth)
 //   /v1/profile/*, /v1/tv/*, /v1/device    → profile.js
 //   /v1/social/*                           → friends, below
+//   GET  /v1/skip?id=tt…:S:E               → {intro, recap, outro} timestamps (cached, no auth)
 //   GET  /p?u=<url>                        → CORS/mixed-content rescue proxy
 //
 // Auth: "Authorization: Bearer <gid>.<secret or device token>".
@@ -158,14 +159,14 @@ setInterval(() => {
 }, 60_000).unref();
 
 // ---------- helpers ----------
-function json(res, status, obj) {
+function json(res, status, obj, cacheSecs) {
   // the client may already be gone; a write to a dead socket must not take
   // the whole process with it
   try {
     res.writeHead(status, {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
-      'Cache-Control': 'no-store',
+      'Cache-Control': cacheSecs ? 'public, max-age=' + cacheSecs : 'no-store',
     });
     res.end(JSON.stringify(obj));
   } catch (e) {}
@@ -285,6 +286,67 @@ async function handleProxy(req, res, target, ip) {
     clearTimeout(timer);
     proxyActive--;
   }
+}
+
+// ---------- skip segments (intro / recap / outro timestamps) ----------
+// The player asks for an episode's segments by its Stremio id (tt…:S:E). The
+// answer comes from IntroDB (introdb.app), a community database whose API only
+// sends CORS headers for its own site — so browsers reach it through here.
+// Cached in memory: a hit for a day, a miss for two hours (submissions keep
+// landing), an upstream failure for a minute. Nothing about the caller is kept
+// or forwarded; the request carries the episode and nothing else.
+const SKIP_UPSTREAM = () => process.env.SKIP_UPSTREAM || 'https://api.introdb.app/segments';
+const SKIP_HIT_MS = 24 * 3600_000, SKIP_MISS_MS = 2 * 3600_000, SKIP_FAIL_MS = 60_000;
+const SKIP_MAX = 20000, SKIP_TIMEOUT_MS = 8000;
+const skipCache = new Map();     // id -> {until, status, body}
+const skipPending = new Map();   // id -> Promise<{status, body}>  (one upstream call per episode at a time)
+function skipSeg(v) {
+  if (!v || typeof v !== 'object') return null;
+  const s = Number(v.start_sec != null ? v.start_sec : v.start_ms / 1000);
+  const e = Number(v.end_sec != null ? v.end_sec : v.end_ms / 1000);
+  if (!isFinite(s) || !isFinite(e) || s < 0 || e - s < 1) return null;
+  return { start: Math.round(s * 10) / 10, end: Math.round(e * 10) / 10 };
+}
+async function skipFetch(imdb, season, episode) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), SKIP_TIMEOUT_MS);
+  try {
+    const r = await fetch(SKIP_UPSTREAM() + '?imdb_id=' + imdb + '&season=' + season + '&episode=' + episode, {
+      signal: ctrl.signal,
+      headers: { Accept: 'application/json', 'User-Agent': 'NebulaCloud/1.0 (+https://play.rifflehq.in)' },
+    });
+    if (r.status === 404) return { status: 200, body: { intro: null, recap: null, outro: null } };
+    if (!r.ok) return { status: 502, body: { error: 'upstream ' + r.status } };
+    const j = await r.json();
+    return { status: 200, body: { intro: skipSeg(j.intro), recap: skipSeg(j.recap), outro: skipSeg(j.outro) } };
+  } catch (e) {
+    return { status: 502, body: { error: 'upstream unreachable' } };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function handleSkip(req, res, id, ip) {
+  const m = /^(tt\d{5,10}):(\d{1,3}):(\d{1,4})$/.exec(id);
+  if (!m) return json(res, 400, { error: 'bad id' });
+  if (!allow('skip', ip, 60, 30)) return json(res, 429, { error: 'rate limited' });
+  const now = Date.now();
+  let hit = skipCache.get(id);
+  if (hit && hit.until < now) { skipCache.delete(id); hit = null; }
+  if (!hit) {
+    let pend = skipPending.get(id);
+    if (!pend) {
+      pend = skipFetch(m[1], Number(m[2]), Number(m[3])).then((r) => {
+        const found = r.status === 200 && !!(r.body.intro || r.body.recap || r.body.outro);
+        const ttl = r.status !== 200 ? SKIP_FAIL_MS : found ? SKIP_HIT_MS : SKIP_MISS_MS;
+        if (skipCache.size >= SKIP_MAX) skipCache.delete(skipCache.keys().next().value);   // oldest insertion goes
+        skipCache.set(id, { until: Date.now() + ttl, status: r.status, body: r.body });
+        return r;
+      }).finally(() => skipPending.delete(id));
+      skipPending.set(id, pend);
+    }
+    hit = await pend;
+  }
+  return json(res, hit.status, Object.assign({ id }, hit.body), hit.status === 200 ? 3600 : 0);
 }
 
 // ---------- friends (social layer) ----------
@@ -513,6 +575,10 @@ const server = http.createServer((req, res) => {
 
   if (p === '/p' && req.method === 'GET') {
     return void handleProxy(req, res, u.searchParams.get('u') || '', ip);
+  }
+
+  if (p === '/v1/skip' && req.method === 'GET') {
+    return void handleSkip(req, res, u.searchParams.get('id') || '', ip);
   }
 
   if (p === '/v1/group' && req.method === 'POST') {

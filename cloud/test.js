@@ -146,6 +146,55 @@ test('redirect hops skip the path check but never the host check', async () => {
   assert.equal(await proxyTargetOk('https://example.com:8443/x', { skipPathCheck: true }), null);
 });
 
+test('skip segments: shaped, cached, misses and failures handled, ids validated', async () => {
+  // a stand-in for the upstream database, so the suite never touches the network
+  const hits = [];
+  const stub = require('http').createServer((req, res) => {
+    const u = new URL(req.url, 'http://x');
+    hits.push(u.search);
+    const imdb = u.searchParams.get('imdb_id');
+    if (imdb === 'tt0000404') { res.writeHead(404); return res.end('{"detail":"No segments found"}'); }
+    if (imdb === 'tt0000500') { res.writeHead(500); return res.end('boom'); }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      imdb_id: imdb, season: 1, episode: 1,
+      intro: { start_ms: 61234, end_ms: 118900, start_sec: 61.234, end_sec: 118.9, confidence: 0.9, submission_count: 3 },
+      recap: null,
+      outro: { start_ms: 2500000, end_ms: 2560000, start_sec: 2500, end_sec: 2560, confidence: 0.8, submission_count: 1 },
+    }));
+  });
+  await new Promise((ok) => stub.listen(0, '127.0.0.1', ok));
+  process.env.SKIP_UPSTREAM = 'http://127.0.0.1:' + stub.address().port + '/segments';
+  try {
+    const r1 = await fetch(base + '/cloud/v1/skip?id=tt0944947:1:1');
+    assert.equal(r1.status, 200);
+    assert.match(r1.headers.get('cache-control'), /max-age=3600/);
+    const b1 = await r1.json();
+    assert.deepEqual(b1, { id: 'tt0944947:1:1', intro: { start: 61.2, end: 118.9 }, recap: null, outro: { start: 2500, end: 2560 } });
+    assert.equal(hits[0], '?imdb_id=tt0944947&season=1&episode=1');
+    // the second ask for the same episode is answered from memory
+    const r2 = await (await fetch(base + '/v1/skip?id=tt0944947:1:1')).json();
+    assert.deepEqual(r2, b1);
+    assert.equal(hits.length, 1);
+    // an episode the database has nothing for is a clean set of nulls, not an error
+    const miss = await fetch(base + '/v1/skip?id=tt0000404:2:3');
+    assert.equal(miss.status, 200);
+    assert.deepEqual(await miss.json(), { id: 'tt0000404:2:3', intro: null, recap: null, outro: null });
+    // an upstream failure is reported as one, and never cached for long
+    const fail = await fetch(base + '/v1/skip?id=tt0000500:1:1');
+    assert.equal(fail.status, 502);
+    assert.equal(fail.headers.get('cache-control'), 'no-store');
+    // only Stremio episode ids are accepted
+    for (const bad of ['tt0944947', 'tt0944947:1', 'kitsu:1:1:1', 'tt0944947:1:1:1', 'tt0944947:x:1', '', '../etc']) {
+      assert.equal((await fetch(base + '/v1/skip?id=' + encodeURIComponent(bad))).status, 400, bad);
+    }
+    assert.equal(hits.length, 3, 'bad ids never reach the upstream');
+  } finally {
+    delete process.env.SKIP_UPSTREAM;
+    stub.close();
+  }
+});
+
 test('join brute force hits the rate limit', async () => {
   let limited = false;
   for (let i = 0; i < 20; i++) {

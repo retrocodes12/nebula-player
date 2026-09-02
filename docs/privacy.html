@@ -88,6 +88,12 @@
     <li><b>Compatibility fetches.</b> When an add-on blocks browser requests, the app may fetch it
     through our server instead. The requested URL passes through, is size- and rate-limited, and is not
     stored beyond the ordinary logs above.</li>
+    <li><b>Skip intro.</b> When a series episode starts, the app asks our server where that episode's
+    recap, opening titles and closing credits fall. The request carries the episode's public id (its IMDb
+    number, season and episode) and nothing about you; our server answers from a cache or looks it up in
+    IntroDB (<a href="https://introdb.app" style="color:inherit">introdb.app</a>), a community-run
+    database, which then sees only that episode id and our server's address. Set Skip intros to Off in
+    Settings and nothing is asked.</li>
   </ul>
 
   <h2>Third parties</h2>

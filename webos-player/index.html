@@ -892,6 +892,13 @@
     color:var(--label2); margin:-9px 0 14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .upnext-src:empty { display:none; }
   html.tv .upnext-src { font-size:13px; }
+  /* Skip intro / Skip recap: one glass pill above the scrubber, where the eye already is.
+     Outside .pui-chrome so it stays up when the controls hide — it drops to the bottom edge then. */
+  #skipBtn { display:none; position:absolute; right:40px; bottom:130px; z-index:7; padding:11px 20px; font-size:14px;
+    transition:background .18s var(--ease), bottom .28s var(--ease); }
+  #skipBtn.show { display:block; animation:upIn .28s var(--ease) both; }
+  #pui.idle #skipBtn { bottom:40px; }
+  @media (prefers-reduced-motion: reduce){ #skipBtn.show { animation:none; } }
   /* the row that matches what you picked last time — same source, same quality */
   .stream.usual { box-shadow:inset 0 0 0 1px rgba(255,255,255,.16); }
   .s-usual { display:block; font-family:var(--mono); font-size:10px; font-weight:500; letter-spacing:.14em;
@@ -1177,6 +1184,7 @@
     .pui-playpause { width:64px; height:64px; }
     .pui-skip { width:48px; height:48px; }
     .qmenu, #upnext { right:16px; bottom:150px; }
+    #skipBtn { right:16px; bottom:150px; }
     #pauseBoard { left:16px; top:72px; width:80%; }
     .pb-title { font-size:26px; }
     .pb-sub { font-size:14px; }
@@ -1283,6 +1291,8 @@
   html.tv .qtitle { font-size:15px; }
   html.tv .qmenu.wide { min-width:392px; }
   html.tv #upnext { width:470px; right:56px; bottom:160px; padding:26px; }
+  html.tv #skipBtn { right:56px; bottom:160px; padding:15px 28px; font-size:19px; }
+  html.tv #pui.idle #skipBtn { bottom:56px; }
   html.tv .upnext-title { font-size:24px; }
   html.tv #pauseBoard { left:56px; top:136px; width:50%; max-width:900px; }
   html.tv .pb-kick { font-size:14px; margin-bottom:18px; }
@@ -1424,6 +1434,8 @@
         <button id="upnextX" class="focusable btn ghost">Dismiss</button>
       </div>
     </div>
+    <!-- offered over a recap or the opening titles; OK / Enter takes it when it has focus -->
+    <button id="skipBtn" class="pui-btn focusable" type="button">Skip intro</button>
   </div>
 
   <!-- nav rail (Home / Search / Add-ons) -->
@@ -1542,6 +1554,10 @@
         <div class="setrow">
           <span class="setname">Autoplay next episode<small>Count down and roll into the next one</small></span>
           <span id="setAutoplay" class="seg"></span>
+        </div>
+        <div class="setrow">
+          <span class="setname">Skip intros and recaps<small>A pill appears over an episode's recap and opening titles, or Auto jumps past them for you · Timestamps come from a community database, looked up by episode</small></span>
+          <span id="setSkip" class="seg"></span>
         </div>
         <div class="setrow">
           <span class="setname">Picture quality<small>Auto adapts to your connection · Start high opens at the best rendition · Data saver caps at 720p</small></span>
@@ -1682,7 +1698,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.02.7';
+  var PLAYER_VERSION = '2026.09.02.8';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1692,8 +1708,13 @@
   // The site root is the directory ABOVE the /player/ dir this file serves from
   // — bare origin is wrong on project-page hosting (github.io serves the site
   // under /nebula-player/, not at the origin root).
+  // The Windows app serves this file from a loopback server that hosts nothing
+  // else (preload.js puts window.nebulaDesktop up before any page script runs):
+  // its site files and its cloud are the published site's.
+  var IS_DESKTOP = !!window.nebulaDesktop;
   var SITE = GH_SITE;
-  if (HTTP_ORIGIN){
+  if (IS_DESKTOP) SITE = 'https://play.rifflehq.in';
+  else if (HTTP_ORIGIN){
     var sitePath = location.pathname
       .replace(/\/player(\/(index\.html)?)?$/, '/')   // …/player/ → …/
       .replace(/[^/]*$/, '');                          // any filename → its directory
@@ -1701,7 +1722,7 @@
   }
   // Sync + CORS-rescue service. GitHub Pages can't host it, so anything not
   // running on our own deployment talks to the canonical one.
-  var CLOUD_BASE = (HTTP_ORIGIN && !/github\.io$/i.test(location.hostname))
+  var CLOUD_BASE = (HTTP_ORIGIN && !IS_DESKTOP && !/github\.io$/i.test(location.hostname))
     ? HTTP_ORIGIN + '/cloud' : 'https://play.rifflehq.in/cloud';
 
   // TV mode: 10-foot sizing on webOS (PalmSystem/ServiceBridge only exist there);
@@ -2054,6 +2075,7 @@
         if (k===37){ seekBy(-10); }
         else if (k===39){ seekBy(10); }
         else if (k===32){ togglePlay(); }
+        else if (k===13 && document.activeElement && document.activeElement.id === 'skipBtn'){ skipNow(); }
         else if (k===13){ setTimeout(function(){ $id('puiPlay').focus(); }, 30); }
         e.preventDefault(); return;
       }
@@ -5016,6 +5038,7 @@
     try { flushProgress(true); } catch(e){}
     curPlay = null;
     closeUpNext();
+    skipReset();
     pauseBoardHide();
     pinfoSet(false);
     subOffsetReset();
@@ -5070,6 +5093,7 @@
     if (curPlay && curPlay.type === 'series'){
       var segs = String(curPlay.id||'').split(':');
       if (segs.length >= 3) $id('puiSub').textContent = 'Season '+segs[segs.length-2]+' · Episode '+segs[segs.length-1];
+      skipLoad(curPlay.id);              // where this episode's recap, titles and credits fall
     }
     setStatus('Loading…','info');
     player = new shaka.Player();
@@ -5438,14 +5462,16 @@
     progTicks++;
     if (!video.paused && progTicks % 10 === 0) flushProgress(false);
     sleepTick();
+    if (!live && span > 0) skipTick(t);
     // a sleep timer set to the end of this episode means exactly that: nothing
     // is fetched or offered past it
     if (!live && span > 0 && sleepState.mode !== 'ep'){
-      var remain = r.end - t;
-      if (remain <= 90 && nextEpisode()) prefetchNext();   // the next stream is chosen before it is needed
-      if (remain > 0.5 && remain <= 25 && !video.paused && !upnextState.open &&
+      // the closing credits count as the end when the database knows where they start
+      var remain = r.end - t, credits = skipInOutro(t);
+      if ((remain <= 90 || credits) && nextEpisode()) prefetchNext();   // the next stream is chosen before it is needed
+      if (remain > 0.5 && (remain <= 25 || credits) && !video.paused && !upnextState.open &&
           !upnextState.dismissed && nextEpisode()) openUpNext(false);
-      else if (remain > 40 && upnextState.open && !upnextState.counting) closeUpNext();
+      else if (remain > 40 && !credits && upnextState.open && !upnextState.counting) closeUpNext();
     }
   }
   function puiSyncPlayIcon(){
@@ -5469,6 +5495,7 @@
     document.body.classList.remove('pui-on');
     if (document.activeElement && pui.contains(document.activeElement)) document.activeElement.blur();
     pui.className = 'idle';
+    if (skipState.kind) skipFocus();     // with the chrome asleep, OK is the skip
   }
   function togglePlay(){
     if (!player) return;
@@ -5752,6 +5779,13 @@
             setStatus('Audio: '+label,'ok'); closePuiMenu(true);
           });
         });
+      } else {
+        // one track (or none the pipeline has reported yet): name it, and say why there is nothing to pick
+        var one = null;
+        if (langs.length === 1) one = langs[0].label || langName(langs[0].language || '');
+        else { try { if (video.audioTracks && video.audioTracks.length === 1) one = video.audioTracks[0].label || langName(video.audioTracks[0].language || ''); } catch(e){} }
+        if (one) menuOpt(one, true, function(){ closePuiMenu(true); });
+        puiNote('This stream carries one audio track.');
       }
     } else if (kind==='speed'){
       [0.5,0.75,1,1.25,1.5,2].forEach(function(rate){
@@ -5823,13 +5857,23 @@
     } catch(e){}
     // always offered: even with no embedded track, add-ons may have one
     $id('puiSubs').style.display = '';
-    var langs=[]; try { langs = player.getAudioLanguagesAndRoles()||[]; } catch(e){}
-    // progressive files play through src= where Shaka can't see the container's
-    // tracks — the element's native audioTracks list can (webOS supports it)
-    var nativeAud = 0; try { nativeAud = (video.audioTracks && video.audioTracks.length) || 0; } catch(e){}
-    $id('puiAudio').style.display = (langs.length >= 2 || nativeAud >= 2) ? '' : 'none';
+    // Audio too: a stream with one track says so in the menu, rather than leaving
+    // a viewer hunting for a button that is not there
+    $id('puiAudio').style.display = '';
     $id('puiNext').style.display = nextEpisode() ? '' : 'none';
   }
+  // webOS fills the element's native audio-track list (progressive files play
+  // through src=, where Shaka cannot see the container's tracks) a moment after
+  // load(): the Audio menu re-reads it as tracks arrive
+  try {
+    if (video.audioTracks && video.audioTracks.addEventListener){
+      ['addtrack','removetrack','change'].forEach(function(ev){
+        video.audioTracks.addEventListener(ev, function(){
+          if (puiState.menu === 'audio') openPuiMenu('audio', puiState.opener);
+        });
+      });
+    }
+  } catch(e){}
   function puiReset(title){
     $id('puiTitle').textContent = title || '';
     $id('puiSub').textContent = '';
@@ -5840,7 +5884,7 @@
     closePuiMenu(false);
     $id('puiSpin').style.display = 'block';
     $id('puiFill').style.width='0%'; $id('puiBuf').style.width='0%'; $id('puiKnob').style.left='0%';
-    $id('puiSubs').style.display=''; $id('puiAudio').style.display='none'; $id('puiQual').style.display='none';
+    $id('puiSubs').style.display=''; $id('puiAudio').style.display=''; $id('puiQual').style.display='none';
     puiSyncPlayIcon();
     puiShow();
     clearInterval(puiState.tick);
@@ -6013,6 +6057,87 @@
     }
     if (nextEpisode()) openUpNext(true);
   });
+
+  // ---- skip intro / recap, and the closing credits as an early Up next ----
+  // Segment timestamps come from a community database by way of Nebula Cloud
+  // (the database's API answers browsers from its own site only). Asked once
+  // per series episode with an IMDb-shaped id, and only for the episode: the
+  // setting has three positions — a pill to press (default), automatic, or off,
+  // and off never asks. A party viewer gets neither: they follow the host.
+  var skipState = { id:null, segs:null, kind:null, auto:{} };
+  function skipMode(){ var m = getPrefs().skip; return (m === 'auto' || m === 'off') ? m : 'button'; }
+  function skipReset(){ skipState = { id:null, segs:null, kind:null, auto:{} }; skipHide(); }
+  function skipLoad(id){
+    if (skipMode() === 'off' || !/^tt\d+:\d+:\d+$/.test(id || '')) return;
+    skipState.id = id;
+    fetch(CLOUD_BASE + '/v1/skip?id=' + encodeURIComponent(id))
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        if (!j || skipState.id !== id) return;
+        var segs = {};
+        ['recap','intro','outro'].forEach(function(k){
+          var s = j[k];
+          if (s && isFinite(s.start) && isFinite(s.end) && s.end - s.start >= 1) segs[k] = { start:+s.start, end:+s.end };
+        });
+        skipState.segs = segs;
+      })
+      .catch(function(){});
+  }
+  /** The recap or intro `t` sits inside, with at least a second left to skip. */
+  function skipSegAt(t){
+    var segs = skipState.segs; if (!segs) return null;
+    for (var i = 0, ks = ['recap','intro']; i < ks.length; i++){
+      var s = segs[ks[i]];
+      if (s && t >= s.start && t < s.end - 1) return { kind:ks[i], seg:s };
+    }
+    return null;
+  }
+  function skipInOutro(t){ var s = skipState.segs && skipState.segs.outro; return !!s && t >= s.start; }
+  function skipFocus(){ var b = $id('skipBtn'); try { b.focus({ preventScroll:true }); } catch(e){ b.focus(); } }
+  function skipShow(kind){
+    if (skipState.kind === kind) return;
+    skipState.kind = kind;
+    var b = $id('skipBtn');
+    b.textContent = kind === 'recap' ? 'Skip recap' : 'Skip intro';
+    b.classList.add('show');
+    // the pill takes focus unless the viewer is busy in the controls, so OK skips
+    var ae = document.activeElement;
+    if (pui.className === 'idle' || !ae || ae === document.body || ae === pui || ae.id === 'puiPlay') skipFocus();
+  }
+  function skipHide(){
+    var b = $id('skipBtn'); if (!b) return;
+    skipState.kind = null;
+    if (!b.classList.contains('show')) return;
+    b.classList.remove('show');
+    if (document.activeElement === b){
+      if (pui.className !== 'idle') $id('puiPlay').focus(); else b.blur();
+    }
+  }
+  function skipPast(hit){
+    video.currentTime = hit.seg.end;
+    skipHide();
+    setStatus(hit.kind === 'recap' ? 'Skipped the recap.' : 'Skipped the intro.', 'ok');
+  }
+  /** The pill, or OK while it has focus. */
+  function skipNow(){
+    var hit = skipSegAt(video.currentTime);
+    if (hit){ skipPast(hit); puiTick(); } else skipHide();
+  }
+  /** Every tick: offer the skip, or take it on Auto — once per segment a
+      sitting, so a scrub back into the titles is taken as meant. */
+  function skipTick(t){
+    if (!skipState.segs || (party && !party.isHost)){ if (skipState.kind) skipHide(); return; }
+    var hit = skipSegAt(t);
+    if (!hit){ if (skipState.kind) skipHide(); return; }
+    if (skipMode() === 'auto' && !skipState.auto[hit.kind]){
+      if (video.paused) return;             // a paused picture is not jumped about
+      skipState.auto[hit.kind] = true;
+      skipPast(hit);
+      return;
+    }
+    skipShow(hit.kind);
+  }
+  $id('skipBtn').onclick = function(){ skipNow(); };
 
   // ---- picture-in-picture (browsers that support it) + desktop mini player ----
   var miniOn = false;
@@ -7187,6 +7312,11 @@
     var a2 = $id('setAutoplay'); a2.innerHTML = '';
     a2.appendChild(prefChip('On', pr.autoplay !== false, function(){ setPref('autoplay', true); }));
     a2.appendChild(prefChip('Off', pr.autoplay === false, function(){ setPref('autoplay', false); }));
+    var sk = $id('setSkip'); if (sk){ sk.innerHTML = '';
+      [['Show button','button'], ['Auto','auto'], ['Off','off']].forEach(function(o){
+        sk.appendChild(prefChip(o[0], skipMode() === o[1], function(){ setPref('skip', o[1]); }));
+      });
+    }
     var q = $id('setQuality'); if (q){ q.innerHTML = '';
       [['Auto','auto'], ['Start high','high'], ['Data saver','saver']].forEach(function(o){
         q.appendChild(prefChip(o[0], (pr.quality || 'auto') === o[1], function(){ setPref('quality', o[1]); applyQualityPolicy(); }));

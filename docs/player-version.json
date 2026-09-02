@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.02.7",
+  "version": "2026.09.02.8",
   "url": "https://play.rifflehq.in/",
-  "notes": "Evenings, sorted. A sleep timer in the player (Z, or the Sleep pill) pauses after 15 to 90 minutes or when the episode you are on ends, and it rides along through the next episode. Anything you have started now offers Start over: on the streams page, and by holding a Continue watching card. Series pages have Surprise me, a random episode that has aired."
+  "notes": "Skip intro. A pill appears over an episode's recap and opening titles; press it (OK on a remote) to jump past them, or set Auto in Settings > Playback and it skips for you. The closing credits bring Up next forward. Audio now always sits in the controls, naming the one track when there is nothing to pick."
 }
