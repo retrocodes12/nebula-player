@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.02.6",
+  "version": "2026.09.02.7",
   "url": "https://play.rifflehq.in/",
-  "notes": "Keyboards are first-class now. On a computer, press ? anywhere for a sheet of shortcuts: Space or K to play, J and L to skip ten seconds, M to mute, < and > for speed, S, A and Q for subtitles, audio and quality, N for the next episode, a digit to jump to that tenth of the film, / to search and 1–5 for the tabs. Esc peels one layer at a time; the control buttons show their keys on hover"
+  "notes": "Evenings, sorted. A sleep timer in the player (Z, or the Sleep pill) pauses after 15 to 90 minutes or when the episode you are on ends, and it rides along through the next episode. Anything you have started now offers Start over: on the streams page, and by holding a Continue watching card. Series pages have Surprise me, a random episode that has aired."
 }

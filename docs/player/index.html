@@ -816,7 +816,11 @@
     padding:9px 16px; border-radius:var(--r-pill); border:0; background:rgba(80,80,88,.42);
     color:#fff; cursor:pointer; transition:background .18s var(--ease); white-space:nowrap; }
   .pui-btn .pv { color:rgba(235,235,245,.66); margin-left:7px; font-weight:500; }
+  .pui-btn .pv:empty { display:none; }
   .pui-btn:hover { background:rgba(110,110,120,.55); }
+  /* an armed sleep timer reads like the lit Info button: white pill, dark text */
+  .pui-btn.on, .pui-btn.on:hover { background:rgba(255,255,255,.92); color:#000; }
+  .pui-btn.on .pv { color:rgba(0,0,0,.62); }
   html.tv .pui-btn.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
   .pui-btn.focusable:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
   /* the Apple TV scrubber: thick, fully rounded, grows a touch under focus */
@@ -1025,6 +1029,13 @@
   .sh-sub { color:rgba(235,235,245,.72); font-size:14px; margin-top:4px; text-shadow:0 1px 10px rgba(0,0,0,.9); }
   .sh-count { color:var(--label3); font-family:var(--mono); font-size:11px; letter-spacing:.08em;
     margin-top:8px; text-transform:uppercase; }
+  /* a picked-up title says where it will resume; one press starts it fresh instead */
+  #streamResume { display:none; align-items:center; margin:0 0 16px; color:var(--label2); font-size:14px; letter-spacing:-.008em; }
+  #streamResume.show { display:flex; }
+  #streamResume .chip { margin-left:12px; background:transparent; box-shadow:inset 0 0 0 1px var(--sep);
+    color:var(--label2); font-size:13px; padding:7px 15px; white-space:nowrap; }
+  #streamResume .chip:hover, #streamResume .chip.focusable:focus-visible { background:var(--fill); color:var(--label); }
+  html.tv #streamResume .chip.focusable:focus { box-shadow:0 0 0 3px rgba(255,255,255,.5); color:var(--label); }
   /* quiet outlined filters — only the active one carries fill */
   #streamFilters { display:flex; overflow-x:auto; margin:0 0 18px; padding:2px 0 6px; scrollbar-width:none; }
   #streamFilters::-webkit-scrollbar { display:none; }
@@ -1374,6 +1385,7 @@
           <button id="puiAudio" class="focusable pui-btn" style="display:none" title="Audio (a)">Audio</button>
           <button id="puiQual" class="focusable pui-btn" style="display:none" title="Quality (q)">Quality<span class="pv" id="puiQualVal"></span></button>
           <button id="puiSpeed" class="focusable pui-btn" title="Speed (&lt; and &gt;)">Speed<span class="pv" id="puiSpeedVal">1×</span></button>
+          <button id="puiSleep" class="focusable pui-btn" title="Sleep timer (z)">Sleep<span class="pv" id="puiSleepVal"></span></button>
           <button id="puiParty" class="focusable pui-btn" title="Watch party — watch together in sync">Party</button>
         </div>
       </div>
@@ -1469,6 +1481,7 @@
       <div class="row">
         <button id="detPlay" class="focusable btn"><span class="btn-ic"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span id="detPlayLbl">Play</span></button>
         <button id="detEpisodes" class="focusable btn ghost" style="display:none">Episodes</button>
+        <button id="detShuffle" class="focusable btn ghost" style="display:none" title="Play a random episode">Surprise me</button>
         <button id="detList" class="focusable btn ghost">My List</button>
         <button id="detRec" class="focusable btn ghost" style="display:none">Recommend</button>
       </div>
@@ -1655,6 +1668,7 @@
           <div class="sh-count" id="shCount"></div>
         </div>
       </div>
+      <div id="streamResume"><span id="srText"></span><button class="chip focusable" id="srBtn" type="button">Start over</button></div>
       <div id="streamFilters" style="display:none"></div>
       <div id="streamList" class="streams"></div>
     </div>
@@ -1668,7 +1682,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.02.6';
+  var PLAYER_VERSION = '2026.09.02.7';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1829,7 +1843,9 @@
   function goBack(){
     stopPairing(); pfTvStop();
     if (player && video.style.display==='block'){
-      stopPlayer();
+      stopPlayer(); sleepClear();     // the sleep timer was for this sitting only
+      // the resume point has moved; the streams page underneath says so
+      if (lastStreamsReq) renderStreamResume(lastStreamsReq.type, lastStreamsReq.id);
       // viewers leave the party when they stop watching; a host keeps it alive
       // (they can pick another stream and everyone follows)
       if (party && !party.isHost) endParty('Left the party.');
@@ -1864,6 +1880,7 @@
       [['A'], 'Audio'],
       [['Q'], 'Quality'],
       [['N'], 'Next episode'],
+      [['Z'], 'Sleep timer'],
       [['I'], 'Playback info'],
       [['F'], 'Fullscreen'],
       [['P'], 'Picture-in-picture', function(){ return !!(document.pictureInPictureEnabled && video.requestPictureInPicture); }],
@@ -1997,6 +2014,7 @@
         if (k===65){ puiKey('puiAudio'); e.preventDefault(); return; }
         if (k===81){ puiKey('puiQual'); e.preventDefault(); return; }
         if (k===78){ puiKey('puiNext'); e.preventDefault(); return; }
+        if (k===90){ puiKey('puiSleep'); e.preventDefault(); return; }
         if (k===80){ puiKey('puiPip'); e.preventDefault(); return; }
       }
       if (!inInput && !mod && e.shiftKey){
@@ -3053,6 +3071,7 @@
     info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.4"/></svg>',
     trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 7V5h4v2M6 7l1 12.2A1.8 1.8 0 0 0 8.8 21h6.4a1.8 1.8 0 0 0 1.8-1.8L18 7"/></svg>',
     bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h12v17l-6-4.2L6 21z"/><path d="M9.4 9.6h5.2"/></svg>',
+    restart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 8-8 8.7 8.7 0 0 0-6 2.4L4 8.5"/><path d="M4 4v4.5h4.5"/></svg>',
     heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.3C7 16.6 3.2 13.3 3.2 9.4 3.2 6.9 5.2 5 7.6 5c1.6 0 3.2.8 4.4 2.4C13.2 5.8 14.8 5 16.4 5c2.4 0 4.4 1.9 4.4 4.4 0 3.9-3.8 7.2-8.8 10.9z"/></svg>',
   };
   var sheetState = { el: null, scrim: null, prev: null, keys: null };
@@ -3179,12 +3198,12 @@
       '<div class="prog"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' +
       '<div class="card-label">' + esc(r.name || r.id) + '</div>' +
       (left ? '<div class="card-sub">' + esc(left) + '</div>' : '');
-    function resume(){
+    function resume(fresh){
       var a = addonByUrl(r.addonUrl);
       if (a) ctx.addon = a;
       ctx.item = { id: r.id, type: r.type, name: r.name, poster: r.poster, posterShape: r.shape };
       ctx.seriesEpisodes = null; ctx.epIndex = -1; ctx.seriesName = '';
-      openStreams(r.type, r.id, r.name);
+      openStreams(r.type, r.id, r.name, fresh === true);
       if (r.type === 'series') hydrateSeriesChain(r.type, r.id);
     }
     bindCard(card, resume, function(){
@@ -3197,7 +3216,8 @@
         sub: [ep, parts.slice(2).join(' · '), left].filter(Boolean).join('  ·  '),
         poster: r.poster, shape: r.shape,
         actions: [
-          { icon:'play', label:'Resume', fn: resume },
+          { icon:'play', label:'Resume', fn: function(){ resume(false); } },
+          { icon:'restart', label:'Start over', fn: function(){ resume(true); } },
           { icon:'info', label:'View details', fn: function(){
             var a = addonByUrl(r.addonUrl); if (a) ctx.addon = a;
             // the card's id is the episode that was playing; the title page is the series
@@ -4410,15 +4430,44 @@
       art to every episode, like the phone app. The separate episodes view
       remains only as a fallback when the full meta has no videos. */
   var detEp = null;
+  /** The episodes Surprise me may land on: aired, regular-season ones (specials
+      only when that is all a series has). */
+  function surprisePool(flat){
+    var now = Date.now();
+    var aired = flat.filter(function(v){
+      if (!v.released) return true;
+      var d = new Date(v.released).getTime(); return !isFinite(d) || d <= now;
+    });
+    var regular = aired.filter(function(v){ return seasonNum(v) !== 0; });
+    return regular.length ? regular : aired;
+  }
+  var lastSurprise = null;
+  /** A random episode for a comfort show — never the same one twice running. */
+  function surprisePick(pool){
+    var p = pool.length > 1 ? pool.filter(function(v){ return v.id !== lastSurprise; }) : pool;
+    var v = p[Math.floor(Math.random() * p.length)] || null;
+    lastSurprise = v ? v.id : null;
+    return v;
+  }
   function renderDetailSeries(meta, type){
-    var sRow = $id('detSeasonRow'), list = $id('detEpList');
+    var sRow = $id('detSeasonRow'), list = $id('detEpList'), sh = $id('detShuffle');
     detEp = null;
-    sRow.style.display = 'none'; sRow.innerHTML = ''; list.innerHTML = '';
+    sRow.style.display = 'none'; sRow.innerHTML = ''; list.innerHTML = ''; sh.style.display = 'none';
     if (type !== 'series' || !meta.videos || !meta.videos.length) return;
     var grouped = groupEpisodes(meta.videos);
     var bySeason = grouped.bySeason, seasons = grouped.seasons, flat = grouped.flat;
     ctx.seriesType = type;
     ctx.seriesEpisodes = flat; ctx.seriesName = meta.name || ''; ctx.seriesPoster = meta.poster || '';
+    var pool = surprisePool(flat);
+    if (pool.length >= 2){
+      sh.style.display = '';
+      sh.onclick = function(){
+        var v = surprisePick(pool); if (!v) return;
+        ctx.epIndex = flat.indexOf(v);
+        ctx.streamTitle = epLabel(meta.name, v);
+        openStreams(type, v.id, ctx.streamTitle);
+      };
+    }
     var upIdx = -1;
     function renderSeason(sn){
       Array.prototype.forEach.call(sRow.children, function(ch){ ch.classList.toggle('on', ch.__season === sn); });
@@ -4787,7 +4836,7 @@
       bar.appendChild(b);
       return b;
     }
-    chip('↻', false, function(){ if (lastStreamsReq) openStreams(lastStreamsReq.type, lastStreamsReq.id, lastStreamsReq.title); });
+    chip('↻', false, function(){ if (lastStreamsReq) openStreams(lastStreamsReq.type, lastStreamsReq.id, lastStreamsReq.title, ctx.startOver); });
     var cur = list.getAttribute('data-filter') || '';
     chip('All', !cur, function(){ list.setAttribute('data-filter', ''); applyStreamFilter(); });
     secs.forEach(function(b){
@@ -4803,11 +4852,28 @@
     });
     updateStreamFilters();
   }
-  function openStreams(type, id, titleText){
+  /** Above the streams of a picked-up title: where it will resume, and a way to
+      start from the beginning instead. ctx.startOver holds for the next play only. */
+  function renderStreamResume(type, id){
+    var box = $id('streamResume'), at = resumeAt(type, id);
+    if (!at){ box.classList.remove('show'); ctx.startOver = false; return; }
+    function paint(){
+      $id('srText').textContent = ctx.startOver ? 'Starting from the beginning' : 'Resuming from ' + fmtT(at);
+      $id('srBtn').textContent = ctx.startOver ? 'Resume from ' + fmtT(at) : 'Start over';
+    }
+    $id('srBtn').onclick = function(){
+      ctx.startOver = !ctx.startOver; paint();
+      setStatus(ctx.startOver ? 'Pick a stream — it starts from the beginning.' : 'Pick a stream — it resumes from ' + fmtT(at) + '.', 'ok');
+    };
+    paint(); box.classList.add('show');
+  }
+  function openStreams(type, id, titleText, fresh){
     var seq = ++openSeq, openedAt = Date.now();
     lastStreamsReq = { type: type, id: id, title: titleText };
     setPlayIdentity(type, id, titleText);
     renderStreamsHero(type, id, titleText);
+    ctx.startOver = fresh === true;
+    renderStreamResume(type, id);
     var fb = $id('streamFilters'); fb.style.display = 'none'; fb.innerHTML = '';
     var list = document.getElementById('streamList');
     list.setAttribute('data-filter', '');
@@ -5050,15 +5116,17 @@
         !/\.(mpd|m3u8|mp4|m4v|webm|mkv|mov|ts|avi|mp3|aac|ogg|flac|wav)(\?|#|$)/i.test(rawUrl)){
       mimeType = 'video/mp4';
     }
-    // Resume where this exact item was left off. Handing the offset to Shaka's
-    // load() starts buffering there, rather than loading at 0 and seeking.
-    var startAt = curPlay ? resumeAt(curPlay.type, curPlay.id) : 0;
+    // Resume where this exact item was left off — unless Start over was asked
+    // for, which holds for this one play. Handing the offset to Shaka's load()
+    // starts buffering there, rather than loading at 0 and seeking.
+    var fresh = ctx.startOver === true; ctx.startOver = false;
+    var startAt = (curPlay && !fresh) ? resumeAt(curPlay.type, curPlay.id) : 0;
     try {
       // a blob: URL (local file) has no extension — the MIME type stands in
       if (startAt) await player.load(cleanUrl(rawUrl), startAt, mimeType || undefined);
       else await player.load(cleanUrl(rawUrl), null, mimeType || undefined);
       if (seq !== playSeq) return;
-      setStatus(startAt ? ('Resumed from ' + fmtT(startAt) + '.') : 'Playing.', 'ok');
+      setStatus(startAt ? ('Resumed from ' + fmtT(startAt) + '.') : (fresh ? 'Starting from the beginning.' : 'Playing.'), 'ok');
       try { await video.play(); } catch(e){}
       $id('puiSpin').style.display = 'none';
       puiRefreshButtons(); puiTick();
@@ -5369,7 +5437,10 @@
     // once we're near the end
     progTicks++;
     if (!video.paused && progTicks % 10 === 0) flushProgress(false);
-    if (!live && span > 0){
+    sleepTick();
+    // a sleep timer set to the end of this episode means exactly that: nothing
+    // is fetched or offered past it
+    if (!live && span > 0 && sleepState.mode !== 'ep'){
       var remain = r.end - t;
       if (remain <= 90 && nextEpisode()) prefetchNext();   // the next stream is chosen before it is needed
       if (remain > 0.5 && remain <= 25 && !video.paused && !upnextState.open &&
@@ -5405,6 +5476,43 @@
     puiShow();
   }
 
+  // ---- sleep timer ----
+  // For the last episode of the night: playback pauses when the minutes run
+  // out, or stops at the end of this episode instead of rolling into the next.
+  // Kept for the sitting only, and it rides along into the next episode.
+  var sleepState = { mode: '', at: 0, fired: false };   // mode '' | 'min' | 'ep'
+  function sleepLabel(secs){
+    var m = Math.max(1, Math.ceil(secs / 60));   // the last seconds still read "1 min"
+    if (m >= 60) return Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : '');
+    return m + ' min';
+  }
+  function sleepLeft(){ return Math.max(0, Math.ceil((sleepState.at - Date.now()) / 1000)); }
+  function sleepRender(){
+    var v = $id('puiSleepVal'), b = $id('puiSleep'); if (!v || !b) return;
+    v.textContent = sleepState.mode === 'ep' ? 'End of episode' : (sleepState.mode === 'min' ? sleepLabel(sleepLeft()) : '');
+    b.classList.toggle('on', !!sleepState.mode);
+  }
+  function sleepSet(mode, mins){
+    sleepState.mode = mode; sleepState.fired = false;
+    sleepState.at = mode === 'min' ? Date.now() + mins * 60000 : 0;
+    if (mode === 'ep' && upnextState.open) closeUpNext();
+    sleepRender();
+    setStatus(!mode ? 'Sleep timer off.' : (mode === 'ep' ? 'Stopping when this episode ends.' : 'Pausing in ' + sleepLabel(mins * 60) + '.'), 'ok');
+    closePuiMenu(true);
+  }
+  function sleepClear(){ sleepState.mode = ''; sleepState.at = 0; sleepState.fired = false; sleepRender(); }
+  /** Each tick: keep the pill's minutes current, and pause when the time is up. */
+  function sleepTick(){
+    if (sleepState.mode !== 'min') return;
+    if (Date.now() < sleepState.at){ sleepRender(); return; }
+    sleepState.mode = ''; sleepState.at = 0; sleepState.fired = true;
+    sleepRender();
+    if (upnextState.open) closeUpNext();
+    try { video.pause(); } catch(e){}
+    setStatus('Sleep timer — paused.', 'ok');
+    puiShow();
+  }
+
   // ---- pause board ----
   // Leave the film paused and, after a beat, the frame dims and tells you what
   // you're looking at. Anything — a key, the pointer, play — clears it.
@@ -5432,7 +5540,7 @@
     if (ep) sub = epTag(ep) + (ep.name ? ' · ' + ep.name : '');
     else if (ctx.item && ctx.item.year) sub = String(ctx.item.year) + (ctx.item.genres && ctx.item.genres.length ? ' · ' + ctx.item.genres.slice(0,3).join(', ') : '');
     var desc = (ep && (ep.overview || ep.description)) || (ctx.item && ctx.item.description) || '';
-    $id('pbKick').innerHTML = video.ended ? 'Finished' : (puiIsLive() ? '<b>Live</b> · Paused' : 'Paused');
+    $id('pbKick').innerHTML = (sleepState.fired ? 'Sleep timer · ' : '') + (video.ended ? 'Finished' : (puiIsLive() ? '<b>Live</b> · Paused' : 'Paused'));
     $id('pbTitle').textContent = title;
     $id('pbSub').textContent = sub;
     $id('pbDesc').textContent = desc;
@@ -5562,7 +5670,7 @@
     if (!player) return;
     puiMenuEl.innerHTML = '';
     var t=document.createElement('div'); t.className='qtitle';
-    t.textContent = { quality:'Quality', subs:'Subtitles', audio:'Audio', speed:'Speed', substyle:'Subtitle appearance', subtiming:'Subtitle timing' }[kind];
+    t.textContent = { quality:'Quality', subs:'Subtitles', audio:'Audio', speed:'Speed', sleep:'Sleep timer', substyle:'Subtitle appearance', subtiming:'Subtitle timing' }[kind];
     puiMenuEl.appendChild(t);
     if (kind==='substyle') puiMenuEl.classList.add('wide'); else puiMenuEl.classList.remove('wide');
     if (kind==='quality'){
@@ -5653,6 +5761,13 @@
           setStatus('Speed: '+rate+'×','ok'); closePuiMenu(true);
         });
       });
+    } else if (kind==='sleep'){
+      menuOpt('Off', !sleepState.mode, function(){ sleepSet('', 0); });
+      [15,30,45,60,90].forEach(function(m){
+        menuOpt('In ' + sleepLabel(m * 60), false, function(){ sleepSet('min', m); });
+      });
+      if (nextEpisode()) menuOpt('When this episode ends', sleepState.mode==='ep', function(){ sleepSet('ep', 0); });
+      puiNote(sleepState.mode==='min' ? 'Pausing in ' + sleepLabel(sleepLeft()) + '.' : 'Playback pauses when the time is up.');
     }
     puiMenuEl.classList.add('open');
     puiState.menu = kind; puiState.opener = opener || null;
@@ -5747,6 +5862,7 @@
   $id('puiGoLive').onclick = function(){ var r = puiRange(); if (r.end > r.start){ video.currentTime = Math.max(r.start, r.end - 1); puiTick(); } puiShow(); };
   $id('puiAudio').onclick = function(){ if (puiState.menu==='audio') closePuiMenu(true); else openPuiMenu('audio', this); };
   $id('puiSpeed').onclick = function(){ if (puiState.menu==='speed') closePuiMenu(true); else openPuiMenu('speed', this); };
+  $id('puiSleep').onclick = function(){ if (puiState.menu==='sleep') closePuiMenu(true); else openPuiMenu('sleep', this); };
 
   // ---- fullscreen ----
   // Hidden on webOS, where the app already owns the whole screen.
@@ -5890,6 +6006,11 @@
     noteProgress(0, 0, true);          // finished — ticks it off the episode list
     try { renderContinue(); } catch(e){}
     puiShow();
+    if (sleepState.mode === 'ep'){     // the night ends here, as asked
+      sleepClear(); sleepState.fired = true;
+      setStatus('Sleep timer — stopping here.', 'ok');
+      return;
+    }
     if (nextEpisode()) openUpNext(true);
   });
 
@@ -6238,7 +6359,7 @@
   video.addEventListener('pause', function(){ if (party && party.isHost) party.dirty = true; });
   video.addEventListener('seeked', function(){ if (party && party.isHost) party.dirty = true; });
 
-  video.addEventListener('play', function(){ puiSyncPlayIcon(); puiShow(); });
+  video.addEventListener('play', function(){ sleepState.fired = false; puiSyncPlayIcon(); puiShow(); });
   video.addEventListener('pause', function(){ puiSyncPlayIcon(); puiShow(); });
   pui.addEventListener('mousemove', function(){ if (document.body.className.indexOf('playing') !== -1) puiShow(); });
   pui.addEventListener('click', function(e){
