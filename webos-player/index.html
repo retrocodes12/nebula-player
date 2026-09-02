@@ -32,7 +32,7 @@
     --fill:rgba(118,118,128,.24);
     --fill2:rgba(118,118,128,.36);
     --red:#E50914; --red-hover:#F6121D;
-    --accent:#E50914; --fzoom:1.10;
+    --accent:#E50914; --fzoom:1.04;
     --ok:#30D158;
     --r-card:12px; --r-tile:18px; --r-ctl:12px; --r-pill:980px;
     --ease:cubic-bezier(.22,.61,.36,1);
@@ -693,19 +693,25 @@
   }
 
   /* ---- status toast ---- */
+  /* hidden = slid down AND invisible: with the player chrome up the toast is lifted (below), and a
+     merely-translated one would park on the toolbar, still readable and eating its clicks */
   #status { position:fixed; left:50%; bottom:26px; transform:translate(-50%,180%); z-index:60;
     padding:11px 18px 11px 34px; font-size:14px; font-weight:500; letter-spacing:-.01em;
     border-radius:var(--r-pill); background:rgba(44,44,46,.92); color:var(--label);
-    box-shadow:0 16px 40px rgba(0,0,0,.6); max-width:80vw; transition:transform .34s var(--ease); }
+    box-shadow:0 16px 40px rgba(0,0,0,.6); max-width:80vw; visibility:hidden; pointer-events:none;
+    transition:transform .34s var(--ease), visibility 0s linear .34s; }
   @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
     #status { background:rgba(44,44,46,.72); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); }
   }
   #status::before { content:''; position:absolute; left:16px; top:50%; margin-top:-3.5px;
     width:7px; height:7px; border-radius:50%; background:var(--label2); }
-  #status.show { transform:translate(-50%,0); }
+  #status.show { transform:translate(-50%,0); visibility:visible; transition:transform .34s var(--ease), visibility 0s; }
   #status.err::before { background:var(--red); }
   #status.ok::before { background:var(--ok); }
   #status.info::before { background:var(--label2); }
+  /* with the player chrome up, the toast clears the toolbar */
+  body.pui-on #status { bottom:88px; }
+  html.tv body.pui-on #status { bottom:112px; }
 
   /* ---- pairing / manual ---- */
   #qrbox { background:#fff; padding:18px; border-radius:var(--r-tile); display:inline-block; }
@@ -727,8 +733,8 @@
      (applySubStyle() re-emits these three rules with the user's own offset added;
      the static copies are the pre-script fallback.) */
   video::-webkit-media-text-track-container { transition:transform .28s var(--ease); }
-  body.pui-on video::-webkit-media-text-track-container { transform:translateY(-118px); }
-  html.tv body.pui-on video::-webkit-media-text-track-container { transform:translateY(-168px); }
+  body.pui-on video::-webkit-media-text-track-container { transform:translateY(-228px); }
+  html.tv body.pui-on video::-webkit-media-text-track-container { transform:translateY(-288px); }
 
   /* ---- player chrome — Apple TV layout ----
      Frosted-glass circles for transport and window controls, a thick rounded
@@ -741,7 +747,7 @@
   #pui.idle .pui-chrome, #pui.idle .pui-shade { opacity:0; pointer-events:none; }
   .pui-shade { position:absolute; left:0; right:0; pointer-events:none; transition:opacity .28s var(--ease); }
   .pui-shade-top { top:0; height:160px; background:linear-gradient(180deg, rgba(0,0,0,.6), rgba(0,0,0,0)); }
-  .pui-shade-bot { bottom:0; height:240px; background:linear-gradient(0deg, rgba(0,0,0,.78), rgba(0,0,0,0)); }
+  .pui-shade-bot { bottom:0; height:320px; background:linear-gradient(0deg, rgba(0,0,0,.78), rgba(0,0,0,0)); }
   .pui-top { position:absolute; top:0; left:0; right:0; display:flex; align-items:center; padding:26px 32px; }
   .pui-top > * + * { margin-left:14px; }
   .pui-round { display:flex; align-items:center; justify-content:center; width:44px; height:44px;
@@ -754,7 +760,7 @@
   html.tv .pui-round.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
   .pui-round.focusable:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
   @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
-    .pui-round, .pui-btn, .qmenu, #upnext, .pui-live {
+    .pui-round, .pui-btn, .pui-time, .pui-bar, .qmenu, #upnext, .pui-live {
       -webkit-backdrop-filter:saturate(180%) blur(18px); backdrop-filter:saturate(180%) blur(18px); }
   }
   .pui-winrow { margin-left:auto; display:flex; align-items:center; }
@@ -803,15 +809,18 @@
   .pui-skipnum { position:absolute; bottom:9px; font-size:9px; font-weight:700; }
   .pui-playpause { width:82px; height:82px; }
   .pui-playpause svg { width:36px; height:36px; }
-  .pui-bottom { position:absolute; left:0; right:0; bottom:0; padding:0 40px 26px; }
-  .pui-head { display:flex; align-items:flex-end; margin-bottom:12px; }
+  .pui-bottom { position:absolute; left:0; right:0; bottom:0; padding:0 40px 24px; }
+  .pui-head { display:flex; align-items:flex-end; margin-bottom:14px; }
   .pui-titles { flex:1 1 auto; min-width:0; }
-  .pui-title { font-size:21px; font-weight:600; letter-spacing:-.02em; color:#fff;
+  .pui-title { font-size:22px; font-weight:600; letter-spacing:-.02em; color:#fff;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-shadow:0 1px 12px rgba(0,0,0,.6); }
-  .pui-sub { font-size:13px; font-weight:500; color:rgba(235,235,245,.66); margin-top:3px;
+  /* where the picture comes from — add-on · plate · provider — in the eyebrow register */
+  .pui-src { font-family:var(--mono); font-size:11px; font-weight:500; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--label2); margin-top:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pui-src:empty { display:none; }
+  .pui-sub { font-size:13.5px; font-weight:500; color:rgba(235,235,245,.72); margin-top:5px;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .pui-btns { flex:0 0 auto; display:flex; align-items:center; margin-left:20px; }
-  .pui-btns > * + * { margin-left:8px; }
+  .pui-sub:empty { display:none; }
   .pui-btn { font-family:var(--sans); font-size:13px; font-weight:600; letter-spacing:-.01em;
     padding:9px 16px; border-radius:var(--r-pill); border:0; background:rgba(80,80,88,.42);
     color:#fff; cursor:pointer; transition:background .18s var(--ease); white-space:nowrap; }
@@ -835,8 +844,33 @@
   .pui-knob { display:none; }
   html.tv .pui-seek:focus { box-shadow:0 0 0 4px rgba(255,255,255,.35); border-radius:8px; }
   .pui-seek:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.35); border-radius:8px; }
-  .pui-times { display:flex; justify-content:space-between; margin-top:8px;
-    font-size:12.5px; font-weight:500; color:rgba(235,235,245,.72); font-variant-numeric:tabular-nums; }
+  /* under the scrubber: a time pill at each end, then one glass toolbar centred beneath them */
+  .pui-foot { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; margin-top:10px; }
+  .pui-time { flex:0 0 auto; display:inline-block; font-family:var(--sans); font-size:11.5px; font-weight:600; letter-spacing:.01em;
+    line-height:1.2; color:#fff; font-variant-numeric:tabular-nums; padding:6px 11px; border-radius:var(--r-pill); border:0;
+    background:rgba(80,80,88,.42); white-space:nowrap; }
+  .pui-time.focusable { cursor:pointer; transition:background .18s var(--ease); }
+  .pui-time.focusable:hover { background:rgba(110,110,120,.55); }
+  html.tv .pui-time.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
+  .pui-time.focusable:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
+  /* the bar takes its own line; when it is wider than the screen it scrolls sideways (auto
+     margins collapse to 0 on overflow, so it starts at the left edge instead of losing its head) */
+  .pui-barwrap { order:1; flex:0 0 100%; width:100%; display:flex; margin-top:12px; overflow-x:auto; overflow-y:hidden;
+    -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  .pui-barwrap::-webkit-scrollbar { display:none; }
+  .pui-bar { display:flex; flex:0 0 auto; align-items:center; margin:0 auto; padding:5px; border-radius:var(--r-pill);
+    background:rgba(44,44,46,.78); box-shadow:inset 0 0 0 1px rgba(255,255,255,.10); }
+  .pui-bar .pui-btn { display:flex; align-items:center; background:transparent; padding:8px 14px;
+    -webkit-backdrop-filter:none; backdrop-filter:none; }
+  .pui-bar .pui-btn + .pui-btn { margin-left:2px; }
+  .pui-bar .pui-btn svg { width:20px; height:20px; margin-right:8px; flex:0 0 auto; }
+  .pui-bar .pui-btn .pl { white-space:nowrap; }
+  .pui-bar .pui-btn:hover { background:rgba(255,255,255,.12); }
+  /* the lit item is a white pill with dark ink — the tvOS read, and Nuvio's */
+  html.tv .pui-bar .pui-btn.focusable:focus { background:rgba(255,255,255,.92); color:#000; box-shadow:none; }
+  .pui-bar .pui-btn.focusable:focus-visible { background:rgba(255,255,255,.92); color:#000; box-shadow:none; }
+  html.tv .pui-bar .pui-btn.focusable:focus .pv { color:rgba(0,0,0,.62); }
+  .pui-bar .pui-btn.focusable:focus-visible .pv { color:rgba(0,0,0,.62); }
   .pui-spin { position:absolute; top:50%; left:50%; width:46px; height:46px; margin:-23px 0 0 -23px;
     border:3px solid rgba(255,255,255,.22); border-top-color:#fff; border-radius:50%;
     animation:puispin .9s linear infinite; pointer-events:none; }
@@ -859,11 +893,6 @@
   .qnote { color:rgba(235,235,245,.6); font-size:12.5px; line-height:1.45; padding:7px 12px 9px;
     white-space:normal; max-width:250px; }
   .qmenu.wide { min-width:292px; max-height:74vh; }
-  .qset { display:flex; justify-content:space-between; align-items:center; }
-  .qset .qv { color:rgba(235,235,245,.6); font-weight:500; margin-left:18px; white-space:nowrap; }
-  .qset:hover .qv { color:#fff; }
-  html.tv .qset.focusable:focus .qv { color:#fff; }
-  .qset.focusable:focus-visible .qv { color:#fff; }
   .qprev { margin:2px 6px 8px; padding:16px 10px; border-radius:10px; text-align:center; overflow:hidden;
     background:#2A3550; }
   .qprev-t { display:inline-block; padding:.06em .3em; line-height:1.3; border-radius:2px; white-space:normal; }
@@ -875,7 +904,7 @@
     text-transform:uppercase; color:rgba(235,235,245,.6); margin-top:6px; }
   html.tv .qtime b { font-size:32px; }
   html.tv .qtime small { font-size:12.5px; }
-  #upnext { display:none; position:absolute; right:40px; bottom:130px; z-index:7; width:340px; max-width:72vw;
+  #upnext { display:none; position:absolute; right:40px; bottom:158px; z-index:7; width:340px; max-width:72vw;
     background:rgba(44,44,46,.8); border:0; border-radius:var(--r-tile); padding:20px;
     box-shadow:0 24px 60px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.10); }
   #upnext.show { display:block; animation:upIn .34s var(--ease) both; }
@@ -894,7 +923,7 @@
   html.tv .upnext-src { font-size:13px; }
   /* Skip intro / Skip recap: one glass pill above the scrubber, where the eye already is.
      Outside .pui-chrome so it stays up when the controls hide — it drops to the bottom edge then. */
-  #skipBtn { display:none; position:absolute; right:40px; bottom:130px; z-index:7; padding:11px 20px; font-size:14px;
+  #skipBtn { display:none; position:absolute; right:40px; bottom:158px; z-index:7; padding:11px 20px; font-size:14px;
     transition:background .18s var(--ease), bottom .28s var(--ease); }
   #skipBtn.show { display:block; animation:upIn .28s var(--ease) both; }
   #pui.idle #skipBtn { bottom:40px; }
@@ -948,8 +977,82 @@
     font-variant-numeric:tabular-nums; text-align:right; }
   .pi-v.warn { color:#FFB340; }
   /* live: a way back to the edge once you've drifted behind it */
-  #puiGoLive .dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--accent);
-    margin-right:7px; vertical-align:1px; }
+  #puiGoLive .live-dot { fill:var(--accent); }
+  /* top-right: the time, and when this ends — the line a TV box shows */
+  .pui-clock { font-family:var(--mono); font-size:12.5px; font-weight:500; letter-spacing:.02em; color:rgba(235,235,245,.78);
+    font-variant-numeric:tabular-nums; white-space:nowrap; text-shadow:0 1px 8px rgba(0,0,0,.6); }
+  .pui-clock:empty { display:none; }
+  /* ---- subtitles panel: a layer over the film (which keeps playing) — the languages on
+     offer, the tracks in the chosen one, and how the words look ---- */
+  #subPanel { display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:9; }
+  #subPanel.open { display:block; }
+  /* under the panel the title block and bar stay, dimmed; the back button and transport would
+     show through the heading and the middle column, so they step out */
+  body.sp-on #puiBack, body.sp-on .pui-center { opacity:0; }
+  .sp-scrim { position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.72); }
+  .sp-head { position:absolute; left:40px; right:40px; top:34px; }
+  .sp-title { font-size:28px; font-weight:600; letter-spacing:-.02em; color:#fff; }
+  .sp-cols { position:absolute; left:40px; right:40px; top:96px; bottom:36px; display:flex; }
+  .sp-col { flex:1 1 0; min-width:0; display:flex; flex-direction:column; padding:0 24px;
+    border-left:1px solid rgba(255,255,255,.12); }
+  .sp-col:first-child { border-left:0; padding-left:0; }
+  .sp-col:last-child { padding-right:0; }
+  .sp-kick { flex:0 0 auto; font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.14em;
+    text-transform:uppercase; color:rgba(235,235,245,.6); margin:0 0 12px 14px; }
+  .sp-list { flex:1 1 auto; min-height:0; overflow-y:auto; scrollbar-width:none; padding:4px; margin:-4px; }
+  .sp-list::-webkit-scrollbar { display:none; }
+  .sp-row { display:flex; align-items:center; }
+  .sp-row + .sp-row { margin-top:4px; }
+  .sp-opt { display:flex; align-items:center; width:100%; text-align:left; padding:11px 14px; border-radius:12px; border:0;
+    background:transparent; color:#fff; font-family:var(--sans); font-size:15px; font-weight:500; cursor:pointer;
+    transition:background .15s var(--ease); }
+  .sp-opt .sp-lbl { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sp-opt:hover { background:rgba(255,255,255,.08); }
+  .sp-opt.sel { background:rgba(255,255,255,.10); }
+  html.tv .sp-opt.focusable:focus { background:rgba(255,255,255,.92); color:#000; }
+  .sp-opt.focusable:focus-visible { background:rgba(255,255,255,.92); color:#000; }
+  .sp-count { flex:0 0 auto; margin-left:12px; font-family:var(--mono); font-size:11px; font-weight:600; padding:3px 8px;
+    border-radius:var(--r-pill); box-shadow:inset 0 0 0 1px rgba(255,255,255,.22); color:rgba(235,235,245,.72);
+    font-variant-numeric:tabular-nums; }
+  html.tv .sp-opt.focusable:focus .sp-count { color:rgba(0,0,0,.7); box-shadow:inset 0 0 0 1px rgba(0,0,0,.25); }
+  .sp-opt.focusable:focus-visible .sp-count { color:rgba(0,0,0,.7); box-shadow:inset 0 0 0 1px rgba(0,0,0,.25); }
+  .sp-chk { display:none; flex:0 0 auto; width:18px; height:18px; margin-left:10px; }
+  .sp-opt.on .sp-chk { display:block; }
+  /* one card per track: who supplies it, then its own label */
+  .sp-card { display:block; width:100%; text-align:left; padding:12px 44px 12px 14px; border-radius:14px; border:0;
+    position:relative; background:rgba(255,255,255,.06); box-shadow:inset 0 0 0 1px rgba(255,255,255,.10); color:#fff;
+    cursor:pointer; font-family:var(--sans); transition:background .15s var(--ease); }
+  .sp-card:hover { background:rgba(255,255,255,.12); }
+  html.tv .sp-card.focusable:focus { background:rgba(255,255,255,.92); color:#000; box-shadow:none; }
+  .sp-card.focusable:focus-visible { background:rgba(255,255,255,.92); color:#000; box-shadow:none; }
+  .sp-badge { display:inline-block; font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.12em;
+    text-transform:uppercase; color:rgba(235,235,245,.7); background:rgba(255,255,255,.10); padding:3px 8px;
+    border-radius:var(--r-pill); margin-bottom:7px; }
+  html.tv .sp-card.focusable:focus .sp-badge { color:rgba(0,0,0,.7); background:rgba(0,0,0,.10); }
+  .sp-card.focusable:focus-visible .sp-badge { color:rgba(0,0,0,.7); background:rgba(0,0,0,.10); }
+  .sp-card .sp-lbl { display:block; font-size:14.5px; font-weight:500; line-height:1.3; white-space:normal; }
+  .sp-card .sp-chk { position:absolute; right:14px; top:50%; margin:-9px 0 0; }
+  .sp-card.on .sp-chk { display:block; }
+  .sp-note { color:rgba(235,235,245,.6); font-size:13px; line-height:1.45; padding:10px 14px; }
+  /* style column: the timing readout and its nudges, then each setting as a stepper */
+  .sp-sub { font-family:var(--mono); font-size:10.5px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    color:rgba(235,235,245,.5); margin:14px 0 6px 14px; }
+  .sp-steps .sp-step { flex:1 1 0; margin-left:6px; }
+  .sp-steps .sp-step:first-child { margin-left:0; }
+  .sp-step { display:flex; align-items:center; justify-content:center; padding:9px 10px; border-radius:10px; border:0;
+    background:rgba(255,255,255,.08); color:#fff; font-family:var(--mono); font-size:13px; font-weight:600; cursor:pointer;
+    font-variant-numeric:tabular-nums; white-space:nowrap; transition:background .15s var(--ease); }
+  .sp-step svg { width:16px; height:16px; }
+  .sp-step:hover { background:rgba(255,255,255,.16); }
+  html.tv .sp-step.focusable:focus { background:rgba(255,255,255,.92); color:#000; }
+  .sp-step.focusable:focus-visible { background:rgba(255,255,255,.92); color:#000; }
+  .sp-set { padding:4px 0 4px 14px; }
+  .sp-set .sp-k { flex:1 1 auto; min-width:0; font-size:14.5px; font-weight:500; color:#fff; }
+  .sp-set .sp-v { flex:0 0 auto; min-width:92px; text-align:center; font-size:13.5px; font-weight:500;
+    color:rgba(235,235,245,.72); padding:0 6px; }
+  .sp-set .sp-step { flex:0 0 auto; width:36px; padding:8px 0; }
+  #subPanel .qprev { margin:0 0 4px; }
+  #subPanel .qtime { padding:6px 12px 10px; }
 
   /* ---- featured hero + full-bleed detail + library + sync (Title Card) ---- */
   #heroRow { display:contents; }
@@ -1069,6 +1172,12 @@
   html.tv .det-eps { max-width:1600px; }
   .det-credits b { color:var(--label2); font-weight:500; margin-right:6px; }
   .det-rule { display:none; }
+  /* TV only (html.tv .det-facts.on): status · runtime · country under the actions, hairline-separated */
+  .det-facts { display:none; align-items:center; flex-wrap:wrap; margin:22px 0 2px; color:var(--label2); font-size:17px; }
+  .det-facts span { display:inline-flex; align-items:center; }
+  .det-facts span + span::before { content:''; display:inline-block; width:1px; height:1.1em; background:rgba(255,255,255,.28); margin:0 18px; }
+  .det-facts .df-status { font-family:var(--mono); font-size:14px; font-weight:500; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--label); border:1px solid rgba(255,255,255,.3); border-radius:6px; padding:5px 12px; }
 
   #libGrid { margin-top:2px; }
   .up-day { color:var(--label3); font-family:var(--mono); font-size:11px; font-weight:500; letter-spacing:.14em;
@@ -1160,7 +1269,11 @@
   html.tv .hf-logo { max-width:520px; max-height:170px; }
   html.tv .hf-facts { font-size:15px; }
   html.tv .hf-desc { font-size:20px; }
-  html.tv .det-body { padding-top:22vh; max-width:1560px; }
+  html.tv .det-body { padding-top:30vh; max-width:1560px; }
+  html.tv .det-back { height:66vh; }
+  html.tv .det-back::after { background:linear-gradient(180deg, rgba(0,0,0,.28) 0%, rgba(0,0,0,.04) 30%, rgba(0,0,0,.62) 68%, var(--bg) 100%); }
+  html.tv .det-back::before { background:linear-gradient(90deg, var(--bg) 0%, rgba(0,0,0,.66) 26%, rgba(0,0,0,.22) 52%, rgba(0,0,0,0) 74%); }
+  html.tv .det-facts.on { display:flex; }
   html.tv .det-name { font-size:58px; }
   html.tv .det-logo { max-width:520px; max-height:180px; }
   html.tv .det-kicker { font-size:15px; }
@@ -1176,10 +1289,20 @@
     :root { --navh:54px; }
     .pui-top { padding:16px 16px; }
     .pui-bottom { padding:0 16px 16px; }
-    .pui-head { display:block; }
-    .pui-btns { margin-left:0; margin-top:10px; flex-wrap:wrap; }
-    .pui-btns > * { margin:0 8px 8px 0 !important; }
+    .pui-head { display:block; margin-bottom:10px; }
     .pui-title { font-size:17px; }
+    .pui-sub { font-size:12.5px; }
+    .pui-time { font-size:11px; padding:5px 9px; }
+    .pui-barwrap { margin-top:10px; }
+    .pui-bar .pui-btn { font-size:12.5px; padding:8px 12px; }
+    .pui-bar .pui-btn svg { width:18px; height:18px; margin-right:6px; }
+    body.pui-on #status { bottom:76px; }
+    .sp-head { left:16px; right:16px; top:18px; }
+    .sp-title { font-size:22px; }
+    .sp-cols { left:16px; right:16px; top:60px; bottom:12px; display:block; overflow-y:auto; }
+    .sp-col { display:block; padding:14px 0; border-left:0; border-top:1px solid rgba(255,255,255,.12); }
+    .sp-col:first-child { border-top:0; padding-top:0; }
+    .sp-list { overflow:visible; }
     .pui-center > * + * { margin-left:24px; }
     .pui-playpause { width:64px; height:64px; }
     .pui-skip { width:48px; height:48px; }
@@ -1196,52 +1319,68 @@
     .topbar-title { font-size:24px; }
     .streams { max-width:none; }
   }
+  /* an upright phone has no room for the clock beside the round buttons (its status bar has one) */
+  @media (max-width:480px){ .pui-clock { display:none; } }
+  /* a phone on its side: a smaller title block, and the time pills flank the toolbar on one row */
+  @media (max-height:480px){
+    .pui-bottom { padding-bottom:16px; }
+    .pui-head { margin-bottom:8px; }
+    .pui-title { font-size:17px; }
+    .pui-sub { font-size:12px; margin-top:3px; }
+    .pui-src { display:none; }
+    .pui-foot { flex-wrap:nowrap; margin-top:8px; }
+    #puiTimeR { order:2; }
+    .pui-barwrap { order:1; flex:1 1 auto; width:auto; margin:0 10px; }
+    .pui-shade-bot { height:210px; }
+    #skipBtn, #upnext { bottom:112px; }
+    body.pui-on video::-webkit-media-text-track-container { transform:translateY(-150px) !important; }
+  }
 
   /* ---- TV (webOS): 10-foot sizing + sidebar layout ---- */
-  html.tv { font-size:20px; --navh:82px; --pad:56px; --railw:92px; }
+  html.tv { font-size:20px; --navh:82px; --pad:56px; --railw:80px; }
   html.tv body.upd .view { top:52px; }
-  /* the nav is a collapsed icon rail; focus (or the pointer) inside it
-     expands it OVER the content — tvOS style, so views never reflow */
+  /* the nav is five icons floating on the page — no panel, no divider, no wordmark —
+     centred as a group; focus (or the pointer) inside it expands it OVER the content
+     with labels, tvOS style, so views never reflow */
   html.tv #rail { top:0; left:0; bottom:0; right:auto; width:var(--railw); height:auto;
-    flex-direction:column; align-items:stretch; padding:38px 16px; overflow:hidden;
-    background:rgba(12,12,16,.82); border-bottom:0; border-right:1px solid rgba(255,255,255,.06);
+    flex-direction:column; align-items:stretch; justify-content:center; padding:0 10px; overflow:hidden;
+    background:transparent; border-bottom:0; border-right:0;
+    -webkit-backdrop-filter:none; backdrop-filter:none;
     transition:width .24s var(--ease), background .24s var(--ease); }
-  html.tv #rail.open { width:264px; background:rgba(11,11,15,.96);
+  html.tv #rail.open { width:264px; padding:0 16px; background:rgba(11,11,15,.96);
     box-shadow:40px 0 90px rgba(0,0,0,.55); }
-  html.tv .rail-brand { font-size:23px; margin:0 6px 36px 8px; }
-  html.tv .rail-brand svg { width:24px; height:24px; margin-right:15px; flex:0 0 auto; }
-  html.tv .rail-brand span, html.tv .navitem span { opacity:0; white-space:nowrap;
-    transition:opacity .18s var(--ease); }
-  html.tv #rail.open .rail-brand span, html.tv #rail.open .navitem span { opacity:1; }
-  html.tv .navitem { display:flex; width:100%; margin:0 0 8px; padding:14px 16px;
-    border-radius:14px; font-size:19px; font-weight:600; }
-  html.tv .navitem svg { display:block; width:22px; height:22px; margin-right:15px; flex:0 0 auto; }
+  html.tv .rail-brand { display:none; }
+  html.tv .navitem span { opacity:0; white-space:nowrap; transition:opacity .18s var(--ease); }
+  html.tv #rail.open .navitem span { opacity:1; }
+  html.tv .navitem { display:flex; width:100%; margin:0 0 10px; padding:15px;
+    border-radius:16px; font-size:19px; font-weight:600; }
+  html.tv .navitem svg { display:block; width:30px; height:30px; margin-right:16px; flex:0 0 auto; }
+  html.tv .navitem.on { color:var(--label); background:transparent; }
+  html.tv #rail.open .navitem.on { background:rgba(255,255,255,.10); }
   html.tv .navitem.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); background:rgba(255,255,255,.16); color:#fff; }
   html.tv .view { top:0; left:var(--railw); }
   html.tv #view-player { left:0; }
-  /* home hero floats as a rounded featured card, two rotation previews beside it */
-  html.tv #heroRow { display:flex; align-items:stretch; margin:44px 0 6px; }
-  html.tv #homeHero { flex:1 1 auto; margin:0; border-radius:26px; min-height:440px; max-height:560px;
-    border:1px solid rgba(255,255,255,.08); box-shadow:0 30px 90px rgba(0,0,0,.55); }
-  html.tv #homeHero.on + #heroSide.on { display:flex; }
-  html.tv #heroSide { flex:0 0 330px; margin-left:22px; flex-direction:column; }
-  html.tv .hs-card { position:relative; flex:1 1 0; overflow:hidden; border-radius:22px; border:1px solid rgba(255,255,255,.08);
-    background:var(--l1); padding:0; cursor:pointer; text-align:left; }
-  html.tv .hs-card + .hs-card { margin-top:22px; }
-  html.tv .hs-card img { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; }
-  html.tv .hs-card::after { content:''; position:absolute; left:0; right:0; bottom:0; height:62%;
-    background:linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.78)); }
-  html.tv .hs-name { position:absolute; z-index:2; left:18px; right:18px; bottom:14px;
-    font-size:19px; font-weight:700; letter-spacing:-.02em; color:#fff;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-shadow:0 1px 8px rgba(0,0,0,.7); }
-  html.tv .hs-rate { position:absolute; z-index:2; top:12px; right:12px; font-family:var(--mono);
-    font-size:13px; color:#fff; background:rgba(0,0,0,.62); border-radius:8px; padding:3px 8px; }
-  html.tv .hs-card:focus { box-shadow:0 0 0 5px rgba(255,255,255,.5); }
-  html.tv .hf-info { left:44px; right:44px; bottom:36px; }
+  /* home hero is full-bleed: from the rail edge to the right edge and from the top,
+     dissolving into the page at the bottom and on the left — no frame, no side column */
+  html.tv #heroRow { display:contents; }
+  html.tv #homeHero { margin:-26px calc(-1 * var(--pad)) 4px; height:56vh; min-height:480px; max-height:700px;
+    border-radius:0; border:0; box-shadow:none; }
+  html.tv #heroSide { display:none; }
+  html.tv .hf-art::after { background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 42%, rgba(0,0,0,.58) 76%, var(--bg) 100%); }
+  html.tv .hf-art::before { background:linear-gradient(90deg, var(--bg) 0%, rgba(0,0,0,.78) 24%, rgba(0,0,0,.28) 52%, rgba(0,0,0,0) 72%); }
+  html.tv .hf-info { left:var(--pad); right:auto; bottom:44px; max-width:840px; }
+  html.tv .hf-facts { font-family:var(--mono); font-weight:500; letter-spacing:.14em; }
+  html.tv .hf-dots { right:var(--pad); bottom:52px; }
   html.tv .page-title { font-size:52px; }
   html.tv .topbar-title { font-size:44px; }
-  html.tv .row-title { font-size:28px; }
+  html.tv .row-title { font-size:26px; }
   html.tv .seeall { font-size:17px; }
+  /* home rows: the add-on sits under the title as "from <add-on>" instead of the inline eyebrow */
+  html.tv #homeRows .rowhead { flex-wrap:wrap; margin:22px 0 6px; }
+  html.tv #homeRows .rowhead:first-child { margin-top:12px; }
+  html.tv .row-from { flex:0 0 100%; order:5; margin:2px 0 0; font-family:var(--sans); font-size:15px; font-weight:400;
+    letter-spacing:0; text-transform:none; color:var(--label2); }
+  html.tv .hrow { padding:14px 14px 22px; margin:0 -14px; }
   html.tv .hrow .card { flex-basis:250px; margin-right:24px; }
   html.tv .hrow .card.shape-landscape { flex-basis:444px; }
   html.tv .hrow .card.shape-square { flex-basis:280px; }
@@ -1249,6 +1388,7 @@
   html.tv .card-label { font-size:17px; }
   html.tv .card-sub { font-size:15px; }
   html.tv .card.focusable:focus { transform:scale(var(--fzoom)); }
+  html.tv .card.focusable:focus .thumb { box-shadow:0 0 0 3px #fff, 0 22px 46px rgba(0,0,0,.72); }
   html.tv .chip { font-size:18px; padding:11px 22px; }
   html.tv .field { font-size:20px; padding:15px 18px; }
   html.tv input[type=search].field { padding-left:3rem; }
@@ -1261,6 +1401,12 @@
   html.tv .addon-name { font-size:21px; }
   html.tv .addon-url { font-size:15px; }
   html.tv .stream { padding:20px 24px; }
+  /* stream rows are bigger rounded cards, the add-on's initial in an accent ring at the right */
+  html.tv #streamList .stream { border-radius:16px; padding:22px 26px; }
+  html.tv .s-src { flex:0 0 auto; width:56px; height:56px; border-radius:50%; box-shadow:inset 0 0 0 2px var(--accent);
+    color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700;
+    letter-spacing:-.02em; margin-left:22px; }
+  html.tv .stream.focusable:focus .s-src { background:var(--accent); color:#fff; }
   html.tv .stream-name { font-size:21px; }
   html.tv .stream-sub { font-size:16px; }
   html.tv .sbadges img { height:22px; margin-right:10px; }
@@ -1280,18 +1426,44 @@
   html.tv .pui-playpause { width:96px; height:96px; }
   html.tv .pui-playpause svg { width:42px; height:42px; }
   html.tv .pui-live { font-size:14px; padding:8px 16px; }
-  html.tv .pui-bottom { padding:0 56px 36px; }
+  html.tv .pui-bottom { padding:0 56px 34px; }
   html.tv .pui-title { font-size:30px; }
-  html.tv .pui-sub { font-size:17px; }
+  html.tv .pui-src { font-size:14px; margin-top:8px; }
+  html.tv .pui-sub { font-size:18px; margin-top:6px; }
   html.tv .pui-btn { font-size:17px; padding:12px 22px; }
   html.tv .pui-rail { height:11px; border-radius:7px; }
-  html.tv .pui-times { font-size:16px; }
+  html.tv .pui-foot { margin-top:12px; }
+  html.tv .pui-time { font-size:15px; padding:8px 15px; }
+  html.tv .pui-barwrap { margin-top:16px; }
+  html.tv .pui-bar { padding:6px; }
+  html.tv .pui-bar .pui-btn { font-size:18px; padding:11px 20px; }
+  html.tv .pui-bar .pui-btn svg { width:24px; height:24px; margin-right:10px; }
+  html.tv .pui-clock { font-size:16px; }
+  html.tv .pui-shade-bot { height:380px; }
   html.tv .qmenu { min-width:300px; bottom:150px; right:56px; }
   html.tv .qopt { font-size:19px; padding:12px 16px; }
   html.tv .qtitle { font-size:15px; }
   html.tv .qmenu.wide { min-width:392px; }
-  html.tv #upnext { width:470px; right:56px; bottom:160px; padding:26px; }
-  html.tv #skipBtn { right:56px; bottom:160px; padding:15px 28px; font-size:19px; }
+  html.tv #upnext { width:470px; right:56px; bottom:196px; padding:26px; }
+  html.tv #skipBtn { right:56px; bottom:196px; padding:15px 28px; font-size:19px; }
+  html.tv .sp-head { left:56px; right:56px; top:44px; }
+  html.tv .sp-title { font-size:36px; }
+  html.tv .sp-cols { left:56px; right:56px; top:124px; bottom:48px; }
+  html.tv .sp-col { padding:0 32px; }
+  html.tv .sp-kick { font-size:14px; margin-bottom:16px; }
+  html.tv .sp-opt { font-size:19px; padding:14px 18px; border-radius:14px; }
+  html.tv .sp-count { font-size:13px; padding:4px 10px; }
+  html.tv .sp-chk { width:22px; height:22px; }
+  html.tv .sp-card { padding:16px 56px 16px 18px; border-radius:18px; }
+  html.tv .sp-card .sp-lbl { font-size:18px; }
+  html.tv .sp-card .sp-chk { right:18px; margin-top:-11px; }
+  html.tv .sp-badge { font-size:12px; }
+  html.tv .sp-note { font-size:16px; }
+  html.tv .sp-sub { font-size:12.5px; }
+  html.tv .sp-step { font-size:16px; padding:12px; }
+  html.tv .sp-set .sp-k { font-size:18px; }
+  html.tv .sp-set .sp-v { font-size:16.5px; min-width:120px; }
+  html.tv .sp-set .sp-step { width:46px; padding:10px 0; }
   html.tv #pui.idle #skipBtn { bottom:56px; }
   html.tv .upnext-title { font-size:24px; }
   html.tv #pauseBoard { left:56px; top:136px; width:50%; max-width:900px; }
@@ -1319,9 +1491,9 @@
   html.lite .hf-logo { filter:none; }
   html.lite .card { transition:none; }
   html.lite .navitem { transition:none; }
-  html.lite .hs-card { transition:none; }
   html.lite .pui-dim { transition:none; }
   html.lite #pui.pb-on #pauseBoard { animation:none; }
+  html.lite .pui-time, html.lite .sp-opt, html.lite .sp-card, html.lite .sp-step { transition:none; }
 
 </style>
 </head>
@@ -1363,6 +1535,7 @@
     <div class="pui-top pui-chrome">
       <button id="puiBack" class="focusable pui-round" title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
       <div class="pui-winrow">
+        <span id="puiClock" class="pui-clock"></span>
         <span id="puiPartyBadge" class="pui-live pui-party focusable" role="button" tabindex="0" style="display:none; cursor:pointer"></span>
         <span id="puiLiveBadge" class="pui-live hot" style="display:none">LIVE</span>
         <button id="puiInfo" class="focusable pui-round" title="Playback info (i)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></button>
@@ -1386,25 +1559,40 @@
       <div class="pui-head">
         <div class="pui-titles">
           <div id="puiTitle" class="pui-title"></div>
+          <div id="puiSrc" class="pui-src"></div>
           <div id="puiSub" class="pui-sub"></div>
-        </div>
-        <div class="pui-btns">
-          <button id="puiGoLive" class="focusable pui-btn" style="display:none" title="Jump to the live edge"><span class="dot"></span>Go live</button>
-          <button id="puiNext" class="focusable pui-btn" style="display:none" title="Next episode (n)">Next ›</button>
-          <button id="puiSubs" class="focusable pui-btn" style="display:none" title="Subtitles (s)">Subtitles</button>
-          <button id="puiAudio" class="focusable pui-btn" style="display:none" title="Audio (a)">Audio</button>
-          <button id="puiQual" class="focusable pui-btn" style="display:none" title="Quality (q)">Quality<span class="pv" id="puiQualVal"></span></button>
-          <button id="puiSpeed" class="focusable pui-btn" title="Speed (&lt; and &gt;)">Speed<span class="pv" id="puiSpeedVal">1×</span></button>
-          <button id="puiSleep" class="focusable pui-btn" title="Sleep timer (z)">Sleep<span class="pv" id="puiSleepVal"></span></button>
-          <button id="puiParty" class="focusable pui-btn" title="Watch party — watch together in sync">Party</button>
         </div>
       </div>
       <div id="puiSeek" class="focusable pui-seek" tabindex="0" title="Seek">
         <div class="pui-rail"><div id="puiBuf" class="pui-buf"></div><div id="puiFill" class="pui-fill"></div><div id="puiKnob" class="pui-knob"></div></div>
       </div>
-      <div class="pui-times"><span id="puiTimeL">0:00</span><span id="puiTimeR">0:00</span></div>
+      <!-- elapsed at the left, what is left at the right (press it for the total), then the toolbar -->
+      <div class="pui-foot">
+        <span id="puiTimeL" class="pui-time">0:00</span>
+        <button id="puiTimeR" class="pui-time focusable" type="button" title="Time left — press for the total">0:00</button>
+        <div class="pui-barwrap"><div id="puiBar" class="pui-bar">
+          <button id="puiGoLive" class="focusable pui-btn" style="display:none" title="Jump to the live edge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle class="live-dot" cx="12" cy="12" r="2.6" stroke="none"/><path d="M8.2 8.2a5.4 5.4 0 0 0 0 7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6M5.4 5.4a9.3 9.3 0 0 0 0 13.2M18.6 5.4a9.3 9.3 0 0 1 0 13.2"/></svg><span class="pl">Go live</span></button>
+          <button id="puiNext" class="focusable pui-btn" style="display:none" title="Next episode (n)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5.5v13l9.5-6.5z" fill="currentColor" stroke="none"/><path d="M18.5 5.5v13"/></svg><span class="pl">Next ›</span></button>
+          <button id="puiSubs" class="focusable pui-btn" style="display:none" title="Subtitles (s)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 14.5h4M13.5 14.5H17M7 10.5h10"/></svg><span class="pl">Subtitles</span></button>
+          <button id="puiAudio" class="focusable pui-btn" style="display:none" title="Audio (a)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5v5h3.2L12 18.5v-13L7.2 9.5z"/><path d="M15.5 8.8a4.5 4.5 0 0 1 0 6.4M18.3 6a8.3 8.3 0 0 1 0 12"/></svg><span class="pl">Audio</span></button>
+          <button id="puiQual" class="focusable pui-btn" style="display:none" title="Quality (q)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M4 7h8.5M16.5 7H20M4 12h2.5M10.5 12H20M4 17h10.5M18.5 17H20"/><circle cx="14.5" cy="7" r="2"/><circle cx="8.5" cy="12" r="2"/><circle cx="16.5" cy="17" r="2"/></svg><span class="pl">Quality</span><span class="pv" id="puiQualVal"></span></button>
+          <button id="puiSpeed" class="focusable pui-btn" title="Speed (&lt; and &gt;)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.2 18.2a9 9 0 1 1 13.6 0"/><path d="M12 13.5l4.2-4.7"/><circle cx="12" cy="13.5" r="1.4" fill="currentColor" stroke="none"/></svg><span class="pl">Speed</span><span class="pv" id="puiSpeedVal">1×</span></button>
+          <button id="puiSleep" class="focusable pui-btn" title="Sleep timer (z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 14.2A8 8 0 0 1 9.8 4.5a8 8 0 1 0 9.7 9.7z"/></svg><span class="pl">Sleep</span><span class="pv" id="puiSleepVal"></span></button>
+          <button id="puiParty" class="focusable pui-btn" title="Watch party — watch together in sync"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.2 19a5.8 5.8 0 0 1 11.6 0"/><path d="M15.5 5.3a3.2 3.2 0 0 1 0 5.4M16.8 13.6a5.8 5.8 0 0 1 4 5.4"/></svg><span class="pl">Party</span></button>
+        </div></div>
+      </div>
     </div>
     <div id="puiMenu" class="qmenu"></div>
+    <!-- subtitles: a layer over the film — languages, the tracks in one, how they look -->
+    <div id="subPanel" role="dialog" aria-label="Subtitles">
+      <div class="sp-scrim"></div>
+      <div class="sp-head"><div class="sp-title">Subtitles</div></div>
+      <div class="sp-cols">
+        <div class="sp-col"><div class="sp-kick">Languages</div><div class="sp-list" id="spLangList"></div></div>
+        <div class="sp-col"><div class="sp-kick">Subtitles</div><div class="sp-list" id="spTrackList"></div></div>
+        <div class="sp-col"><div class="sp-kick">Style</div><div class="sp-list" id="spStyleList"></div></div>
+      </div>
+    </div>
     <div id="puiSpin" class="pui-spin" style="display:none"></div>
     <!-- deliberately outside .pui-chrome: it must survive the controls auto-hiding -->
     <div id="reactLayer"></div>
@@ -1497,6 +1685,7 @@
         <button id="detList" class="focusable btn ghost">My List</button>
         <button id="detRec" class="focusable btn ghost" style="display:none">Recommend</button>
       </div>
+      <div class="det-facts" id="detFacts"></div>
       <div class="det-rate" id="detRate"></div>
       <div class="det-chips" id="detGenres"></div>
       <div class="det-castlbl" id="detCastLbl" style="display:none">CAST</div>
@@ -1698,7 +1887,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.02.8';
+  var PLAYER_VERSION = '2026.09.02.9';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -1827,7 +2016,7 @@
         if (un) return Array.prototype.slice.call(un.querySelectorAll('.focusable')).filter(function(el){ return el.offsetParent !== null; });
       }
       if (!pui || pui.className === 'idle') return [];
-      var scope = puiState.menu ? puiMenuEl : pui;
+      var scope = puiState.menu === 'subs' ? subPanelEl : (puiState.menu ? puiMenuEl : pui);
       return Array.prototype.slice.call(scope.querySelectorAll('.focusable')).filter(function(el){ return el.offsetParent !== null; });
     }
     var v = document.querySelector('.view.active');
@@ -1978,6 +2167,8 @@
     if (b && b.style.display !== 'none'){ puiShow(); b.click(); }
     else if (PUI_KEY_MISSING[id]) setStatus(PUI_KEY_MISSING[id], 'info');
   }
+  /** Toolbar items are icon + label: relabel the text span, never the whole button. */
+  function puiLabel(btn, text){ var l = btn && btn.querySelector('.pl'); if (l) l.textContent = text; else if (btn) btn.textContent = text; }
   function setMuted(on){
     video.muted = !!on;
     setStatus(on ? 'Muted.' : 'Sound on.', 'ok'); puiShow();
@@ -2008,7 +2199,6 @@
       var isBack = (k===461 || k===8 || e.key==='GoBack' || e.key==='BrowserBack');
       if (isBack){
         if (upnextState.open){ dismissUpNext(); }
-        else if (puiState.menu==='substyle' || puiState.menu==='subtiming'){ openPuiMenu('subs', puiState.opener); }
         else if (puiState.menu){ closePuiMenu(true); }
         else if (pui.className !== 'idle'){ puiIdle(); }
         else { goBack(); }
@@ -2054,14 +2244,17 @@
         }
       }
       if (puiState.menu){
+        if (puiState.menu === 'subs'){
+          // the subtitles panel: ←/→ walk its columns, ↑/↓ a column, OK presses what is lit
+          if (k===37||k===39){ subPanelMove(k===39 ? 1 : -1, 0); e.preventDefault(); }
+          else if (k===38||k===40){ subPanelMove(0, k===40 ? 1 : -1); e.preventDefault(); }
+          else if (k===13){ var sa=document.activeElement; if (sa && subPanelEl.contains(sa) && sa.classList.contains('focusable')) sa.click(); e.preventDefault(); }
+          return;
+        }
         if (k===38){ movePuiMenu(-1); e.preventDefault(); }
         else if (k===40){ movePuiMenu(1); e.preventDefault(); }
         else if (k===13){ var a=document.activeElement; if(a&&a.classList.contains('qopt')) a.click(); e.preventDefault(); }
-        else if (k===37||k===39){
-          var sr = document.activeElement;
-          if (sr && sr.classList.contains('qset')) subCycle(sr.getAttribute('data-key'), k===39 ? 1 : -1);
-          e.preventDefault();
-        }
+        else if (k===37||k===39){ e.preventDefault(); }   // a list has no sideways
         return;
       }
       // a digit jumps to that tenth of the film — not while a menu has the keys, never on a live stream
@@ -2083,6 +2276,19 @@
       puiShow();
       var ae = document.activeElement;
       if (ae && ae.id==='puiSeek' && (k===37||k===39)){ seekBy(k===37?-10:10); e.preventDefault(); return; }
+      // the toolbar is one row: ←/→ stay on it (the bar is centred, so the nearest thing sideways
+      // was the Back button in the far corner); past its last item → reaches the right time pill
+      var barEl = $id('puiBar'), timeR = $id('puiTimeR');
+      if (ae && barEl && (k===37||k===39) && (barEl.contains(ae) || ae === timeR)){
+        var items = Array.prototype.filter.call(barEl.querySelectorAll('.focusable'), function(b){ return b.offsetParent !== null; });
+        if (ae === timeR){ if (k===37 && items.length) items[items.length-1].focus(); }
+        else {
+          var bi = items.indexOf(ae) + (k===39 ? 1 : -1);
+          if (bi >= 0 && bi < items.length) items[bi].focus();
+          else if (bi === items.length && timeR.offsetParent !== null) timeR.focus();
+        }
+        e.preventDefault(); return;
+      }
       if (k===37){ moveFocus2D(-1,0); e.preventDefault(); }
       else if (k===39){ moveFocus2D(1,0); e.preventDefault(); }
       else if (k===38){ moveFocus2D(0,-1); e.preventDefault(); }
@@ -3294,15 +3500,34 @@
       var pre = new Image(); pre.src = (nx.background || nx.poster || '');
     }, IS_LITE ? 20000 : 12000);
   }
+  /** "111 min" → "1h 51m"; anything that is not a plain minute count comes back as it was. */
+  function runtimeShort(rt){
+    var m = /^\s*(\d{1,4})\s*(min|mins|minutes|m)?\s*$/i.exec(String(rt || ''));
+    if (!m) return String(rt || '');
+    var n = parseInt(m[1], 10);
+    if (!(n > 0)) return String(rt || '');
+    if (n < 60) return n + ' min';
+    return Math.floor(n / 60) + 'h' + (n % 60 ? ' ' + (n % 60) + 'm' : '');
+  }
   function heroRender(){
     var h = $id('homeHero'); if (!h || !heroState.items.length) return;
     var it = heroState.items[heroState.idx], meta = it.meta;
     var facts = [];
-    var y = metaYear(meta); if (y) facts.push(y);
-    if (meta.runtime) facts.push(String(meta.runtime));
-    if (meta.imdbRating) facts.push('★ ' + meta.imdbRating);
+    var y = metaYear(meta);
     var g = meta.genres || meta.genre;
-    if (g && g.length) facts.push(g.slice(0, 2).join(' · '));
+    if (IS_TV){
+      // the TV meta line reads "Movie · Crime · 1h 51m · 2026"
+      var kind = { movie:'Movie', series:'Series' }[meta.type] || typeLabel(meta.type);
+      if (kind) facts.push(kind);
+      if (g && g.length) facts.push(g.slice(0, 2).join(' · '));
+      if (meta.runtime) facts.push(runtimeShort(meta.runtime));
+      if (y) facts.push(y);
+    } else {
+      if (y) facts.push(y);
+      if (meta.runtime) facts.push(String(meta.runtime));
+      if (meta.imdbRating) facts.push('★ ' + meta.imdbRating);
+      if (g && g.length) facts.push(g.slice(0, 2).join(' · '));
+    }
     var art = meta.background || meta.poster;
     var head = meta.logo
       ? '<img class="hf-logo" src="'+esc(meta.logo)+'" alt="'+esc(meta.name)+'">'
@@ -3338,29 +3563,11 @@
     };
     heroRenderSide();
   }
-  /** TV only: the two upcoming rotation titles float beside the featured card. */
+  /** The TV side column (two rotation previews beside a framed hero) was retired in the
+      chrome pass — the hero is full-bleed now. The holder stays in the markup; keep it empty. */
   function heroRenderSide(){
     var hs = $id('heroSide'); if (!hs) return;
-    var n = heroState.items.length;
-    if (!IS_TV || n < 3){ hs.className = ''; hs.innerHTML = ''; return; }
-    hs.innerHTML = '';
-    for (var k = 1; k <= 2; k++){
-      (function(itS){
-        var m = itS.meta;
-        var b = document.createElement('button');
-        b.className = 'hs-card focusable';
-        b.innerHTML = '<img src="' + esc(m.background || m.poster) + '" alt="" decoding="async" onerror="this.remove()">' +
-          ((m.imdbRating && getPrefs().ratings !== false) ? '<span class="hs-rate">★ ' + esc(m.imdbRating) + '</span>' : '') +
-          '<div class="hs-name">' + esc(m.name) + '</div>';
-        b.onclick = function(){
-          ctx.addon = itS.addon; ctx.manifest = itS.manifest;
-          ctx.catalogs = (itS.manifest && itS.manifest.catalogs) || []; ctx.catalog = itS.catalog;
-          openItem(m);
-        };
-        hs.appendChild(b);
-      })(heroState.items[(heroState.idx + k) % n]);
-    }
-    hs.className = 'on';
+    hs.className = ''; hs.innerHTML = '';
   }
 
   var homeSig = null, homeBuiltAt = 0, homeSeq = 0;
@@ -3499,8 +3706,9 @@
           var c = it.c;
           var head = document.createElement('div'); head.className='rowhead';
           var addonName = a.name||m.name||'Add-on';
+          // TV: the add-on sits under the title as "from <add-on>"; elsewhere it stays the inline eyebrow
           head.innerHTML = all.length > 1
-            ? '<span class="row-title">'+esc(catalogLabel(c, m.catalogs||[]))+'</span><span class="row-sub">'+esc(addonName)+'</span>'
+            ? '<span class="row-title">'+esc(catalogLabel(c, m.catalogs||[]))+'</span><span class="row-sub row-from">'+(IS_TV ? 'from ' : '')+esc(addonName)+'</span>'
             : '<span class="row-title">'+esc(addonName)+'</span>';
           var sa = document.createElement('button'); sa.className='seeall focusable'; sa.textContent='See all ›';
           sa.onclick = function(){ openCatalogFor(a, m, c); };
@@ -4285,6 +4493,12 @@
     });
     return out.slice(0, 4).join('  ·  ');
   }
+  /** The letter that stands for an add-on in a TV stream card's ring — the first
+      letter or digit of its name, skipping any decoration in front of it. */
+  function addonInitial(name){
+    var s = String(name || '').replace(/^[^A-Za-z0-9]+/, '');
+    return (s || String(name || '')).charAt(0).toUpperCase();
+  }
   function streamCard(s, addon){
     var addonName = (addon && addon.name) || '';
     var card=document.createElement('button'); card.className='stream focusable';
@@ -4307,9 +4521,10 @@
         (badges.html ? '<span class="sbadges">' + badges.html + '</span>' : '') +
         (sub ? '<span class="stream-sub">' + esc(sub) + '</span>' : '') +
       '</span>' +
-      (spec ? '<span class="s-spec">' + spec + '</span>' : '');
+      (spec ? '<span class="s-spec">' + spec + '</span>' : '') +
+      (IS_TV && addonName ? '<span class="s-src" title="' + esc(addonName) + '">' + esc(addonInitial(addonName)) + '</span>' : '');
     // a hand-picked row is the one the next episodes follow (same source, same quality)
-    card.onclick=function(){ ctx.pickedFrom = streamSig(s, addon); savePick(ctx.pickedFrom); playStream(s); };
+    card.onclick=function(){ ctx.pickedFrom = streamSig(s, addon); savePick(ctx.pickedFrom); ctx.playSig = ctx.pickedFrom; playStream(s); };
     return card;
   }
 
@@ -4342,6 +4557,7 @@
       addonUrl: addon ? (addon.url || '') : '', addonName: addon ? (addon.name || '') : '',
       binge: String(bh.bingeGroup || ''), res: plate ? plate.r : '',
       provider: String(f.provider || '').toLowerCase(),
+      providerName: String(f.provider || ''),   // as written, for the chrome's source line
       badges: badges,
       words: sigWords(cleanStreamName(s.name, addon && addon.name) + ' ' + (text.split('\n')[0] || ''))
     };
@@ -4384,6 +4600,12 @@
   function sigLabel(sig){
     var r = sig.res === '1080' || sig.res === '720' ? sig.res + 'p' : sig.res;
     return [r, sig.addonName].filter(Boolean).join(' · ');
+  }
+  /** "MockSource · 1080p · YTS" — the source line under the title while it plays. */
+  function srcLine(sig){
+    if (!sig) return '';
+    var r = sig.res === '1080' || sig.res === '720' ? sig.res + 'p' : sig.res;
+    return [sig.addonName, r, sig.providerName].filter(Boolean).join(' · ');
   }
   // The last hand-pick outlives the session, so tomorrow's episode is marked and
   // pre-chosen the same way. Device-local on purpose: a TV picks 4K, a phone 720p.
@@ -4430,9 +4652,23 @@
     return '';
   }
   function renderDetailFacts(meta){
+    // TV: status · runtime · country as a hairline row under the actions (whatever the
+    // catalogue gives); the runtime then leaves the kicker so nothing is said twice
+    var row = [];
+    if (IS_TV){
+      if (meta.status) row.push(['status', String(meta.status)]);
+      if (meta.runtime) row.push(['runtime', String(meta.runtime)]);
+      var cty = meta.country;
+      if (cty && cty.length) row.push(['country', Array.isArray(cty) ? cty.slice(0, 2).join(', ') : String(cty)]);
+    }
+    var df = $id('detFacts');
+    if (df){
+      df.innerHTML = row.map(function(x){ return '<span class="df-' + x[0] + '">' + esc(x[1]) + '</span>'; }).join('');
+      df.className = 'det-facts' + (row.length ? ' on' : '');
+    }
     var bits = [];
     var y = metaYear(meta); if (y) bits.push(y);
-    if (meta.runtime) bits.push(String(meta.runtime));
+    if (meta.runtime && !(IS_TV && row.length)) bits.push(String(meta.runtime));
     if (meta.videos && meta.videos.length){
       var sn = {}; meta.videos.forEach(function(v){ var x = seasonNum(v); if (x > 0) sn[x] = 1; });
       var n = Object.keys(sn).length;
@@ -4621,6 +4857,8 @@
   function epNum(v){ return (v.episode != null ? v.episode : (v.number != null ? v.number : null)); }
   function seasonNum(v){ return (v.season != null ? v.season : 1); }
   function epTag(v){ var e = epNum(v); return 'S' + seasonNum(v) + (e != null ? 'E' + e : ''); }
+  /** "S1 E1 · System" — the episode line under the title in the player. */
+  function epLine(v){ var e = epNum(v); return 'S' + seasonNum(v) + (e != null ? ' E' + e : '') + (v.name ? ' · ' + v.name : ''); }
   /** Group a meta's `videos` into seasons (specials last) plus one flat list in
       playing order — the flat list is what "next episode" walks. */
   function groupEpisodes(videos){
@@ -4813,6 +5051,15 @@
     ctx.playType = ''; ctx.playId = ''; ctx.playTitle = '';
     ctx.playAddonUrl = ''; ctx.playPoster = ''; ctx.playShape = 'poster';
     ctx.seriesEpisodes = null; ctx.epIndex = -1;
+    ctx.playSig = null;                 // no stream row behind this: the source line stays empty
+  }
+  /** The episode being played, found by its id in the series chain (null for a film). */
+  function playingEpisode(){
+    var id = curPlay && curPlay.id, list = ctx.seriesEpisodes;
+    if (!id || !list) return null;
+    if (ctx.epIndex >= 0 && list[ctx.epIndex] && list[ctx.epIndex].id === id) return list[ctx.epIndex];
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
   }
   var lastStreamsReq = null;
   function renderStreamsHero(type, id, titleText){
@@ -5090,9 +5337,15 @@
     } : null;
     show('player');
     puiReset(title || '');
+    $id('puiSrc').textContent = srcLine(ctx.playSig);   // add-on · plate · provider of what is playing
     if (curPlay && curPlay.type === 'series'){
-      var segs = String(curPlay.id||'').split(':');
-      if (segs.length >= 3) $id('puiSub').textContent = 'Season '+segs[segs.length-2]+' · Episode '+segs[segs.length-1];
+      // the show's name on top, "S1 E1 · name" under it; an id alone reads Season · Episode
+      var ep = playingEpisode();
+      if (ep){ $id('puiTitle').textContent = ctx.seriesName || title || ''; $id('puiSub').textContent = epLine(ep); }
+      else {
+        var segs = String(curPlay.id||'').split(':');
+        if (segs.length >= 3) $id('puiSub').textContent = 'Season '+segs[segs.length-2]+' · Episode '+segs[segs.length-1];
+      }
       skipLoad(curPlay.id);              // where this episode's recap, titles and credits fall
     }
     setStatus('Loading…','info');
@@ -5161,9 +5414,12 @@
       (subtitles||[]).forEach(function(sub){
         if (!sub || !sub.url || !player.addTextTrackAsync) return;
         var mime = /\.srt(\?|#|$)/i.test(sub.url) ? 'text/srt' : 'text/vtt';
+        var subLabel = langName(sub.lang) || sub.lang || 'Subtitles';
+        // the panel names each track's supplier: these came with the stream, from its add-on
+        if (ctx.playSig && ctx.playSig.addonName) subState.trackSrc[subLabel] = ctx.playSig.addonName;
         try {
-          player.addTextTrackAsync(sub.url, sub.lang || 'und', 'subtitles', mime, '', langName(sub.lang) || sub.lang || 'Subtitles')
-            .then(function(){ puiRefreshButtons(); }).catch(function(){});
+          player.addTextTrackAsync(sub.url, sub.lang || 'und', 'subtitles', mime, '', subLabel)
+            .then(function(){ puiRefreshButtons(); if (puiState.menu === 'subs') subPanelRender(true); }).catch(function(){});
         } catch(e){}
       });
     }
@@ -5183,23 +5439,29 @@
   // (OpenSubtitles and friends). Only the candidate you actually pick is
   // downloaded — a popular film lists ~100 of them.
   var SUB_PER_LANG = 4, SUB_MAX = 60;
-  var subState = { seq:0, loading:false, asked:0, list:[], loaded:{}, urls:[], pending:false };
+  var subState = { seq:0, loading:false, asked:0, list:[], loaded:{}, urls:[], trackSrc:{} };
   function resetSubs(){
     subState.urls.forEach(function(u){ try { URL.revokeObjectURL(u); } catch(e){} });
-    subState = { seq:0, loading:false, asked:0, list:[], loaded:{}, urls:[], pending:false };
+    subState = { seq:0, loading:false, asked:0, list:[], loaded:{}, urls:[], trackSrc:{} };
   }
   /** Group by language, user's languages first, numbered within each language. */
-  function rankSubs(list){
+  /** Language ranks: the device's own languages first ('en-US' names itself "American
+      English" while subtitle codes say "English", so the bare language ranks too),
+      then English, then everything else alphabetically. */
+  function langPrefMap(){
     var pref = {};
     try {
       (navigator.languages || [navigator.language || 'en']).forEach(function(l, i){
-        // 'en-US' names itself "American English"; subtitle codes say "English",
-        // so the bare language has to be ranked too
         var full = langName(l), base = langName(String(l).split('-')[0]);
         if (pref[full] == null) pref[full] = i * 2;
         if (pref[base] == null) pref[base] = i * 2 + 1;
       });
     } catch(e){}
+    if (pref['English'] == null) pref['English'] = 50;
+    return pref;
+  }
+  function rankSubs(list){
+    var pref = langPrefMap();
     var byLang = {}, order = [];
     list.forEach(function(s){
       var n = langName(s.lang);
@@ -5233,15 +5495,15 @@
         var d = await getJson(a.base + '/subtitles/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json');
         if (seq !== subState.seq) return;
         ((d && d.subtitles) || []).forEach(function(s){
-          if (s && s.url) out.push({ url:s.url, lang:s.lang || s.language || 'und', name:s.name || s.title || '' });
+          if (s && s.url) out.push({ url:s.url, lang:s.lang || s.language || 'und', name:s.name || s.title || '', addon:a.name || '' });
         });
       } catch(e){}
     }
     if (seq !== subState.seq) return;
     subState.loading = false;
     subState.list = rankSubs(out);
-    // if the menu is sitting on “Searching…”, fill it in place
-    if (puiState.menu === 'subs' && subState.pending) openPuiMenu('subs', puiState.opener);
+    // if the panel is up saying “Searching…”, fill it in place (focus stays put)
+    if (puiState.menu === 'subs') subPanelRender(true);
   }
   /** Fetched here rather than handed to Shaka as a URL: add-on subtitle links carry
       no file extension (the format has to be sniffed) and some are still CP1252. */
@@ -5269,7 +5531,6 @@
   }
   async function pickAddonSub(c){
     if (!player) return;
-    closePuiMenu(true);
     setStatus('Loading subtitles…', 'info');
     var seq = playSeq;
     try {
@@ -5278,6 +5539,7 @@
       var track = await player.addTextTrackAsync(blob.url, c.lang, 'subtitles', blob.mime, '', c.label);
       if (!player || seq !== playSeq) return;
       subState.loaded[c.url] = true;
+      subState.trackSrc[c.label] = c.addon || 'Add-on';   // the card's badge once it is a track
       if (!track){
         (player.getTextTracks() || []).forEach(function(t){ if (t.label === c.label) track = t; });
       }
@@ -5285,6 +5547,7 @@
       player.setTextTrackVisibility(true);
       setStatus('Subtitles: ' + c.label, 'ok');
       puiRefreshButtons();
+      if (puiState.menu === 'subs') subPanelRender(true);   // the panel stays up; the card is now a track
     } catch(e){
       setStatus('Couldn’t load that subtitle file.', 'err');
     }
@@ -5331,8 +5594,8 @@
       'video::cue{color:' + subCss('color') + ';background-color:' + subCss('bg') + ';font-size:' + subCss('size') +
         ';text-shadow:' + subCss('edge') + ';font-family:' + subCss('font') + '}' +
       'video::-webkit-media-text-track-container{transform:translateY(-' + up + ')}' +
-      'body.pui-on video::-webkit-media-text-track-container{transform:translateY(calc(-' + up + ' - 118px))}' +
-      'html.tv body.pui-on video::-webkit-media-text-track-container{transform:translateY(calc(-' + up + ' - 168px))}';
+      'body.pui-on video::-webkit-media-text-track-container{transform:translateY(calc(-' + up + ' - 228px))}' +
+      'html.tv body.pui-on video::-webkit-media-text-track-container{transform:translateY(calc(-' + up + ' - 288px))}';
   }
   applySubStyle();
   // rides the add-on/progress mirrors: a TV storage wipe shouldn't reset your subtitles
@@ -5356,22 +5619,24 @@
     subStyle[k] = vals[(i + dir + vals.length) % vals.length][0];
     saveSubStyle(); applySubStyle(); subRefreshRows();
   }
-  function subSetRow(k){
-    var b = document.createElement('button'); b.className = 'qopt qset focusable'; b.tabIndex = 0; b.setAttribute('data-key', k);
-    var l = document.createElement('span'); l.className = 'qk'; l.textContent = SUB_OPTS[k].label;
-    var v = document.createElement('span'); v.className = 'qv';
-    b.appendChild(l); b.appendChild(v);
-    b.onclick = function(){ subCycle(k, 1); };
-    b.onkeydown = function(ev){ if (ev.keyCode===13){ subCycle(k, 1); ev.preventDefault(); ev.stopPropagation(); } };
-    puiMenuEl.appendChild(b);
+  /** One appearance setting as a stepper row — label, ‹, the value, › — in the panel's Style column. */
+  function subSetRow(k, host){
+    var row = document.createElement('div'); row.className = 'sp-row sp-set'; row.setAttribute('data-key', k);
+    var l = document.createElement('span'); l.className = 'sp-k'; l.textContent = SUB_OPTS[k].label;
+    var v = document.createElement('span'); v.className = 'sp-v';
+    row.appendChild(l);
+    row.appendChild(spBtn('sp-step', SP_PREV, function(){ subCycle(k, -1); }));
+    row.appendChild(v);
+    row.appendChild(spBtn('sp-step', SP_NEXT, function(){ subCycle(k, 1); }));
+    host.appendChild(row);
   }
   /** Repaint the row values and the sample line in place, so focus never moves. */
   function subRefreshRows(){
-    Array.prototype.forEach.call(puiMenuEl.querySelectorAll('.qset'), function(b){
-      var k = b.getAttribute('data-key');
-      b.querySelector('.qv').textContent = '‹ ' + subVal(k, subStyle[k])[1] + ' ›';
+    Array.prototype.forEach.call(pui.querySelectorAll('.sp-set'), function(row){
+      var k = row.getAttribute('data-key');
+      row.querySelector('.sp-v').textContent = subVal(k, subStyle[k])[1];
     });
-    var pt = puiMenuEl.querySelector('.qprev-t');
+    var pt = pui.querySelector('.qprev-t');
     if (pt){
       pt.style.fontSize = ((IS_TV ? 17 : 13) * parseFloat(subCss('size')) / 100) + 'px';
       pt.style.color = subCss('color'); pt.style.backgroundColor = subCss('bg');
@@ -5382,7 +5647,7 @@
   // ---------- player UI (custom controls: transport, seek, subtitles, audio, quality, speed) ----------
   var pui = document.getElementById('pui');
   var puiMenuEl = document.getElementById('puiMenu');
-  var puiState = { menu:null, opener:null, idleTimer:null, tick:null };
+  var puiState = { menu:null, opener:null, idleTimer:null, tick:null, total:false };   // total: right pill shows the length, not what is left
   var upnextState = { open:false, counting:false, dismissed:false, timer:null, left:0, target:null };
   function $id(x){ return document.getElementById(x); }
 
@@ -5410,6 +5675,8 @@
     function p(n){ return (n<10?'0':'')+n; }
     return h ? (h+':'+p(m)+':'+p(sec)) : (m+':'+p(sec));
   }
+  /** "9:41 pm" — the wall clock, written the way the pause board writes its ending time. */
+  function fmtClock(d){ var hh = d.getHours(), mm = d.getMinutes(); return (hh % 12 || 12) + ':' + (mm < 10 ? '0' : '') + mm + (hh < 12 ? ' am' : ' pm'); }
   function puiRange(){
     try { var r = player.seekRange(); if (r && isFinite(r.start) && isFinite(r.end) && r.end > r.start) return r; } catch(e){}
     var d = video.duration; return { start:0, end:(isFinite(d)&&d>0)?d:0 };
@@ -5450,13 +5717,18 @@
     $id('puiGoLive').style.display = (live && lag > 12) ? '' : 'none';
     if (pinfoOn) pinfoRender();
     if (subOffset) applySubOffset();
+    var now = new Date(), clock = fmtClock(now);
     if (live){
       $id('puiTimeL').textContent = lag > 12 ? '−'+fmtT(lag)+' behind live' : 'At the live edge';
       $id('puiTimeR').textContent = 'LIVE';
     } else {
-      $id('puiTimeL').textContent = fmtT(t - r.start);
-      $id('puiTimeR').textContent = '−' + fmtT(span - (t - r.start));
+      var gone = t - r.start, left = span - gone;
+      $id('puiTimeL').textContent = fmtT(gone);
+      $id('puiTimeR').textContent = puiState.total ? fmtT(span) : '−' + fmtT(left);
+      // when this ends at the current speed — the TV-box line beside the clock
+      if (span > 0) clock += ' · Ends ' + fmtClock(new Date(now.getTime() + left * 1000 / (video.playbackRate || 1)));
     }
+    $id('puiClock').textContent = clock;
     // keep the resume point roughly current (~5s), and offer the next episode
     // once we're near the end
     progTicks++;
@@ -5673,9 +5945,9 @@
     subOffset = Math.round(v * 10) / 10;
     if (Math.abs(subOffset) < 0.05) subOffset = 0;
     applySubOffset();
-    var t = puiMenuEl.querySelector('.qtime'); if (t) t.innerHTML = subOffsetHtml();
-    var on = puiMenuEl.querySelector('.qopt.on'); if (on) on.classList.remove('on');
-    if (!subOffset){ var last = puiMenuEl.querySelectorAll('.qopt'); if (last.length) last[last.length-1].classList.add('on'); }
+    // the readout and the "Back in sync" mark live in the panel's Style column
+    Array.prototype.forEach.call(pui.querySelectorAll('.qtime'), function(t){ t.innerHTML = subOffsetHtml(); });
+    Array.prototype.forEach.call(pui.querySelectorAll('[data-sync]'), function(b){ b.classList.toggle('on', !subOffset); });
   }
   function subOffsetHtml(){
     if (!subOffset) return '<b>0.0 s</b><small>In sync</small>';
@@ -5695,68 +5967,20 @@
   function puiNote(text){ var d=document.createElement('div'); d.className='qnote'; d.textContent=text; puiMenuEl.appendChild(d); }
   function openPuiMenu(kind, opener){
     if (!player) return;
+    // subtitles get the full panel, not a list (the old timing/appearance menus live in its Style column)
+    if (kind==='subs' || kind==='substyle' || kind==='subtiming'){ subPanelOpen(opener); return; }
+    // any other menu takes over from the panel (A/Q/Z while it is up), never opens beneath it
+    if (subPanelEl){ subPanelEl.classList.remove('open'); document.body.classList.remove('sp-on'); }
     puiMenuEl.innerHTML = '';
     var t=document.createElement('div'); t.className='qtitle';
-    t.textContent = { quality:'Quality', subs:'Subtitles', audio:'Audio', speed:'Speed', sleep:'Sleep timer', substyle:'Subtitle appearance', subtiming:'Subtitle timing' }[kind];
+    t.textContent = { quality:'Quality', audio:'Audio', speed:'Speed', sleep:'Sleep timer' }[kind];
     puiMenuEl.appendChild(t);
-    if (kind==='substyle') puiMenuEl.classList.add('wide'); else puiMenuEl.classList.remove('wide');
     if (kind==='quality'){
       var tracks = videoTracks(), heights = distinctHeights(tracks);
       var abrOn=true; try { abrOn = player.getConfiguration().abr.enabled; } catch(e){}
       var activeH=0; if(!abrOn) tracks.forEach(function(v){ if(v.active) activeH=v.height; });
       menuOpt('Auto', abrOn, function(){ selectQuality(0); });
       heights.forEach(function(h){ menuOpt(heightLabel(h), !abrOn&&h===activeH, function(){ selectQuality(h); }); });
-    } else if (kind==='subs'){
-      var tt=[]; try { tt = player.getTextTracks()||[]; } catch(e){}
-      var visible=false; try { visible = player.isTextTrackVisible(); } catch(e){}
-      menuOpt('Off', !visible, function(){
-        try { player.setTextTrackVisibility(false); } catch(e){}
-        setStatus('Subtitles off.','ok'); closePuiMenu(true);
-      });
-      tt.forEach(function(tr){
-        var label = tr.label || langName(tr.language) || ('Track '+tr.id);
-        menuOpt(label, visible && tr.active, function(){
-          try { player.selectTextTrack(tr); player.setTextTrackVisibility(true); } catch(e){}
-          setStatus('Subtitles: '+label,'ok'); closePuiMenu(true);
-        });
-      });
-      // …plus whatever the installed subtitle add-ons can offer for this title
-      var fresh = subState.list.filter(function(c){ return !subState.loaded[c.url]; });
-      subState.pending = subState.loading;
-      if (subState.loading) puiNote('Searching add-ons…');
-      else if (fresh.length){
-        puiSep();
-        fresh.forEach(function(c){ menuOpt(c.label, false, function(){ pickAddonSub(c); }); });
-      } else if (!subState.asked && !tt.length){
-        puiNote('No subtitle add-on installed. Add one — OpenSubtitles v3, say — on the Add-ons tab.');
-      } else if (subState.asked && !subState.list.length){
-        puiNote('No add-on subtitles for this title.');
-      }
-      puiSep();
-      menuOpt('Timing ›' + (subOffset ? '  ' + (subOffset > 0 ? '+' : '−') + Math.abs(subOffset).toFixed(1) + ' s' : ''), false, function(){ openPuiMenu('subtiming', puiState.opener); });
-      menuOpt('Appearance ›', false, function(){ openPuiMenu('substyle', puiState.opener); });
-    } else if (kind==='subtiming'){
-      menuOpt('‹ Subtitles', false, function(){ openPuiMenu('subs', puiState.opener); });
-      var tp = document.createElement('div'); tp.className = 'qtime'; tp.innerHTML = subOffsetHtml(); puiMenuEl.appendChild(tp);
-      menuOpt('Later by 0.5 s', false, function(){ setSubOffset(subOffset + 0.5); });
-      menuOpt('Later by 0.1 s', false, function(){ setSubOffset(subOffset + 0.1); });
-      menuOpt('Earlier by 0.1 s', false, function(){ setSubOffset(subOffset - 0.1); });
-      menuOpt('Earlier by 0.5 s', false, function(){ setSubOffset(subOffset - 0.5); });
-      puiSep();
-      menuOpt('Back in sync', !subOffset, function(){ setSubOffset(0); });
-      puiNote('If the words arrive before the voices, choose Later.');
-    } else if (kind==='substyle'){
-      menuOpt('‹ Subtitles', false, function(){ openPuiMenu('subs', puiState.opener); });
-      var prev = document.createElement('div'); prev.className = 'qprev';
-      var pt = document.createElement('span'); pt.className = 'qprev-t'; pt.textContent = 'Subtitles will look like this';
-      prev.appendChild(pt); puiMenuEl.appendChild(prev);
-      SUB_ORDER.forEach(subSetRow);
-      subRefreshRows();
-      puiSep();
-      menuOpt('Reset to defaults', false, function(){
-        subStyle = normSubStyle(null); saveSubStyle(); applySubStyle(); subRefreshRows();
-        setStatus('Subtitle appearance reset.','ok');
-      });
     } else if (kind==='audio'){
       var langs=[]; try { langs = player.getAudioLanguagesAndRoles()||[]; } catch(e){}
       if (langs.length >= 2){
@@ -5805,12 +6029,14 @@
     }
     puiMenuEl.classList.add('open');
     puiState.menu = kind; puiState.opener = opener || null;
-    var on = (kind==='substyle' && puiMenuEl.querySelector('.qset')) || puiMenuEl.querySelector('.qopt.on') || puiMenuEl.querySelector('.qopt');
+    positionPuiMenu(opener);
+    var on = puiMenuEl.querySelector('.qopt.on') || puiMenuEl.querySelector('.qopt');
     if (on) setTimeout(function(){ on.focus(); }, 10);
     puiShow();
   }
   function closePuiMenu(refocus){
     if (puiMenuEl) puiMenuEl.classList.remove('open');
+    if (subPanelEl){ subPanelEl.classList.remove('open'); document.body.classList.remove('sp-on'); }
     var op = puiState.opener;
     puiState.menu = null; puiState.opener = null;
     if (refocus && op) op.focus();
@@ -5818,6 +6044,193 @@
   function movePuiMenu(dir){
     var opts=Array.prototype.slice.call(puiMenuEl.querySelectorAll('.qopt')); if(!opts.length) return;
     var i=opts.indexOf(document.activeElement); i=(i<0?0:i+dir); if(i<0)i=0; if(i>=opts.length)i=opts.length-1; opts[i].focus();
+  }
+  /** Menus open above the toolbar, centred on the button that opened them, and
+      never past the player's edges (the bar itself is the fallback anchor). */
+  function positionPuiMenu(opener){
+    var bar = $id('puiBar'), pr = pui.getBoundingClientRect();
+    var anchor = (opener && opener.getBoundingClientRect) ? opener : bar;
+    if (!anchor || !pr.width){ puiMenuEl.style.left = ''; puiMenuEl.style.right = ''; puiMenuEl.style.bottom = ''; puiMenuEl.style.maxHeight = ''; return; }
+    var r = anchor.getBoundingClientRect();
+    if (!r.width && bar) r = bar.getBoundingClientRect();
+    var pad = IS_TV ? 24 : 12, mw = puiMenuEl.offsetWidth || 216;
+    var left = r.left - pr.left + r.width / 2 - mw / 2;
+    if (left + mw > pr.width - pad) left = pr.width - pad - mw;
+    if (left < pad) left = pad;
+    puiMenuEl.style.left = Math.round(left) + 'px';
+    puiMenuEl.style.right = 'auto';
+    puiMenuEl.style.bottom = Math.round(pr.bottom - r.top + 10) + 'px';
+    puiMenuEl.style.maxHeight = Math.round(Math.max(120, Math.min(pr.height * 0.6, r.top - pr.top - pad - 10))) + 'px';
+  }
+
+  // ---- subtitles panel ----
+  // Replaces the Subtitles menu: a layer over the film with three columns — the
+  // languages on offer (with how many tracks each has), the tracks in the chosen
+  // one (embedded or from an add-on, the supplier named on every card) and the
+  // Style column (timing, then the appearance rows). puiState.menu is 'subs'
+  // while it is up, so Esc/Back peel it like any menu and focusables() stays inside.
+  var subPanelEl = $id('subPanel');
+  var spState = { lang:null, col:0, rows:[0, 0, 0] };
+  var SP_CHECK = '<svg class="sp-chk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  var SP_PREV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg>';
+  var SP_NEXT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg>';
+  function spCols(){ return [$id('spLangList'), $id('spTrackList'), $id('spStyleList')]; }
+  function spRowBtns(row){ return Array.prototype.filter.call(row.querySelectorAll('.focusable'), function(b){ return b.offsetParent !== null; }); }
+  function spRows(col){ return Array.prototype.filter.call(col.querySelectorAll('.sp-row'), function(r){ return r.offsetParent !== null && spRowBtns(r).length > 0; }); }
+  /** Where `el` sits: column, row, and the button's place within the row. */
+  function spLocate(el){
+    var cols = spCols();
+    for (var c = 0; c < cols.length; c++){
+      if (!el || !cols[c].contains(el)) continue;
+      var rows = spRows(cols[c]);
+      for (var r = 0; r < rows.length; r++){
+        if (rows[r].contains(el)) return { col:c, row:r, idx:Math.max(0, spRowBtns(rows[r]).indexOf(el)) };
+      }
+      return { col:c, row:0, idx:0 };
+    }
+    return null;
+  }
+  function spFocus(el){ if (!el) return; try { el.focus(); } catch(e){} }
+  function spFocusCol(c){
+    var rows = spRows(spCols()[c]); if (!rows.length) return false;
+    var r = Math.min(spState.rows[c] || 0, rows.length - 1);
+    spFocus(spRowBtns(rows[r])[0]); return true;
+  }
+  /** D-pad inside the panel: up/down walk a column; left/right move along a row of
+      buttons and then to the next column, which remembers where it was. */
+  function subPanelMove(dx, dy){
+    var loc = spLocate(document.activeElement);
+    if (!loc){ if (!spFocusCol(spState.col)) spFocusCol(0); return; }
+    var cols = spCols(), rows = spRows(cols[loc.col]);
+    if (dy){
+      var nr = loc.row + dy; if (nr < 0 || nr >= rows.length) return;
+      var bs = spRowBtns(rows[nr]); spFocus(bs[Math.min(loc.idx, bs.length - 1)]); return;
+    }
+    var cur = spRowBtns(rows[loc.row]), ni = loc.idx + dx;
+    if (ni >= 0 && ni < cur.length){ spFocus(cur[ni]); return; }
+    var nc = loc.col + dx;
+    while (nc >= 0 && nc < cols.length && !spRows(cols[nc]).length) nc += dx;
+    if (nc >= 0 && nc < cols.length) spFocusCol(nc);
+  }
+  subPanelEl.addEventListener('focusin', function(e){
+    var loc = spLocate(e.target); if (loc){ spState.col = loc.col; spState.rows[loc.col] = loc.row; }
+  });
+  // a click on the scrim (or the heading, or the gutter between columns) closes it. Decided on the
+  // target itself: a row click re-renders its column mid-dispatch, so walking up from the (by then
+  // detached) button would never find the column and read as a scrim click.
+  subPanelEl.addEventListener('click', function(e){
+    var t = e.target, cls = ' ' + ((t && typeof t.className === 'string') ? t.className : '') + ' ';
+    if (t === subPanelEl || /\s(sp-scrim|sp-head|sp-title|sp-cols)\s/.test(cls)) closePuiMenu(true);
+  });
+  function spBtn(cls, html, fn){
+    var b = document.createElement('button'); b.type = 'button'; b.className = cls + ' focusable'; b.tabIndex = 0;
+    b.innerHTML = html;
+    b.onclick = function(){ fn(); };
+    b.onkeydown = function(ev){ if (ev.keyCode === 13){ fn(); ev.preventDefault(); ev.stopPropagation(); } };
+    return b;
+  }
+  function spRow(host, el, cls){ var r = document.createElement('div'); r.className = 'sp-row' + (cls ? ' ' + cls : ''); r.appendChild(el); host.appendChild(r); return r; }
+  function spNote(host, text){ var d = document.createElement('div'); d.className = 'sp-note'; d.textContent = text; host.appendChild(d); }
+  /** Embedded text tracks and add-on candidates, grouped by language name. */
+  function spModel(){
+    var tt = [], visible = false, active = null;
+    try { tt = player.getTextTracks() || []; } catch(e){}
+    try { visible = player.isTextTrackVisible(); } catch(e){}
+    var by = {}, names = [];
+    function bucket(n){ if (!by[n]){ by[n] = { name:n, tracks:[], cands:[] }; names.push(n); } return by[n]; }
+    tt.forEach(function(tr){ if (tr.active) active = tr; bucket(langName(tr.language)).tracks.push(tr); });
+    subState.list.forEach(function(c){ if (!subState.loaded[c.url]) bucket(langName(c.lang)).cands.push(c); });
+    var pref = langPrefMap();
+    names.sort(function(a, b){
+      var pa = (pref[a] == null ? 99 : pref[a]), pb = (pref[b] == null ? 99 : pref[b]);
+      if (pa !== pb) return pa - pb;
+      return a < b ? -1 : (a > b ? 1 : 0);
+    });
+    return { by:by, names:names, visible:visible, active:active, current:(visible && active) ? langName(active.language) : null };
+  }
+  /** Columns 1 and 2. With `keep`, focus returns to the same row afterwards. */
+  function subPanelRender(keep){
+    if (!player) return null;
+    var m = spModel(), cols = spCols(), hostL = cols[0], hostT = cols[1];
+    if (!spState.lang || !m.by[spState.lang]) spState.lang = m.current || m.names[0] || null;
+    var was = keep ? spLocate(document.activeElement) : null;
+    hostL.innerHTML = '';
+    spRow(hostL, spBtn('sp-opt' + (!m.visible ? ' on' : ''), '<span class="sp-lbl">Off</span>' + SP_CHECK, function(){
+      try { player.setTextTrackVisibility(false); } catch(e){}
+      setStatus('Subtitles off.', 'ok'); subPanelRender(true);
+    }));
+    m.names.forEach(function(n){
+      var g = m.by[n], cls = 'sp-opt' + (n === spState.lang ? ' sel' : '') + (n === m.current ? ' on' : '');
+      spRow(hostL, spBtn(cls, '<span class="sp-lbl">' + esc(n) + '</span><span class="sp-count">' + (g.tracks.length + g.cands.length) + '</span>' + SP_CHECK,
+        function(){ spState.lang = n; subPanelRender(true); }));
+    });
+    if (!m.names.length && !subState.loading) spNote(hostL, subState.asked ? 'No subtitles for this title.' : 'No subtitle add-on installed — add one on the Add-ons tab.');
+    hostT.innerHTML = '';
+    var g2 = spState.lang ? m.by[spState.lang] : null;
+    if (g2){
+      g2.tracks.forEach(function(tr){
+        var label = tr.label || langName(tr.language) || ('Track ' + tr.id);
+        var from = subState.trackSrc[tr.label || ''] || 'Built in';
+        spRow(hostT, spBtn('sp-card' + (m.visible && tr.active ? ' on' : ''),
+          '<span class="sp-badge">' + esc(from) + '</span><span class="sp-lbl">' + esc(label) + '</span>' + SP_CHECK, function(){
+            try { player.selectTextTrack(tr); player.setTextTrackVisibility(true); } catch(e){}
+            setStatus('Subtitles: ' + label, 'ok'); subPanelRender(true);
+          }));
+      });
+      g2.cands.forEach(function(c){
+        spRow(hostT, spBtn('sp-card', '<span class="sp-badge">' + esc(c.addon || 'Add-on') + '</span><span class="sp-lbl">' + esc(c.label) + '</span>' + SP_CHECK,
+          function(){ pickAddonSub(c); }));
+      });
+    }
+    if (subState.loading) spNote(hostT, 'Searching add-ons…');
+    else if (!g2) spNote(hostT, m.names.length ? 'Choose a language.' : 'Nothing to show for this title.');
+    if (was){
+      var rows = spRows(cols[was.col]);
+      if (rows.length){ var bs = spRowBtns(rows[Math.min(was.row, rows.length - 1)]); spFocus(bs[Math.min(was.idx, bs.length - 1)]); }
+    }
+    return m;
+  }
+  /** Column 3: the preview line, timing, then every appearance setting as a stepper. */
+  function spStyleBuild(){
+    var host = spCols()[2]; host.innerHTML = '';
+    var prev = document.createElement('div'); prev.className = 'qprev';
+    var pt = document.createElement('span'); pt.className = 'qprev-t'; pt.textContent = 'Subtitles will look like this';
+    prev.appendChild(pt); host.appendChild(prev);
+    var k1 = document.createElement('div'); k1.className = 'sp-sub'; k1.textContent = 'Timing'; host.appendChild(k1);
+    var tp = document.createElement('div'); tp.className = 'qtime'; tp.innerHTML = subOffsetHtml(); host.appendChild(tp);
+    var steps = document.createElement('div'); steps.className = 'sp-row sp-steps';
+    [[-0.5, '−0.5 s'], [-0.1, '−0.1 s'], [0.1, '+0.1 s'], [0.5, '+0.5 s']].forEach(function(st){
+      steps.appendChild(spBtn('sp-step', esc(st[1]), function(){ setSubOffset(subOffset + st[0]); }));
+    });
+    host.appendChild(steps);
+    var sync = spBtn('sp-opt' + (!subOffset ? ' on' : ''), '<span class="sp-lbl">Back in sync</span>' + SP_CHECK, function(){ setSubOffset(0); });
+    sync.setAttribute('data-sync', '1');
+    spRow(host, sync);
+    spNote(host, 'If the words arrive before the voices, nudge them later.');
+    var k2 = document.createElement('div'); k2.className = 'sp-sub'; k2.textContent = 'Appearance'; host.appendChild(k2);
+    SUB_ORDER.forEach(function(k){ subSetRow(k, host); });
+    subRefreshRows();
+    spRow(host, spBtn('sp-opt', '<span class="sp-lbl">Reset to defaults</span>', function(){
+      subStyle = normSubStyle(null); saveSubStyle(); applySubStyle(); subRefreshRows();
+      setStatus('Subtitle appearance reset.', 'ok');
+    }));
+  }
+  function subPanelOpen(opener){
+    puiMenuEl.classList.remove('open');
+    spState.lang = null; spState.col = 0; spState.rows = [0, 0, 0];
+    var m = subPanelRender(false);
+    spStyleBuild();
+    subPanelEl.classList.add('open'); document.body.classList.add('sp-on');   // on body: puiShow() rewrites #pui's className
+    puiState.menu = 'subs'; puiState.opener = opener || null;
+    // land on the language that is showing (Off when none is), with the showing track's card beside it
+    if (m){
+      var li = m.current ? m.names.indexOf(m.current) + 1 : 0;
+      spState.rows[0] = li < 0 ? 0 : li;
+      var g = spState.lang ? m.by[spState.lang] : null;
+      if (g && m.active) g.tracks.forEach(function(tr, j){ if (tr === m.active) spState.rows[1] = j; });
+    }
+    setTimeout(function(){ spFocusCol(0); }, 10);
+    puiShow();
   }
   function selectQuality(height){
     if (!player) return;
@@ -5877,6 +6290,7 @@
   function puiReset(title){
     $id('puiTitle').textContent = title || '';
     $id('puiSub').textContent = '';
+    $id('puiSrc').textContent = ''; $id('puiClock').textContent = '';
     $id('puiSpeedVal').textContent = '1×';
     $id('puiQualVal').textContent = '';
     closeUpNext(); upnextState.dismissed = false;
@@ -5901,7 +6315,9 @@
   $id('puiRew').onclick = function(){ seekBy(-10); };
   $id('puiFwd').onclick = function(){ seekBy(10); };
   $id('puiQual').onclick = function(){ if (puiState.menu==='quality') closePuiMenu(true); else openPuiMenu('quality', this); };
-  $id('puiSubs').onclick = function(){ if (puiState.menu==='subs' || puiState.menu==='substyle' || puiState.menu==='subtiming') closePuiMenu(true); else openPuiMenu('subs', this); };
+  $id('puiSubs').onclick = function(){ if (puiState.menu==='subs') closePuiMenu(true); else openPuiMenu('subs', this); };
+  // the right-hand pill reads time left; press it for the total (kept for the sitting)
+  $id('puiTimeR').onclick = function(){ if (puiIsLive()) return; puiState.total = !puiState.total; puiTick(); puiShow(); };
   $id('puiInfo').onclick = function(){ pinfoSet(!pinfoOn); puiShow(); };
   $id('puiGoLive').onclick = function(){ var r = puiRange(); if (r.end > r.start){ video.currentTime = Math.max(r.start, r.end - 1); puiTick(); } puiShow(); };
   $id('puiAudio').onclick = function(){ if (puiState.menu==='audio') closePuiMenu(true); else openPuiMenu('audio', this); };
@@ -6036,7 +6452,9 @@
     if (res){
       setPlayIdentity(type, v.id, label);
       // an untouched series adopts the first auto-pick as its taste; a hand-pick is never overwritten
-      if (!ctx.pickedFrom) ctx.pickedFrom = streamSig(res.pick, res.addon);
+      var sig = streamSig(res.pick, res.addon);
+      if (!ctx.pickedFrom) ctx.pickedFrom = sig;
+      ctx.playSig = sig;                       // feeds the source line under the title
       playStream(res.pick);
       return;
     }
@@ -6257,10 +6675,10 @@
   }
   function partyBadge(){
     var b = $id('puiPartyBadge'), btn = $id('puiParty');
-    if (!party){ b.style.display='none'; btn.textContent='Party'; return; }
+    if (!party){ b.style.display='none'; puiLabel(btn, 'Party'); return; }
     b.style.display='';
     b.textContent = party.code + ' · ' + party.count;
-    btn.textContent = 'Leave party';
+    puiLabel(btn, 'Leave party');
   }
   function mkParty(ws, code, isHost){
     if (party){ party.closing = true; try { party.ws.close(); } catch(e){} clearPartyTimers(party); }
@@ -7283,7 +7701,7 @@
   function applyPrefs(){
     var pr = getPrefs();
     document.documentElement.style.setProperty('--accent', pr.accent || '#E50914');
-    document.documentElement.style.setProperty('--fzoom', pr.zoom || '1.10');
+    document.documentElement.style.setProperty('--fzoom', pr.zoom || '1.04');
   }
   function prefChip(label, on, fn){
     var b = document.createElement('button');
@@ -7303,8 +7721,8 @@
       acc.appendChild(b);
     });
     var z = $id('setZoom'); z.innerHTML = '';
-    [['Subtle','1.05'], ['Standard','1.10'], ['Bold','1.16']].forEach(function(o){
-      z.appendChild(prefChip(o[0], (pr.zoom || '1.10') === o[1], function(){ setPref('zoom', o[1]); }));
+    [['Subtle','1.02'], ['Standard','1.04'], ['Bold','1.10']].forEach(function(o){
+      z.appendChild(prefChip(o[0], (pr.zoom || '1.04') === o[1], function(){ setPref('zoom', o[1]); }));
     });
     var r = $id('setRatings'); r.innerHTML = '';
     r.appendChild(prefChip('Show', pr.ratings !== false, function(){ setPref('ratings', true); buildHomeRows(true); }));

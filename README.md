@@ -19,9 +19,11 @@ a native app with the same screens.
 
 - **Add-ons.** Point it at an add-on and its catalogs, title pages, streams and subtitles show up.
   Several add-ons combine into one row of streams, labelled by resolution, size and language.
-- **Playback.** Adaptive and encrypted streams play natively; quality, audio track, subtitle and
-  speed pickers; add-on subtitles with your own styling and a timing nudge; a picture-quality
-  policy (auto, best available, data saver); picture-in-picture and a desktop mini player.
+- **Playback.** Adaptive and encrypted streams play natively. The player shows the source you are
+  watching from under the title, time pills at both ends of the scrubber, and one centred toolbar:
+  Next, Subtitles, Audio, Quality, Speed, Sleep, Party. Subtitles open a full panel: languages with
+  counts, each language's tracks and where they came from, timing and appearance alongside. A
+  picture-quality policy (auto, best available, data saver); picture-in-picture and a desktop mini player.
 - **The quiet parts.** Pause for a moment and a board fades in with the title, synopsis, time
   left and what plays next. A playback HUD (`i`) shows resolution, bitrate, buffer and latency
   the way a TV settings page would, not a debug dump. Live streams get a lag guard and Go live.

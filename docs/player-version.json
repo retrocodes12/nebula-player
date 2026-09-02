@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.02.8",
+  "version": "2026.09.02.9",
   "url": "https://play.rifflehq.in/",
-  "notes": "Skip intro. A pill appears over an episode's recap and opening titles; press it (OK on a remote) to jump past them, or set Auto in Settings > Playback and it skips for you. The closing credits bring Up next forward. Audio now always sits in the controls, naming the one track when there is nothing to pick."
+  "notes": "A new player layout. Under the title, the source you are watching from; time pills at both ends of the scrubber, the right one switching between time left and total; one centred toolbar with icons for Next, Subtitles, Audio, Quality, Speed, Sleep and Party; the clock and the end time top right. Subtitles open a full panel: languages with counts, each language's tracks and where they came from, timing and appearance alongside. On the TV: an icon-only rail, a full-bleed featured board and title pages, row sources under the row names, bigger stream cards."
 }
