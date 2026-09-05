@@ -2452,7 +2452,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.05.3';
+  var PLAYER_VERSION = '2026.09.05.4';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -6238,6 +6238,213 @@
     setStatus(playErrorLine(code, detail), 'err');
     try { $id('puiSpin').style.display = 'none'; } catch(e){}
   }
+  // ---- desktop transcode. Chromium on Windows has no decoder for Dolby Digital (Plus), DTS or TrueHD, and HEVC only
+  // with hardware help; Nuvio's desktop app plays such files through its own libmpv. Nebula's shell carries FFmpeg
+  // instead: /probe says what a file holds, /seg hands back ten-second fragmented-MP4 pieces with the audio re-encoded
+  // to AAC (video copied through, or re-encoded when the machine cannot decode it) and the ORIGINAL timestamps kept,
+  // and the player appends them over MSE — so the element keeps a real timeline and every control works unchanged.
+  // Only on the desktop shell, only for plain files (never DASH/HLS/keys), only when Chromium could not take the file. ----
+  var tc = null;                                                   // the active transcode session, or null
+  var TC_LEN = 10, TC_AHEAD = 45;
+  var TC_AUDIO_OK = { aac:1, mp3:1, opus:1, vorbis:1, flac:1, alac:1, mp2:1, pcm_s16le:1, pcm_s24le:1, pcm_s32le:1, pcm_f32le:1 };
+  function tcCandidate(url, keys, mime){
+    return IS_DESKTOP && !!(window.nebulaDesktop && window.nebulaDesktop.transcode) && !keys && !mime &&
+      /^https?:\/\//i.test(url) && !/\.(mpd|m3u8)(\?|#|$)/i.test(url);
+  }
+  function tcHevcOk(){ try { return window.MediaSource && MediaSource.isTypeSupported('video/mp4; codecs="hvc1.1.6.L153.B0"'); } catch(e){ return false; } }
+  /** Why the shell must step in — 'audio', 'video' — or '' when Chromium can take the file as it is. */
+  function tcReason(info){
+    if (!info || !info.video || !window.MediaSource) return '';
+    var vc = String(info.video.codec || '').toLowerCase(), a = info.audio && info.audio[0];
+    var videoBad = (vc === 'hevc' || vc === 'h265') ? !tcHevcOk() : !(vc === 'h264' || vc === 'vp9' || vc === 'vp8' || vc === 'av1');
+    if (videoBad) return 'video';
+    if (a && !TC_AUDIO_OK[String(a.codec || '').toLowerCase()]) return 'audio';
+    return '';
+  }
+  async function tcProbe(url){
+    var ctl = new AbortController(), timer = setTimeout(function(){ ctl.abort(); }, 25000);
+    try { var r = await fetch(location.origin + '/probe?src=' + encodeURIComponent(url), { signal: ctl.signal }); return r.ok ? await r.json() : null; }
+    catch(e){ return null; } finally { clearTimeout(timer); }
+  }
+  /** The file's own name for a track, then the language, never a bare index. */
+  function tcTrackLabel(a){
+    var ln = langName(a.lang || '') || '', lb = String(a.title || '').trim();
+    if (/^(sound ?handler|audio|sound|stereo|mono|und|unknown)$/i.test(lb)) lb = '';
+    var ch = a.channels >= 8 ? ' · 7.1' : (a.channels >= 6 ? ' · 5.1' : (a.channels >= 3 ? ' · ' + a.channels + 'ch' : ''));
+    if (lb) return ((ln && lb.toLowerCase().indexOf(ln.toLowerCase()) < 0) ? ln + ' · ' + lb : lb) + (/5\.1|7\.1|\dch/.test(lb) ? '' : ch);
+    return (ln || 'Track ' + (a.i + 1)) + ch;
+  }
+  /** Settings › Audio language decides; else the file's default track; else the first. */
+  function tcPickAudio(info){
+    var want = '', list = info.audio || [];
+    try { want = langName(prefLang('audioLang') || '') || ''; } catch(e){}
+    if (want && want !== 'Unknown'){ for (var i = 0; i < list.length; i++) if (langName(list[i].lang || '') === want) return i; }
+    for (var j = 0; j < list.length; j++) if (list[j].dflt) return j;
+    return 0;
+  }
+  function tcMime(){
+    var vc = String(tc.info.video.codec || '').toLowerCase();
+    var v = (vc === 'hevc' || vc === 'h265') && tc.vmode === 'copy' ? 'hvc1.1.6.L153.B0' : 'avc1.64001f';
+    return 'video/mp4; codecs="' + v + ', mp4a.40.2"';
+  }
+  function tcSegUrl(t, len){
+    return location.origin + '/seg?src=' + encodeURIComponent(tc.src) + '&t=' + t + '&len=' + len + '&a=' + tc.a + '&v=' + tc.vmode +
+      '&vc=' + encodeURIComponent(tc.info.video.codec || '');
+  }
+  function tcWait(ms){ return new Promise(function(ok){ setTimeout(ok, ms); }); }
+  function tcAhead(){
+    try { var b = tc.sb.buffered, t = video.currentTime; for (var i = 0; i < b.length; i++) if (b.start(i) <= t + 0.5 && b.end(i) >= t) return b.end(i) - t; } catch(e){}
+    return 0;
+  }
+  function tcAppend(buf){
+    return new Promise(function(ok, no){
+      var sb = tc && tc.sb; if (!sb){ ok(); return; }
+      var done = function(){ sb.removeEventListener('updateend', done); sb.removeEventListener('error', bad); ok(); };
+      var bad = function(){ sb.removeEventListener('updateend', done); sb.removeEventListener('error', bad); no(new Error('append failed')); };
+      (async function(){
+        while (sb.updating) await tcWait(15);
+        sb.addEventListener('updateend', done); sb.addEventListener('error', bad);
+        try { sb.appendBuffer(buf); } catch(e){ bad(); }
+      })();
+    });
+  }
+  async function tcRemove(from, to){
+    var sb = tc && tc.sb; if (!sb) return;
+    try {
+      while (sb.updating) await tcWait(15);
+      await new Promise(function(ok){ var d = function(){ sb.removeEventListener('updateend', d); ok(); }; sb.addEventListener('updateend', d); try { sb.remove(from, to); } catch(e){ d(); } });
+    } catch(e){}
+  }
+  async function tcPump(){
+    if (!tc || tc.pumping) return;
+    tc.pumping = true; var my = ++tc.gen, session = tc;
+    try {
+      while (tc === session && tc.gen === my && !tc.done){
+        var dur = tc.info.duration || 0;
+        if (dur && tc.next >= dur - 0.25){ tcFinish(); break; }
+        if (tc.flush){ tc.flush = false; await tcRemove(0, 1e9); }
+        if (tcAhead() > TC_AHEAD){ await tcWait(800); continue; }
+        var ctl = new AbortController(); tc.ctl = ctl;
+        var from = tc.next, len = TC_LEN, got = 0, r = null;
+        tc.pieceFrom = from;
+        try { r = await fetch(tcSegUrl(from, len), { signal: ctl.signal }); } catch(e){ if (ctl.signal.aborted) continue; throw e; }
+        if (!r.ok) throw new Error('piece ' + r.status);
+        var reader = r.body.getReader();
+        try {
+          while (true){
+            var chunk = await reader.read(); if (chunk.done) break;
+            if (tc !== session || tc.gen !== my || ctl.signal.aborted){ try { reader.cancel(); } catch(e){} break; }
+            await tcAppend(chunk.value); got += chunk.value.length;
+          }
+        } catch(e){ if (!ctl.signal.aborted) throw e; }         // a cut piece throws from the reader: that is the restart, not a fault
+        if (tc !== session || tc.gen !== my) break;
+        if (ctl.signal.aborted) continue;                       // a seek or a track change moved tc.next
+        if (!got) throw new Error('empty piece');
+        // the piece ran from the keyframe before `from` up to from+len; carry on from what actually landed
+        var end = 0; try { var bb = tc.sb.buffered; for (var k = 0; k < bb.length; k++) if (bb.start(k) <= from + 0.5 && bb.end(k) > end) end = bb.end(k); } catch(e){}
+        tc.next = end > from + 0.75 ? end - 0.25 : from + len;
+        try { var b = tc.sb.buffered; if (b.length && b.start(0) < video.currentTime - 70) await tcRemove(0, video.currentTime - 50); } catch(e){}
+      }
+    } catch(e){
+      if (tc === session && tc.gen === my) setStatus('This file could not be converted for playback (' + ((e && e.message) || e) + '). Try another source.', 'err');
+    } finally { if (tc === session && tc.gen === my) tc.pumping = false; }
+  }
+  function tcFinish(){
+    if (!tc) return; tc.done = true;
+    (async function(){ var s = tc; try { while (s.sb && s.sb.updating) await tcWait(20); if (tc === s && s.ms.readyState === 'open') s.ms.endOfStream(); } catch(e){} })();
+  }
+  function tcOnSeeking(){
+    if (!tc) return;
+    var t = video.currentTime;
+    try { var b = tc.sb.buffered; for (var i = 0; i < b.length; i++) if (b.start(i) <= t && b.end(i) >= t + 1) return; } catch(e){}   // already here
+    // the piece in flight starts at or just before the target: let it land rather than fetch the same seconds again
+    if (tc.ctl && !tc.ctl.signal.aborted && t >= tc.pieceFrom && t < tc.pieceFrom + TC_LEN - 1){ tc.done = false; tcPump(); return; }
+    tc.next = Math.max(0, Math.floor(t)); tc.done = false;
+    tcCut();
+    tcPump();
+  }
+  /** Stop the piece in flight and reset the parser, so the next piece's init segment lands on a clean buffer. */
+  function tcCut(){
+    if (!tc) return;
+    if (tc.ctl){ try { tc.ctl.abort(); } catch(e){} }
+    try { if (tc.sb && tc.ms.readyState === 'open') tc.sb.abort(); } catch(e){}
+  }
+  function tcOnError(){ if (tc) setStatus(playErrorLine(3016, ' — ' + (video.error && video.error.message || 'media error')), 'err'); }
+  function tcSetAudio(i){
+    if (!tc || i === tc.a) return;
+    tc.a = i; tc.flush = true; tc.next = Math.max(0, Math.floor(video.currentTime)); tc.done = false;
+    tcCut();
+    tcPump();
+  }
+  async function tcStart(url, info, startAt, seq){
+    var why = tcReason(info);
+    tc = { src: url, info: info, a: tcPickAudio(info), vmode: why === 'video' ? 'h264' : 'copy', ms: null, sb: null, ctl: null,
+      next: Math.max(0, Math.floor(startAt || 0)), pumping: false, done: false, flush: false, gen: 0, why: why };
+    var session = tc;
+    player = tcShim();
+    var ms = new MediaSource(); tc.ms = ms;
+    video.style.display = 'block';
+    video.src = URL.createObjectURL(ms);
+    await new Promise(function(ok){ ms.addEventListener('sourceopen', ok, { once: true }); });
+    if (seq !== playSeq || tc !== session) return;
+    try { ms.duration = info.duration || 0; } catch(e){}
+    tc.sb = ms.addSourceBuffer(tcMime()); tc.sb.mode = 'segments';
+    video.addEventListener('seeking', tcOnSeeking);
+    video.addEventListener('error', tcOnError);
+    if (startAt){ try { video.currentTime = startAt; } catch(e){} }
+    tcPump();
+    try { await video.play(); } catch(e){}
+  }
+  function tcStop(){
+    video.removeEventListener('seeking', tcOnSeeking);
+    video.removeEventListener('error', tcOnError);
+    var s = tc; tc = null;
+    if (s){ s.gen++; if (s.ctl) { try { s.ctl.abort(); } catch(e){} } try { if (s.ms.readyState === 'open') s.ms.endOfStream(); } catch(e){} }
+    Array.prototype.forEach.call(video.querySelectorAll('track'), function(t){ try { URL.revokeObjectURL(t.src); } catch(e){} t.remove(); });
+    try { video.removeAttribute('src'); video.load(); } catch(e){}
+  }
+  function srtToVtt(s){
+    return 'WEBVTT\n\n' + String(s).replace(/\r/g, '').replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2').replace(/^\d+\s*$/gm, '').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+  }
+  async function tcAddText(url, lang, mime, label){
+    var r = await fetch(url), text = await r.text();
+    if (!/^\s*WEBVTT/.test(text)) text = srtToVtt(text);
+    var el = document.createElement('track'); el.kind = 'subtitles'; el.srclang = lang || ''; el.label = label || lang || 'Subtitles';
+    el.src = URL.createObjectURL(new Blob([text], { type: 'text/vtt' }));
+    video.appendChild(el);
+    var id = video.textTracks.length - 1; try { video.textTracks[id].mode = 'disabled'; } catch(e){}
+    return id;
+  }
+  /** What the rest of the player asks a Shaka player for, answered from the element and the probe. */
+  function tcShim(){
+    var chosen = null;
+    function tracks(){
+      var out = [];
+      for (var i = 0; i < video.textTracks.length; i++){ var t = video.textTracks[i]; out.push({ id: i, language: t.language || '', label: t.label || '', kind: 'subtitles', active: t.mode === 'showing' }); }
+      return out;
+    }
+    return {
+      tc: true,
+      destroy: function(){ tcStop(); return Promise.resolve(); },
+      attach: function(){ return Promise.resolve(); },
+      configure: function(){}, retryStreaming: function(){},
+      seekRange: function(){ var d = (tc && tc.info.duration) || video.duration || 0; return { start: 0, end: isFinite(d) ? d : 0 }; },
+      isLive: function(){ return false; }, isBuffering: function(){ return false; },
+      getStats: function(){ return { width: video.videoWidth, height: video.videoHeight, streamBandwidth: 0, estimatedBandwidth: 0, decodedFrames: 0, droppedFrames: 0 }; },
+      getVariantTracks: function(){ return []; }, getAudioLanguagesAndRoles: function(){ return []; }, selectAudioLanguage: function(){},
+      getImageTracks: function(){ return []; }, getThumbnails: function(){ return null; },
+      getNetworkingEngine: function(){ return { registerRequestFilter: function(){}, registerResponseFilter: function(){} }; },
+      addTextTrackAsync: function(url, lang, kind, mime, codec, label){ return tcAddText(url, lang, mime, label).then(function(id){ return { id: id, language: lang, label: label, kind: 'subtitles', active: false }; }); },
+      getTextTracks: tracks,
+      isTextTrackVisible: function(){ return tracks().some(function(t){ return t.active; }); },
+      selectTextTrack: function(t){ chosen = t ? t.id : null; for (var i = 0; i < video.textTracks.length; i++) video.textTracks[i].mode = (i === chosen) ? 'showing' : 'disabled'; },
+      setTextTrackVisibility: function(on){
+        if (on && chosen === null && video.textTracks.length) chosen = 0;
+        for (var i = 0; i < video.textTracks.length; i++) video.textTracks[i].mode = (on && i === chosen) ? 'showing' : 'disabled';
+      }
+    };
+  }
+
   // ---- no sound: a browser engine that cannot decode the audio (Dolby Digital / DTS / TrueHD in a remux) plays the
   // picture in silence and never says so. Once the picture is moving and not one audio byte has been decoded, say it. ----
   var audioSilentNoted = false;
@@ -6350,11 +6557,39 @@
     // starts buffering there, rather than loading at 0 and seeking.
     var fresh = ctx.startOver === true; ctx.startOver = false;
     var startAt = (curPlay && !fresh) ? resumeAt(curPlay.type, curPlay.id) : 0;
+    // The desktop shell's FFmpeg steps in for a plain file Chromium cannot decode (Dolby / DTS audio, HEVC without
+    // hardware). When the stream row already says so (DDP, DTS, x265…) the file is probed first; otherwise it starts
+    // at once and a probe runs beside it, restarting through the shell only if it turns out to be needed.
+    var tcInfo = null, tcLater = false;
+    if (ctx.tcForce){ tcInfo = ctx.tcForce; ctx.tcForce = null; }
+    else if (tcCandidate(rawUrl, clearKeys, mimeType)){
+      var row = ctx.playRow || '';
+      if (audioCodecHint(row) || (/\b(hevc|x265|h\.?265)\b/i.test(row) && !tcHevcOk())){
+        setStatus('Checking the file…', 'info');
+        tcInfo = await tcProbe(cleanUrl(rawUrl));
+        if (seq !== playSeq) return;
+        if (!(tcInfo && tcReason(tcInfo))) tcInfo = null;
+      } else tcLater = true;
+    }
     try {
+      if (tcInfo){
+        try { await player.destroy(); } catch(e){}
+        await tcStart(cleanUrl(rawUrl), tcInfo, startAt, seq);
+      }
       // a blob: URL (local file) has no extension — the MIME type stands in
-      if (startAt) await player.load(cleanUrl(rawUrl), startAt, mimeType || undefined);
+      else if (startAt) await player.load(cleanUrl(rawUrl), startAt, mimeType || undefined);
       else await player.load(cleanUrl(rawUrl), null, mimeType || undefined);
       if (seq !== playSeq) return;
+      if (tcLater){
+        // the safety net: a file that looked ordinary but Chromium cannot voice restarts through the shell
+        tcProbe(cleanUrl(rawUrl)).then(function(info){
+          if (seq !== playSeq || tc || !info || !tcReason(info)) return;
+          try { flushProgress(true); } catch(e){}
+          ctx.tcForce = info; ctx.startOver = false;
+          setStatus('Converting the ' + (tcReason(info) === 'video' ? 'video' : 'audio') + ' for this device…', 'info');
+          playUrl(rawUrl, clearKeys, title, subtitles, mimeType);
+        });
+      }
       setStatus(startAt ? ('Resumed from ' + fmtT(startAt) + '.') : (fresh ? 'Starting from the beginning.' : 'Playing.'), 'ok');
       try { await video.play(); } catch(e){}
       $id('puiSpin').style.display = 'none';
@@ -6838,6 +7073,7 @@
   function shadowBucket(t){ return Math.floor(t / 10); }
   /** Arm the shadow for what is playing: a plain progressive http(s) file, in the clear, not live, setting on. */
   function shadowArm(){
+    if (tc) return;                         // a converted file cannot be read by a second element
     shadowTeardown();
     if (!shadow || !lastPlay || !lastPlay.url || lastPlay.keys || puiIsLive() || !scrubFramesOn()) return;
     var u = cleanUrl(lastPlay.url);
@@ -7205,7 +7441,15 @@
       heights.forEach(function(h){ menuOpt(heightLabel(h), !abrOn&&h===activeH, function(){ selectQuality(h); }); });
     } else if (kind==='audio'){
       var langs=[]; try { langs = player.getAudioLanguagesAndRoles()||[]; } catch(e){}
-      if (langs.length >= 2){
+      if (tc && tc.info.audio && tc.info.audio.length){
+        // converted by the shell: the file's tracks from the probe, switching re-feeds from here
+        tc.info.audio.forEach(function(a, i){
+          var label = tcTrackLabel(a);
+          menuOpt(label, i === tc.a, function(){ tcSetAudio(i); setStatus('Audio: ' + label, 'ok'); closePuiMenu(true); });
+        });
+        puiNote(tc.why === 'video' ? 'Converted by the app: this machine cannot decode the video, so it is re-encoded while it plays.'
+          : 'Converted by the app: the audio (' + (audioCodecHint(ctx.playRow || '') || String(tc.info.audio[tc.a].codec || '').toUpperCase()) + ') is turned into a format this device plays.');
+      } else if (langs.length >= 2){
         var curLang=''; try { (player.getVariantTracks()||[]).forEach(function(v){ if(v.active) curLang=v.language; }); } catch(e){}
         langs.forEach(function(l){
           var label = l.label || (langName(l.language) + (l.role ? ' ('+l.role+')' : ''));

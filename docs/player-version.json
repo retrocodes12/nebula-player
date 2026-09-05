@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.05.3",
+  "version": "2026.09.05.4",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "A no-sound message. When a file's audio is Dolby Digital, Dolby Digital Plus, DTS or TrueHD, which a browser engine cannot decode, the player now says so while the picture plays and points you to a stream with AAC audio; the Audio menu says it too. From the same day: stream rows an add-on marks as not playable in a browser say so and sit below the rest, a stream that cannot play explains itself in words, audio tracks are named by language, F11 goes fullscreen, a dropped file plays, and watch parties always reach the relay that is running. On Windows, add-ons, profile, settings and progress now survive closing the app."
+  "notes": "Windows plays everything now. Files with Dolby Digital, Dolby Digital Plus, DTS or TrueHD audio, which the app could not voice before, play with sound: the app converts the audio as it plays, keeps the video untouched, and lists the file's languages under Audio. Video the machine cannot decode is converted too. Where the converter is missing, the player says so instead of playing in silence. From the same day: stream rows an add-on marks as not playable in a browser say so and sit below the rest, a stream that cannot play explains itself in words, F11 goes fullscreen, a dropped file plays, and on Windows add-ons, profile, settings and progress survive closing the app."
 }
