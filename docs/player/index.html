@@ -82,7 +82,7 @@
     padding:11px 20px; background:var(--accent); color:#fff; font-size:calc(14px * var(--ts)); font-weight:500; }
   #updBanner.show { display:flex; }
   #updBanner > * + * { margin-left:12px; }
-  #updBanner #updText { flex:1; }
+  #updBanner #updText { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }   /* one line: the layout reserves 44px */
   #updBanner a, #updBanner button { color:#000; background:#fff; border:0; border-radius:var(--r-pill);
     padding:7px 15px; font-weight:600; cursor:pointer; text-decoration:none; font-size:calc(13px * var(--ts));
     font-family:var(--sans); }
@@ -294,6 +294,7 @@
     background:transparent; border:0; border-radius:var(--r-pill); padding:6px 10px; cursor:pointer;
     white-space:nowrap; transition:color .18s var(--ease), background .18s var(--ease); }
   .textbtn:hover { color:var(--label); background:var(--fill); }
+  .textbtn:disabled { opacity:.55; cursor:default; background:transparent; }
   html.tv .textbtn.focusable:focus { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
   .textbtn.focusable:focus-visible { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
   html.tv .textbtn { font-size:calc(17px * var(--ts)); padding:9px 14px; }
@@ -1829,6 +1830,7 @@
   <div id="updBanner">
     <span id="updText"></span>
     <a id="updGet" class="focusable" target="_blank" rel="noopener">Get it</a>
+    <button id="updAct" class="focusable" style="display:none"></button>
     <button id="updX" class="focusable" title="Dismiss">Dismiss</button>
   </div>
 
@@ -2327,6 +2329,10 @@
         <h2 class="con-title">About</h2>
         <p class="con-sub">This build, and how your data is handled.</p>
         <p class="sub" id="setAbout" style="margin:8px 0 0"></p>
+        <div class="setrow" id="setUpdRow" style="display:none">
+          <span class="setname">Nebula for Windows<small id="setUpdSub">Looks for a newer version and installs it from here</small></span>
+          <button id="setUpdBtn" class="textbtn focusable">Check for updates</button>
+        </div>
         <p class="sub privacy-link" style="margin:10px 0 0">
           No email, no tracking — a profile is optional. <a href="https://play.rifflehq.in/privacy.html" target="_blank" rel="noopener" style="color:inherit">How Nebula handles your data</a>.
         </p>
@@ -2452,7 +2458,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.06.1';
+  var PLAYER_VERSION = '2026.09.06.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -2500,7 +2506,8 @@
     statusAt = Date.now();
     statusEl.textContent = m; statusEl.className = (k||'info') + ' show';
     clearTimeout(statusTimer);
-    if (k !== 'err') statusTimer = setTimeout(function(){ statusEl.classList.remove('show'); }, ms || 3500);
+    // errors are sticky unless the caller names a time (the update and no-sound toasts do)
+    if (k !== 'err' || ms) statusTimer = setTimeout(function(){ statusEl.classList.remove('show'); }, ms || 3500);
   }
   /** A phone-shaped screen: a coarse pointer, or a narrow window (never the TV). */
   function isPhone(){
@@ -3460,11 +3467,71 @@
     }
   }
 
-  // Update nudge: compare our build tag to the one published on the download site.
-  // Shows a dismissible banner (per-version) when a newer player has shipped.
+  // Update nudge. Web and TV compare this build to the one the site publishes and point at the download page.
+  // The desktop shell updates itself: it reports what it found (`nebulaDesktop.update`, state pushed on every
+  // change), and the banner + Settings › About drive the download and the restart. A dev checkout of the shell
+  // has no updater and takes the web path like everyone else.
+  var updApi = (IS_DESKTOP && window.nebulaDesktop.update && window.nebulaDesktop.update.info &&
+    window.nebulaDesktop.update.info.kind !== 'dev') ? window.nebulaDesktop.update : null;
+  var updState = updApi ? updApi.info : null;
+  function updBannerHide(){ $id('updBanner').classList.remove('show'); document.body.classList.remove('upd'); }
+  function fmtMB(n){ return (n / 1048576).toFixed(n >= 104857600 ? 0 : 1) + ' MB'; }
+  /** The state the shell reports → the banner (unless this version was dismissed) and the About row. */
+  function updRender(s){
+    updState = s;
+    var banner = $id('updBanner'), act = $id('updAct');
+    $id('updGet').style.display = 'none';
+    var dismissed = false; try { dismissed = !!(LS && s.latest && LS.getItem('nebulaUpdDismiss') === s.latest); } catch(e){}
+    var newer = !!(s.latest && s.latest !== s.version);   // a version was found: the banner may speak, even about a failure
+    var show = false, label = '', btn = '';
+    if (s.state === 'available'){ show = !dismissed; label = 'Nebula ' + s.latest + ' is available' + (s.notes ? ' — ' + s.notes : '') + '.'; btn = 'Update'; }
+    else if (s.state === 'downloading'){ show = !dismissed; label = 'Downloading Nebula ' + s.latest + ' — ' + s.percent + '%' + (s.total ? ' of ' + fmtMB(s.total) : '') + '…'; }
+    else if (s.state === 'ready'){ show = !dismissed; label = 'Nebula ' + s.latest + ' is downloaded' + (s.elevated ? ' — Windows will ask for permission to install it' : '') + '.'; btn = s.kind === 'portable' ? 'Open the new version' : 'Restart to update'; }
+    else if (s.state === 'installing'){ show = true; label = 'Installing Nebula ' + s.latest + '…'; }
+    else if (s.state === 'error' && newer){ show = !dismissed; label = s.error || 'Could not update.'; btn = 'Try again'; }
+    $id('updText').textContent = label;
+    act.textContent = btn; act.style.display = btn ? '' : 'none';
+    $id('updX').style.display = s.state === 'installing' ? 'none' : '';
+    if (show){ banner.classList.add('show'); document.body.classList.add('upd'); } else updBannerHide();
+    // only a check the person asked for (the shell marks it) may speak outside the banner
+    if (s.manual && s.state === 'error' && !show) setStatus(s.error || 'Could not check for updates.', 'err', 7000);
+    if (s.manual && s.state === 'current') setStatus('Nebula ' + s.version + ' is up to date.', 'ok', 4000);
+    updAboutRender();
+  }
+  function updAboutRender(){
+    var row = $id('setUpdRow'); if (!row) return;
+    if (!updApi){ row.style.display = 'none'; return; }
+    row.style.display = '';
+    var s = updState || {}, line = 'Version ' + s.version + ' · ' + (s.kind === 'portable' ? 'portable' : 'installed'), label = 'Check for updates', busy = false;
+    if (s.state === 'checking'){ line += ' · checking…'; busy = true; }
+    else if (s.state === 'available'){ line += ' · ' + s.latest + ' is available'; label = 'Update'; }
+    else if (s.state === 'downloading'){ line += ' · downloading ' + s.latest + ' — ' + s.percent + '%'; label = 'Downloading…'; busy = true; }
+    else if (s.state === 'ready'){ line += ' · ' + s.latest + ' downloaded' + (s.elevated ? ' · Windows will ask for permission' : ''); label = s.kind === 'portable' ? 'Open the new version' : 'Restart to update'; }
+    else if (s.state === 'installing'){ line += ' · installing'; busy = true; }
+    else if (s.state === 'current'){ line += ' · up to date'; }
+    else if (s.state === 'error'){ line += ' · ' + (s.error || 'could not check'); label = 'Try again'; }
+    $id('setUpdSub').textContent = line;
+    var btn = $id('setUpdBtn'); btn.textContent = label; btn.disabled = busy;
+  }
+  /** One button, whatever the state: check, download, or install. */
+  function updAct(){
+    if (!updApi || !updState) return;
+    var st = updState.state;
+    if (st === 'checking' || st === 'downloading' || st === 'installing') return;
+    if (st === 'available') updApi.download();
+    else if (st === 'ready') updApi.install();
+    else updApi.check();
+  }
+  if (updApi){
+    updApi.on(updRender);
+    $id('updAct').onclick = updAct;
+    $id('setUpdBtn').onclick = updAct;
+    $id('updX').onclick = function(){ try { if (LS && updState && updState.latest) LS.setItem('nebulaUpdDismiss', updState.latest); } catch(e){} updBannerHide(); };
+    updRender(updState);
+  }
   (function checkPlayerUpdate(){
     try {
-      if (typeof fetch !== 'function') return;
+      if (updApi || typeof fetch !== 'function') return;
       fetch(SITE + '/player-version.json', { cache:'no-store' })
         .then(function(r){ return r.ok ? r.json() : null; })
         .then(function(j){
@@ -9621,8 +9688,9 @@
     }
     if (pn && document.activeElement !== pn) pn.value = pr.pname || '';
     pn.placeholder = partyName();
-    $id('setAbout').textContent = 'Nebula · build ' + PLAYER_VERSION +
+    $id('setAbout').textContent = (updApi ? 'Nebula for Windows ' + updApi.info.version + ' · player build ' : 'Nebula · build ') + PLAYER_VERSION +
       ' · plays every add-on format, on-device';
+    updAboutRender();
     var asub = $id('setAddonsSub'), allAdd = getAddons(), an = allAdd.length, offN = allAdd.filter(function(a){ return a.off; }).length;
     if (asub) asub.textContent = an
       ? an + ' add-on' + (an === 1 ? '' : 's') + (offN ? ' · ' + (an - offN) + ' on · ' + offN + ' off' : '') + ' · Add, remove and rank them'

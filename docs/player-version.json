@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.06.1",
+  "version": "2026.09.06.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Windows: a file the app refuses to open no longer ends in an error. When Windows cannot open a file at all (a format it cannot decode, or a container such as TS or AVI), the app now converts it as it plays instead of stopping with a 3016 error; direct links without a file extension get the same treatment. When a stream really cannot play, the message says what happened: the host answered 403, or sent a page instead of the video. Earlier: files with Dolby Digital, Dolby Digital Plus, DTS or TrueHD audio play with sound, video the machine cannot decode is converted, and the file's languages are listed under Audio."
+  "notes": "Windows updates itself now. The app checks for a new version when it starts and every few hours, shows a banner and a row under Settings > About, downloads the update when you ask and installs it on restart; the portable build swaps itself for the new file. This is the first version with the updater, so this one update is by hand: download it from the site. Earlier today: a file Windows refuses to open is converted as it plays instead of ending in a 3016 error, and a stream that really cannot play says what its host did."
 }
