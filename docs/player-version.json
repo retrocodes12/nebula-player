@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.05.4",
+  "version": "2026.09.06.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Windows plays everything now. Files with Dolby Digital, Dolby Digital Plus, DTS or TrueHD audio, which the app could not voice before, play with sound: the app converts the audio as it plays, keeps the video untouched, and lists the file's languages under Audio. Video the machine cannot decode is converted too. Where the converter is missing, the player says so instead of playing in silence. From the same day: stream rows an add-on marks as not playable in a browser say so and sit below the rest, a stream that cannot play explains itself in words, F11 goes fullscreen, a dropped file plays, and on Windows add-ons, profile, settings and progress survive closing the app."
+  "notes": "Windows: a file the app refuses to open no longer ends in an error. When Windows cannot open a file at all (a format it cannot decode, or a container such as TS or AVI), the app now converts it as it plays instead of stopping with a 3016 error; direct links without a file extension get the same treatment. When a stream really cannot play, the message says what happened: the host answered 403, or sent a page instead of the video. Earlier: files with Dolby Digital, Dolby Digital Plus, DTS or TrueHD audio play with sound, video the machine cannot decode is converted, and the file's languages are listed under Audio."
 }

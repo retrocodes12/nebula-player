@@ -2452,7 +2452,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.05.4';
+  var PLAYER_VERSION = '2026.09.06.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -6234,6 +6234,8 @@
       try { player.retryStreaming(); } catch(e){}
       return;
     }
+    // a plain file the desktop shell could convert: the shell looks at it before anything is said
+    if (tcRefused(seq, code)) return;
     var detail = d && d.data ? (' — ' + String(JSON.stringify(d.data)).slice(0,180)) : '';
     setStatus(playErrorLine(code, detail), 'err');
     try { $id('puiSpin').style.display = 'none'; } catch(e){}
@@ -6247,8 +6249,10 @@
   var tc = null;                                                   // the active transcode session, or null
   var TC_LEN = 10, TC_AHEAD = 45;
   var TC_AUDIO_OK = { aac:1, mp3:1, opus:1, vorbis:1, flac:1, alac:1, mp2:1, pcm_s16le:1, pcm_s24le:1, pcm_s32le:1, pcm_f32le:1 };
-  function tcCandidate(url, keys, mime){
-    return IS_DESKTOP && !!(window.nebulaDesktop && window.nebulaDesktop.transcode) && !keys && !mime &&
+  // (an extension-less link is handed to the element as video/mp4 so it sniffs the container — that says nothing
+  // about the file, so such a link is a candidate like any other; a local file is blob: and never one)
+  function tcCandidate(url, keys){
+    return IS_DESKTOP && !!(window.nebulaDesktop && window.nebulaDesktop.transcode) && !keys &&
       /^https?:\/\//i.test(url) && !/\.(mpd|m3u8)(\?|#|$)/i.test(url);
   }
   function tcHevcOk(){ try { return window.MediaSource && MediaSource.isTypeSupported('video/mp4; codecs="hvc1.1.6.L153.B0"'); } catch(e){ return false; } }
@@ -6261,10 +6265,55 @@
     if (a && !TC_AUDIO_OK[String(a.codec || '').toLowerCase()]) return 'audio';
     return '';
   }
-  async function tcProbe(url){
+  /** What the shell's FFprobe sees in the file, or null — with what the host did kept on `c.fail` (a 403, a page). */
+  async function tcProbe(url, c){
     var ctl = new AbortController(), timer = setTimeout(function(){ ctl.abort(); }, 25000);
-    try { var r = await fetch(location.origin + '/probe?src=' + encodeURIComponent(url), { signal: ctl.signal }); return r.ok ? await r.json() : null; }
-    catch(e){ return null; } finally { clearTimeout(timer); }
+    try {
+      var r = await fetch(location.origin + '/probe?src=' + encodeURIComponent(url), { signal: ctl.signal });
+      if (r.ok) return await r.json();
+      if (c){ try { c.fail = await r.json(); } catch(e){ c.fail = { error: 'probe ' + r.status }; } }
+      return null;
+    }
+    catch(e){ if (c) c.fail = { error: ctl.signal.aborted ? 'timeout' : 'unreachable' }; return null; } finally { clearTimeout(timer); }
+  }
+  // ---- the ladder for one play of a candidate file: Chromium first; if it refuses (a container it has no demuxer
+  // for, a stream it cannot decode, a host that answered 403 or a page), the shell's probe decides — a file FFmpeg
+  // can read is converted whatever its codecs, one it cannot read gets a sentence naming what the host did. ----
+  var tcCheck = null;                                              // { seq, url, restart, pending, info, fail, refused, code }
+  function tcCheckStart(seq, url, restart){
+    tcCheck = { seq: seq, url: url, restart: restart, pending: null, info: undefined, fail: null, refused: false, code: 0 };
+    return tcCheck;
+  }
+  /** The probe, once per play: the same answer for the up-front check, the safety net and a refusal. */
+  function tcCheckProbe(c){
+    if (c.info !== undefined) return Promise.resolve(c.info);
+    if (!c.pending) c.pending = tcProbe(c.url, c).then(function(info){ c.info = info; c.pending = null; return info; });
+    return c.pending;
+  }
+  /** With the probe's answer in: restart through the shell, or say why the file cannot play. */
+  function tcDecide(c, seq){
+    if (seq !== playSeq || c !== tcCheck || tc) return;
+    var info = c.info, why = tcReason(info) || ((c.refused && info && info.video) ? 'file' : '');
+    if (why){ info.why = why; c.restart(info); return; }
+    if (c.refused){ setStatus(tcRefusedLine(c), 'err'); try { $id('puiSpin').style.display = 'none'; } catch(e){} }
+  }
+  /** Chromium would not take the file (a load that failed, or a media error later): true when the ladder took over. */
+  function tcRefused(seq, code){
+    var c = tcCheck;
+    if (!c || c.seq !== seq || tc || !(code >= 1000 && code < 5000)) return false;
+    c.refused = true; c.code = code;
+    setStatus('Checking the file…', 'info');
+    try { $id('puiSpin').style.display = 'block'; } catch(e){}
+    tcCheckProbe(c).then(function(){ tcDecide(c, seq); });
+    return true;
+  }
+  /** The shell could not read it either: what the host did, when it is known. */
+  function tcRefusedLine(c){
+    var f = c.fail || {}, code = c.code || 3016;
+    if (f.http) return 'This stream cannot play here — its host answered ' + f.http + ' when this player asked for the file. Try another source. (' + code + ')';
+    if (f.notmedia) return 'This stream cannot play here — its host sent a page instead of the video. Try another source. (' + code + ')';
+    if (c.info && !c.info.video) return 'This stream cannot play here — it has no video track this player can use. Try another source. (' + code + ')';
+    return playErrorLine(code, '');
   }
   /** The file's own name for a track, then the language, never a bare index. */
   function tcTrackLabel(a){
@@ -6369,7 +6418,9 @@
     if (tc.ctl){ try { tc.ctl.abort(); } catch(e){} }
     try { if (tc.sb && tc.ms.readyState === 'open') tc.sb.abort(); } catch(e){}
   }
-  function tcOnError(){ if (tc) setStatus(playErrorLine(3016, ' — ' + (video.error && video.error.message || 'media error')), 'err'); }
+  /** The element refused what the shell produced — said in its own words, so it is never mistaken for a refused source. */
+  function tcConvertLine(detail){ return 'This file could not be converted for playback (' + (detail || 'media error') + '). Try another source.'; }
+  function tcOnError(){ if (tc) setStatus(tcConvertLine('the player rejected the converted video: ' + (video.error && video.error.message || 'media error')), 'err'); }
   function tcSetAudio(i){
     if (!tc || i === tc.a) return;
     tc.a = i; tc.flush = true; tc.next = Math.max(0, Math.floor(video.currentTime)); tc.done = false;
@@ -6377,8 +6428,12 @@
     tcPump();
   }
   async function tcStart(url, info, startAt, seq){
-    var why = tcReason(info);
-    tc = { src: url, info: info, a: tcPickAudio(info), vmode: why === 'video' ? 'h264' : 'copy', ms: null, sb: null, ctl: null,
+    var why = info.why || tcReason(info);
+    // the video is copied through only when the element can take it as it is in fragmented MP4 (H.264, HEVC with
+    // hardware help); anything else — a refused container holding VP9, MPEG-4 part 2 in an AVI — is re-encoded
+    var vc = String(info.video && info.video.codec || '').toLowerCase();
+    var copyOk = vc === 'h264' || ((vc === 'hevc' || vc === 'h265') && tcHevcOk());
+    tc = { src: url, info: info, a: tcPickAudio(info), vmode: (why === 'video' || !copyOk) ? 'h264' : 'copy', ms: null, sb: null, ctl: null,
       next: Math.max(0, Math.floor(startAt || 0)), pumping: false, done: false, flush: false, gen: 0, why: why };
     var session = tc;
     player = tcShim();
@@ -6560,17 +6615,25 @@
     // The desktop shell's FFmpeg steps in for a plain file Chromium cannot decode (Dolby / DTS audio, HEVC without
     // hardware). When the stream row already says so (DDP, DTS, x265…) the file is probed first; otherwise it starts
     // at once and a probe runs beside it, restarting through the shell only if it turns out to be needed.
-    var tcInfo = null, tcLater = false;
+    var tcInfo = null, tcLater = false, tcc = null;
     if (ctx.tcForce){ tcInfo = ctx.tcForce; ctx.tcForce = null; }
-    else if (tcCandidate(rawUrl, clearKeys, mimeType)){
+    else if (tcCandidate(rawUrl, clearKeys)){
+      tcc = tcCheckStart(seq, cleanUrl(rawUrl), function(info){
+        // the restart through the shell, from wherever playback had got to
+        try { flushProgress(true); } catch(e){}
+        ctx.tcForce = info; ctx.startOver = false;
+        setStatus('Converting the ' + (info.why === 'video' ? 'video' : (info.why === 'file' ? 'file' : 'audio')) + ' for this device…', 'info');
+        playUrl(rawUrl, clearKeys, title, subtitles, mimeType);
+      });
       var row = ctx.playRow || '';
       if (audioCodecHint(row) || (/\b(hevc|x265|h\.?265)\b/i.test(row) && !tcHevcOk())){
         setStatus('Checking the file…', 'info');
-        tcInfo = await tcProbe(cleanUrl(rawUrl));
+        tcInfo = await tcCheckProbe(tcc);
         if (seq !== playSeq) return;
         if (!(tcInfo && tcReason(tcInfo))) tcInfo = null;
       } else tcLater = true;
     }
+    var loaded = false;
     try {
       if (tcInfo){
         try { await player.destroy(); } catch(e){}
@@ -6580,16 +6643,9 @@
       else if (startAt) await player.load(cleanUrl(rawUrl), startAt, mimeType || undefined);
       else await player.load(cleanUrl(rawUrl), null, mimeType || undefined);
       if (seq !== playSeq) return;
-      if (tcLater){
-        // the safety net: a file that looked ordinary but Chromium cannot voice restarts through the shell
-        tcProbe(cleanUrl(rawUrl)).then(function(info){
-          if (seq !== playSeq || tc || !info || !tcReason(info)) return;
-          try { flushProgress(true); } catch(e){}
-          ctx.tcForce = info; ctx.startOver = false;
-          setStatus('Converting the ' + (tcReason(info) === 'video' ? 'video' : 'audio') + ' for this device…', 'info');
-          playUrl(rawUrl, clearKeys, title, subtitles, mimeType);
-        });
-      }
+      loaded = true;
+      // the safety net: a file that looked ordinary but Chromium cannot voice restarts through the shell
+      if (tcLater) tcCheckProbe(tcc).then(function(){ tcDecide(tcc, seq); });
       setStatus(startAt ? ('Resumed from ' + fmtT(startAt) + '.') : (fresh ? 'Starting from the beginning.' : 'Playing.'), 'ok');
       try { await video.play(); } catch(e){}
       $id('puiSpin').style.display = 'none';
@@ -6616,7 +6672,9 @@
     catch(err){
       if (seq !== playSeq) return;
       var code=(err&&(err.code||err.message))||'unknown'; var extra=err&&err.data?(' — '+JSON.stringify(err.data).slice(0,180)):'';
-      setStatus(playErrorLine(code, extra),'err'); $id('puiSpin').style.display='none';
+      // Chromium would not take a plain file the shell could convert: the shell looks at it before anything is said
+      if (!loaded && tcc && tcRefused(seq, code)) return;
+      setStatus(tc ? tcConvertLine(String(code) + extra) : playErrorLine(code, extra),'err'); $id('puiSpin').style.display='none';
     }
   }
   function playStream(s){
@@ -7448,6 +7506,7 @@
           menuOpt(label, i === tc.a, function(){ tcSetAudio(i); setStatus('Audio: ' + label, 'ok'); closePuiMenu(true); });
         });
         puiNote(tc.why === 'video' ? 'Converted by the app: this machine cannot decode the video, so it is re-encoded while it plays.'
+          : tc.why === 'file' ? 'Converted by the app: this file comes in a container the player cannot open, so it is repackaged while it plays.'
           : 'Converted by the app: the audio (' + (audioCodecHint(ctx.playRow || '') || String(tc.info.audio[tc.a].codec || '').toUpperCase()) + ') is turned into a format this device plays.');
       } else if (langs.length >= 2){
         var curLang=''; try { (player.getVariantTracks()||[]).forEach(function(v){ if(v.active) curLang=v.language; }); } catch(e){}
