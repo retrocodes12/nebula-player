@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.05.2",
+  "version": "2026.09.05.3",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "A fix pass, mostly for Windows. On the desktop app your add-ons, profile, settings and progress now survive closing it, files with several audio tracks offer the choice under Audio, a video file dropped on the window plays, the stock menu bar and its shortcuts are gone, F11 goes fullscreen like the f key, and closing mid-playback saves your place first. Everywhere: stream rows an add-on marks as not playable in a browser say so and sit below the rest, a stream that cannot play explains itself in words, audio tracks are named by language, and watch parties always reach the relay that is running."
+  "notes": "A no-sound message. When a file's audio is Dolby Digital, Dolby Digital Plus, DTS or TrueHD, which a browser engine cannot decode, the player now says so while the picture plays and points you to a stream with AAC audio; the Audio menu says it too. From the same day: stream rows an add-on marks as not playable in a browser say so and sit below the rest, a stream that cannot play explains itself in words, audio tracks are named by language, F11 goes fullscreen, a dropped file plays, and watch parties always reach the relay that is running. On Windows, add-ons, profile, settings and progress now survive closing the app."
 }
