@@ -132,6 +132,28 @@
   .swatch.on { box-shadow:0 0 0 3px #000, 0 0 0 5px #fff; }
   html.tv .swatch.focusable:focus { box-shadow:0 0 0 3px #000, 0 0 0 5px rgba(255,255,255,.6); }
   .swatch.focusable:focus-visible { box-shadow:0 0 0 3px #000, 0 0 0 5px rgba(255,255,255,.6); }
+  /* supporter colours before they are unlocked: dimmed, a lock on top */
+  .swatch.lock { position:relative; opacity:.45; }
+  .swatch.lock::after { content:''; position:absolute; left:50%; top:50%; width:16px; height:16px; margin:-8px 0 0 -8px;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E") center/contain no-repeat; }
+  html.tv .swatch.lock::after { width:20px; height:20px; margin:-10px 0 0 -10px; }
+  /* the supporter mark: a small star in the accent, after a name */
+  .sup-star { display:inline-block; width:.8em; height:.8em; vertical-align:-.05em; margin-left:.3em; color:var(--accent); }
+  .sup-star svg { width:100%; height:100%; display:block; }
+  .con-item.hid { display:none; }
+  a.btn { display:inline-block; text-decoration:none; }
+  .sup-head { display:flex; align-items:center; margin:8px 0 0; font-size:calc(19px * var(--ts)); font-weight:700; letter-spacing:-.02em; }
+  .sup-head .sup-star { width:.9em; height:.9em; }
+  .sup-tv { display:flex; align-items:center; flex-wrap:wrap; margin-top:14px; }
+  .sup-tv > * { margin:0 28px 12px 0; }
+  #supQr { background:#fff; padding:12px; border-radius:var(--r-tile); display:inline-block; }
+  #supQr svg { width:172px; height:172px; display:block; }
+  .sup-url { font-family:var(--mono); font-size:calc(22px * var(--ts)); font-weight:600; letter-spacing:.01em; }
+  .sup-wall { color:var(--label); font-size:calc(15px * var(--ts)); line-height:1.55; margin:6px 0 0; }
+  html.tv .sup-head { font-size:calc(26px * var(--ts)); }
+  html.tv #supQr svg { width:220px; height:220px; }
+  html.tv .sup-url { font-size:calc(30px * var(--ts)); }
+  html.tv .sup-wall { font-size:calc(19px * var(--ts)); }
   html:not(.tv) #rowZoom { display:none; }   /* focus zoom only means something on a TV */
   html.tv .setname { font-size:calc(19px * var(--ts)); }
   html.tv .setname small { font-size:calc(16px * var(--ts)); }
@@ -250,6 +272,7 @@
   html.tv .con-pane::-webkit-scrollbar { display:none; }
   html.tv .con-sec { display:none; }
   html.tv .con-sec.on { display:block; margin:0; }
+  .con-sec.hid, html.tv .con-sec.hid.on { display:none; }   /* Support, before there is a way to support */
   html.tv .con-pane .panel { background:transparent; border:0; border-radius:0; padding:0; margin:0; max-width:none; }
   html.tv .con-title { font-size:calc(40px * var(--ts)); letter-spacing:-.028em; }
   html.tv .con-sub { font-size:calc(19px * var(--ts)); margin:6px 0 22px; }
@@ -2004,6 +2027,7 @@
           <button class="con-item focusable" data-sec="streams" data-lvl="all" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="18.5" cy="17" r="2"/></svg><span>Streams</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
           <button class="con-item focusable" data-sec="addons" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg><span>Add-ons</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
           <button class="con-item focusable" data-sec="party" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.3 2.9-6 6.5-6s6.5 2.7 6.5 6"/><path d="M16 4.6a3.2 3.2 0 0 1 0 6.4M17.5 14.4c2.4.6 4 2.5 4 5.6"/></svg><span>Party</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <button class="con-item focusable hid" data-sec="support" id="setNavSupport" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.6-4.7-9.4-9.3C1.3 8 3.3 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.7 0 5.7 3.5 4.4 6.7-1.8 4.6-9.4 9.3-9.4 9.3Z"/></svg><span>Support Nebula</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
           <button class="con-item focusable" data-sec="advanced" data-lvl="all" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></svg><span>Advanced</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
           <button class="con-item focusable" data-sec="about" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>About</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
         </div>
@@ -2271,6 +2295,12 @@
         </div>
       </section>
       <!-- the rarely-touched: remote speed on rows, the start-up toast, resets -->
+      <!-- Support Nebula: hidden until the server has a link, or this profile is already a supporter -->
+      <section class="con-sec panel" data-sec="support" id="setSupport">
+        <h2 class="con-title">Support Nebula</h2>
+        <p class="con-sub">Nebula is free, with no ads and no account required. If it earns a place in your evenings, you can chip in.</p>
+        <div id="supBody"></div>
+      </section>
       <section class="con-sec panel" data-sec="advanced" data-lvl="all">
         <h2 class="con-title">Advanced</h2>
         <p class="con-sub">Rarely needed, and here when it is.</p>
@@ -2420,7 +2450,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.02.12';
+  var PLAYER_VERSION = '2026.09.05.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -2519,7 +2549,7 @@
     if (name === 'search'){ try { searchIdle(); } catch(e){} }
     // the rows list is built from live manifests: an add-on added since is in it; the console's
     // summaries (add-ons on/off, the about line) are recomputed too
-    if (name === 'settings'){ try { settingsRender(); renderRowManager(); } catch(e){} }
+    if (name === 'settings'){ try { settingsRender(); renderRowManager(); supportRender(); supportLoad(false); } catch(e){} }
     try { cancelLift(); } catch(e){}      // a row picked up on a remote is put down on leaving
     // back from playback: the episode list's ticks, bars and "up next" are stale
     if (name === 'episodes' && epView){ try { epView.refresh(); } catch(e){} }
@@ -4856,7 +4886,7 @@
           av.textContent = (f.name || f.handle || '?').slice(0, 1).toUpperCase();
           if (f.avatar){ av.style.background = f.avatar; if (f.avatar === '#F2F2F7') av.style.color = '#000'; }
           var col = document.createElement('span');
-          var nm = document.createElement('span'); nm.className = 'fr-name'; nm.textContent = friendLabel(f);
+          var nm = document.createElement('span'); nm.className = 'fr-name'; nm.innerHTML = esc(friendLabel(f)) + (f.sup ? SUP_STAR : '');
           var sb = document.createElement('span'); sb.className = 'fr-sub';
           sb.textContent = (f.handle && f.name ? '@' + f.handle + ' · ' : '') +
             (prof && prof.ratings ? prof.ratings.length : 0) + ' rated';
@@ -8451,7 +8481,8 @@
   function profileRefresh(){
     if (!cloudLinked()) return Promise.resolve(null);
     return cloudApi('GET', '/v1/profile/me').then(function(r){
-      profile = r.on ? { handle: r.handle, name: r.name, avatar: r.avatar } : null; profileSave();
+      profile = r.on ? { handle: r.handle, name: r.name, avatar: r.avatar, sup: !!r.supporter,
+        since: r.supporter ? (r.supporter.since || 0) : 0, wall: !!(r.supporter && r.supporter.wall) } : null; profileSave();
       pfDevices = r.devices || [];
       profileCardRender(); syncPanelRender();
       return r;
@@ -8464,7 +8495,8 @@
     av.className = 'pav' + (st === 'in' ? '' : ' dim');
     av.setAttribute('style', st === 'in' ? avStyle(profile.avatar) : '');
     av.textContent = st === 'in' ? avLetter(profile.name || profile.handle) : '?';
-    $id('setProfileName').textContent = st === 'in' ? profile.name : (st === 'legacy' ? 'Add a profile' : 'Sign in or create a profile');
+    $id('setProfileName').innerHTML = st === 'in' ? esc(profile.name) + (profile.sup ? SUP_STAR : '') : (st === 'legacy' ? 'Add a profile' : 'Sign in or create a profile');
+    supportSync();
     $id('setProfileSub').textContent = st === 'in'
       ? '@' + profile.handle + (pfDevices.length > 1 ? ' · ' + pfDevices.length + ' devices' : '')
       : st === 'legacy' ? 'This device syncs with a link code from an earlier version'
@@ -8480,6 +8512,120 @@
   }
   $id('syncOpen').onclick = function(){ show('profile'); };
   $id('setProfile').onclick = function(){ show('profile'); };
+
+  // ---- Support Nebula (brief support-2026-09-05): the link and the wall come from the server, the
+  // supporter mark rides on the profile. Nothing that exists is behind it. ----
+  var SUP_STAR = '<span class="sup-star" role="img" aria-label="Supporter"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.5l-5.9 3.1 1.2-6.5L2.5 9.5l6.6-.9z"/></svg></span>';
+  var SUP_ACCENTS = [['Gold', '#E0B24A'], ['Ice', '#64D2FF'], ['Mint', '#66D4CF']];
+  var SUPPORT_SHORT = 'play.rifflehq.in/support';
+  var supportCfg = { url: null, wall: [], count: 0, at: 0 };
+  try { supportCfg = JSON.parse(LS.getItem('support_v1') || 'null') || supportCfg; } catch(e){}
+  if (!supportCfg.wall) supportCfg.wall = [];
+  function isSupporter(){ return !!(profile && profile.sup); }
+  function isSupAccent(v){ if (!SUP_ACCENTS || !v) return false; for (var i = 0; i < SUP_ACCENTS.length; i++) if (SUP_ACCENTS[i][1] === v) return true; return false; }
+  function supportVisible(){ return !!supportCfg.url || isSupporter(); }
+  function supportNavRender(){
+    var off = !supportVisible(), b = $id('setNavSupport'), s = $id('setSupport');
+    if (b) b.classList.toggle('hid', off);
+    if (s) s.classList.toggle('hid', off);
+  }
+  /** Whatever the profile did (signed in, out, redeemed): the nav, the accent and the page follow. */
+  function supportSync(){
+    supportNavRender();
+    applyPrefs();
+    if (setSecCur === 'support' && !supportVisible()) setSection('profile', false);
+    supportRender();
+  }
+  /** The link + the wall; a cached copy keeps the nav steady across boots, a fresh one every 5 min. */
+  function supportLoad(force){
+    if (!force && supportCfg.at && Date.now() - supportCfg.at < 300000) return Promise.resolve(supportCfg);
+    var was = supportVisible();
+    return cloudPublic('GET', '/v1/support' + (force ? '?t=' + Date.now() : '')).then(function(r){
+      var wall = (r && r.wall && r.wall.length ? r.wall : []).slice(0, 200).map(function(w){ return { name: String((w && w.name) || '').slice(0, 40), avatar: (w && w.avatar) || null }; });
+      supportCfg = { url: r && /^https:\/\//.test(String(r.url || '')) ? String(r.url) : null, wall: wall, count: (r && r.count) | 0, at: Date.now() };
+      try { LS.setItem('support_v1', JSON.stringify(supportCfg)); } catch(e){}
+      supportNavRender(); supportRender();
+      if (was !== supportVisible()) settingsRender();      // the supporter swatches come and go with the section
+      return supportCfg;
+    }).catch(function(){ return supportCfg; });
+  }
+  function supErr(e){
+    if (!e || !e.status) return 'Could not reach the server.';
+    if (e.status === 429) return 'Too many tries — give it a minute.';
+    var m = e.body && e.body.error;
+    if (m === 'code not found') return 'That code was not found — check it against the thank-you note.';
+    if (m === 'already a supporter') return 'You’re already a supporter.';
+    if (m === 'no profile' || e.status === 401) return 'Sign in first — the supporter mark lives on your profile, so it follows you to every device.';
+    return 'Something went wrong (' + e.status + ').';
+  }
+  function joinNames(list){
+    if (list.length <= 1) return list.join('');
+    return list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1];
+  }
+  function supportRender(){
+    var body = $id('supBody'); if (!body) return;
+    var h = '';
+    if (isSupporter()){
+      var since = profile.since ? new Date(profile.since).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+      h += '<div class="sup-head">You’re a supporter' + SUP_STAR + '</div>' +
+        '<p class="tagline" style="margin-top:4px">' + (since ? 'Since ' + esc(since) + '. ' : '') + 'Thank you — this is what keeps Nebula going.</p>' +
+        '<div class="setrow"><span class="setname">Your name on the wall<small>In Settings › Support on every device, and on the website</small></span><span id="supWallSeg" class="seg"></span></div>';
+    } else {
+      h += '<p class="tagline" style="margin-top:4px">Every feature stays free for everyone. Supporting keeps the sync server and the site running, and you get a ' +
+        'small thank-you: a supporter mark beside your name, three more accent colours, and your name on the wall if you like.</p>';
+      if (supportCfg.url){
+        h += IS_TV
+          ? '<div class="sup-tv"><div id="supQr" aria-hidden="true"></div><div><div class="sup-url">' + SUPPORT_SHORT + '</div>' +
+            '<p class="tagline" style="margin-top:4px">Open it on your phone — it takes a minute.</p></div></div>'
+          : '<div class="row"><a id="supGo" class="btn focusable" href="' + esc(supportCfg.url) + '" target="_blank" rel="noopener">Support Nebula</a></div>';
+      }
+      h += '<div class="setrow" style="display:block"><span class="setname" style="display:block">Have a supporter code?' +
+        '<small>It comes with the thank-you. One code, typed once on any signed-in device — the mark follows your profile.</small></span>';
+      h += pfState() === 'in'
+        ? '<div class="row" style="margin-top:10px"><input id="supCode" class="field focusable" type="text" placeholder="NEB-XXXX-XXXX" maxlength="14" ' +
+          'autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" style="width:auto;flex:0 1 240px">' +
+          '<button id="supRedeem" class="btn ghost focusable" type="button">Redeem</button></div>'
+        : '<p class="tagline" style="margin-top:8px">Sign in first — the supporter mark lives on your profile, so it follows you to every device.</p>' +
+          '<div class="row" style="margin-top:8px"><button id="supSignIn" class="btn ghost focusable" type="button">Sign in</button></div>';
+      h += '</div>';
+    }
+    if (supportCfg.wall.length){
+      h += '<div class="lbl" style="margin-top:20px">Thanks to</div><p class="sup-wall" id="supWall">' +
+        esc(joinNames(supportCfg.wall.map(function(w){ return w.name; }).filter(Boolean))) + '</p>';
+    }
+    body.innerHTML = h;
+    if (isSupporter()){
+      segChips('supWallSeg', [['Show', true], ['Hide', false]], !!profile.wall, function(v){
+        cloudApi('PUT', '/v1/support', { wall: v }).then(function(r){
+          profile.wall = !!(r && r.supporter && r.supporter.wall); profileSave();
+          setStatus(profile.wall ? 'Your name is on the wall.' : 'Your name is off the wall.', 'ok');
+          supportLoad(true);
+        }).catch(function(e){ setStatus(supErr(e), 'err'); });
+      });
+      if (profile.since == null) profileRefresh().then(function(r){ if (r) supportRender(); });   // a creds reply carries no date
+      return;
+    }
+    var qb = $id('supQr');
+    if (qb){ try { var qr = qrcode(0, 'M'); qr.addData('https://' + SUPPORT_SHORT); qr.make(); qb.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0 }); } catch(e){} }
+    var si = $id('supSignIn'); if (si) si.onclick = function(){ show('profile'); };
+    var rd = $id('supRedeem');
+    if (rd){
+      pfEnter(['supCode'], 'supRedeem');
+      rd.onclick = function(){
+        var v = (($id('supCode') && $id('supCode').value) || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (v.length === 11 && v.slice(0, 3) === 'NEB') v = v.slice(3);
+        if (v.length !== 8){ setStatus('Codes look like NEB-XXXX-XXXX.', 'err'); return; }
+        pfBusy('supRedeem', 'Checking…');
+        cloudApi('POST', '/v1/support/redeem', { code: v }).then(function(){
+          return profileRefresh();
+        }).then(function(){
+          settingsRender();                        // the Appearance swatches unlock
+          setStatus('You’re a supporter — thank you. Three more accents are yours in Appearance.', 'ok');
+          supportLoad(true);
+        }).catch(function(e){ pfBusy('supRedeem', null); setStatus(supErr(e), 'err'); });
+      };
+    }
+  }
 
   // ---- profile view ----
   function pfErr(e, fallback){
@@ -8715,7 +8861,7 @@
   function pfRenderIn(body){
     var me = profile;
     var h = '<div class="phead"><span class="pav big" style="' + avStyle(me.avatar) + '">' + esc(avLetter(me.name || me.handle)) + '</span>' +
-      '<div><div class="pname">' + esc(me.name) + '</div><div class="phandle">@' + esc(me.handle) + '</div></div></div>';
+      '<div><div class="pname">' + esc(me.name) + (me.sup ? SUP_STAR : '') + '</div><div class="phandle">@' + esc(me.handle) + '</div></div></div>';
     h += '<div class="panel"><div class="lbl">Profile</div>' +
       '<div class="setrow"><span class="setname">Name<small>What friends and watch parties see</small></span>' +
       '<input id="pfName" class="field focusable" type="text" maxlength="40" autocomplete="nickname" value="' + esc(me.name) + '"></div>' +
@@ -8743,7 +8889,7 @@
       cloudApi('PUT', '/v1/profile', { name: v }).then(function(r){
         profile = r.profile; profileSave(); profileCardRender();
         var pn = body.querySelector('.pname'), pa = body.querySelector('.pav.big');
-        if (pn) pn.textContent = profile.name;
+        if (pn) pn.innerHTML = esc(profile.name) + (profile.sup ? SUP_STAR : '');
         if (pa) pa.textContent = avLetter(profile.name);
         setStatus('Name saved.', 'ok');
         socialPublishSoon();
@@ -8893,7 +9039,8 @@
   /** Everything a preference changes without a rebuild: tokens and flags on <html>, the console's mode, the skip labels. */
   function applyPrefs(){
     var pr = getPrefs(), root = document.documentElement, st = root.style, cl = root.classList;
-    st.setProperty('--accent', pr.accent || '#E50914');
+    // a supporter colour left by a profile that signed out falls back to red; the choice itself is kept for its return
+    st.setProperty('--accent', isSupAccent(pr.accent) && !isSupporter() ? '#E50914' : (pr.accent || '#E50914'));
     st.setProperty('--fzoom', pr.zoom || '1.04');
     var sf = SURFACES[pr.surface] || null, tk = ['--bg','--l1','--l2','--l3','--fill'];
     for (var i = 0; i < tk.length; i++){ if (sf) st.setProperty(tk[i], sf[tk[i]]); else st.removeProperty(tk[i]); }
@@ -9037,6 +9184,21 @@
       b.onclick = function(){ setPref('accent', a[1]); };
       acc.appendChild(b);
     });
+    // the supporter colours: theirs to pick once the mark is on the profile, a locked tease before —
+    // and not offered at all while there is no way to support yet
+    if (supportVisible()){
+      var supOk = isSupporter();
+      SUP_ACCENTS.forEach(function(a){
+        var b = document.createElement('button');
+        b.className = 'swatch focusable' + (supOk && pr.accent === a[1] ? ' on' : '') + (supOk ? '' : ' lock');
+        b.style.background = a[1]; b.title = a[0] + (supOk ? '' : ' — a supporter colour');
+        b.setAttribute('aria-label', b.title);
+        b.onclick = supOk
+          ? function(){ setPref('accent', a[1]); }
+          : function(){ setStatus(a[0] + ' is a supporter colour.', 'info'); setSection('support', true); };
+        acc.appendChild(b);
+      });
+    }
     segChips('setSurface', [['Black','black'], ['Pure black','pure'], ['Graphite','graphite']], pr.surface || 'black', function(v){ setPref('surface', v); });
     segChips('setTextSize', [['Compact','compact'], ['Standard','standard'], ['Large','large']], pr.textSize || 'standard', function(v){ setPref('textSize', v); });
     segChips('setFont', [['Geist','geist'], ['System','system']], pr.font || 'geist', function(v){ setPref('font', v); });
@@ -9333,6 +9495,7 @@
   initPersistentRatings();
   buildHomeRows(true);
   if (cloudLinked()) setTimeout(function(){ cloudPullAll(true); profileBoot(); }, 900);
+  setTimeout(function(){ supportLoad(false); }, 1400);   // the support link + wall, for everyone (no credential)
   // a TV's sign-in QR: play.rifflehq.in/player/?link=CODE opens Profile with the code filled in.
   // Never auto-approve — the person confirms the code is on a screen in front of them.
   (function(){

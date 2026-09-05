@@ -30,7 +30,7 @@ echo "player syntax OK"
 echo "cloud tests OK"
 
 # 4. ship
-scp -q cloud/server.js cloud/profile.js cloud/test.js "$VPS":~/apps/nebula-cloud/
+scp -q cloud/server.js cloud/profile.js cloud/support.js cloud/support-admin.js cloud/test.js "$VPS":~/apps/nebula-cloud/
 scp -q -r docs/* "$VPS":/var/www/nebula-play/
 ssh -o BatchMode=yes "$VPS" 'set -e
   cd ~/apps/nebula-cloud && node --test test.js > /dev/null 2>&1 && echo "cloud tests OK on VPS"

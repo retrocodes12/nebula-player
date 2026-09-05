@@ -255,7 +255,7 @@
 
     <div class="panel on" id="panel-phone" role="tabpanel">
       <div>
-        <h3>Nebula for Android phones and tablets<span class="ver" data-ver="android">v1.57.1</span></h3>
+        <h3>Nebula for Android phones and tablets<span class="ver" data-ver="android">v1.58.0</span></h3>
         <p>Browse, search and play on the phone. Sign in with a profile and your library and progress carry over to the TV. One file covers phones, tablets and Android TV.</p>
       </div>
       <div class="right">
@@ -274,7 +274,7 @@
 
     <div class="panel" id="panel-tv" role="tabpanel">
       <div>
-        <h3>Nebula for Android TV and LG TVs<span class="ver" data-ver="webos">v1.61.0</span></h3>
+        <h3>Nebula for Android TV and LG TVs<span class="ver" data-ver="webos">v1.62.0</span></h3>
         <p>The whole player, laid out for a remote. On Android TV, type a short code into the Downloader app. On an LG TV, add the repository in the Homebrew Channel and install from its list.</p>
         <details>
           <summary>Install notes</summary>
@@ -290,14 +290,14 @@
         <span class="label">LG TV repository for the Homebrew Channel</span>
         <div class="codebox"><code id="repourl">https://retrocodes12.github.io/nebula-player/apps.json</code><button class="copybtn" data-copy="repourl" type="button">Copy</button></div>
         <div class="row" style="margin-top:6px">
-          <a class="dl alt" data-dl="ipk" href="https://github.com/retrocodes12/nebula-player/releases/download/player-v1.61.0/com.nuvio.clearkey.player_1.61.0_all.ipk"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>LG TV file<span class="sz">871 KB</span></a>
+          <a class="dl alt" data-dl="ipk" href="https://github.com/retrocodes12/nebula-player/releases/download/player-v1.62.0/com.nuvio.clearkey.player_1.62.0_all.ipk"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>LG TV file<span class="sz">875 KB</span></a>
         </div>
       </div>
     </div>
 
     <div class="panel" id="panel-desktop" role="tabpanel">
       <div>
-        <h3>Nebula for Windows<span class="ver" data-ver="desktop">v1.55.0</span></h3>
+        <h3>Nebula for Windows<span class="ver" data-ver="desktop">v1.56.0</span></h3>
         <p>The same player in a window, with a mini player that stays on top while you work. Windows 10 and 11, 64-bit.</p>
         <details>
           <summary>Install notes</summary>
@@ -431,9 +431,9 @@
         <div class="rel">
           <span class="eyebrow">Latest releases</span>
           <div class="cards" id="relCards">
-            <div class="card"><span class="eyebrow">nebula-player</span><b id="rel-player">webOS 1.61.0</b><span id="reld-player">Sep 2, 2026</span></div>
-            <div class="card"><span class="eyebrow">nebula-android</span><b id="rel-android">1.57.1</b><span id="reld-android">Sep 4, 2026</span></div>
-            <div class="card"><span class="eyebrow">nebula-desktop</span><b id="rel-desktop">1.55.0</b><span id="reld-desktop">Sep 2, 2026</span></div>
+            <div class="card"><span class="eyebrow">nebula-player</span><b id="rel-player">webOS 1.62.0</b><span id="reld-player">Sep 5, 2026</span></div>
+            <div class="card"><span class="eyebrow">nebula-android</span><b id="rel-android">1.58.0</b><span id="reld-android">Sep 5, 2026</span></div>
+            <div class="card"><span class="eyebrow">nebula-desktop</span><b id="rel-desktop">1.56.0</b><span id="reld-desktop">Sep 5, 2026</span></div>
           </div>
           <a class="more" href="https://github.com/retrocodes12/nebula-player/releases">See every release</a>
         </div>
@@ -467,8 +467,9 @@
       <div>
         <div class="brand"><span class="dia" aria-hidden="true">◆</span>NEBULA</div>
         <p class="small">© 2026 Nebula<br>Free to use. Built in the open.</p>
+        <p class="small" id="supWall" hidden></p>
       </div>
-      <ul><li><a href="#screens">Download</a></li><li><a href="./player/">Web player</a></li><li><a href="/privacy.html">Privacy</a></li></ul>
+      <ul><li><a href="#screens">Download</a></li><li><a href="./player/">Web player</a></li><li><a href="/privacy.html">Privacy</a></li><li id="supLi" hidden><a href="/support">Support Nebula</a></li></ul>
       <ul><li><a href="https://github.com/retrocodes12/nebula-player">nebula-player</a></li><li><a href="https://github.com/retrocodes12/nebula-android">nebula-android</a></li><li><a href="https://github.com/retrocodes12/nebula-desktop">nebula-desktop</a></li></ul>
       <ul><li><a href="https://github.com/retrocodes12/nebula-player/security/policy">Security</a></li><li><a href="https://github.com/retrocodes12/nebula-player/releases">Releases</a></li><li><a href="https://github.com/retrocodes12">GitHub</a></li></ul>
     </div>
@@ -543,6 +544,20 @@
         if (all[k] && all[k].recent) recent += all[k].recent;
       });
       if (recent) document.getElementById("statReleases").textContent = String(recent);
+    })
+    .catch(function () {});
+  // Support Nebula: the footer link appears once a support link is configured; the wall lists
+  // supporters who chose to be named (their profile name, nothing else)
+  fetch("https://play.rifflehq.in/cloud/v1/support")
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+    .then(function (s) {
+      if (s && s.url) document.getElementById("supLi").hidden = false;
+      var names = (s && s.wall || []).map(function (w) { return String(w && w.name || "").slice(0, 40); }).filter(Boolean);
+      if (!names.length) return;
+      var text = names.length === 1 ? names[0] : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+      var el = document.getElementById("supWall");
+      el.textContent = "Thanks to " + text + " for supporting Nebula.";
+      el.hidden = false;
     })
     .catch(function () {});
 })();

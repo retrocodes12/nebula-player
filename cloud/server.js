@@ -19,6 +19,7 @@
 //   PUT  /v1/kv/:key {v}                   → {rev}                     (auth)
 //   /v1/profile/*, /v1/tv/*, /v1/device    → profile.js
 //   /v1/social/*                           → friends, below
+//   /v1/support/*                          → support.js (supporter codes, the wall, the support link)
 //   GET  /v1/skip?id=tt…:S:E               → {intro, recap, outro} timestamps (cached, no auth)
 //   GET  /v1/releases                      → {player, android, desktop} latest GitHub releases, each
 //                                            {version, tag, published_at, assets:[{name,url,size}], recent} or null
@@ -132,6 +133,7 @@ function deleteGroup(gid) {
     if (g.social.code) { delete socialCodes[g.social.code]; persistSocialCodes(); }
   }
   if (g && g.profile) profile.dropHandle(g.profile.handle);
+  support.drop(gid);
   if (dirty.has(gid)) { clearTimeout(dirty.get(gid)); dirty.delete(gid); }
   try { fs.unlinkSync(gPath(gid)); } catch (e) {}
   if (g) { groups.delete(gid); groupCount--; }
@@ -488,7 +490,7 @@ function socialOf(a) { return a.g.social && (a.g.social.code || a.g.social.on) ?
 function socialCard(gid, g) {
   const s = g.social, p = g.profile;
   return { code: s.code || null, handle: p ? p.handle : null, avatar: p ? p.avatar : null,
-    name: (p && p.name) || s.name || '' };
+    name: (p && p.name) || s.name || '', sup: !!g.supporter };
 }
 /** Resolve `{handle}` or `{code}` in a request body to a group id. */
 function socialTarget(body) {
@@ -640,6 +642,7 @@ function handleSocial(p, req, res, ip) {
 const profile = require('./profile.js')({
   DATA_DIR, loadGroup, persistSoon, allow, json, readBody, auth, newGroup, deleteGroup, CODE_ALPHABET, GROUP_BURST,
 });
+const support = require('./support.js')({ DATA_DIR, loadGroup, persistSoon, allow, json, readBody, auth, CODE_ALPHABET, profile });
 evict();
 setInterval(evict, 24 * 3600_000).unref();
 
@@ -685,6 +688,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (profile.handle(p, req, res, ip)) return;
+  if (support.handle(p, req, res, ip)) return;
 
   if (p === '/v1/link' && req.method === 'POST') {
     return readBody(req, (body) => {
@@ -751,6 +755,7 @@ const server = http.createServer((req, res) => {
 // An acknowledged write must survive a pm2 restart: flush every debounced
 // persist before going down.
 function flushAll() {
+  support.flush();
   for (const [gid, timer] of dirty) {
     clearTimeout(timer);
     dirty.delete(gid);

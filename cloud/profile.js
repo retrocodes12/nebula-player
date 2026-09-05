@@ -15,7 +15,7 @@
 //   POST   /v1/profile           {handle,name,password,device}   → {gid,token,profile,recovery}   (auth optional: attach to this group)
 //   POST   /v1/profile/signin    {handle,password,device}        → {gid,token,profile}
 //   POST   /v1/profile/recover   {handle,key,password,device}    → {gid,token,profile,recovery}
-//   GET    /v1/profile/me                                        → {on,handle,name,avatar,devices[],friends}  (auth)
+//   GET    /v1/profile/me                                        → {on,handle,name,avatar,supporter,devices[],friends}  (auth)
 //   PUT    /v1/profile           {name?,avatar?}                 → {profile}             (auth)
 //   POST   /v1/profile/password  {current,next}                  → {token}               (auth; other devices signed out)
 //   POST   /v1/profile/signout                                   → {ok}                  (auth; this device only)
@@ -102,7 +102,7 @@ module.exports = function attach(core) {
     d = d && typeof d === 'object' ? d : {};
     return { name: cleanName(d.name) || 'Device', plat: String(d.plat || 'web').replace(/[^a-z]/g, '').slice(0, 12) || 'web' };
   }
-  function pub(g) { const p = g.profile; return p ? { handle: p.handle, name: p.name, avatar: p.avatar } : null; }
+  function pub(g) { const p = g.profile; return p ? { handle: p.handle, name: p.name, avatar: p.avatar, sup: !!g.supporter } : null; }
 
   // ---------- devices ----------
   // The token itself only ever lives on the device; the store keeps its hash,
@@ -274,7 +274,10 @@ module.exports = function attach(core) {
     if (p === '/v1/profile/me' && m === 'GET') {
       const out = { on: !!prof, devices: deviceList(g, a.dev), friends: g.social ? g.social.friends.length : 0,
         friendsOn: !!g.social };
-      if (prof) { out.handle = prof.handle; out.name = prof.name; out.avatar = prof.avatar; }
+      if (prof) {
+        out.handle = prof.handle; out.name = prof.name; out.avatar = prof.avatar;
+        out.supporter = g.supporter ? { since: g.supporter.since, wall: !!g.supporter.wall } : null;
+      }
       return json(res, 200, out);
     }
     if (p === '/v1/profile/signout' && m === 'POST') {

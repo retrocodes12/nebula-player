@@ -47,6 +47,9 @@ a native app with the same screens.
   ratings follow you to every device; a TV signs in with a short code you approve from a phone.
   A profile is optional; everything works without one.
 - **Friends.** Find each other by @handle, see what friends rate, recommend a title to one.
+- **Support Nebula.** Optional, and nothing that exists sits behind it. A supporter gets a small mark
+  beside their name, three more accent colours, and their name on the wall if they choose. The
+  section appears once a support link is configured on the server (`cloud/support-admin.js`).
 - **Watch parties.** A short code or QR puts everyone on the same second, live streams
   included, with reactions and presence.
 - **Made for the couch.** Full D-pad navigation, a TV rail, a featured board, and a lite paint

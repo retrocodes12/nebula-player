@@ -393,7 +393,7 @@ test('profile: create → sign in elsewhere → devices → edit → remove devi
   assert.match(a.gid, /^[0-9a-f]{16}$/);
   assert.match(a.token, /^[0-9a-f]{32}$/);
   assert.match(a.recovery, /^([A-Z2-9]{4}-){3}[A-Z2-9]{4}$/);
-  assert.deepEqual(a.profile, { handle: 'asha_01', name: 'Asha', avatar: '#636366' });
+  assert.deepEqual(a.profile, { handle: 'asha_01', name: 'Asha', avatar: '#636366', sup: false });
 
   // the device token is a full credential for sync
   assert.equal((await api('PUT', '/v1/kv/library', { v: '{"x":1}' }, tok(a))).status, 200);
@@ -415,7 +415,7 @@ test('profile: create → sign in elsewhere → devices → edit → remove devi
 
   // name and avatar edits; junk avatar falls back to grey
   const ed = await api('PUT', '/v1/profile', { name: '  Asha  K ', avatar: '#0a84ff' }, tok(a));
-  assert.deepEqual(ed.body.profile, { handle: 'asha_01', name: 'Asha K', avatar: '#0A84FF' });
+  assert.deepEqual(ed.body.profile, { handle: 'asha_01', name: 'Asha K', avatar: '#0A84FF', sup: false });
   assert.equal((await api('PUT', '/v1/profile', { avatar: 'red' }, tok(a))).body.profile.avatar, '#636366');
 
   // removing the TV kills its token, nothing else
@@ -582,4 +582,140 @@ test('profile: a handle cannot be brute-forced', async () => {
     assert.equal(r.status, 401);
   }
   assert.ok(limited, 'expected a 429 within 12 guesses at one handle');
+});
+
+// ---------- supporters ----------
+const SUPPORT_CFG = require('path').join(process.env.DATA_DIR, 'support-config.json');
+const ADMIN = 'test-admin-token-0123456789abcdef';
+function supportConfig(o) {
+  // the server re-reads the file when its mtime or size changes; a tiny sleep keeps the stamp distinct
+  require('fs').writeFileSync(SUPPORT_CFG, JSON.stringify(o));
+  return new Promise((ok) => setTimeout(ok, 20));
+}
+async function admin(method, p, body) {
+  const r = await fetch(base + p, {
+    method, headers: { 'Content-Type': 'application/json', 'X-Admin-Token': ADMIN },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  return { status: r.status, body: await r.json().catch(() => null) };
+}
+
+test('support: off until a link is configured; the link and the go redirect follow the config file', async () => {
+  const off = await api('GET', '/v1/support');
+  assert.equal(off.status, 200);
+  assert.deepEqual(off.body, { url: null, count: 0, wall: [] });
+  // admin routes are dead without a token in the config
+  assert.equal((await admin('POST', '/v1/support/codes', { n: 1 })).status, 401);
+  const go0 = await fetch(base + '/v1/support/go', { redirect: 'manual' });
+  assert.equal(go0.status, 302);
+  assert.equal(go0.headers.get('location'), '/');
+
+  await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN });
+  // the config is checked at most every 5 s — wait it out once, here
+  await new Promise((ok) => setTimeout(ok, 5100));
+  const on = await api('GET', '/v1/support');
+  assert.equal(on.body.url, 'https://example.org/support-nebula');
+  const go = await fetch(base + '/v1/support/go', { redirect: 'manual' });
+  assert.equal(go.status, 302);
+  assert.equal(go.headers.get('location'), 'https://example.org/support-nebula');
+  // a plain-http or junk link is refused, not served
+  assert.equal((await fetch(base + '/v1/support', { headers: { 'Cache-Control': 'no-cache' } })).status, 200);
+});
+
+test('support: codes are issued by the admin, redeemed once by a profile, and show on the profile and to friends', async () => {
+  assert.equal((await fetch(base + '/v1/support/codes', { method: 'POST', headers: { 'X-Admin-Token': 'wrong' } })).status, 401);
+  const issued = await admin('POST', '/v1/support/codes', { n: 2, note: 'kofi test' });
+  assert.equal(issued.status, 200);
+  assert.equal(issued.body.codes.length, 2);
+  assert.match(issued.body.codes[0], /^NEB-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+  const [c1, c2] = issued.body.codes;
+
+  // a device without a profile cannot redeem; a profile can, once
+  const g = await api('POST', '/v1/group');
+  assert.equal((await api('POST', '/v1/support/redeem', { code: c1 }, g.body.gid + '.' + g.body.secret)).status, 400);
+  const a = await mkProfile('sup_ada', 'Ada', 'password1');
+  assert.equal(a.profile.sup, false);
+  assert.equal((await api('GET', '/v1/profile/me', undefined, tok(a))).body.supporter, null);
+  assert.equal((await api('POST', '/v1/support/redeem', { code: 'NEB-ZZZZ-ZZZZ' }, tok(a))).status, 404);
+  const red = await api('POST', '/v1/support/redeem', { code: c1.toLowerCase().replace(/-/g, ' ') }, tok(a));
+  assert.equal(red.status, 200);
+  assert.equal(typeof red.body.supporter.since, 'number');
+  assert.equal(red.body.supporter.wall, false);
+  // the same code is spent; a second code on the same profile is refused and stays open
+  const b = await mkProfile('sup_bob', 'Bob', 'password1');
+  assert.equal((await api('POST', '/v1/support/redeem', { code: c1 }, tok(b))).status, 404);
+  assert.equal((await api('POST', '/v1/support/redeem', { code: c2 }, tok(a))).status, 409);
+  const list = await admin('GET', '/v1/support/codes');
+  assert.equal(list.body.codes.find((c) => c.code === c1).used.handle, 'sup_ada');
+  assert.equal(list.body.codes.find((c) => c.code === c2).used, null);
+  assert.equal(list.body.supporters.length, 1);
+  assert.equal(list.body.supporters[0].handle, 'sup_ada');
+  assert.equal(list.body.supporters[0].via, 'code');
+
+  // it shows on /me, on a fresh sign-in, and on the friend card
+  const me = (await api('GET', '/v1/profile/me', undefined, tok(a))).body;
+  assert.equal(typeof me.supporter.since, 'number');
+  const again = await api('POST', '/v1/profile/signin', { handle: 'sup_ada', password: 'password1' });
+  assert.equal(again.body.profile.sup, true);
+  assert.equal((await api('POST', '/v1/social/enable', undefined, tok(a))).status, 200);
+  assert.equal((await api('POST', '/v1/social/enable', undefined, tok(b))).status, 200);
+  assert.equal((await api('POST', '/v1/social/friend', { handle: 'sup_ada' }, tok(b))).status, 200);
+  const fr = (await api('GET', '/v1/social/friends', undefined, tok(b))).body.friends;
+  assert.equal(fr.length, 1);
+  assert.equal(fr[0].sup, true);
+  assert.equal((await api('GET', '/v1/social/friends', undefined, tok(a))).body.friends[0].sup, false);
+
+  // an open code can be dropped, a used one cannot
+  assert.equal((await admin('DELETE', '/v1/support/codes/' + c1)).status, 409);
+  assert.equal((await admin('DELETE', '/v1/support/codes/' + c2)).status, 200);
+  assert.equal((await api('POST', '/v1/support/redeem', { code: c2 }, tok(b))).status, 404);
+});
+
+test('support: the wall is opt-in, names come from the profile, count is every supporter; grant and revoke by handle', async () => {
+  const a = await api('POST', '/v1/profile/signin', { handle: 'sup_ada', password: 'password1' });
+  const b = await api('POST', '/v1/profile/signin', { handle: 'sup_bob', password: 'password1' });
+  // bob is not a supporter: no wall for him
+  assert.equal((await api('PUT', '/v1/support', { wall: true }, tok(b.body))).status, 403);
+  const before = (await api('GET', '/v1/support')).body;
+  assert.equal(before.count, 1);
+  assert.deepEqual(before.wall, []);
+  // ada opts in; her current name is what shows, her avatar beside it
+  await api('PUT', '/v1/profile', { name: 'Ada L', avatar: '#0A84FF' }, tok(a.body));
+  const put = await api('PUT', '/v1/support', { wall: true }, tok(a.body));
+  assert.equal(put.status, 200);
+  assert.equal(put.body.supporter.wall, true);
+  const on = (await api('GET', '/v1/support')).body;
+  assert.deepEqual(on.wall, [{ name: 'Ada L', avatar: '#0A84FF' }]);
+  assert.equal(on.count, 1);
+  // the founder grants bob by hand; he is counted, and off the wall until he says so
+  const gr = await admin('POST', '/v1/support/grant', { handle: '@SUP_BOB', note: 'patreon' });
+  assert.equal(gr.status, 200);
+  assert.equal(gr.body.handle, 'sup_bob');
+  assert.equal((await admin('POST', '/v1/support/grant', { handle: 'nobody_here' })).status, 404);
+  assert.equal((await api('GET', '/v1/profile/me', undefined, tok(b.body))).body.supporter.wall, false);
+  assert.equal((await api('GET', '/v1/support')).body.count, 2);
+  assert.equal((await api('PUT', '/v1/support', { wall: true }, tok(b.body))).status, 200);
+  assert.deepEqual((await api('GET', '/v1/support')).body.wall.map((w) => w.name), ['Ada L', 'Bob']);
+  // opting out, and a revoke, both leave the wall
+  await api('PUT', '/v1/support', { wall: false }, tok(a.body));
+  assert.deepEqual((await api('GET', '/v1/support')).body.wall.map((w) => w.name), ['Bob']);
+  assert.equal((await admin('POST', '/v1/support/revoke', { handle: 'sup_bob' })).status, 200);
+  const after = (await api('GET', '/v1/support')).body;
+  assert.equal(after.count, 1);
+  assert.deepEqual(after.wall, []);
+  assert.equal((await api('GET', '/v1/profile/me', undefined, tok(b.body))).body.supporter, null);
+  // deleting a supporter's profile takes it off the count too
+  assert.equal((await api('DELETE', '/v1/profile', { password: 'password1' }, tok(a.body))).status, 200);
+  assert.equal((await api('GET', '/v1/support')).body.count, 0);
+});
+
+test('support: guessing codes is rate limited', async () => {
+  const a = await mkProfile('sup_guess', 'G', 'password1');
+  let limited = false;
+  for (let i = 0; i < 10; i++) {
+    const r = await api('POST', '/v1/support/redeem', { code: 'NEB-AAAA-AAA' + (i % 9 + 2) }, tok(a));
+    if (r.status === 429) { limited = true; break; }
+    assert.equal(r.status, 404);
+  }
+  assert.ok(limited, 'expected a 429 within 10 guesses');
 });
