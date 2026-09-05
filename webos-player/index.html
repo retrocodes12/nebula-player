@@ -530,6 +530,8 @@
   .s-spec { flex:0 0 auto; text-align:right; font-family:var(--mono); font-size:calc(12px * var(--ts));
     color:var(--label2); line-height:1.55; white-space:nowrap; }
   .s-spec b { display:block; color:var(--label); font-size:calc(14px * var(--ts)); font-weight:600; letter-spacing:-.01em; }
+  .s-spec .s-nwr { display:block; font-style:normal; color:var(--label3); font-size:calc(11px * var(--ts)); letter-spacing:.04em; margin-top:2px; }
+  .stream.nwr .s-plate, .stream.nwr .stream-name { opacity:.7; }
   html.tv .s-plate { width:84px; padding:14px 0; }
   html.tv .s-plate b { font-size:calc(20px * var(--ts)); }
   html.tv .s-plate i { font-size:calc(11px * var(--ts)); }
@@ -2450,7 +2452,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.05.1';
+  var PLAYER_VERSION = '2026.09.05.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -2820,6 +2822,8 @@
       if (k===70 && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey){
         toggleFullscreen(); e.preventDefault(); return;
       }
+      // F11 drives the same fullscreen as f, so the button and the window never disagree (the desktop shell has no menu accelerator for it any more)
+      if (k===122){ toggleFullscreen(); e.preventDefault(); return; }
       if (k===73 && !inInput && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey){
         pinfoSet(!pinfoOn); puiShow(); e.preventDefault(); return;
       }
@@ -3469,7 +3473,10 @@
           var banner = document.getElementById('updBanner');
           document.getElementById('updText').textContent =
             'Nebula update available' + (j.notes ? ' — ' + j.notes : '') + '.';
-          document.getElementById('updGet').href = j.url || SITE + '/';
+          // the desktop app is updated by a new installer, not by the web player the site link opens
+          document.getElementById('updGet').href = IS_DESKTOP
+            ? (j.windows || 'https://github.com/retrocodes12/nebula-desktop/releases/latest')
+            : (j.url || SITE + '/');
           document.getElementById('updX').onclick = function(){
             try { if (LS) LS.setItem('nebulaUpdDismiss', j.version); } catch(e){}
             banner.classList.remove('show');
@@ -5330,6 +5337,8 @@
     var spec = f.size ? '<b>' + esc(f.size) + '</b>' : '';
     var line2 = [f.bitrate, f.seeds ? f.seeds + ' seeds' : ''].filter(Boolean).join(' · ');
     if (line2) spec += esc(line2);
+    // the add-on's own word that this row needs a native player (headers, a gated host): say so, rather than a "Format error" later
+    if (s.behaviorHints && s.behaviorHints.notWebReady){ spec += '<i class="s-nwr">may not play here</i>'; card.className += ' nwr'; }
     card.innerHTML =
       (plate ? '<span class="s-plate"><b>' + plate.r + '</b>' + (plate.t ? '<i>' + plate.t + '</i>' : '') + '</span>'
              : '<span class="stream-play"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span>') +
@@ -5991,9 +6000,12 @@
   function streamsForList(streams){
     var pr = getPrefs(), min = RES_MIN[pr.minRes] || 0, sort = pr.streamSort || 'listed';
     var out = min ? streams.filter(function(s){ var r = streamRank(s); return !r || r >= min; }) : streams.slice();
-    if (sort !== 'quality' && sort !== 'size') return out;
-    var keyed = out.map(function(s, i){ return { s: s, i: i, r: streamRank(s), b: streamSizeBytes(s) }; });
+    // rows the add-on marks not web-ready sink below the rest under every order — they rarely play in a browser engine
+    var nwr = function(s){ return !!(s.behaviorHints && s.behaviorHints.notWebReady); };
+    if (sort !== 'quality' && sort !== 'size') return out.filter(function(s){ return !nwr(s); }).concat(out.filter(nwr));
+    var keyed = out.map(function(s, i){ return { s: s, i: i, r: streamRank(s), b: streamSizeBytes(s), n: nwr(s) ? 1 : 0 }; });
     keyed.sort(function(x, y){
+      if (x.n !== y.n) return x.n - y.n;
       if (sort === 'quality'){ if (y.r !== x.r) return y.r - x.r; }
       else { var bx = x.b || Infinity, by = y.b || Infinity; if (bx !== by) return bx - by; }   // unknown sizes last
       return x.i - y.i;
@@ -6223,8 +6235,17 @@
       return;
     }
     var detail = d && d.data ? (' — ' + String(JSON.stringify(d.data)).slice(0,180)) : '';
-    setStatus('Playback error ' + code + detail, 'err');
+    setStatus(playErrorLine(code, detail), 'err');
     try { $id('puiSpin').style.display = 'none'; } catch(e){}
+  }
+  /** The few errors a person can act on get a sentence; the rest keep the code and the raw detail for diagnosis. */
+  function playErrorLine(code, detail){
+    // 3016: the media element itself refused the source — a format this device cannot decode, or a host that
+    // answered with a page instead of the file (add-ons flag such rows "not web-ready")
+    if (code === 3016) return 'This stream cannot play here — its format is not supported on this device, or its host would not serve it to this player. Try another source. (3016)';
+    if (code === 1001) return 'The source did not answer with a stream — it may be down or expired. Try another source. (1001' + detail + ')';
+    if (code === 1002) return 'The source would not let this player read it. Try another source. (1002)';
+    return 'Failed to load (' + code + ')' + detail;
   }
   async function playUrl(rawUrl, clearKeys, title, subtitles, mimeType){
     if (!initShaka()) return;
@@ -6338,7 +6359,7 @@
     catch(err){
       if (seq !== playSeq) return;
       var code=(err&&(err.code||err.message))||'unknown'; var extra=err&&err.data?(' — '+JSON.stringify(err.data).slice(0,180)):'';
-      setStatus('Failed to load ('+code+')'+extra,'err'); $id('puiSpin').style.display='none';
+      setStatus(playErrorLine(code, extra),'err'); $id('puiSpin').style.display='none';
     }
   }
   function playStream(s){
@@ -7125,6 +7146,14 @@
   function subOffsetReset(){ subOffset = 0; }
 
   // ---- shared menu (quality / subtitles / audio / speed) ----
+  /** A name for a native audio track: the file's own title ("Hindi 5.1") with the language in front when it
+      lacks it, never the container's handler name ("SoundHandler"), the language alone otherwise. */
+  function nativeTrackLabel(tr, i){
+    var ln = langName(tr.language || '') || '';
+    var lb = (tr.label && !/^(sound ?handler|audio ?handler|audio|sound|stereo|mono|und|unknown)$/i.test(tr.label.trim())) ? tr.label.trim() : '';
+    if (lb) return (ln && lb.toLowerCase().indexOf(ln.toLowerCase()) < 0) ? ln + ' · ' + lb : lb;
+    return ln || ('Track ' + (i + 1));
+  }
   function menuOpt(label, selected, fn){
     var b=document.createElement('button'); b.className='qopt focusable'+(selected?' on':''); b.tabIndex=0;
     b.textContent=label;
@@ -7164,7 +7193,7 @@
       } else if (video.audioTracks && video.audioTracks.length >= 2){
         // native track switching for progressive containers (mkv/mp4 via src=)
         Array.prototype.forEach.call(video.audioTracks, function(tr, i){
-          var label = tr.label || langName(tr.language) || ('Track ' + (i + 1));
+          var label = nativeTrackLabel(tr, i);
           menuOpt(label, !!tr.enabled, function(){
             try {
               for (var k = 0; k < video.audioTracks.length; k++) video.audioTracks[k].enabled = (k === i);
@@ -7176,7 +7205,7 @@
         // one track (or none the pipeline has reported yet): name it, and say why there is nothing to pick
         var one = null;
         if (langs.length === 1) one = langs[0].label || langName(langs[0].language || '');
-        else { try { if (video.audioTracks && video.audioTracks.length === 1) one = video.audioTracks[0].label || langName(video.audioTracks[0].language || ''); } catch(e){} }
+        else { try { if (video.audioTracks && video.audioTracks.length === 1) one = nativeTrackLabel(video.audioTracks[0], 0); } catch(e){} }
         if (one) menuOpt(one, true, function(){ closePuiMenu(true); });
         puiNote('This stream carries one audio track.');
       }
@@ -7770,7 +7799,8 @@
   var lastPlay = null;
   var party = null;        // { ws, code, isHost, count, closing, lastState, lastSeek, n, dirty, tick, keep }
   var partyPending = null; // { kind:'create'|'join', code, wasHost, until } — connection being established
-  var PARTY_FALLBACK = 'wss://nebula-party.onrender.com/ws';
+  // the relay that runs today, so a device that cannot read party.json (or reads it stale) still lands somewhere alive
+  var PARTY_FALLBACK = 'wss://play.rifflehq.in/party/ws';
   var partyServerCached = null;
   function partyServer(cb){
     var ls = null; try { ls = LS.getItem('party_server'); } catch(e){}
@@ -9414,15 +9444,25 @@
   }
   var lastFileUrl = null;
   $id('fileBtn').onclick = function(){ $id('filePick').click(); };
-  $id('filePick').onchange = function(){
-    var f = this.files && this.files[0];
+  function playLocalFile(f){
     if (!f) return;
     if (lastFileUrl){ try { URL.revokeObjectURL(lastFileUrl); } catch(e){} }
     lastFileUrl = URL.createObjectURL(f);
     clearPlayIdentity();
     playUrl(lastFileUrl, null, f.name, [], fileMime(f));
+  }
+  $id('filePick').onchange = function(){
+    playLocalFile(this.files && this.files[0]);
     this.value = '';
   };
+  // a file dropped anywhere on the window plays here — otherwise the browser engine navigates to it,
+  // which on the desktop app meant the OS opened it in some other player
+  document.addEventListener('dragover', function(e){ e.preventDefault(); });
+  document.addEventListener('drop', function(e){
+    e.preventDefault();
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f && /^(video|audio)\//.test(f.type || '') || (f && /\.(mkv|mp4|m4v|webm|mov|ts|avi|mp3|aac|ogg|flac|wav)$/i.test(f.name || ''))) playLocalFile(f);
+  });
 
   // ---------- wire up ----------
   document.getElementById('phoneBtn').onclick = startPairing;
@@ -9479,6 +9519,13 @@
     try { flushProgress(true); } catch(e){}
     try { flushCloudNow(); } catch(e){}
   });
+  // the desktop shell asks before it closes: the process would end before a keepalive fetch left
+  if (window.nebulaDesktop && window.nebulaDesktop.onFlush){
+    window.nebulaDesktop.onFlush(function(){
+      try { flushProgress(true); } catch(e){}
+      try { flushCloudNow(); } catch(e){}
+    });
+  }
 
   renderAddons();
   initPersistentAddons();

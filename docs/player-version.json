@@ -1,5 +1,6 @@
 {
-  "version": "2026.09.05.1",
+  "version": "2026.09.05.2",
   "url": "https://play.rifflehq.in/",
-  "notes": "Support Nebula. A new section in Settings, once a support link is set up: chip in if you like — nothing that exists moves behind it. A supporter gets a small mark beside their name (friends see it too), three more accent colours (Gold, Ice, Mint) and, if they switch it on, their name on the wall in Settings and on the website. Codes come with the thank-you and are typed once on any signed-in device; the mark follows the profile. On a TV the section shows a QR and a short address to open on a phone."
+  "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
+  "notes": "A fix pass, mostly for Windows. On the desktop app your add-ons, profile, settings and progress now survive closing it, files with several audio tracks offer the choice under Audio, a video file dropped on the window plays, the stock menu bar and its shortcuts are gone, F11 goes fullscreen like the f key, and closing mid-playback saves your place first. Everywhere: stream rows an add-on marks as not playable in a browser say so and sit below the rest, a stream that cannot play explains itself in words, audio tracks are named by language, and watch parties always reach the relay that is running."
 }
