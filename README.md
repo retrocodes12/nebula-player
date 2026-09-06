@@ -9,10 +9,10 @@ in the middle.
 | Surface | Repo | How it ships |
 |---|---|---|
 | Web player + LG webOS TV app | this repo | `docs/player/` (static) · webOS `.ipk` via the Homebrew Channel feed `docs/apps.json` |
-| Windows | [nebula-desktop](https://github.com/retrocodes12/nebula-desktop) | Electron; `Nebula-Setup.exe` / `Nebula-Portable.exe` |
+| Windows + Linux | [nebula-desktop](https://github.com/retrocodes12/nebula-desktop) | Electron; `Nebula-Setup.exe` / `Nebula-Portable.exe` · `Nebula.AppImage` / `Nebula.deb` |
 | Android phone + TV | [nebula-android](https://github.com/retrocodes12/nebula-android) | Kotlin / Compose / Media3; `Nebula.apk` |
 
-The web, webOS and Windows builds run one shared player (`webos-player/index.html`); Android is
+The web, webOS and desktop builds run one shared player (`webos-player/index.html`); Android is
 a native app with the same screens.
 
 ## What it does

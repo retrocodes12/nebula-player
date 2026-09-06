@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.06.2",
+  "version": "2026.09.06.3",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Windows updates itself now. The app checks for a new version when it starts and every few hours, shows a banner and a row under Settings > About, downloads the update when you ask and installs it on restart; the portable build swaps itself for the new file. This is the first version with the updater, so this one update is by hand: download it from the site. Earlier today: a file Windows refuses to open is converted as it plays instead of ending in a 3016 error, and a stream that really cannot play says what its host did."
+  "notes": "Nebula runs on Linux now: an AppImage that needs no install, and a .deb for Debian and Ubuntu. Both keep themselves up to date the way the Windows app does, and the app names the computer it is actually running on."
 }

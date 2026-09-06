@@ -2330,7 +2330,7 @@
         <p class="con-sub">This build, and how your data is handled.</p>
         <p class="sub" id="setAbout" style="margin:8px 0 0"></p>
         <div class="setrow" id="setUpdRow" style="display:none">
-          <span class="setname">Nebula for Windows<small id="setUpdSub">Looks for a newer version and installs it from here</small></span>
+          <span class="setname"><span id="setUpdName">Nebula for the desktop</span><small id="setUpdSub">Looks for a newer version and installs it from here</small></span>
           <button id="setUpdBtn" class="textbtn focusable">Check for updates</button>
         </div>
         <p class="sub privacy-link" style="margin:10px 0 0">
@@ -2458,7 +2458,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.06.2';
+  var PLAYER_VERSION = '2026.09.06.3';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -3474,6 +3474,21 @@
   var updApi = (IS_DESKTOP && window.nebulaDesktop.update && window.nebulaDesktop.update.info &&
     window.nebulaDesktop.update.info.kind !== 'dev') ? window.nebulaDesktop.update : null;
   var updState = updApi ? updApi.info : null;
+  /** Which desktop this is, for the lines that name it. The shell says so; a checkout has only the UA. */
+  function desktopOs(){
+    var p = (updApi && updApi.info && updApi.info.plat) || '';
+    if (p === 'windows') return 'Windows';
+    if (p === 'linux') return 'Linux';
+    var ua = navigator.userAgent || '';
+    return /windows/i.test(ua) ? 'Windows' : /linux/i.test(ua) ? 'Linux' : /mac os/i.test(ua) ? 'Mac' : '';
+  }
+  /** How this copy was installed, in the person's words. */
+  function updKindWord(k){ return k === 'portable' ? 'portable' : k === 'appimage' ? 'AppImage' : 'installed'; }
+  /** Who asks for permission before the update goes in, and only when one will. */
+  function updElevatedLine(s, sep){
+    if (!s.elevated) return '';
+    return sep + (s.plat === 'linux' ? 'your computer will ask for your password' : 'Windows will ask for permission');
+  }
   function updBannerHide(){ $id('updBanner').classList.remove('show'); document.body.classList.remove('upd'); }
   function fmtMB(n){ return (n / 1048576).toFixed(n >= 104857600 ? 0 : 1) + ' MB'; }
   /** The state the shell reports → the banner (unless this version was dismissed) and the About row. */
@@ -3486,7 +3501,7 @@
     var show = false, label = '', btn = '';
     if (s.state === 'available'){ show = !dismissed; label = 'Nebula ' + s.latest + ' is available' + (s.notes ? ' — ' + s.notes : '') + '.'; btn = 'Update'; }
     else if (s.state === 'downloading'){ show = !dismissed; label = 'Downloading Nebula ' + s.latest + ' — ' + s.percent + '%' + (s.total ? ' of ' + fmtMB(s.total) : '') + '…'; }
-    else if (s.state === 'ready'){ show = !dismissed; label = 'Nebula ' + s.latest + ' is downloaded' + (s.elevated ? ' — Windows will ask for permission to install it' : '') + '.'; btn = s.kind === 'portable' ? 'Open the new version' : 'Restart to update'; }
+    else if (s.state === 'ready'){ show = !dismissed; label = 'Nebula ' + s.latest + ' is downloaded' + updElevatedLine(s, ' — ') + (s.elevated ? ' to install it' : '') + '.'; btn = s.kind === 'portable' ? 'Open the new version' : 'Restart to update'; }
     else if (s.state === 'installing'){ show = true; label = 'Installing Nebula ' + s.latest + '…'; }
     else if (s.state === 'error' && newer){ show = !dismissed; label = s.error || 'Could not update.'; btn = 'Try again'; }
     $id('updText').textContent = label;
@@ -3502,11 +3517,13 @@
     var row = $id('setUpdRow'); if (!row) return;
     if (!updApi){ row.style.display = 'none'; return; }
     row.style.display = '';
-    var s = updState || {}, line = 'Version ' + s.version + ' · ' + (s.kind === 'portable' ? 'portable' : 'installed'), label = 'Check for updates', busy = false;
+    var os = desktopOs();
+    $id('setUpdName').textContent = 'Nebula for ' + (os || 'the desktop');
+    var s = updState || {}, line = 'Version ' + s.version + ' · ' + updKindWord(s.kind), label = 'Check for updates', busy = false;
     if (s.state === 'checking'){ line += ' · checking…'; busy = true; }
     else if (s.state === 'available'){ line += ' · ' + s.latest + ' is available'; label = 'Update'; }
     else if (s.state === 'downloading'){ line += ' · downloading ' + s.latest + ' — ' + s.percent + '%'; label = 'Downloading…'; busy = true; }
-    else if (s.state === 'ready'){ line += ' · ' + s.latest + ' downloaded' + (s.elevated ? ' · Windows will ask for permission' : ''); label = s.kind === 'portable' ? 'Open the new version' : 'Restart to update'; }
+    else if (s.state === 'ready'){ line += ' · ' + s.latest + ' downloaded' + updElevatedLine(s, ' · '); label = s.kind === 'portable' ? 'Open the new version' : 'Restart to update'; }
     else if (s.state === 'installing'){ line += ' · installing'; busy = true; }
     else if (s.state === 'current'){ line += ' · up to date'; }
     else if (s.state === 'error'){ line += ' · ' + (s.error || 'could not check'); label = 'Try again'; }
@@ -6307,7 +6324,7 @@
     setStatus(playErrorLine(code, detail), 'err');
     try { $id('puiSpin').style.display = 'none'; } catch(e){}
   }
-  // ---- desktop transcode. Chromium on Windows has no decoder for Dolby Digital (Plus), DTS or TrueHD, and HEVC only
+  // ---- desktop transcode. Chromium has no decoder for Dolby Digital (Plus), DTS or TrueHD on any desktop, and HEVC only
   // with hardware help; Nuvio's desktop app plays such files through its own libmpv. Nebula's shell carries FFmpeg
   // instead: /probe says what a file holds, /seg hands back ten-second fragmented-MP4 pieces with the audio re-encoded
   // to AAC (video copied through, or re-encoded when the machine cannot decode it) and the ORIGINAL timestamps kept,
@@ -8238,7 +8255,7 @@
     if (profile && profile.name) return String(profile.name).slice(0, 40);
     if (IS_WEBOS) return 'LG TV';
     if (IS_TV) return 'TV';
-    if (/electron/i.test(navigator.userAgent || '')) return 'Windows';
+    if (IS_DESKTOP || /electron/i.test(navigator.userAgent || '')) return desktopOs() || 'Desktop';
     return 'Web';
   }
   var REACTIONS = ['👍','😂','❤️','😮','🔥'];
@@ -8852,7 +8869,11 @@
   function deviceInfo(){
     var ua = navigator.userAgent || '';
     if (IS_WEBOS) return { name: 'LG TV', plat: 'webos' };
-    if (window.nebulaDesktop || /electron/i.test(ua)) return { name: 'Windows PC', plat: 'windows' };
+    if (window.nebulaDesktop || /electron/i.test(ua)){
+      var dos = desktopOs();
+      if (dos === 'Mac') return { name: 'Mac', plat: 'mac' };
+      return { name: (dos || 'Desktop') + ' PC', plat: dos === 'Linux' ? 'linux' : 'windows' };
+    }
     if (IS_TV) return { name: 'TV', plat: 'tv' };
     var os = /android/i.test(ua) ? 'Android' : /iphone|ipad/i.test(ua) ? 'iPhone' : /mac os/i.test(ua) ? 'Mac'
       : /windows/i.test(ua) ? 'Windows' : /linux/i.test(ua) ? 'Linux' : '';
@@ -9688,7 +9709,7 @@
     }
     if (pn && document.activeElement !== pn) pn.value = pr.pname || '';
     pn.placeholder = partyName();
-    $id('setAbout').textContent = (updApi ? 'Nebula for Windows ' + updApi.info.version + ' · player build ' : 'Nebula · build ') + PLAYER_VERSION +
+    $id('setAbout').textContent = (updApi ? 'Nebula for ' + (desktopOs() || 'the desktop') + ' ' + updApi.info.version + ' · player build ' : 'Nebula · build ') + PLAYER_VERSION +
       ' · plays every add-on format, on-device';
     updAboutRender();
     var asub = $id('setAddonsSub'), allAdd = getAddons(), an = allAdd.length, offN = allAdd.filter(function(a){ return a.off; }).length;
