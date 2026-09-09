@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.06.3",
+  "version": "2026.09.09.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Nebula runs on Linux now: an AppImage that needs no install, and a .deb for Debian and Ubuntu. Both keep themselves up to date the way the Windows app does, and the app names the computer it is actually running on."
+  "notes": "Autoplay next episode set to Off now really stops it, series whose ids carry a prefix open the right title from Continue watching, and an add-on's install link can be pasted straight in."
 }
