@@ -6346,21 +6346,43 @@
   // Only on the desktop shell, only for plain files (never DASH/HLS/keys), only when Chromium could not take the file. ----
   var tc = null;                                                   // the active transcode session, or null
   var TC_LEN = 10, TC_AHEAD = 45;
-  var TC_AUDIO_OK = { aac:1, mp3:1, opus:1, vorbis:1, flac:1, alac:1, mp2:1, pcm_s16le:1, pcm_s24le:1, pcm_s32le:1, pcm_f32le:1 };
+  var TC_AUDIO_OK = { aac:1, mp3:1, opus:1, vorbis:1, flac:1, pcm_s16le:1, pcm_s24le:1, pcm_s32le:1, pcm_f32le:1 };   // no alac, no mp2: Chromium decodes neither (measured 09-09)
   // (an extension-less link is handed to the element as video/mp4 so it sniffs the container — that says nothing
   // about the file, so such a link is a candidate like any other; a local file is blob: and never one)
   function tcCandidate(url, keys){
     return IS_DESKTOP && !!(window.nebulaDesktop && window.nebulaDesktop.transcode) && !keys &&
       /^https?:\/\//i.test(url) && !/\.(mpd|m3u8)(\?|#|$)/i.test(url);
   }
-  function tcHevcOk(){ try { return window.MediaSource && MediaSource.isTypeSupported('video/mp4; codecs="hvc1.1.6.L153.B0"'); } catch(e){ return false; } }
+  /** The codec string the element must accept to copy this HEVC stream through: Main 10 (10-bit, most HDR) is profile 2,
+      and a machine whose decoder takes Main only would choke on it mid-play if asked with the Main string. */
+  function tcHevcCodec(info){
+    var v = (info && info.video) || {};
+    var ten = /10/.test(String(v.profile || '')) || /10le|10be|p010/i.test(String(v.pix_fmt || ''));
+    return ten ? 'hvc1.2.4.L153.B0' : 'hvc1.1.6.L153.B0';
+  }
+  function tcHevcOk(info){ try { return !!(window.MediaSource && MediaSource.isTypeSupported('video/mp4; codecs="' + tcHevcCodec(info) + '"')); } catch(e){ return false; } }
+  /** The audio tracks (as the probe lists them) this engine cannot decode. */
+  function tcBadAudio(info){
+    var out = [], list = (info && info.audio) || [];
+    for (var i = 0; i < list.length; i++) if (!TC_AUDIO_OK[String(list[i].codec || '').toLowerCase()]) out.push(list[i]);
+    return out;
+  }
+  var FF_AUDIO_NAMES = { eac3:'Dolby Digital Plus', ac3:'Dolby Digital', truehd:'Dolby TrueHD', mlp:'Dolby TrueHD', dts:'DTS', alac:'Apple Lossless',
+    wmav2:'Windows Media Audio', wmapro:'Windows Media Audio' };
+  function tcBadAudioNames(info){
+    var seen = {}, out = [];
+    tcBadAudio(info).forEach(function(a){ var c = String(a.codec || '').toLowerCase(), n = FF_AUDIO_NAMES[c] || c.toUpperCase(); if (n && !seen[n]){ seen[n] = 1; out.push(n); } });
+    return out.join(' + ');
+  }
   /** Why the shell must step in — 'audio', 'video' — or '' when Chromium can take the file as it is. */
   function tcReason(info){
     if (!info || !info.video || !window.MediaSource) return '';
-    var vc = String(info.video.codec || '').toLowerCase(), a = info.audio && info.audio[0];
-    var videoBad = (vc === 'hevc' || vc === 'h265') ? !tcHevcOk() : !(vc === 'h264' || vc === 'vp9' || vc === 'vp8' || vc === 'av1');
+    var vc = String(info.video.codec || '').toLowerCase();
+    var videoBad = (vc === 'hevc' || vc === 'h265') ? !tcHevcOk(info) : !(vc === 'h264' || vc === 'vp9' || vc === 'vp8' || vc === 'av1');
     if (videoBad) return 'video';
-    if (a && !TC_AUDIO_OK[String(a.codec || '').toLowerCase()]) return 'audio';
+    // ANY track the engine cannot decode, not just the first: Chromium drops such a track from the file without a word,
+    // so a film whose main track is Dolby and whose commentary is AAC played the commentary and never listed the main track
+    if (tcBadAudio(info).length) return 'audio';
     return '';
   }
   /** What the shell's FFprobe sees in the file, or null — with what the host did kept on `c.fail` (a 403, a page). */
@@ -6423,15 +6445,19 @@
   }
   /** Settings › Audio language decides; else the file's default track; else the first. */
   function tcPickAudio(info){
-    var want = '', list = info.audio || [];
+    var want = '', list = info.audio || [], i;
     try { want = langName(prefLang('audioLang') || '') || ''; } catch(e){}
-    if (want && want !== 'Unknown'){ for (var i = 0; i < list.length; i++) if (langName(list[i].lang || '') === want) return i; }
-    for (var j = 0; j < list.length; j++) if (list[j].dflt) return j;
+    if (want && want !== 'Unknown'){
+      // the file's default track first among those in the wanted language: a commentary in the same language often sits first
+      for (i = 0; i < list.length; i++) if (list[i].dflt && langName(list[i].lang || '') === want) return i;
+      for (i = 0; i < list.length; i++) if (langName(list[i].lang || '') === want) return i;
+    }
+    for (i = 0; i < list.length; i++) if (list[i].dflt) return i;
     return 0;
   }
   function tcMime(){
     var vc = String(tc.info.video.codec || '').toLowerCase();
-    var v = (vc === 'hevc' || vc === 'h265') && tc.vmode === 'copy' ? 'hvc1.1.6.L153.B0' : 'avc1.64001f';
+    var v = (vc === 'hevc' || vc === 'h265') && tc.vmode === 'copy' ? tcHevcCodec(tc.info) : 'avc1.64001f';
     return 'video/mp4; codecs="' + v + ', mp4a.40.2"';
   }
   function tcSegUrl(t, len){
@@ -6530,14 +6556,15 @@
     // the video is copied through only when the element can take it as it is in fragmented MP4 (H.264, HEVC with
     // hardware help); anything else — a refused container holding VP9, MPEG-4 part 2 in an AVI — is re-encoded
     var vc = String(info.video && info.video.codec || '').toLowerCase();
-    var copyOk = vc === 'h264' || ((vc === 'hevc' || vc === 'h265') && tcHevcOk());
-    tc = { src: url, info: info, a: tcPickAudio(info), vmode: (why === 'video' || !copyOk) ? 'h264' : 'copy', ms: null, sb: null, ctl: null,
-      next: Math.max(0, Math.floor(startAt || 0)), pumping: false, done: false, flush: false, gen: 0, why: why };
+    var copyOk = vc === 'h264' || ((vc === 'hevc' || vc === 'h265') && tcHevcOk(info));
+    tc = { src: url, info: info, a: (info.a >= 0 && info.audio && info.audio[info.a]) ? info.a : tcPickAudio(info), vmode: (why === 'video' || !copyOk) ? 'h264' : 'copy',
+      ms: null, sb: null, ctl: null, obj: null, next: Math.max(0, Math.floor(startAt || 0)), pumping: false, done: false, flush: false, gen: 0, why: why };
     var session = tc;
     player = tcShim();
     var ms = new MediaSource(); tc.ms = ms;
     video.style.display = 'block';
-    video.src = URL.createObjectURL(ms);
+    tc.obj = URL.createObjectURL(ms);
+    video.src = tc.obj;
     await new Promise(function(ok){ ms.addEventListener('sourceopen', ok, { once: true }); });
     if (seq !== playSeq || tc !== session) return;
     try { ms.duration = info.duration || 0; } catch(e){}
@@ -6552,7 +6579,7 @@
     video.removeEventListener('seeking', tcOnSeeking);
     video.removeEventListener('error', tcOnError);
     var s = tc; tc = null;
-    if (s){ s.gen++; if (s.ctl) { try { s.ctl.abort(); } catch(e){} } try { if (s.ms.readyState === 'open') s.ms.endOfStream(); } catch(e){} }
+    if (s){ s.gen++; if (s.ctl) { try { s.ctl.abort(); } catch(e){} } try { if (s.ms.readyState === 'open') s.ms.endOfStream(); } catch(e){} if (s.obj){ try { URL.revokeObjectURL(s.obj); } catch(e){} } }
     Array.prototype.forEach.call(video.querySelectorAll('track'), function(t){ try { URL.revokeObjectURL(t.src); } catch(e){} t.remove(); });
     try { video.removeAttribute('src'); video.load(); } catch(e){}
   }
@@ -6614,6 +6641,16 @@
     if (audioSilentNoted || !video || video.paused || video.muted || video.volume === 0) return;
     if (typeof video.webkitAudioDecodedByteCount !== 'number' || video.currentTime < 4) return;
     if (video.webkitAudioDecodedByteCount > 0 || !(video.webkitVideoDecodedByteCount > 0)) return;
+    // the desktop shell can do better than a message: a file the probe shows HAS audio, playing natively in silence
+    // (a codec the list misjudged, a track the engine dropped without a word), restarts through the converter
+    var c = tcCheck;
+    if (IS_DESKTOP && c && c.seq === playSeq && !tc && !c.silentRestart){
+      if (c.info === undefined){ tcCheckProbe(c); return; }        // the probe is still out: ask again next tick
+      if (c.info && c.info.audio && c.info.audio.length){
+        c.silentRestart = true; audioSilentNoted = true;
+        c.info.why = 'audio'; c.restart(c.info); return;
+      }
+    }
     var hint = audioCodecHint(ctx.playRow || '');
     var listed = !!(video.audioTracks && video.audioTracks.length);
     if (!hint && !listed) return;                       // a file that simply has no audio track is not a fault
@@ -7602,7 +7639,7 @@
         });
         puiNote(tc.why === 'video' ? 'Converted by the app: this machine cannot decode the video, so it is re-encoded while it plays.'
           : tc.why === 'file' ? 'Converted by the app: this file comes in a container the player cannot open, so it is repackaged while it plays.'
-          : 'Converted by the app: the audio (' + (audioCodecHint(ctx.playRow || '') || String(tc.info.audio[tc.a].codec || '').toUpperCase()) + ') is turned into a format this device plays.');
+          : 'Converted by the app: the audio (' + (tcBadAudioNames(tc.info) || audioCodecHint(ctx.playRow || '') || String(tc.info.audio[tc.a].codec || '').toUpperCase()) + ') is turned into a format this device plays.');
       } else if (langs.length >= 2){
         var curLang=''; try { (player.getVariantTracks()||[]).forEach(function(v){ if(v.active) curLang=v.language; }); } catch(e){}
         langs.forEach(function(l){
