@@ -212,8 +212,10 @@ function auth(req) {
   return { gid: m[1], g, dev: h };
 }
 function clientIp(req) {
-  return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
-    req.socket.remoteAddress || '?';
+  // the LAST X-Forwarded-For entry is the one nginx (the only thing that reaches this loopback port)
+  // appended or set; the first is whatever the client chose to send, and every per-IP bucket keys off this
+  const xff = (req.headers['x-forwarded-for'] || '').split(',').map((s) => s.trim()).filter(Boolean);
+  return (xff.length ? xff[xff.length - 1] : '') || req.socket.remoteAddress || '?';
 }
 /** A name that is safe as a plain-object key: never one Object.prototype already owns (`constructor`
     reads a function back, `__proto__` rewrites the store's prototype for every lookup after it). */
@@ -221,10 +223,12 @@ function ownKeyOk(k) { return !Object.prototype.hasOwnProperty.call(Object.proto
 
 // ---------- proxy target validation ----------
 function privateIp(ip) {
-  if (/^127\.|^10\.|^0\.|^169\.254\.|^192\.168\./.test(ip)) return true;
+  if (/^127\.|^10\.|^0\.|^169\.254\.|^192\.168\.|^192\.0\.0\.|^198\.1[89]\.|^(22[4-9]|2[3-5]\d)\./.test(ip)) return true;
   const m = /^172\.(\d+)\./.exec(ip);
   if (m && +m[1] >= 16 && +m[1] <= 31) return true;
-  if (ip === '::1' || /^f[cd]/i.test(ip) || /^fe8/i.test(ip)) return true;
+  const c = /^100\.(\d+)\./.exec(ip);                                   // 100.64/10, carrier-grade NAT
+  if (c && +c[1] >= 64 && +c[1] <= 127) return true;
+  if (ip === '::1' || ip === '::' || /^f[cd]/i.test(ip) || /^fe[89ab]/i.test(ip)) return true;   // fe80::/10 is the whole link-local block
   if (/^::ffff:/i.test(ip)) return privateIp(ip.slice(7));
   return false;
 }
