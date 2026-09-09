@@ -215,6 +215,9 @@ function clientIp(req) {
   return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
     req.socket.remoteAddress || '?';
 }
+/** A name that is safe as a plain-object key: never one Object.prototype already owns (`constructor`
+    reads a function back, `__proto__` rewrites the store's prototype for every lookup after it). */
+function ownKeyOk(k) { return !Object.prototype.hasOwnProperty.call(Object.prototype, k); }
 
 // ---------- proxy target validation ----------
 function privateIp(ip) {
@@ -279,11 +282,17 @@ async function handleProxy(req, res, target, ip) {
     const reader = r.body ? r.body.getReader() : null;
     let sent = 0;
     while (reader) {
+      // a client that hung up mid-stream never drains: waiting on 'drain' alone parked this
+      // handler for good, and twenty such hang-ups left the proxy answering "busy" until a restart
+      if (res.destroyed) { ctrl.abort(); break; }
       const { done, value } = await reader.read();
       if (done) break;
       sent += value.length;
       if (sent > PROXY_MAX_BYTES) { ctrl.abort(); break; }
-      if (!res.write(value)) await new Promise((ok) => res.once('drain', ok));
+      if (!res.write(value)) await new Promise((ok) => {
+        const go = () => { res.off('drain', go); res.off('close', go); ok(); };
+        res.once('drain', go); res.once('close', go);
+      });
     }
     res.end();
   } catch (e) {
@@ -456,15 +465,17 @@ const MAX_PROFILE_BYTES = 24 * 1024;
 let socialCodes = {};            // CODE -> gid
 try { socialCodes = JSON.parse(fs.readFileSync(SOCIAL_CODES_PATH, 'utf8')); } catch (e) {}
 let socialCodesTimer = null;
+function writeSocialCodes() {
+  socialCodesTimer = null;
+  try {
+    const tmp = SOCIAL_CODES_PATH + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(socialCodes));
+    fs.renameSync(tmp, SOCIAL_CODES_PATH);
+  } catch (e) {}
+}
 function persistSocialCodes() {
   clearTimeout(socialCodesTimer);
-  socialCodesTimer = setTimeout(() => {
-    try {
-      const tmp = SOCIAL_CODES_PATH + '.tmp';
-      fs.writeFileSync(tmp, JSON.stringify(socialCodes));
-      fs.renameSync(tmp, SOCIAL_CODES_PATH);
-    } catch (e) {}
-  }, 250);
+  socialCodesTimer = setTimeout(writeSocialCodes, 250);
 }
 function newSocialCode() {
   for (let i = 0; i < 40; i++) {
@@ -649,7 +660,10 @@ setInterval(evict, 24 * 3600_000).unref();
 // ---------- routes ----------
 const server = http.createServer((req, res) => {
   const ip = clientIp(req);
-  const u = new URL(req.url, 'http://x');
+  // a request target the URL parser rejects (an absolute-form target naming port 99999, say) is a 400 —
+  // not an uncaught exception that takes the whole process down with it
+  let u;
+  try { u = new URL(req.url, 'http://x'); } catch (e) { return json(res, 400, { error: 'bad request' }); }
   // nginx forwards /cloud/* untouched; direct callers may skip the prefix
   const p = u.pathname.replace(/^\/cloud(?=\/|$)/, '') || '/';
 
@@ -691,6 +705,7 @@ const server = http.createServer((req, res) => {
   if (support.handle(p, req, res, ip)) return;
 
   if (p === '/v1/link' && req.method === 'POST') {
+    if (!allow('link', ip, 2, 12)) return json(res, 429, { error: 'rate limited' });   // codes sit in memory for 15 min
     return readBody(req, (body) => {
       if (!body || !body.gid || !body.secret) return json(res, 400, { error: 'bad request' });
       req.headers.authorization = 'Bearer ' + body.gid + '.' + body.secret;
@@ -721,6 +736,7 @@ const server = http.createServer((req, res) => {
   }
 
   const kvOne = /^\/v1\/kv\/([a-z_][a-z0-9_]{0,31})$/.exec(p);
+  if (kvOne && !ownKeyOk(kvOne[1])) return json(res, 404, { error: 'no such key' });
   if ((p === '/v1/kv' || kvOne) && (req.method === 'GET' || req.method === 'PUT')) {
     if (!allow('kv', ip, 120, 60)) return json(res, 429, { error: 'rate limited' });
     const a = auth(req);
@@ -756,6 +772,8 @@ const server = http.createServer((req, res) => {
 // persist before going down.
 function flushAll() {
   support.flush();
+  profile.flush();                                   // the handle index: a restart right after a create must keep it
+  if (socialCodesTimer) { clearTimeout(socialCodesTimer); writeSocialCodes(); }
   for (const [gid, timer] of dirty) {
     clearTimeout(timer);
     dirty.delete(gid);
@@ -774,4 +792,4 @@ if (require.main === module) {
   }
   server.listen(PORT, '127.0.0.1', () => console.log('nebula-cloud on 127.0.0.1:' + PORT));
 }
-module.exports = { server, privateIp, proxyTargetOk };
+module.exports = { server, privateIp, proxyTargetOk, flushAll };

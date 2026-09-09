@@ -9,7 +9,7 @@ process.env.DATA_DIR = require('fs').mkdtempSync(
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert');
-const { server, privateIp, proxyTargetOk } = require('./server.js');
+const { server, privateIp, proxyTargetOk, flushAll } = require('./server.js');
 
 let base;
 before(async () => {
@@ -718,4 +718,66 @@ test('support: guessing codes is rate limited', async () => {
     assert.equal(r.status, 404);
   }
   assert.ok(limited, 'expected a 429 within 10 guesses');
+});
+
+// ---- the 2026-09-09 review: things one request (or two) could do to the process ----
+test('a request target the URL parser rejects is a 400, and the process is still up', async () => {
+  const net = require('net');
+  const first = await new Promise((ok) => {
+    const s = net.connect(server.address().port, '127.0.0.1', () =>
+      s.write('GET http://a:99999/healthz HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n'));
+    let out = '';
+    s.on('data', (d) => { out += d; });
+    s.on('close', () => ok(out.split('\r\n')[0] || '(no response)'));
+    s.on('error', () => ok('(socket error)'));
+  });
+  assert.match(first, /^HTTP\/1\.1 400/);
+  assert.equal((await fetch(base + '/healthz')).status, 200);
+});
+
+test('two creates of one handle at once: exactly one wins, and it is the one that signs in', async () => {
+  const [a, b] = await Promise.all([
+    api('POST', '/v1/profile', { handle: 'race_me', password: 'password1' }),
+    api('POST', '/v1/profile', { handle: 'race_me', password: 'password2' }),
+  ]);
+  assert.deepEqual([a.status, b.status].sort(), [200, 409]);
+  const winner = a.status === 200 ? 'password1' : 'password2', loser = a.status === 200 ? 'password2' : 'password1';
+  assert.equal((await api('POST', '/v1/profile/signin', { handle: 'race_me', password: winner })).status, 200);
+  assert.equal((await api('POST', '/v1/profile/signin', { handle: 'race_me', password: loser })).status, 401);
+});
+
+test('names Object.prototype owns are never store keys: kv and handles', async () => {
+  const g = await api('POST', '/v1/group');
+  const token = g.body.gid + '.' + g.body.secret;
+  assert.equal((await api('GET', '/v1/kv/constructor', undefined, token)).status, 404);
+  assert.equal((await api('PUT', '/v1/kv/__proto__', { v: 'x' }, token)).status, 404);
+  assert.equal((await api('GET', '/v1/kv/v', undefined, token)).status, 404);            // nothing leaked in
+  assert.equal((await api('PUT', '/v1/kv/progress', { v: '1' }, token)).status, 200);
+  assert.equal((await api('POST', '/v1/profile', { handle: '__proto__', password: 'password1' })).status, 400);
+  assert.equal((await api('POST', '/v1/profile', { handle: 'constructor', password: 'password1' })).status, 400);
+});
+
+test('a malformed sign-in or recovery handle is a 400, not "rate limited"', async () => {
+  assert.equal((await api('POST', '/v1/profile/signin', { handle: 'ab', password: 'password1' })).status, 400);
+  assert.equal((await api('POST', '/v1/profile/recover', { handle: 'ab', key: 'AAAA-AAAA-AAAA-AAAA', password: 'password1' })).status, 400);
+});
+
+test('link codes are rate limited per IP', async () => {
+  const g = await api('POST', '/v1/group');
+  let limited = false;
+  for (let i = 0; i < 40; i++) {
+    const r = await api('POST', '/v1/link', { gid: g.body.gid, secret: g.body.secret });
+    if (r.status === 429) { limited = true; break; }
+    assert.equal(r.status, 200);
+  }
+  assert.ok(limited, 'expected a 429 within 40 mints');
+});
+
+test('flushAll writes the handle index at once — a restart right after a create keeps the handle', async () => {
+  const r = await api('POST', '/v1/profile', { handle: 'flush_me', password: 'password1' });
+  assert.equal(r.status, 200);
+  flushAll();
+  const fs = require('fs'), path = require('path');
+  const idx = JSON.parse(fs.readFileSync(path.join(process.env.DATA_DIR, 'handles.json'), 'utf8'));
+  assert.equal(idx.flush_me, r.body.gid);
 });

@@ -47,19 +47,25 @@ module.exports = function attach(core) {
   const HANDLES_PATH = path.join(DATA_DIR, 'handles.json');
 
   // ---------- handle index (handle -> gid), persisted like the social codes ----------
-  let handles = {};
-  try { handles = JSON.parse(fs.readFileSync(HANDLES_PATH, 'utf8')); } catch (e) {}
+  // a prototype-less map: a handle can never read or rewrite Object.prototype (handleOk refuses those names too)
+  let handles = Object.create(null);
+  try { handles = Object.assign(Object.create(null), JSON.parse(fs.readFileSync(HANDLES_PATH, 'utf8'))); } catch (e) {}
   let handlesTimer = null;
+  function writeHandles() {
+    handlesTimer = null;
+    try {
+      const tmp = HANDLES_PATH + '.tmp';
+      fs.writeFileSync(tmp, JSON.stringify(handles));
+      fs.renameSync(tmp, HANDLES_PATH);
+    } catch (e) {}
+  }
   function persistHandles() {
     clearTimeout(handlesTimer);
-    handlesTimer = setTimeout(() => {
-      try {
-        const tmp = HANDLES_PATH + '.tmp';
-        fs.writeFileSync(tmp, JSON.stringify(handles));
-        fs.renameSync(tmp, HANDLES_PATH);
-      } catch (e) {}
-    }, 250);
+    handlesTimer = setTimeout(writeHandles, 250);
   }
+  /** Write the index now — the process is going down (server.js flushAll). */
+  function flush() { if (handlesTimer) { clearTimeout(handlesTimer); writeHandles(); } }
+  const claiming = new Set();      // handles a create is still hashing for: the second of two at once loses at the door
   function dropHandle(h) { if (h && handles[h]) { delete handles[h]; persistHandles(); } }
   /** The group behind a handle, or null; a stale index entry is dropped on the way. */
   function lookupHandle(h) {
@@ -94,7 +100,7 @@ module.exports = function attach(core) {
 
   // ---------- field hygiene ----------
   function cleanHandle(v) { return String(v == null ? '' : v).trim().toLowerCase().replace(/^@/, ''); }
-  function handleOk(h) { return HANDLE_RE.test(h) && !RESERVED.has(h); }
+  function handleOk(h) { return HANDLE_RE.test(h) && !RESERVED.has(h) && !Object.prototype.hasOwnProperty.call(Object.prototype, h); }
   function passOk(p) { return typeof p === 'string' && p.length >= 8 && p.length <= 128; }
   function cleanName(v) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, 40); }
   function cleanAvatar(v) { const s = String(v || '').toUpperCase(); return AVATARS.indexOf(s) >= 0 ? s : AVATARS[0]; }
@@ -174,37 +180,43 @@ module.exports = function attach(core) {
       const handle = cleanHandle(b.handle), name = cleanName(b.name) || handle;
       if (!handleOk(handle)) return json(res, 400, { error: 'bad handle' });
       if (!passOk(b.password)) return json(res, 400, { error: 'bad password' });
-      if (lookupHandle(handle)) return json(res, 409, { error: 'handle taken' });
-      // with auth the profile wraps the caller's existing sync group (nothing re-syncs);
-      // without, it is a brand-new group
-      let gid, g;
-      const a = req.headers.authorization ? auth(req) : null;
-      if (req.headers.authorization && !a) return json(res, 401, { error: 'unauthorized' });
-      if (a) {
-        if (a.g.profile) return json(res, 409, { error: 'already has a profile' });
-        gid = a.gid; g = a.g;
-      } else {
-        const made = newGroup();
-        if (!made) return json(res, 507, { error: 'full' });
-        gid = made.gid; g = made.g;
-      }
-      const recovery = newRecoveryKey();
-      g.profile = { handle, name, avatar: cleanAvatar(b.avatar), pass: await makeHash(b.password),
-        rec: await makeHash(normKey(recovery)), at: Date.now() };
-      if (g.social) g.social.name = name;
-      handles[handle] = gid;
-      persistHandles();
-      const out = creds(g, gid, cleanDevice(b.device));
-      out.recovery = recovery;
-      return json(res, 200, out);
+      // two creates of one handle in flight together used to BOTH pass this check (the index was only
+      // written after the hashes) — the later one then silently took the handle from the first
+      if (claiming.has(handle) || lookupHandle(handle)) return json(res, 409, { error: 'handle taken' });
+      claiming.add(handle);
+      try {
+        // with auth the profile wraps the caller's existing sync group (nothing re-syncs);
+        // without, it is a brand-new group
+        let gid, g;
+        const a = req.headers.authorization ? auth(req) : null;
+        if (req.headers.authorization && !a) return json(res, 401, { error: 'unauthorized' });
+        if (a) {
+          if (a.g.profile) return json(res, 409, { error: 'already has a profile' });
+          gid = a.gid; g = a.g;
+        } else {
+          const made = newGroup();
+          if (!made) return json(res, 507, { error: 'full' });
+          gid = made.gid; g = made.g;
+        }
+        const recovery = newRecoveryKey();
+        g.profile = { handle, name, avatar: cleanAvatar(b.avatar), pass: await makeHash(b.password),
+          rec: await makeHash(normKey(recovery)), at: Date.now() };
+        if (g.social) g.social.name = name;
+        handles[handle] = gid;
+        persistHandles();
+        const out = creds(g, gid, cleanDevice(b.device));
+        out.recovery = recovery;
+        return json(res, 200, out);
+      } finally { claiming.delete(handle); }
     }
 
     if (p === '/v1/profile/signin' && m === 'POST') {
       if (!allow('signin', ip, 3, SIGNIN_BURST)) return json(res, 429, { error: 'rate limited' });
       const b = await body(req);
       const handle = cleanHandle(b && b.handle);
+      if (!handleOk(handle)) return json(res, 400, { error: 'bad handle' });    // never a "rate limited" for a typo
       // a per-handle bucket too, so one account cannot be brute-forced from many IPs
-      if (!handleOk(handle) || !allow('signin_h', handle, 1, 8)) return json(res, 429, { error: 'rate limited' });
+      if (!allow('signin_h', handle, 1, 8)) return json(res, 429, { error: 'rate limited' });
       const hit = lookupHandle(handle);
       // same answer for "no such handle" and "wrong password" — and the same
       // scrypt cost, so the timing tells nothing either
@@ -217,7 +229,8 @@ module.exports = function attach(core) {
       if (!allow('recover', ip, 0.5, 5)) return json(res, 429, { error: 'rate limited' });
       const b = await body(req);
       const handle = cleanHandle(b && b.handle);
-      if (!handleOk(handle) || !allow('recover_h', handle, 0.2, 4)) return json(res, 429, { error: 'rate limited' });
+      if (!handleOk(handle)) return json(res, 400, { error: 'bad handle' });
+      if (!allow('recover_h', handle, 0.2, 4)) return json(res, 429, { error: 'rate limited' });
       if (!passOk(b && b.password)) return json(res, 400, { error: 'bad password' });
       const hit = lookupHandle(handle);
       if (!hit || !(await checkHash(normKey(b.key), hit.g.profile.rec))) return json(res, 401, { error: 'wrong handle or key' });
@@ -332,5 +345,5 @@ module.exports = function attach(core) {
     return true;
   }
 
-  return { handle, pub, lookupHandle, dropHandle, cleanHandle, deviceList };
+  return { handle, pub, lookupHandle, dropHandle, cleanHandle, deviceList, flush };
 };
