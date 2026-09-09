@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.09.1",
+  "version": "2026.09.09.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Autoplay next episode set to Off now really stops it, series whose ids carry a prefix open the right title from Continue watching, and an add-on's install link can be pasted straight in."
+  "notes": "A fix for the desktop app: a film whose main soundtrack the app has to convert now plays that soundtrack, instead of falling through to a commentary track. Nothing changes in the browser or on a TV."
 }
