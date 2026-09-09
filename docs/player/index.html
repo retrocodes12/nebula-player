@@ -3768,8 +3768,11 @@
     });
   }
 
+  /** What people paste: the manifest URL, or the stremio:// install link add-on sites hand out — the same
+      address behind a scheme only Stremio registers, so it is read as https. */
+  function addonUrlOf(raw){ return String(raw || '').trim().replace(/^stremio:\/\//i, 'https://'); }
   async function addAddonFromUrl(url){
-    url = (url||'').trim();
+    url = addonUrlOf(url);
     if (!/manifest\.json/.test(url)) throw new Error('Not a manifest URL');
     var m = await getJson(url);
     var addons = getAddons();
@@ -3780,7 +3783,7 @@
     return m;
   }
   async function addAddon(){
-    var url = (document.getElementById('addonUrl').value||'').trim();
+    var url = addonUrlOf(document.getElementById('addonUrl').value);
     if (!/manifest\.json/.test(url)){ setStatus('Enter the add-on manifest URL (ends in /manifest.json).', 'err'); return; }
     setStatus('Fetching add-on…', 'info');
     try {
@@ -4269,7 +4272,7 @@
           { icon:'info', label:'View details', fn: function(){
             var a = addonByUrl(r.addonUrl); if (a) ctx.addon = a;
             // the card's id is the episode that was playing; the title page is the series
-            var id = r.type === 'series' ? r.id.split(':')[0] : r.id;
+            var id = r.type === 'series' ? seriesIdOf(r.id) : r.id;
             openDetail({ id: id, type: r.type, name: (r.name||'').split(' · ')[0],
                          poster: r.poster, posterShape: r.shape }, r.type);
           } },
@@ -4826,7 +4829,7 @@
     Object.keys(p).forEach(function(k){ var r = p[k]; if (r && !r.dismissed && r.name && r.id) recent.push(r); });
     recent.sort(function(a,b){ return (b.at||0) - (a.at||0); });
     recent = recent.slice(0, 20).map(function(r){
-      var rootId = r.type === 'series' ? String(r.id).split(':')[0] : r.id;
+      var rootId = r.type === 'series' ? seriesIdOf(r.id) : r.id;
       return { type: r.type, id: r.id, name: r.name, poster: r.poster||'', shape: r.shape||'poster',
         at: r.at, rating: myRating(r.type, rootId) };
     });
@@ -4993,7 +4996,7 @@
             if (!prof){ var e3 = document.createElement('div'); e3.className='empty'; e3.textContent = 'Nothing shared yet.'; detail.appendChild(e3); return; }
             friendRow(detail, (f.name || 'They') + ' watched recently',
               (prof.recent||[]).map(function(r){ return r && r.type === 'series'
-                ? Object.assign({}, r, { id: String(r.id).split(':')[0] }) : r; }), true);
+                ? Object.assign({}, r, { id: seriesIdOf(r.id) }) : r; }), true);
             friendRow(detail, 'Rated', prof.ratings, true);
             friendRow(detail, 'Their list', prof.list, false);
             if (!detail.children.length){ var e4 = document.createElement('div'); e4.className='empty'; e4.textContent = 'Nothing shared yet.'; detail.appendChild(e4); }
@@ -5906,12 +5909,24 @@
   /** Resuming an episode from Continue watching bypasses the picker, so rebuild
       the series chain in the background — otherwise "next episode" is dead there.
       Stremio episode ids are "<seriesId>:<season>:<episode>". */
+  /** The series behind an episode id. "tt123:1:2" → tt123 and "12345:1:2" → 12345 (an imdb or bare id is its
+      own first segment); "kitsu:12345:3" → kitsu:12345 and "tmdb:123:1:2" → tmdb:123 (a prefixed id is its
+      first two). A bare series id comes back as it is, so callers can tell the two apart. */
+  function seriesIdOf(episodeId){
+    var s = String(episodeId || ''), segs = s.split(':');
+    if (segs.length < 2) return s;
+    return /^(tt)?\d+$/i.test(segs[0]) ? segs[0] : segs.slice(0, 2).join(':');
+  }
+  /** "Season 1 · Episode 2" read off an episode id's tail — "Episode 3" when the id carries no season (kitsu:ID:3). */
+  function epKickFromId(id){
+    var s = String(id || ''), root = seriesIdOf(s);
+    if (root === s) return '';
+    var tail = s.slice(root.length + 1).split(':');
+    if (tail.length >= 2) return 'Season ' + tail[tail.length - 2] + ' · Episode ' + tail[tail.length - 1];
+    return tail[0] ? 'Episode ' + tail[0] : '';
+  }
   async function hydrateSeriesChain(type, episodeId){
-    // "tt123:1:2" → series tt123; "kitsu:12345:3" → series kitsu:12345 — an
-    // imdb id is its own first segment, anything else keeps all but the last.
-    var segs = String(episodeId||'').split(':');
-    if (segs.length < 2) return;
-    var seriesId = /^tt\d+$/.test(segs[0]) ? segs[0] : segs.slice(0, -1).join(':');
+    var seriesId = seriesIdOf(episodeId);
     if (!seriesId || seriesId === episodeId) return;
     var seq = ++seriesSeq;
     var res = await fetchSeriesVideos(type, seriesId, seq);
@@ -6009,8 +6024,7 @@
     $id('shArt').innerHTML = '<img src="' + esc(art) + '" alt="" decoding="async" onerror="this.remove()">';
     var kick = '', title = titleText || 'Streams', sub = '';
     if (type === 'series'){
-      var segs = String(id || '').split(':');
-      if (segs.length >= 3) kick = 'Season ' + segs[segs.length - 2] + ' · Episode ' + segs[segs.length - 1];
+      kick = epKickFromId(id);
       // epLabel is "Series · SxEy · Episode name" — the tail is the headline
       var parts = String(titleText || '').split(' · ');
       if (parts.length >= 3){ title = parts.slice(2).join(' · '); sub = parts[0]; }
@@ -6639,10 +6653,7 @@
       // the show's name on top, "S1 E1 · name" under it; an id alone reads Season · Episode
       var ep = playingEpisode();
       if (ep){ $id('puiTitle').textContent = ctx.seriesName || title || ''; $id('puiSub').textContent = epLine(ep); }
-      else {
-        var segs = String(curPlay.id||'').split(':');
-        if (segs.length >= 3) $id('puiSub').textContent = 'Season '+segs[segs.length-2]+' · Episode '+segs[segs.length-1];
-      }
+      else { var kickLine = epKickFromId(curPlay.id); if (kickLine) $id('puiSub').textContent = kickLine; }
       skipLoad(curPlay.id);              // where this episode's recap, titles and credits fall
     }
     setStatus('Loading…','info');
@@ -7445,7 +7456,7 @@
     } else if (r.end > r.start){
       var remain = r.end - t, mins = Math.round(remain / 60);
       chip(mins < 1 ? 'Under a minute left' : (mins + ' min left'));
-      var h = new Date(Date.now() + remain * 1000), hh = h.getHours(), mm = h.getMinutes();
+      var h = new Date(Date.now() + remain * 1000 / (video.playbackRate || 1)), hh = h.getHours(), mm = h.getMinutes();   // at this speed, like the clock line
       chip('Ends ' + (hh % 12 || 12) + ':' + (mm < 10 ? '0' : '') + mm + (hh < 12 ? ' am' : ' pm'));
     }
     var nx = nextEpisode();
@@ -8041,7 +8052,9 @@
     upnextRenderSrc();
     $id('upnext').classList.add('show');
     clearInterval(upnextState.timer);
-    if (!withCountdown || still){ $id('upnextPlay').textContent = 'Play now'; if (still) setTimeout(function(){ if (upnextState.open) $id('upnextPlay').focus(); }, 40); return; }
+    // no countdown: offered early, Still watching?, or Settings › Autoplay next episode = Off — at the end the
+    // card waits for a hand, with Play now under the remote
+    if (!upnextState.counting){ $id('upnextPlay').textContent = 'Play now'; if (withCountdown) setTimeout(function(){ if (upnextState.open) $id('upnextPlay').focus(); }, 40); return; }
     upnextState.left = countdownSecs();      // Settings › Autoplay countdown
     $id('upnextPlay').textContent = 'Play now (' + upnextState.left + ')';
     upnextState.timer = setInterval(function(){
