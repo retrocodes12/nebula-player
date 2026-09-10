@@ -531,8 +531,9 @@
   .s-spec { flex:0 0 auto; text-align:right; font-family:var(--mono); font-size:calc(12px * var(--ts));
     color:var(--label2); line-height:1.55; white-space:nowrap; }
   .s-spec b { display:block; color:var(--label); font-size:calc(14px * var(--ts)); font-weight:600; letter-spacing:-.01em; }
-  .s-spec .s-nwr { display:block; font-style:normal; color:var(--label3); font-size:calc(11px * var(--ts)); letter-spacing:.04em; margin-top:2px; }
+  .s-spec .s-nwr, .s-spec .s-slow { display:block; font-style:normal; color:var(--label3); font-size:calc(11px * var(--ts)); letter-spacing:.04em; margin-top:2px; }
   .stream.nwr .s-plate, .stream.nwr .stream-name { opacity:.7; }
+  .stream.slow .s-plate, .stream.slow .stream-name { opacity:.8; }
   html.tv .s-plate { width:84px; padding:14px 0; }
   html.tv .s-plate b { font-size:calc(20px * var(--ts)); }
   html.tv .s-plate i { font-size:calc(11px * var(--ts)); }
@@ -1077,10 +1078,16 @@
   #skipBtn.show { display:block; animation:upIn .28s var(--ease) both; }
   #pui.idle #skipBtn { bottom:40px; }
   @media (prefers-reduced-motion: reduce){ #skipBtn.show { animation:none; } }
-  /* while a finger or the pointer scrubs, the up-next card and the skip pill (same corner, a higher layer) step out of the card's way */
-  body.scrubbing #upnext, body.scrubbing #skipBtn { visibility:hidden; }
-  /* the Up next card and the Skip pill stay under the subtitles panel while it is open */
-  body.sp-on #upnext, body.sp-on #skipBtn { visibility:hidden; }
+  /* the source offer (this stream keeps stalling; a sibling might not): the skip pill's twin, one step above it */
+  #srcBtn { display:none; position:absolute; right:40px; bottom:212px; z-index:7; padding:11px 20px; font-size:calc(14px * var(--ts));
+    max-width:72vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:background .18s var(--ease), bottom .28s var(--ease); }
+  #srcBtn.show { display:block; animation:upIn .28s var(--ease) both; }
+  #pui.idle #srcBtn { bottom:94px; }
+  @media (prefers-reduced-motion: reduce){ #srcBtn.show { animation:none; } }
+  /* while a finger or the pointer scrubs, the up-next card and the pills (same corner, a higher layer) step out of the card's way */
+  body.scrubbing #upnext, body.scrubbing #skipBtn, body.scrubbing #srcBtn { visibility:hidden; }
+  /* the Up next card and the pills stay under the subtitles panel while it is open */
+  body.sp-on #upnext, body.sp-on #skipBtn, body.sp-on #srcBtn { visibility:hidden; }
   /* the row that matches what you picked last time — same source, same quality */
   .stream.usual { box-shadow:inset 0 0 0 1px rgba(255,255,255,.16); }
   .s-usual { display:block; font-family:var(--mono); font-size:calc(10px * var(--ts)); font-weight:500; letter-spacing:.14em;
@@ -1459,6 +1466,7 @@
     .pui-skip { width:48px; height:48px; }
     .qmenu, #upnext { right:16px; bottom:150px; }
     #skipBtn { right:16px; bottom:150px; }
+    #srcBtn { right:16px; bottom:204px; }
     #pauseBoard { left:16px; top:72px; width:80%; }
     .pb-title { font-size:calc(26px * var(--ts)); }
     .pb-sub { font-size:calc(14px * var(--ts)); }
@@ -1485,6 +1493,7 @@
     .pui-barwrap { order:1; flex:1 1 auto; width:auto; margin:0 10px; }
     .pui-shade-bot { height:210px; }
     #skipBtn, #upnext { bottom:112px; }
+    #srcBtn { bottom:166px; }
     body.pui-on video::-webkit-media-text-track-container { transform:translateY(-150px) !important; }
   }
 
@@ -1603,6 +1612,7 @@
   html.tv .qmenu.wide { min-width:392px; }
   html.tv #upnext { width:470px; right:56px; bottom:196px; padding:26px; }
   html.tv #skipBtn { right:56px; bottom:196px; padding:15px 28px; font-size:calc(19px * var(--ts)); }
+  html.tv #srcBtn { right:56px; bottom:266px; padding:15px 28px; font-size:calc(19px * var(--ts)); }
   html.tv .sp-head { left:56px; right:56px; top:44px; }
   html.tv .sp-title { font-size:calc(36px * var(--ts)); }
   html.tv .sp-cols { left:56px; right:56px; top:124px; bottom:48px; }
@@ -1622,6 +1632,7 @@
   html.tv .sp-set .sp-v { font-size:calc(16.5px * var(--ts)); min-width:120px; }
   html.tv .sp-set .sp-step { width:46px; padding:10px 0; }
   html.tv #pui.idle #skipBtn { bottom:56px; }
+  html.tv #pui.idle #srcBtn { bottom:126px; }
   html.tv .upnext-title { font-size:calc(24px * var(--ts)); }
   html.tv #pauseBoard { left:56px; top:136px; width:50%; max-width:900px; }
   html.tv .pb-kick { font-size:calc(14px * var(--ts)); margin-bottom:18px; }
@@ -1744,7 +1755,7 @@
   html.rm .card.focusable:focus-visible { transform:none; }
   html.rm .skel .thumb, html.rm .card-label.sk, html.rm .sk-line, html.rm .sk-box, html.rm .sk-blob, html.rm .sk-head, html.rm .sk-chip { animation:none; background:var(--l1); }
   html.rm .qmenu.open, html.rm #subPanel.open .sp-cols, html.rm .hf-art img, html.rm .hf-info { animation:none; }
-  html.rm #upnext.show, html.rm #skipBtn.show, html.rm #pui.pb-on #pauseBoard { animation:none; }
+  html.rm #upnext.show, html.rm #skipBtn.show, html.rm #srcBtn.show, html.rm #pui.pb-on #pauseBoard { animation:none; }
   html.rm .hf-dot, html.rm .con-item, html.rm .navitem, html.rm .chip, html.rm .stream, html.rm .addon { transition:none; }
   /* the Settings console: Essential hides the rows (and whole sections) marked for Everything */
   #setConsole.ess [data-lvl="all"] { display:none; }
@@ -1945,6 +1956,7 @@
     </div>
     <!-- offered over a recap or the opening titles; OK / Enter takes it when it has focus -->
     <button id="skipBtn" class="pui-btn focusable" type="button">Skip intro</button>
+    <button id="srcBtn" class="pui-btn focusable" type="button"></button>
   </div>
 
   <!-- nav rail (Home / Search / Add-ons) -->
@@ -2276,6 +2288,10 @@
         <div class="setrow">
           <span class="setname">Wait for add-ons before choosing<small>How long a slow add-on gets before the pick is made</small></span>
           <span id="setPickWait" class="seg"></span>
+        </div>
+        <div class="setrow">
+          <span class="setname">Streams your connection cannot carry<small>Measured while you watch · Marked rows are never picked for you · Move down keeps them under the ones that fit</small></span>
+          <span id="setSlowMark" class="seg"></span>
         </div>
       </section>
       <section class="con-sec panel" data-sec="addons">
@@ -2898,6 +2914,7 @@
         else if (k===39){ seekBy(seekStepSecs()); }
         else if (k===32){ togglePlay(); }
         else if (k===13 && document.activeElement && document.activeElement.id === 'skipBtn'){ skipNow(); }
+        else if (k===13 && document.activeElement && document.activeElement.id === 'srcBtn'){ srcSwap(); }
         else if (k===13){ setTimeout(function(){ $id('puiPlay').focus(); }, 30); }
         e.preventDefault(); return;
       }
@@ -5429,6 +5446,8 @@
     var line2 = [f.bitrate, f.seeds ? f.seeds + ' seeds' : ''].filter(Boolean).join(' · ');
     if (line2) spec += esc(line2);
     // the add-on's own word that this row needs a native player (headers, a gated host): say so, rather than a "Format error" later
+    // faster than this device has measured its connection to be (Settings › Streams): no buffer saves such a row
+    if (streamSlow(s, f)){ spec += '<i class="s-slow">may stall here</i>'; card.className += ' slow'; }
     if (s.behaviorHints && s.behaviorHints.notWebReady){ spec += '<i class="s-nwr">may not play here</i>'; card.className += ' nwr'; }
     card.innerHTML =
       (plate ? '<span class="s-plate"><b>' + plate.r + '</b>' + (plate.t ? '<i>' + plate.t + '</i>' : '') + '</span>'
@@ -5447,6 +5466,7 @@
       var go = function(){ ctx.pickedFrom = streamSig(s, addon); savePick(ctx.pickedFrom); ctx.playSig = ctx.pickedFrom; playStream(s); };
       if (resumeAskDue()) resumeAsk(go); else go();
     };
+    card.__s = s; card.__a = addon;                // the row's own stream, for a mid-play switch to a sibling (stallCandidates)
     return card;
   }
 
@@ -6104,15 +6124,53 @@
     var out = min ? streams.filter(function(s){ var r = streamRank(s); return !r || r >= min; }) : streams.slice();
     // rows the add-on marks not web-ready sink below the rest under every order — they rarely play in a browser engine
     var nwr = function(s){ return !!(s.behaviorHints && s.behaviorHints.notWebReady); };
-    if (sort !== 'quality' && sort !== 'size') return out.filter(function(s){ return !nwr(s); }).concat(out.filter(nwr));
-    var keyed = out.map(function(s, i){ return { s: s, i: i, r: streamRank(s), b: streamSizeBytes(s), n: nwr(s) ? 1 : 0 }; });
-    keyed.sort(function(x, y){
-      if (x.n !== y.n) return x.n - y.n;
-      if (sort === 'quality'){ if (y.r !== x.r) return y.r - x.r; }
-      else { var bx = x.b || Infinity, by = y.b || Infinity; if (bx !== by) return bx - by; }   // unknown sizes last
-      return x.i - y.i;
-    });
-    return keyed.map(function(k){ return k.s; });
+    var ordered;
+    if (sort !== 'quality' && sort !== 'size') ordered = out.filter(function(s){ return !nwr(s); }).concat(out.filter(nwr));
+    else {
+      var keyed = out.map(function(s, i){ return { s: s, i: i, r: streamRank(s), b: streamSizeBytes(s), n: nwr(s) ? 1 : 0 }; });
+      keyed.sort(function(x, y){
+        if (x.n !== y.n) return x.n - y.n;
+        if (sort === 'quality'){ if (y.r !== x.r) return y.r - x.r; }
+        else { var bx = x.b || Infinity, by = y.b || Infinity; if (bx !== by) return bx - by; }   // unknown sizes last
+        return x.i - y.i;
+      });
+      ordered = keyed.map(function(k){ return k.s; });
+    }
+    // Settings › Streams your connection cannot carry = Mark and move down: the rows this device cannot keep up with sink
+    // under the ones that fit, whatever the order above chose (the not-web-ready rows stay last of all)
+    if (slowMarkMode() !== 'move' || !bwGet()) return ordered;
+    var fits = [], slow = [], last = [];
+    ordered.forEach(function(s){ (nwr(s) ? last : streamSlow(s) ? slow : fits).push(s); });
+    return fits.concat(slow, last);
+  }
+  // ---- what this connection carries: measured while something plays, remembered per device ----
+  var BW_KEY = 'bw_v1';
+  /** Bits per second this device has measured, or 0 when nothing recent was measured (30 days). */
+  function bwGet(){ try { var b = JSON.parse(LS.getItem(BW_KEY) || 'null'); return (b && b.bps > 0 && Date.now() - b.at < 30 * 864e5) ? b.bps : 0; } catch(e){ return 0; } }
+  function bwNote(bps){
+    var old = bwGet(), v = Math.round(old ? old * 0.6 + bps * 0.4 : bps);   // weighted toward the newest play, never one sample
+    try { LS.setItem(BW_KEY, JSON.stringify({ bps: v, at: Date.now() })); } catch(e){}
+  }
+  /** "1h 52min", "112 min" or "112" → seconds; 0 when the meta does not say. */
+  function runtimeSecs(rt){
+    var s = String(rt || ''), h = s.match(/(\d+)\s*h/i), m = s.match(/(\d+)\s*m/i);
+    if (h || m) return (h ? Number(h[1]) * 3600 : 0) + (m ? Number(m[1]) * 60 : 0);
+    var n = parseInt(s, 10); return n > 0 ? n * 60 : 0;
+  }
+  /** What a row needs, in bits per second: its stated rate, else its size over the title's running time; 0 when it does not say. */
+  function streamBps(s, f){
+    var m = String((f && f.bitrate) || s.title || s.description || '').match(RE_BITRATE);
+    if (m) return Number(m[1]) * 1e6;
+    var bytes = streamSizeBytes(s), secs = runtimeSecs(ctx.item && ctx.item.runtime);
+    return (bytes > 0 && secs > 0) ? bytes * 8 / secs : 0;
+  }
+  function slowMarkMode(){ var v = getPrefs().slowMark; return (v === 'mark' || v === 'off') ? v : 'move'; }
+  /** A row faster than four fifths of what this device measured — the ones no buffer can save. */
+  function streamSlow(s, f){
+    if (slowMarkMode() === 'off') return false;
+    var bw = bwGet(); if (!bw) return false;
+    var need = streamBps(s, f || null);
+    return need > 0 && need > bw * 0.8;
   }
   /** Settings › When you come back = Ask: the first Play of a picked-up title asks, unless the resume row was answered. */
   function resumeAskDue(){
@@ -6157,7 +6215,8 @@
       if (lastKeyAt > openedAt || lastPointerAt > openedAt) return;
       var sv = document.querySelector('.view.active'); if (!sv || sv.id !== 'view-streams') return;
       var row = apMode === 'same' ? list.querySelector('.stream.usual') : null;
-      if (!row) row = list.querySelector('.stream:not(.skel)');
+      // never a row this connection cannot carry, nor one the add-on says will not play here, while another is there
+      if (!row) row = list.querySelector('.stream:not(.skel):not(.slow):not(.nwr)') || list.querySelector('.stream:not(.skel)');
       if (!row) return;
       setStatus('Playing the best stream for you.', 'info');
       row.click();
@@ -6305,6 +6364,7 @@
     curPlay = null;
     closeUpNext();
     skipReset();
+    stallReset();
     pauseBoardHide();
     pinfoSet(false);
     subOffsetReset();
@@ -6760,7 +6820,9 @@
     // for, which holds for this one play. Handing the offset to Shaka's load()
     // starts buffering there, rather than loading at 0 and seeking.
     var fresh = ctx.startOver === true; ctx.startOver = false;
-    var startAt = (curPlay && !fresh) ? resumeAt(curPlay.type, curPlay.id) : 0;
+    // a source switch mid-play (srcSwap) carries its exact second over, under the resume floor or not
+    var swapAt = ctx.swapAt > 0 ? ctx.swapAt : 0, swapName = ctx.swapName || ''; ctx.swapAt = 0; ctx.swapName = '';
+    var startAt = swapAt || ((curPlay && !fresh) ? resumeAt(curPlay.type, curPlay.id) : 0);
     // The desktop shell's FFmpeg steps in for a plain file Chromium cannot decode (Dolby / DTS audio, HEVC without
     // hardware). When the stream row already says so (DDP, DTS, x265…) the file is probed first; otherwise it starts
     // at once and a probe runs beside it, restarting through the shell only if it turns out to be needed.
@@ -6795,7 +6857,7 @@
       loaded = true;
       // the safety net: a file that looked ordinary but Chromium cannot voice restarts through the shell
       if (tcLater) tcCheckProbe(tcc).then(function(){ tcDecide(tcc, seq); });
-      setStatus(startAt ? ('Resumed from ' + fmtT(startAt) + '.') : (fresh ? 'Starting from the beginning.' : 'Playing.'), 'ok');
+      setStatus(swapName ? ('Switched to ' + swapName + '.') : startAt ? ('Resumed from ' + fmtT(startAt) + '.') : (fresh ? 'Starting from the beginning.' : 'Playing.'), 'ok');
       try { await video.play(); } catch(e){}
       $id('puiSpin').style.display = 'none';
       puiRefreshButtons(); puiTick();
@@ -7386,6 +7448,8 @@
     // once we're near the end
     progTicks++;
     if (!video.paused && progTicks % 10 === 0) flushProgress(false);
+    if (!video.paused && progTicks % 10 === 5) bwSample();                 // what this line carries: the list's marks and the player's own picks
+    if (stall.shownAt && Date.now() - stall.shownAt > 60000) srcHide();   // an offer nobody took lapses once playback has settled
     sleepTick();
     if (!live && span > 0) skipTick(t);
     // a sleep timer set to the end of this episode means exactly that: nothing
@@ -7561,14 +7625,14 @@
     if (st && st.streamBandwidth) row('Stream', fmtBits(st.streamBandwidth));
     if (st && st.estimatedBandwidth) row('Connection', fmtBits(st.estimatedBandwidth), st.streamBandwidth && st.estimatedBandwidth < st.streamBandwidth * 1.15);
     var ahead = 0; try { var b = video.buffered; if (b && b.length) ahead = b.end(b.length-1) - video.currentTime; } catch(e){}
-    var goal = bufferTarget();
-    row('Buffer', (ahead > 0 ? ahead.toFixed(1) : '0.0') + ' s ahead' + (goal ? ' · aims for ' + bufferLabel(goal) : ''), ahead < 3 && !video.paused);
+    var goal = bufferTarget(), pre = bufferPrefetch();
+    row('Buffer', (ahead > 0 ? ahead.toFixed(1) : '0.0') + ' s ahead' + (goal ? ' · aims for ' + bufferLabel(goal) : '') + (pre > 1 ? ' · ' + pre + ' pieces at a time' : ''), ahead < 3 && !video.paused);
     var dropped = null, decoded = null;
     if (st && st.decodedFrames){ dropped = st.droppedFrames; decoded = st.decodedFrames; }
     else { try { var q = video.getVideoPlaybackQuality(); dropped = q.droppedVideoFrames; decoded = q.totalVideoFrames; } catch(e){} }
     if (decoded) row('Dropped frames', dropped + ' of ' + decoded, decoded > 100 && dropped / decoded > 0.01);
     if (puiIsLive() && st && isFinite(st.liveLatency) && st.liveLatency > 0) row('Behind live', st.liveLatency.toFixed(1) + ' s');
-    if (st && st.stallsDetected) row('Stalls', String(st.stallsDetected), st.stallsDetected > 2);
+    if (stall.total) row('Stalls', stall.total + ' this play', stall.total > 2);
     if (video.playbackRate !== 1) row('Speed', video.playbackRate + '×');
     if (lastPlay && lastPlay.keys) row('Encryption', 'Decrypted on device');
     if (subOffset) row('Subtitle timing', (subOffset > 0 ? '+' : '−') + Math.abs(subOffset).toFixed(1) + ' s');
@@ -7945,17 +8009,25 @@
   // so one hiccup is not three. The engine steps its goal down by itself when the set's media memory runs out
   // (a quota error, 3017), so the longest setting is safe on a small TV. The converter follows with its own
   // target (tcAheadGoal); a plain file is the browser's to buffer and ignores this.
-  var BUFFER_STEPS = { 60: 3, 120: 4, 240: 5 };                  // seconds ahead → seconds gathered again after a stall
+  // seconds ahead → [seconds gathered again after a stall, segments fetched side by side]. The engine fetches one segment at
+  // a time by default, so every piece pays the round trip to the CDN before the next starts — on a far-away CDN most of each
+  // fetch is that wait, and two to four in flight hide it entirely.
+  var BUFFER_STEPS = { 60: [3, 2], 120: [4, 3], 240: [5, 4] };
   function bufferSecs(){ var n = Number(getPrefs().buffer); return BUFFER_STEPS[n] ? n : 0; }
   function bufferLabel(n){ return n >= 60 ? (n / 60) + ' min' : n + ' s'; }
   function applyBufferPolicy(){
     if (!player || player.tc) return;
-    var n = bufferSecs(), d = null;
+    var n = bufferSecs(), st = BUFFER_STEPS[n], d = null;
     try { d = shaka.util.PlayerConfiguration.createDefault().streaming; } catch(e){}
     try {
-      player.configure({ streaming: n ? { bufferingGoal: n, rebufferingGoal: BUFFER_STEPS[n] }
-        : { bufferingGoal: d ? d.bufferingGoal : 10, rebufferingGoal: d ? d.rebufferingGoal : 0 } });
+      player.configure({ streaming: st ? { bufferingGoal: n, rebufferingGoal: st[0], segmentPrefetchLimit: st[1] }
+        : { bufferingGoal: d ? d.bufferingGoal : 10, rebufferingGoal: d ? d.rebufferingGoal : 0, segmentPrefetchLimit: d ? d.segmentPrefetchLimit : 1 } });
     } catch(e2){}
+  }
+  /** How many segments the engine fetches side by side (Buffer ahead's second dial); 0 outside the engine's own playback. */
+  function bufferPrefetch(){
+    try { if (player && player.getLoadMode && player.getLoadMode() === shaka.Player.LoadMode.MEDIA_SOURCE) return Number(player.getConfiguration().streaming.segmentPrefetchLimit) || 0; } catch(e){}
+    return 0;
   }
   /** What the buffer is aiming for right now: the converter's target, the engine's goal, or nothing for a plain file. */
   function bufferTarget(){
@@ -8278,6 +8350,129 @@
     skipShow(hit.kind);
   }
   $id('skipBtn').onclick = function(){ skipNow(); };
+
+  // ---- the stall watchdog: a source that keeps stopping is offered a sibling, mid-play ----
+  // Three stalls inside ninety seconds — counted off the element itself, never a play's first buffering nor the one a jump
+  // causes — and the row after this one in the list (a different source; one this connection carries, before one it does
+  // not) goes on a pill like the skip's. One press switches with the second kept. A party viewer follows the host instead.
+  var stall = { times: [], total: 0, seekAt: 0, playedAt: 0, sib: null, shownAt: 0, offered: false, busy: false };
+  function stallReset(){ stall.times = []; stall.total = 0; stall.seekAt = 0; stall.playedAt = 0; stall.offered = false; stall.busy = false; srcHide(); }
+  function stallOnPlaying(){ if (!stall.playedAt) stall.playedAt = Date.now(); }
+  function stallOnSeeking(){ stall.seekAt = Date.now(); }
+  function stallOnWaiting(){
+    if (!player || !stall.playedAt || video.paused) return;            // nothing has played yet: that is the start, not a stall
+    var now = Date.now();
+    if (now - stall.seekAt < 2500) return;                              // a jump buffers by design
+    var last = stall.times[stall.times.length - 1] || 0;
+    if (now - last < 3000) return;                                      // one stall, not one per hiccup inside it
+    stall.times.push(now); stall.total++;
+    while (stall.times.length && now - stall.times[0] > 90000) stall.times.shift();
+    if (stall.times.length >= 3 && !stall.offered && !stall.busy) stallOffer();
+  }
+  /** The rows on screen for what is playing (the list stays behind while the player is up), else nothing. */
+  function stallCandidates(cur){
+    var out = [];
+    if (!lastStreamsReq || lastStreamsReq.id !== cur.id) return out;
+    var rows = document.querySelectorAll('#streamList .stream:not(.skel)');
+    for (var i = 0; i < rows.length; i++) if (rows[i].__s) out.push({ s: rows[i].__s, a: rows[i].__a });
+    return out;
+  }
+  /** The list openStreams would build, fetched again — for an episode reached by autoplay, whose rows were never on screen. */
+  async function fetchSiblings(type, id){
+    var act = activeAddons(), out = [];
+    var origin = (ctx.addon && act.some(function(a){ return a.url === ctx.addon.url; })) ? ctx.addon : null;
+    var order = origin ? [origin] : [];
+    act.forEach(function(a){ if (!origin || a.url !== origin.url) order.push(a); });
+    await Promise.all(order.map(async function(a){
+      try {
+        var m = await getManifest(a.url);
+        if (!(origin && a.url === origin.url) && !canStream(m, type, id)) return;
+        var d = await getJson(a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json');
+        streamsForList((d.streams || []).filter(function(s){ return s.url; })).forEach(function(s){ out.push({ s: s, a: a }); });
+      } catch(e){}
+    }));
+    return out;
+  }
+  function stallCurSig(cands, curUrl){
+    for (var i = 0; i < cands.length; i++) if (cands[i].s.url === curUrl) return streamSig(cands[i].s, cands[i].a);
+    return ctx.playSig || null;
+  }
+  /** The next row after the one playing, round the list: not its twin, not one the add-on says will not play here, and one this connection carries before one it cannot. */
+  function stallPick(cands, curUrl, curSig){
+    var n = cands.length, start = 0, i, pass, k;
+    for (i = 0; i < n; i++) if (cands[i].s.url === curUrl){ start = i + 1; break; }
+    for (pass = 0; pass < 2; pass++){
+      for (k = 0; k < n; k++){
+        var c = cands[(start + k) % n];
+        if (c.s.url === curUrl) continue;
+        if (c.s.behaviorHints && c.s.behaviorHints.notWebReady) continue;
+        if (curSig && isTwin(c.s, curSig, c.a)) continue;
+        if (pass === 0 && streamSlow(c.s)) continue;
+        return c;
+      }
+    }
+    return null;
+  }
+  async function stallOffer(){
+    if (party && !party.isHost) return;
+    stall.busy = true;
+    var my = playSeq, c = null;
+    try {
+      var cur = curPlay, curUrl = lastPlay ? lastPlay.url : '';
+      if (cur && cur.id){
+        var cands = stallCandidates(cur);
+        if (!cands.length) cands = await fetchSiblings(cur.type, cur.id);
+        if (my === playSeq) c = stallPick(cands, curUrl, stallCurSig(cands, curUrl));
+      }
+    } catch(e){}
+    stall.busy = false;
+    if (my !== playSeq) return;
+    stall.offered = true;
+    if (c) srcShow(c);
+    else setStatus('This source keeps stalling — another stream from the list may do better.', 'info', 7000);
+  }
+  function srcName(c){
+    var n = cleanStreamName(c.s.name, c.a && c.a.name) || (c.a && c.a.name) || 'another stream';
+    return n.length > 30 ? n.slice(0, 29) + '…' : n;
+  }
+  function srcShow(c){
+    stall.sib = c; stall.shownAt = Date.now();
+    var b = $id('srcBtn');
+    b.textContent = 'Keeps stalling · Try ' + srcName(c);
+    b.classList.add('show');
+    // the pill takes focus unless the viewer is busy in the controls, so OK switches
+    var ae = document.activeElement;
+    if (pui.className === 'idle' || !ae || ae === document.body || ae === pui || ae.id === 'puiPlay'){ try { b.focus({ preventScroll:true }); } catch(e){ b.focus(); } }
+  }
+  function srcHide(){
+    var b = $id('srcBtn'); if (!b) return;
+    stall.sib = null; stall.shownAt = 0;
+    if (!b.classList.contains('show')) return;
+    b.classList.remove('show');
+    if (document.activeElement === b){ if (pui && pui.className !== 'idle') $id('puiPlay').focus(); else b.blur(); }
+  }
+  /** The pill, or OK while it has focus: the sibling plays on from this exact second, and the next episodes follow it. */
+  function srcSwap(){
+    var c = stall.sib; if (!c) return;
+    srcHide();
+    try { flushProgress(true); } catch(e){}
+    ctx.swapAt = 0;
+    try { if (!puiIsLive()){ var r = puiRange(); ctx.swapAt = Math.max(0, video.currentTime - r.start); } } catch(e2){}
+    ctx.swapName = srcName(c);
+    ctx.startOver = false; ctx.resumeChosen = true;
+    ctx.pickedFrom = streamSig(c.s, c.a); savePick(ctx.pickedFrom); ctx.playSig = ctx.pickedFrom;
+    setStatus('Switching to ' + ctx.swapName + '…', 'info');
+    playStream(c.s);
+  }
+  $id('srcBtn').onclick = function(){ srcSwap(); };
+  /** Every ~5 s of play, 20 s in (the first seconds measure the seed, not the line): the engine's own bandwidth estimate, kept for the list. */
+  function bwSample(){
+    if (!player || !stall.playedAt || Date.now() - stall.playedAt < 20000) return;
+    try {
+      if (!(player.getLoadMode && player.getLoadMode() === shaka.Player.LoadMode.MEDIA_SOURCE)) return;
+      var st = player.getStats(); if (st && st.estimatedBandwidth > 0) bwNote(st.estimatedBandwidth);
+    } catch(e){}
+  }
 
   // ---- picture-in-picture (browsers that support it) + desktop mini player ----
   var miniOn = false;
@@ -8624,6 +8819,10 @@
   video.addEventListener('play', function(){ if (party && party.isHost) party.dirty = true; });
   video.addEventListener('pause', function(){ if (party && party.isHost) party.dirty = true; });
   video.addEventListener('seeked', function(){ if (party && party.isHost) party.dirty = true; });
+  // the stall watchdog reads the element itself, so a plain file and a converted one count the same as a segmented stream
+  video.addEventListener('waiting', stallOnWaiting);
+  video.addEventListener('seeking', stallOnSeeking);
+  video.addEventListener('playing', stallOnPlaying);
 
   video.addEventListener('play', function(){ sleepState.fired = false; puiSyncPlayIcon(); puiShow(); });
   video.addEventListener('pause', function(){ puiSyncPlayIcon(); puiShow(); });
@@ -9791,6 +9990,7 @@
     segChips('setAddonMark', [['Initial','initial'], ['Name','name'], ['Hidden','hidden']], pr.addonMark === 'name' || pr.addonMark === 'hidden' ? pr.addonMark : 'initial', function(v){ setPref('addonMark', v); });
     segChips('setAutoPick', [['Off','off'], ['Same as last time','same'], ['First stream','first']], pr.autoPick === 'same' || pr.autoPick === 'first' ? pr.autoPick : 'off', function(v){ setPref('autoPick', v); });
     segChips('setPickWait', [['3 s',3], ['6 s',6], ['10 s',10]], pickWaitSecs(), function(v){ setPref('pickWait', v); });
+    segChips('setSlowMark', [['Mark and move down','move'], ['Mark only','mark'], ['Ignore','off']], slowMarkMode(), function(v){ setPref('slowMark', v); });
     // ---- advanced ----
     segChips('setFastRows', [['On', true], ['Off', false]], pr.fastRows !== false, function(v){ setPref('fastRows', v); });
     segChips('setWelcome', [['Show', true], ['Hide', false]], pr.welcome !== false, function(v){ setPref('welcome', v); });
