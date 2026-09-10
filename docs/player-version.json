@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.09.2",
+  "version": "2026.09.10.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "A fix for the desktop app: a film whose main soundtrack the app has to convert now plays that soundtrack, instead of falling through to a commentary track. Nothing changes in the browser or on a TV."
+  "notes": "A new Buffer ahead choice in Settings, under Playback: load one, two or four minutes of video ahead of yourself so a shaky connection stops interrupting you. Auto stays the way it was. The playback info panel now says what the buffer is aiming for."
 }
