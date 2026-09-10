@@ -2196,6 +2196,10 @@
           <span class="setname">Resolution cap<small>Never above this, whatever the connection allows</small></span>
           <span id="setMaxRes" class="seg"></span>
         </div>
+        <div class="setrow">
+          <span class="setname">Buffer ahead<small>How much video is loaded ahead of you · Longer rides out a shaky connection, takes more memory and a moment longer after a jump · A live stream can only run as far as it has been broadcast</small></span>
+          <span id="setBuffer" class="seg"></span>
+        </div>
         <div class="setrow" data-lvl="all">
           <span class="setname">Preferred audio language<small>Picked when a stream carries it</small></span>
           <span id="setAudioLang" class="pstep"></span>
@@ -6469,15 +6473,24 @@
     try { var b = tc.sb.buffered, t = video.currentTime; for (var i = 0; i < b.length; i++) if (b.start(i) <= t + 0.5 && b.end(i) >= t) return b.end(i) - t; } catch(e){}
     return 0;
   }
+  /** How far ahead the converter runs: Settings › Buffer ahead when set, the stock 45 s otherwise, never past what the element's memory took last time. */
+  function tcAheadGoal(){ return Math.min(Math.max(TC_AHEAD, bufferSecs()), (tc && tc.aheadCap) || 240); }
+  /** The element's media memory is full (a quota error mid-append): aim lower for the rest of this session, trim harder behind the playhead, and let the pump refill from tc.next on a clean parser. */
+  async function tcQuota(){
+    if (!tc) return;
+    tc.aheadCap = Math.max(20, Math.floor(Math.min(tcAhead(), tcAheadGoal()) * 0.6));
+    tcCut();
+    await tcRemove(0, Math.max(0, video.currentTime - 10));
+  }
   function tcAppend(buf){
     return new Promise(function(ok, no){
       var sb = tc && tc.sb; if (!sb){ ok(); return; }
       var done = function(){ sb.removeEventListener('updateend', done); sb.removeEventListener('error', bad); ok(); };
-      var bad = function(){ sb.removeEventListener('updateend', done); sb.removeEventListener('error', bad); no(new Error('append failed')); };
+      var bad = function(e){ sb.removeEventListener('updateend', done); sb.removeEventListener('error', bad); no(e && e.name === 'QuotaExceededError' ? e : new Error('append failed')); };
       (async function(){
         while (sb.updating) await tcWait(15);
         sb.addEventListener('updateend', done); sb.addEventListener('error', bad);
-        try { sb.appendBuffer(buf); } catch(e){ bad(); }
+        try { sb.appendBuffer(buf); } catch(e){ bad(e); }
       })();
     });
   }
@@ -6496,7 +6509,7 @@
         var dur = tc.info.duration || 0;
         if (dur && tc.next >= dur - 0.25){ tcFinish(); break; }
         if (tc.flush){ tc.flush = false; await tcRemove(0, 1e9); }
-        if (tcAhead() > TC_AHEAD){ await tcWait(800); continue; }
+        if (tcAhead() > tcAheadGoal()){ await tcWait(800); continue; }
         var ctl = new AbortController(); tc.ctl = ctl;
         var from = tc.next, len = TC_LEN, got = 0, r = null;
         tc.pieceFrom = from;
@@ -6509,7 +6522,10 @@
             if (tc !== session || tc.gen !== my || ctl.signal.aborted){ try { reader.cancel(); } catch(e){} break; }
             await tcAppend(chunk.value); got += chunk.value.length;
           }
-        } catch(e){ if (!ctl.signal.aborted) throw e; }         // a cut piece throws from the reader: that is the restart, not a fault
+        } catch(e){
+          if (e && e.name === 'QuotaExceededError') await tcQuota();   // the buffer is full, not broken: back off and refill
+          else if (!ctl.signal.aborted) throw e;                       // a cut piece throws from the reader: that is the restart, not a fault
+        }
         if (tc !== session || tc.gen !== my) break;
         if (ctl.signal.aborted) continue;                       // a seek or a track change moved tc.next
         if (!got) throw new Error('empty piece');
@@ -6706,6 +6722,7 @@
       });
     } catch(e){}
     applyQualityPolicy();
+    applyBufferPolicy();
     applyLangPrefs();
     player.addEventListener('error', function(ev){ handlePlaybackError(seq, ev.detail || {}); });
     player.addEventListener('adaptation', function(){ if(!puiState.menu) puiRefreshButtons(); });
@@ -7544,7 +7561,8 @@
     if (st && st.streamBandwidth) row('Stream', fmtBits(st.streamBandwidth));
     if (st && st.estimatedBandwidth) row('Connection', fmtBits(st.estimatedBandwidth), st.streamBandwidth && st.estimatedBandwidth < st.streamBandwidth * 1.15);
     var ahead = 0; try { var b = video.buffered; if (b && b.length) ahead = b.end(b.length-1) - video.currentTime; } catch(e){}
-    row('Buffer', (ahead > 0 ? ahead.toFixed(1) : '0.0') + ' s ahead', ahead < 3 && !video.paused);
+    var goal = bufferTarget();
+    row('Buffer', (ahead > 0 ? ahead.toFixed(1) : '0.0') + ' s ahead' + (goal ? ' · aims for ' + bufferLabel(goal) : ''), ahead < 3 && !video.paused);
     var dropped = null, decoded = null;
     if (st && st.decodedFrames){ dropped = st.droppedFrames; decoded = st.decodedFrames; }
     else { try { var q = video.getVideoPlaybackQuality(); dropped = q.droppedVideoFrames; decoded = q.totalVideoFrames; } catch(e){} }
@@ -7921,6 +7939,29 @@
     try {
       player.configure({ abr: { restrictions: { maxHeight: cap }, defaultBandwidthEstimate: q === 'saver' ? 1.5e6 : (q === 'high' ? 30e6 : 1e6) } });
     } catch(e){}
+  }
+  // Settings › Buffer ahead. Auto keeps the engine's own goal (10 s); the longer settings load that much further
+  // ahead, so a stalled source has room to recover unseen, and gather a few seconds after a stall before resuming,
+  // so one hiccup is not three. The engine steps its goal down by itself when the set's media memory runs out
+  // (a quota error, 3017), so the longest setting is safe on a small TV. The converter follows with its own
+  // target (tcAheadGoal); a plain file is the browser's to buffer and ignores this.
+  var BUFFER_STEPS = { 60: 3, 120: 4, 240: 5 };                  // seconds ahead → seconds gathered again after a stall
+  function bufferSecs(){ var n = Number(getPrefs().buffer); return BUFFER_STEPS[n] ? n : 0; }
+  function bufferLabel(n){ return n >= 60 ? (n / 60) + ' min' : n + ' s'; }
+  function applyBufferPolicy(){
+    if (!player || player.tc) return;
+    var n = bufferSecs(), d = null;
+    try { d = shaka.util.PlayerConfiguration.createDefault().streaming; } catch(e){}
+    try {
+      player.configure({ streaming: n ? { bufferingGoal: n, rebufferingGoal: BUFFER_STEPS[n] }
+        : { bufferingGoal: d ? d.bufferingGoal : 10, rebufferingGoal: d ? d.rebufferingGoal : 0 } });
+    } catch(e2){}
+  }
+  /** What the buffer is aiming for right now: the converter's target, the engine's goal, or nothing for a plain file. */
+  function bufferTarget(){
+    if (tc) return tcAheadGoal();
+    try { if (player && player.getLoadMode && player.getLoadMode() === shaka.Player.LoadMode.MEDIA_SOURCE) return Math.round(player.getConfiguration().streaming.bufferingGoal); } catch(e){}
+    return 0;
   }
   function puiRefreshButtons(){
     if (!player) return;
@@ -9617,7 +9658,7 @@
     try { LS.removeItem('prefs_v1'); } catch(e){}
     subStyle = normSubStyle(null); saveSubStyle(); applySubStyle();
     applyPrefs(); settingsRender();
-    try { applyQualityPolicy(); applyLangPrefs(); heroRestart(); } catch(e2){}   // the player and the carousel follow at once
+    try { applyQualityPolicy(); applyBufferPolicy(); applyLangPrefs(); heroRestart(); } catch(e2){}   // the player and the carousel follow at once
     homeSig = null; rowMgr.items = null;
     setStatus('Settings are back to their defaults.', 'ok');
     var f = $id('setReset'); if (f && (IS_TV || kbUsed)){ try { f.focus({ preventScroll: true }); } catch(e){ f.focus(); } }
@@ -9731,6 +9772,7 @@
     segChips('setSpeed', [['1×','1'], ['1.25×','1.25'], ['1.5×','1.5'], ['Last used','last']], pr.speedDefault === '1.25' || pr.speedDefault === '1.5' || pr.speedDefault === 'last' ? pr.speedDefault : '1', function(v){ setPref('speedDefault', v); });
     segChips('setQuality', [['Auto','auto'], ['Start high','high'], ['Data saver','saver']], pr.quality || 'auto', function(v){ setPref('quality', v); applyQualityPolicy(); });
     segChips('setMaxRes', [['No cap','none'], ['720p','720'], ['1080p','1080'], ['1440p','1440']], pr.maxRes === '720' || pr.maxRes === '1080' || pr.maxRes === '1440' ? pr.maxRes : 'none', function(v){ setPref('maxRes', v); applyQualityPolicy(); });
+    segChips('setBuffer', [['Auto','auto'], ['1 min',60], ['2 min',120], ['4 min',240]], bufferSecs() || 'auto', function(v){ setPref('buffer', v); applyBufferPolicy(); });
     stepper('setAudioLang', PREF_LANGS, pr.audioLang || '', function(v){ setPref('audioLang', v); applyLangPrefs(); });
     stepper('setSubLang', PREF_LANGS, pr.subLang || '', function(v){ setPref('subLang', v); applyLangPrefs(); });
     stepper('setSubLang2', [['None', '']].concat(PREF_LANGS.slice(1)), pr.subLang2 || '', function(v){ setPref('subLang2', v); applyLangPrefs(); });
