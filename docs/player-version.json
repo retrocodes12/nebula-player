@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.10.1",
+  "version": "2026.09.11.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "A new Buffer ahead choice in Settings, under Playback: load one, two or four minutes of video ahead of yourself so a shaky connection stops interrupting you. Auto stays the way it was. The playback info panel now says what the buffer is aiming for."
+  "notes": "Play through your PC: a computer on your network can share its cache with your TV, and it holds far more video ahead than the TV's own memory can. When a source keeps stalling, the player now offers a one-press switch to another one and picks up where you were. Streams your connection cannot carry are marked in the list, and the app stops choosing them for you."
 }
