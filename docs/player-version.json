@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.11.1",
+  "version": "2026.09.11.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Play through your PC: a computer on your network can share its cache with your TV, and it holds far more video ahead than the TV's own memory can. When a source keeps stalling, the player now offers a one-press switch to another one and picks up where you were. Streams your connection cannot carry are marked in the list, and the app stops choosing them for you."
+  "notes": "Play through your PC now handles sources whose address redirects, odd ranges and a shared port that stays open; the subtitles panel lists every track a language has."
 }
