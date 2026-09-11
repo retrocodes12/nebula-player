@@ -8,26 +8,26 @@
       "id": "com.nuvio.clearkey.player",
       "title": "Nebula",
       "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
-      "manifestUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.67.0/webosbrew.manifest.json",
+      "manifestUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.68.0/webosbrew.manifest.json",
       "manifest": {
         "id": "com.nuvio.clearkey.player",
-        "version": "1.67.0",
+        "version": "1.68.0",
         "type": "web",
         "title": "Nebula",
         "appDescription": "Nebula — add-on browser + player for webOS. An Apple TV-style player (glass controls, thick rounded scrubber, remaining time), a pause board that shows what is playing and what is next, a playback-info HUD, subtitle timing nudges, a picture-quality policy, a live-edge button, a sleep timer (by minutes or when the episode ends), Start over for anything in progress, Surprise me on series pages, a featured hero board, a Home you arrange yourself (pick the rows and their order), recent searches, a full keyboard shortcut set with a ? sheet on computers, full-bleed title pages with logo art and cast, My List with an upcoming-episode calendar, resume and Continue Watching, next-episode autoplay that keeps your source and quality (the next stream is chosen before this one ends), a Nebula Profile that carries your add-ons, progress and My List to every device (sign the TV in with a code from your phone — no email), friends by @handle, subtitle appearance controls, and search across every catalogue. Opens full on first run. Plays and decrypts every format.",
         "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
         "sourceUrl": "https://github.com/retrocodes12/nebula-player",
         "rootRequired": false,
-        "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.67.0/com.nuvio.clearkey.player_1.67.0_all.ipk",
+        "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.68.0/com.nuvio.clearkey.player_1.68.0_all.ipk",
         "ipkHash": {
-          "sha256": "8d2637d8bdaf44c2cec947bfc0450ba96505e768f84036d11dc5f136d581fcad"
+          "sha256": "a2de7a3021b852221bf8558bcbf332350ce7f0763d556fb92124450c4cc13bd8"
         },
-        "ipkSize": 907992
+        "ipkSize": 915662
       },
       "pool": "main",
       "shortDescription": "Add-on browser + player: library, sync, calendar. Add add-ons by phone QR.",
       "fullDescriptionUrl": "",
-      "version": "1.67.0"
+      "version": "1.68.0"
     },
     {
       "id": "com.nuvio.clearkey.app",
