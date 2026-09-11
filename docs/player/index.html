@@ -6402,14 +6402,17 @@
     // (a plain file was loaded straight from it: that one starts again, direct, from where it was)
     if (ctx.viaRelay && relayErrOwn(d)){
       var wasSrc = ctx.relaySrc; ctx.relaySrc = false;
+      var wasLive = false; try { wasLive = !!(player && player.isLive()); } catch(e){}
       relayDrop();
-      if (wasSrc){
-        var at = 0; try { at = video.currentTime || 0; } catch(e){}
-        ctx.swapAt = at > 1 ? at : 0;
-        playUrl(lastPlay.url, lastPlay.keys, lastPlay.title, lastPlay.subs, lastPlay.mime || undefined);
-        return;
-      }
-      try { player.retryStreaming(); } catch(e){}     // the drop's own toast is the word here
+      // A streaming engine that is only missing segments fetches the rest direct on its own (RECOVERABLE). One that
+      // gave up — CRITICAL, and a live manifest that failed its refresh is exactly that — would sit on a spinner
+      // forever, so the item is started again, direct, from where it was. A live stream starts at the live edge.
+      var retried = false;
+      if (!wasSrc && d && d.severity === 1 && player){ try { retried = player.retryStreaming() !== false; } catch(e){ retried = false; } }
+      if (retried) return;                           // the drop's own toast is the word here
+      var at = 0; try { at = video.currentTime || 0; } catch(e){}
+      ctx.swapAt = (!wasLive && at > 1) ? at : 0;
+      playUrl(lastPlay.url, lastPlay.keys, lastPlay.title, lastPlay.subs, lastPlay.mime || undefined);
       return;
     }
     // RECOVERABLE (severity 1): one gentle in-place retry, reset after healthy playback
@@ -6819,11 +6822,14 @@
     player.addEventListener('trackschanged', function(){ if(!puiState.menu) puiRefreshButtons(); });
     player.addEventListener('buffering', function(ev){ $id('puiSpin').style.display = ev.buffering ? 'block' : 'none'; });
     player.getNetworkingEngine().registerRequestFilter(function(type, request){
-      if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT){
+      var RT = shaka.net.NetworkingEngine.RequestType;
+      if (type === RT.SEGMENT){
         if (!request.headers['Range'] && !request.headers['range']){ request.headers['Range'] = 'bytes=0-'; }
       }
-      // Play through your PC: every address of this stream goes to the sharing computer while it answers
-      if (ctx.viaRelay && relayLive === ctx.viaRelay && request.uris && request.uris.length){
+      // Play through your PC: the stream's own addresses go to the sharing computer while it answers. Only those —
+      // a licence call is a POST the relay would refuse, and a key is nobody else's business (Android does the same
+      // by leaving its DRM reader direct).
+      if (ctx.viaRelay && relayLive === ctx.viaRelay && (type === RT.MANIFEST || type === RT.SEGMENT) && request.uris && request.uris.length){
         request.uris = request.uris.map(function(u){ return /^https?:\/\//i.test(u) ? relayUrl(u) : u; });
       }
     });
@@ -8087,7 +8093,7 @@
   // never does this (a page served over https may not fetch a plain-http address on the LAN), the desktop only shares,
   // and a relay that stops answering mid-stream is dropped for two minutes while the engine carries on direct.
   var relayApi = (IS_DESKTOP && window.nebulaDesktop.relay) ? window.nebulaDesktop.relay : null;
-  var relayDoc = null, relayLive = null, relayDeadAt = 0, relayPullAt = 0, relayShare = null, relayPubSig = '';
+  var relayDoc = null, relayLive = null, relayDeadAt = 0, relayPullAt = 0, relayShare = null, relayPubSig = '', relayPubOn = false;
   function relayMode(){ return getPrefs().relay === 'off' ? 'off' : 'auto'; }
   function relayWanted(){ return IS_TV && !IS_DESKTOP && location.protocol !== 'https:' && relayMode() !== 'off'; }
   function relayLoadDoc(){ try { relayDoc = JSON.parse(LS.getItem('relay_v1') || 'null'); } catch(e){ relayDoc = null; } if (relayDoc && typeof relayDoc !== 'object') relayDoc = null; }
@@ -8138,7 +8144,11 @@
     }).catch(function(){ return null; });
     return Promise.race([work, new Promise(function(ok){ setTimeout(function(){ ok(null); }, 2600); })]);
   }
-  function relayUrl(u){ return ctx.viaRelay.base + '/relay?u=' + encodeURIComponent(u) + '&k=' + encodeURIComponent(ctx.viaRelay.token); }
+  /** An address already pointed at the sharing computer is left alone — wrapping it twice would have it fetch itself. */
+  function relayUrl(u){
+    if (u.indexOf(ctx.viaRelay.base + '/relay?') === 0) return u;
+    return ctx.viaRelay.base + '/relay?u=' + encodeURIComponent(u) + '&k=' + encodeURIComponent(ctx.viaRelay.token);
+  }
   /** The original address behind a relay address (the response filter hands it back to the engine). */
   function relayOrig(u){ var m = /[?&]u=([^&]+)/.exec(u); try { return m ? decodeURIComponent(m[1]) : u; } catch(e){ return u; } }
   function relayIsOwn(u){ return !!(ctx.relayBase && typeof u === 'string' && u.indexOf(ctx.relayBase + '/relay?') === 0); }
@@ -8203,19 +8213,34 @@
     if ($id('setShare')) relayShareChips();
     relayPublish(false);
   }
-  /** Tell the profile's other devices where this computer is, or that it stopped — only when something changed. */
+  /** Tell the profile's other devices where this computer is, or that it stopped — only when something changed.
+      A computer that has not shared in this session never writes "nobody is sharing" over ANOTHER computer's address:
+      one key holds one sharer, and opening Settings on the second PC used to take the TV's relay away. */
   function relayPublish(force){
     if (!relayApi || !cloudLinked()) return;
     var s = relayShare || relayApi.info() || {};
+    if (!s.on && !relayPubOn) return;
     var doc = s.on ? { v: 1, hosts: (s.hosts || []).slice(0, 6), port: s.port, token: s.token, name: s.name || 'PC', plat: s.plat || '', at: Date.now() } : { off: true, at: Date.now() };
     var sig = JSON.stringify([doc.hosts, doc.port, doc.token, !!doc.off]);
     if (!force && sig === relayPubSig) return;
-    cloudApi('PUT', '/v1/kv/relay_v1', { v: JSON.stringify(doc) }).then(function(){ relayPubSig = sig; }).catch(function(){});
+    cloudApi('PUT', '/v1/kv/relay_v1', { v: JSON.stringify(doc) }).then(function(){ relayPubSig = sig; if (doc.off !== true) relayPubOn = true; }).catch(function(){});
   }
   relayLoadDoc();
   if (relayApi){
     relayApi.on(relayShareApply);
-    setInterval(function(){ if (relayShare && relayShare.on){ relayShare = relayApi.info(); relayPublish(false); } }, 60000);
+    // Sharing that came back at launch started before this page could listen, so the shell's first word about it can
+    // be missed — read the state instead of waiting to be told (the publish itself waits a tick: the cloud credential
+    // is read further down this script). Without this the refresh below never ran, and the address a computer
+    // published stayed the one it had at startup however far the network moved under it.
+    relayShare = relayApi.info();
+    setTimeout(function(){ relayPublish(false); }, 0);
+    setInterval(function(){
+      if (!relayShare || !relayShare.on) return;    // off: the shell tells us about any change it makes
+      var was = relayShare;
+      relayShare = relayApi.info() || was;
+      relayPublish(false);                          // the addresses move with the network (Wi-Fi ↔ cable)
+      if (was.bytes !== relayShare.bytes || was.on !== relayShare.on) relayStatusRender();
+    }, 15000);
   }
   function puiRefreshButtons(){
     if (!player) return;
