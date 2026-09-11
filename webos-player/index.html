@@ -6975,8 +6975,9 @@
   // Streams rarely carry subtitles of their own, so the Subtitles menu also asks
   // every installed add-on that advertises Stremio's `subtitles` resource
   // (OpenSubtitles and friends). Only the candidate you actually pick is
-  // downloaded — a popular film lists ~100 of them.
-  var SUB_PER_LANG = 4, SUB_MAX = 60;
+  // downloaded — a popular film lists ~100 of them. The panel shows one language's tracks at a time, so nothing
+  // is gained by hiding any: the caps only guard against a runaway add-on (four per language cut real choices, 09-11).
+  var SUB_PER_LANG = 40, SUB_MAX = 400;
   var subState = { seq:0, loading:false, asked:0, list:[], loaded:{}, urls:[], trackSrc:{} };
   function resetSubs(){
     subState.urls.forEach(function(u){ try { URL.revokeObjectURL(u); } catch(e){} });
