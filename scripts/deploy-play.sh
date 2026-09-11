@@ -37,6 +37,10 @@ ssh -o BatchMode=yes "$VPS" 'set -e
   pm2 reload nebula-cloud --update-env > /dev/null 2>&1 && echo "nebula-cloud reloaded"
   # party.json on the VPS always points at the VPS relay, whatever docs/ says
   printf "{\n  \"server\": \"wss://play.rifflehq.in/party/ws\"\n}\n" > /var/www/nebula-play/party.json'
+# 4b. the TV package: TVs fetch it from this server (the feed's ipkUrl), mirrored from the GitHub
+#     release the feed names and checked against the feed's hash — see scripts/mirror-ipk.sh.
+#     The release must exist before this runs (§10: release first, feed commit, then deploy).
+ssh -o BatchMode=yes "$VPS" bash -s < scripts/mirror-ipk.sh
 
 # 5. verify the live surface
 curl -sf https://play.rifflehq.in/player/ -o /dev/null && echo "live: /player/ 200"

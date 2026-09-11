@@ -7,7 +7,7 @@
   "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
   "sourceUrl": "https://github.com/retrocodes12/nebula-player",
   "rootRequired": false,
-  "ipkUrl": "https://github.com/retrocodes12/nebula-player/releases/download/player-v1.69.0/com.nuvio.clearkey.player_1.69.0_all.ipk",
+  "ipkUrl": "https://play.rifflehq.in/ipk/com.nuvio.clearkey.player_1.69.0_all.ipk",
   "ipkHash": {
     "sha256": "1941b47b5cae4a7b1ed059be76b53e7254c6f9f615821ef99f17b0a71c4825e7"
   },
