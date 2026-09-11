@@ -130,7 +130,10 @@
   .panel details ol { margin:10px 0 0; padding-left:18px; color:var(--ink66); font-size:14px; line-height:1.6; }
   .panel details a { color:var(--ink); }
   .panel details code { font:500 .9em ui-monospace, "SF Mono", Menlo, Consolas, monospace; color:var(--ink); }
-  @media (max-width:820px){ .panel.on { grid-template-columns:1fr; gap:28px; } .panel { padding:32px 26px; } .tabs { display:flex; overflow-x:auto; } }
+  /* one column on a phone, and it may shrink: a bare 1fr's minimum is the content's min width, and the repository
+     address box (max 420px, no wrapping) pushed the whole panel past the screen's edge (Founder's phone, 09-11) */
+  @media (max-width:820px){ .panel.on { grid-template-columns:minmax(0, 1fr); gap:28px; } .panel { padding:32px 26px; } .panel > div { min-width:0; } .codebox { max-width:100%; } .tabs { display:flex; overflow-x:auto; } }
+  @media (max-width:640px){ .codebox code:not(.tvcode) { white-space:normal; word-break:break-all; line-height:1.45; } .codebox code.tvcode { font-size:20px; letter-spacing:.22em; } }
 
   /* feature rows */
   .row2 { display:grid; grid-template-columns:minmax(0, 5fr) minmax(0, 6fr); gap:64px; align-items:center; padding:56px 0; }
