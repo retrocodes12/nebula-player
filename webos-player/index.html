@@ -2212,6 +2212,14 @@
           <span class="setname">Buffer ahead<small>How much video is loaded ahead of you · Longer rides out a shaky connection, takes more memory and a moment longer after a jump · A live stream can only run as far as it has been broadcast</small></span>
           <span id="setBuffer" class="seg"></span>
         </div>
+        <div class="setrow" id="setRelayRow" style="display:none">
+          <span class="setname">Play through your PC<small id="setRelaySub">A computer on your network that is sharing fetches and holds the video for this TV — far more than the TV's own memory can</small></span>
+          <span id="setRelay" class="seg"></span>
+        </div>
+        <div class="setrow" id="setShareRow" style="display:none">
+          <span class="setname">Share with your TV<small id="setShareSub">Fetch and hold video for the TV on your network · Both signed in to the same profile · Windows may ask to allow Nebula on your network</small></span>
+          <span id="setShare" class="seg"></span>
+        </div>
         <div class="setrow" data-lvl="all">
           <span class="setname">Preferred audio language<small>Picked when a stream carries it</small></span>
           <span id="setAudioLang" class="pstep"></span>
@@ -6362,6 +6370,7 @@
     try { socialPublishSoon(); } catch(e){}   // friends see the freshly-watched title
     try { flushProgress(true); } catch(e){}
     curPlay = null;
+    ctx.viaRelay = null; ctx.relaySrc = false;   // the relay's base stays: a late response still maps back
     closeUpNext();
     skipReset();
     stallReset();
@@ -6389,6 +6398,20 @@
   function handlePlaybackError(seq, d){
     if (seq !== playSeq) return;
     var code = d && d.code || 0;
+    // Play through your PC: the sharing computer stopped answering mid-stream — from here the engine fetches direct
+    // (a plain file was loaded straight from it: that one starts again, direct, from where it was)
+    if (ctx.viaRelay && relayErrOwn(d)){
+      var wasSrc = ctx.relaySrc; ctx.relaySrc = false;
+      relayDrop();
+      if (wasSrc){
+        var at = 0; try { at = video.currentTime || 0; } catch(e){}
+        ctx.swapAt = at > 1 ? at : 0;
+        playUrl(lastPlay.url, lastPlay.keys, lastPlay.title, lastPlay.subs, lastPlay.mime || undefined);
+        return;
+      }
+      try { player.retryStreaming(); } catch(e){}     // the drop's own toast is the word here
+      return;
+    }
     // RECOVERABLE (severity 1): one gentle in-place retry, reset after healthy playback
     if (d && d.severity === 1 && player && !didRetry){
       didRetry = true;
@@ -6746,7 +6769,7 @@
     if (!initShaka()) return;
     var seq = ++playSeq;
     didRetry = false;
-    lastPlay = { url: rawUrl, keys: clearKeys || null, title: title || '', subs: subtitles || [] };
+    lastPlay = { url: rawUrl, keys: clearKeys || null, title: title || '', subs: subtitles || [], mime: mimeType || '' };
     // a party host changing streams takes the whole room along
     if (party && party.isHost && party.ws.readyState === 1){
       try { party.ws.send(JSON.stringify({ t:'stream', stream: partyStreamDesc() })); } catch(e){}
@@ -6770,6 +6793,13 @@
       skipLoad(curPlay.id);              // where this episode's recap, titles and credits fall
     }
     setStatus('Loading…','info');
+    // Play through your PC (TV): the sharing computer, when one answers — settled before the engine is built
+    ctx.viaRelay = null; ctx.relayBase = ''; ctx.relaySrc = false;
+    if (/^https?:\/\//i.test(rawUrl)){
+      var rl = await relayResolve();
+      if (seq !== playSeq) return;
+      if (rl){ ctx.viaRelay = rl; ctx.relayBase = rl.base; }
+    }
     player = new shaka.Player();
     try { await player.attach(video); } catch(e){}
     // Be tolerant of flaky CDNs (these are tokenised/proxied sports CDNs): more
@@ -6792,6 +6822,14 @@
       if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT){
         if (!request.headers['Range'] && !request.headers['range']){ request.headers['Range'] = 'bytes=0-'; }
       }
+      // Play through your PC: every address of this stream goes to the sharing computer while it answers
+      if (ctx.viaRelay && relayLive === ctx.viaRelay && request.uris && request.uris.length){
+        request.uris = request.uris.map(function(u){ return /^https?:\/\//i.test(u) ? relayUrl(u) : u; });
+      }
+    });
+    // …and the engine is told the ORIGINAL address it fetched, so a manifest's relative addresses still resolve
+    player.getNetworkingEngine().registerResponseFilter(function(type, response){
+      if (response && relayIsOwn(response.uri)) response.uri = relayOrig(response.uri);
     });
     if (!clearKeys && /\.mpd(\?|#|$)/i.test(rawUrl)){ setStatus('Fetching DRM key…','info'); clearKeys = await resolveLaurlKeys(rawUrl); }
     if (seq !== playSeq) return;
@@ -6851,8 +6889,8 @@
         await tcStart(cleanUrl(rawUrl), tcInfo, startAt, seq);
       }
       // a blob: URL (local file) has no extension — the MIME type stands in
-      else if (startAt) await player.load(cleanUrl(rawUrl), startAt, mimeType || undefined);
-      else await player.load(cleanUrl(rawUrl), null, mimeType || undefined);
+      else if (startAt) await player.load(relayLoadUrl(cleanUrl(rawUrl), mimeType), startAt, mimeType || undefined);
+      else await player.load(relayLoadUrl(cleanUrl(rawUrl), mimeType), null, mimeType || undefined);
       if (seq !== playSeq) return;
       loaded = true;
       // the safety net: a file that looked ordinary but Chromium cannot voice restarts through the shell
@@ -6882,6 +6920,8 @@
     }
     catch(err){
       if (seq !== playSeq) return;
+      // Play through your PC: the sharing computer failed the load — the same thing again, direct (the relay is dropped for a while)
+      if (!loaded && ctx.viaRelay && relayErrOwn(err)){ relayDrop(); return playUrl(rawUrl, clearKeys, title, subtitles, mimeType); }
       var code=(err&&(err.code||err.message))||'unknown'; var extra=err&&err.data?(' — '+JSON.stringify(err.data).slice(0,180)):'';
       // Chromium would not take a plain file the shell could convert: the shell looks at it before anything is said
       if (!loaded && tcc && tcRefused(seq, code)) return;
@@ -7635,6 +7675,7 @@
     if (stall.total) row('Stalls', stall.total + ' this play', stall.total > 2);
     if (video.playbackRate !== 1) row('Speed', video.playbackRate + '×');
     if (lastPlay && lastPlay.keys) row('Encryption', 'Decrypted on device');
+    if (ctx.viaRelay) row('Via', ctx.viaRelay.name + ' on your network');
     if (subOffset) row('Subtitle timing', (subOffset > 0 ? '+' : '−') + Math.abs(subOffset).toFixed(1) + ' s');
     var html = '';
     out.forEach(function(r){
@@ -8034,6 +8075,146 @@
     if (tc) return tcAheadGoal();
     try { if (player && player.getLoadMode && player.getLoadMode() === shaka.Player.LoadMode.MEDIA_SOURCE) return Math.round(player.getConfiguration().streaming.bufferingGoal); } catch(e){}
     return 0;
+  }
+
+  // ---- Play through your PC (TV) · Share with your TV (desktop) ----
+  // The TV's buffer ends where its memory does; a computer on the same network has plenty. The desktop shell runs a
+  // read-ahead cache (relay.js) and publishes its address + a token to the profile's cloud store (`relay_v1`); the TV
+  // reads that, asks the address whether it is sharing, and while it answers sends every request of a stream through it:
+  // the engine's request filter rewrites the addresses, the response filter hands the original back so a manifest's
+  // relative addresses still resolve; a plain file is loaded straight from it. Keys never leave the TV. The web player
+  // never does this (a page served over https may not fetch a plain-http address on the LAN), the desktop only shares,
+  // and a relay that stops answering mid-stream is dropped for two minutes while the engine carries on direct.
+  var relayApi = (IS_DESKTOP && window.nebulaDesktop.relay) ? window.nebulaDesktop.relay : null;
+  var relayDoc = null, relayLive = null, relayDeadAt = 0, relayPullAt = 0, relayShare = null, relayPubSig = '';
+  function relayMode(){ return getPrefs().relay === 'off' ? 'off' : 'auto'; }
+  function relayWanted(){ return IS_TV && !IS_DESKTOP && location.protocol !== 'https:' && relayMode() !== 'off'; }
+  function relayLoadDoc(){ try { relayDoc = JSON.parse(LS.getItem('relay_v1') || 'null'); } catch(e){ relayDoc = null; } if (relayDoc && typeof relayDoc !== 'object') relayDoc = null; }
+  function relaySaveDoc(){ try { if (relayDoc) LS.setItem('relay_v1', JSON.stringify(relayDoc)); else LS.removeItem('relay_v1'); } catch(e){} }
+  function relayUsable(d){ return !!(d && !d.off && d.token && d.port && d.hosts && d.hosts.length); }
+  /** The cloud's word on the sharing computer, at most once a minute (a signed-out TV keeps the last copy it saw). */
+  function relayPull(force){
+    if (!cloudLinked()) return Promise.resolve(relayDoc);
+    if (!force && Date.now() - relayPullAt < 60000) return Promise.resolve(relayDoc);
+    relayPullAt = Date.now();
+    return cloudApi('GET', '/v1/kv/relay_v1').then(function(rec){
+      var d = null; try { d = JSON.parse(rec.v); } catch(e){}
+      relayDoc = d && typeof d === 'object' ? d : null; relaySaveDoc();
+      return relayDoc;
+    }).catch(function(e){ if (e && e.status === 404){ relayDoc = null; relaySaveDoc(); } return relayDoc; });
+  }
+  function fetchTimeout(url, ms){
+    var ctl = null; try { ctl = new AbortController(); } catch(e){}
+    var t = ctl ? setTimeout(function(){ ctl.abort(); }, ms) : null;
+    var opts = { cache: 'no-store' }; if (ctl) opts.signal = ctl.signal;
+    return fetch(url, opts).then(function(r){ clearTimeout(t); return r; }, function(e){ clearTimeout(t); throw e; });
+  }
+  /** Ask every published address at once whether it is sharing (a PC lists its virtual adapters too); the first to answer is the relay. */
+  function relayProbe(d){
+    if (!relayUsable(d)) return Promise.resolve(null);
+    var hosts = d.hosts.slice(0, 6);
+    return new Promise(function(done){
+      var left = hosts.length, settled = false;
+      function finish(v){ if (!settled){ settled = true; done(v); } }
+      function miss(){ if (--left <= 0) finish(null); }
+      hosts.forEach(function(h){
+        var base = 'http://' + h + ':' + d.port;
+        fetchTimeout(base + '/relay/healthz?k=' + encodeURIComponent(d.token), 1800)
+          .then(function(r){ return r && r.ok ? r.json() : null; })
+          .then(function(j){ if (j && j.ok) finish({ base: base, token: d.token, name: d.name || j.name || 'Your PC', at: Date.now() }); else miss(); }, miss);
+      });
+    });
+  }
+  /** The relay for the next play: the one that answered lately, else the cloud + a probe — never more than ~2.6 s of waiting. */
+  function relayResolve(){
+    if (!relayWanted()) return Promise.resolve(null);
+    if (relayLive && Date.now() - relayLive.at < 300000) return Promise.resolve(relayLive);
+    if (Date.now() < relayDeadAt) return Promise.resolve(null);
+    var work = relayPull(false).then(function(d){ return relayProbe(d || relayDoc); }).then(function(live){
+      relayLive = live; if (!live) relayDeadAt = Date.now() + 120000;
+      relayStatusRender();
+      return live;
+    }).catch(function(){ return null; });
+    return Promise.race([work, new Promise(function(ok){ setTimeout(function(){ ok(null); }, 2600); })]);
+  }
+  function relayUrl(u){ return ctx.viaRelay.base + '/relay?u=' + encodeURIComponent(u) + '&k=' + encodeURIComponent(ctx.viaRelay.token); }
+  /** The original address behind a relay address (the response filter hands it back to the engine). */
+  function relayOrig(u){ var m = /[?&]u=([^&]+)/.exec(u); try { return m ? decodeURIComponent(m[1]) : u; } catch(e){ return u; } }
+  function relayIsOwn(u){ return !!(ctx.relayBase && typeof u === 'string' && u.indexOf(ctx.relayBase + '/relay?') === 0); }
+  /** Did this error come from the relay? A plain file plays straight from it, so any error there is its own. */
+  function relayErrOwn(d){ if (!ctx.viaRelay) return false; if (ctx.relaySrc) return true; return relayIsOwn(d && d.data && d.data[0]); }
+  /** The address the engine loads: through the sharing computer when this is a plain file (src= playback has no request filter). */
+  function relayLoadUrl(u, mime){
+    ctx.relaySrc = false;
+    if (!ctx.viaRelay || !/^https?:\/\//i.test(u)) return u;
+    if ((mime && !/dash|mpegurl|mpd|m3u8/i.test(mime)) || /\.(mp4|m4v|webm|mkv|mov|ts|avi|mp3|aac|ogg|flac|wav)(\?|#|$)/i.test(u)){ ctx.relaySrc = true; return relayUrl(u); }
+    return u;
+  }
+  /** The relay stopped answering: forget it for two minutes and say so once. */
+  function relayDrop(){
+    relayLive = null; relayDeadAt = Date.now() + 120000;
+    if (ctx.viaRelay){ ctx.viaRelay = null; setStatus('Your PC stopped answering — playing direct.', 'info', 5000); }
+    relayStatusRender();
+  }
+  function relayStatusRender(){
+    var tv = $id('setRelaySub'), sh = $id('setShareSub'); if (!tv) return;
+    if (IS_TV && !IS_DESKTOP){
+      var line;
+      if (relayMode() === 'off') line = 'Off — the TV fetches video itself';
+      else if (relayLive) line = relayLive.name + ' is sharing · ' + relayLive.base.replace(/^http:\/\//, '');
+      else if (relayUsable(relayDoc)) line = (relayDoc.name || 'Your PC') + ' was sharing but does not answer right now · Check it is on, and on the same network';
+      else if (!cloudLinked()) line = 'Sign in here and on the computer — that is how the TV finds it';
+      else line = 'No computer is sharing right now · Turn it on in Nebula for Windows or Linux › Settings › Playback';
+      tv.textContent = line;
+    }
+    if (relayApi && sh){
+      var s = relayShare || relayApi.info() || {};
+      if (s.error) sh.textContent = 'Could not share: ' + s.error;
+      else if (s.on) sh.textContent = 'Sharing as ' + (s.name || 'this PC') + (s.hosts && s.hosts.length ? ' · ' + s.hosts.join(' · ') + ' port ' + s.port : '') + (s.bytes ? ' · holding ' + fmtMB(s.bytes) : '') + (cloudLinked() ? '' : ' · Sign in so your TV can find this computer');
+      else sh.textContent = 'Fetch and hold video for the TV on your network · Both signed in to the same profile · Windows may ask to allow Nebula on your network';
+    }
+  }
+  function relayShareChips(){
+    var s = relayShare || (relayApi && relayApi.info()) || {};
+    segChips('setShare', [['On', true], ['Off', false]], !!s.on, function(v){ relayApi.set(v).then(relayShareApply); });
+  }
+  /** The rows in Settings › Playback: the TV's chips, the desktop's switch; neither on the web. */
+  function relayRowsRender(){
+    var tvRow = $id('setRelayRow'), shRow = $id('setShareRow'); if (!tvRow || !shRow) return;
+    var tvOn = IS_TV && !IS_DESKTOP;
+    tvRow.style.display = tvOn ? '' : 'none';
+    shRow.style.display = relayApi ? '' : 'none';
+    if (tvOn){
+      segChips('setRelay', [['Auto','auto'], ['Off','off']], relayMode(), function(v){
+        setPref('relay', v); relayLive = null; relayDeadAt = 0;
+        if (v !== 'off') relayResolve(); else relayStatusRender();
+      });
+      relayPull(false).then(relayStatusRender);
+      if (!relayLive && Date.now() >= relayDeadAt) relayResolve();
+    }
+    if (relayApi){ relayShareChips(); relayPublish(false); }
+    relayStatusRender();
+  }
+  /** The shell's state arrived (a flip, a start at launch): the row, then the profile's other devices. */
+  function relayShareApply(s){
+    relayShare = s || relayApi.info();
+    relayStatusRender();
+    if ($id('setShare')) relayShareChips();
+    relayPublish(false);
+  }
+  /** Tell the profile's other devices where this computer is, or that it stopped — only when something changed. */
+  function relayPublish(force){
+    if (!relayApi || !cloudLinked()) return;
+    var s = relayShare || relayApi.info() || {};
+    var doc = s.on ? { v: 1, hosts: (s.hosts || []).slice(0, 6), port: s.port, token: s.token, name: s.name || 'PC', plat: s.plat || '', at: Date.now() } : { off: true, at: Date.now() };
+    var sig = JSON.stringify([doc.hosts, doc.port, doc.token, !!doc.off]);
+    if (!force && sig === relayPubSig) return;
+    cloudApi('PUT', '/v1/kv/relay_v1', { v: JSON.stringify(doc) }).then(function(){ relayPubSig = sig; }).catch(function(){});
+  }
+  relayLoadDoc();
+  if (relayApi){
+    relayApi.on(relayShareApply);
+    setInterval(function(){ if (relayShare && relayShare.on){ relayShare = relayApi.info(); relayPublish(false); } }, 60000);
   }
   function puiRefreshButtons(){
     if (!player) return;
@@ -9972,6 +10153,7 @@
     segChips('setQuality', [['Auto','auto'], ['Start high','high'], ['Data saver','saver']], pr.quality || 'auto', function(v){ setPref('quality', v); applyQualityPolicy(); });
     segChips('setMaxRes', [['No cap','none'], ['720p','720'], ['1080p','1080'], ['1440p','1440']], pr.maxRes === '720' || pr.maxRes === '1080' || pr.maxRes === '1440' ? pr.maxRes : 'none', function(v){ setPref('maxRes', v); applyQualityPolicy(); });
     segChips('setBuffer', [['Auto','auto'], ['1 min',60], ['2 min',120], ['4 min',240]], bufferSecs() || 'auto', function(v){ setPref('buffer', v); applyBufferPolicy(); });
+    relayRowsRender();                 // Play through your PC (TV) · Share with your TV (desktop)
     stepper('setAudioLang', PREF_LANGS, pr.audioLang || '', function(v){ setPref('audioLang', v); applyLangPrefs(); });
     stepper('setSubLang', PREF_LANGS, pr.subLang || '', function(v){ setPref('subLang', v); applyLangPrefs(); });
     stepper('setSubLang2', [['None', '']].concat(PREF_LANGS.slice(1)), pr.subLang2 || '', function(v){ setPref('subLang2', v); applyLangPrefs(); });
