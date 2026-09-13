@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.11.2",
+  "version": "2026.09.13.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Play through your PC now handles sources whose address redirects, odd ranges and a shared port that stays open; the subtitles panel lists every track a language has."
+  "notes": "Search has a Discover section: pick a type, one of your add-ons\u2019 catalogs and a genre, and browse the whole catalog page by page \u2014 no typing needed. Your pick is remembered."
 }

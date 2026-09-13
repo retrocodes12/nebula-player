@@ -203,6 +203,16 @@
   .search-idle p { color:var(--label2); font-size:calc(15px * var(--ts)); line-height:1.55; margin:8px 0 16px; max-width:44ch; }
   .search-idle .chips { flex-wrap:wrap; padding:0; }
   .search-idle .chip { margin:0 8px 8px 0; }
+  /* Search › Discover: three pills over a poster grid, the source under the pills */
+  .disc-title { font-size:calc(26px * var(--ts)); font-weight:700; letter-spacing:-.03em; margin:30px 0 12px; }
+  .disc-pills { display:flex; flex-wrap:wrap; margin-bottom:12px; }
+  .disc-pills .chip { margin:0 8px 8px 0; background:var(--l2); border-color:var(--line); color:var(--ink); font-weight:600; }
+  .disc-pills .chip .dp-v { margin-right:6px; }
+  .disc-pills .chip .dp-c { opacity:.55; font-size:.85em; }
+  .disc-src { color:var(--label2); font-size:calc(14px * var(--ts)); margin:0 0 14px; }
+  .disc-status { color:var(--label2); font-size:calc(14px * var(--ts)); margin:0 0 12px; }
+  .sheet-acts { max-height:60vh; overflow-y:auto; scrollbar-width:none; }
+  .sheet-acts::-webkit-scrollbar { display:none; }
   html.tv .search-idle p { font-size:calc(19px * var(--ts)); }
 
   /* ---- boot screen ---- */
@@ -2486,7 +2496,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.11.2';
+  var PLAYER_VERSION = '2026.09.13.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -4750,7 +4760,161 @@
       box.appendChild(chips);
     }
     wrap.innerHTML = ''; wrap.appendChild(box);
+    // the grid must not inherit the intro column's reading width — it hangs off the results wrap
+    if (addons.length) discoverMount(wrap);
   }
+
+  // ---------- Search › Discover ----------
+  // Browse one add-on catalog by type, catalog and genre without typing: three
+  // pills pick the source, a grid shows the page, scrolling walks the pages with
+  // `skip`. The pick is kept (LS discover_v1) so the grid reopens where it was.
+  var disc = { opts: null, cur: null, genre: null, seq: 0, fetched: 0, done: true, paging: false, seen: null, shown: 0 };
+  function discSaved(){ try { return JSON.parse(LS.getItem('discover_v1') || '{}') || {}; } catch(e){ return {}; } }
+  function discSave(){
+    try { LS.setItem('discover_v1', JSON.stringify({ key: disc.cur ? disc.cur.key : '', type: disc.cur ? disc.cur.c.type : '', genre: disc.genre || '' })); } catch(e){}
+  }
+  function discBrowsable(c){
+    if (!c || !c.id) return false;
+    var req = (c.extra || []).filter(function(e){ return e && e.isRequired; }).map(function(e){ return e.name; });
+    (c.extraRequired || []).forEach(function(n){ req.push(n); });
+    return !req.length;                                   // a catalog that must be searched or given ids has no page
+  }
+  function discGenres(c){
+    if (Array.isArray(c.genres) && c.genres.length) return c.genres;
+    var g = (c.extra || []).filter(function(e){ return e && e.name === 'genre' && Array.isArray(e.options); })[0];
+    return g ? g.options : [];
+  }
+  /** Every browsable catalog of every enabled add-on, in add-on order. */
+  function discOptions(){
+    var addons = activeAddons();
+    return Promise.all(addons.map(function(a){
+      return getManifest(a.url).then(function(m){
+        return (m.catalogs || []).filter(discBrowsable).map(function(c){
+          return { a: a, m: m, c: c, key: a.url + '|' + c.type + '|' + c.id };
+        });
+      }).catch(function(){ return []; });
+    })).then(function(lists){ var out = []; lists.forEach(function(l){ out = out.concat(l); }); return out; });
+  }
+  function discPill(value, fn){
+    var b = document.createElement('button'); b.className = 'chip focusable';
+    b.innerHTML = '<span class="dp-v">' + esc(value) + '</span><span class="dp-c">▾</span>';
+    b.onclick = fn; return b;
+  }
+  function discPicker(title, opts, cur, fn){
+    openSheet({ title: title, actions: opts.map(function(o){
+      return { label: (o[1] === cur ? '✓ ' : '') + o[0], fn: function(){ if (o[1] !== cur) fn(o[1]); } };
+    }) });
+  }
+  function discChoose(next, genre){
+    disc.cur = next; disc.genre = genre || null; discSave();
+    discHead(); discLoad(false);
+  }
+  /** The pills and the source line, drawn into #discHead. */
+  function discHead(){
+    var head = document.getElementById('discHead'); if (!head || !disc.cur) return;
+    var cur = disc.cur, opts = disc.opts || [];
+    var types = []; opts.forEach(function(o){ if (types.indexOf(o.c.type) === -1) types.push(o.c.type); });
+    var same = opts.filter(function(o){ return o.c.type === cur.c.type; });
+    var genres = discGenres(cur.c);
+    head.innerHTML = '';
+    var pills = document.createElement('div'); pills.className = 'disc-pills';
+    pills.appendChild(discPill(typeLabel(cur.c.type), function(){
+      discPicker('Type', types.map(function(t){ return [typeLabel(t), t]; }), cur.c.type, function(t){
+        var first = opts.filter(function(o){ return o.c.type === t; })[0]; if (first) discChoose(first, null);
+      });
+    }));
+    pills.appendChild(discPill(cur.c.name || 'Catalog', function(){
+      discPicker('Catalog', same.map(function(o){
+        var dupe = same.some(function(x){ return x !== o && (x.c.name || '') === (o.c.name || ''); });
+        return [(o.c.name || 'Catalog') + (dupe ? ' · ' + (o.a.name || 'Add-on') : ''), o.key];
+      }), cur.key, function(k){
+        var next = opts.filter(function(o){ return o.key === k; })[0]; if (next) discChoose(next, null);
+      });
+    }));
+    if (genres.length) pills.appendChild(discPill(disc.genre || 'All genres', function(){
+      discPicker('Genre', [['All genres', '']].concat(genres.slice(0, 60).map(function(g){ return [g, g]; })), disc.genre || '', function(g){
+        discChoose(cur, g || null);
+      });
+    }));
+    head.appendChild(pills);
+    var src = document.createElement('div'); src.className = 'disc-src';
+    src.textContent = (cur.a.name || 'Add-on') + ' • ' + typeLabel(cur.c.type);
+    head.appendChild(src);
+  }
+  function discMount_(wrap){
+    var box = document.createElement('div'); box.className = 'discover'; box.id = 'discover';
+    var t = document.createElement('div'); t.className = 'disc-title'; t.textContent = 'Discover';
+    var head = document.createElement('div'); head.id = 'discHead';
+    var status = document.createElement('div'); status.className = 'disc-status'; status.id = 'discStatus';
+    var grid = document.createElement('div'); grid.className = 'grid'; grid.id = 'discGrid';
+    box.appendChild(t); box.appendChild(head); box.appendChild(status); box.appendChild(grid);
+    wrap.appendChild(box);
+    return box;
+  }
+  function discoverMount(wrap){
+    var box = discMount_(wrap);
+    var go = function(){
+      if (!document.body.contains(box)) return;             // the idle page was replaced by results
+      var opts = disc.opts || [];
+      if (!opts.length){ box.style.display = 'none'; return; }
+      if (!disc.cur || !opts.some(function(o){ return o.key === disc.cur.key; })){
+        var sv = discSaved();
+        disc.cur = opts.filter(function(o){ return o.key === sv.key; })[0]
+          || opts.filter(function(o){ return o.c.type === sv.type; })[0] || opts[0];
+        disc.genre = (sv.genre && discGenres(disc.cur.c).indexOf(sv.genre) !== -1) ? sv.genre : null;
+      }
+      discHead(); discLoad(false);
+    };
+    if (disc.opts) go(); else discOptions().then(function(o){ disc.opts = o; go(); });
+  }
+  async function discLoad(more){
+    var list = document.getElementById('discGrid'), status = document.getElementById('discStatus');
+    if (!list || !disc.cur) return;
+    if (more && (disc.paging || disc.done)) return;
+    if (!more){ disc.seq++; disc.done = true; disc.fetched = 0; disc.shown = 0; disc.seen = {}; list.innerHTML = skeletons(9); status.textContent = ''; }
+    var seq = disc.seq, cur = disc.cur;
+    disc.paging = true;
+    if (more){ var frag = document.createElement('div'); frag.innerHTML = skeletons(6);
+      Array.prototype.slice.call(frag.children).forEach(function(c){ c.className += ' pageskel'; list.appendChild(c); }); }
+    function dropSkel(){ Array.prototype.slice.call(list.querySelectorAll('.pageskel')).forEach(function(el){ if (el.parentNode) el.parentNode.removeChild(el); }); }
+    try {
+      var u = cur.a.base + '/catalog/' + encodeURIComponent(cur.c.type) + '/' + encodeURIComponent(cur.c.id);
+      var extras = [];
+      if (disc.genre) extras.push('genre=' + encodeURIComponent(disc.genre));
+      if (more && disc.fetched) extras.push('skip=' + disc.fetched);
+      if (extras.length) u += '/' + extras.join('&');
+      var d = await getJson(u + '.json');
+      if (seq !== disc.seq) { dropSkel(); return; }
+      var metas = d.metas || [];
+      disc.fetched += metas.length;
+      dropSkel();
+      if (!more) list.innerHTML = '';
+      var added = 0;
+      metas.forEach(function(meta){
+        var key = (meta.type || '') + ':' + meta.id;
+        if (disc.seen[key]) return;
+        disc.seen[key] = 1;
+        list.appendChild(cardEl(meta, cur.a, cur.m, cur.c));
+        added++; disc.shown++;
+      });
+      disc.done = !metas.length || !added || !catalogSupports(cur.c, 'skip') || disc.shown >= CAT_MAX;
+      if (!disc.shown) status.textContent = 'Nothing here.';
+    } catch(err){
+      dropSkel();
+      if (seq !== disc.seq) return;
+      disc.done = true;
+      if (!more){ list.innerHTML = ''; status.textContent = 'Couldn’t load this catalog.'; }
+    } finally {
+      if (seq === disc.seq) disc.paging = false;
+    }
+  }
+  (function initDiscoverPaging(){
+    var sc = document.getElementById('view-search'); if (!sc) return;
+    sc.addEventListener('scroll', function(){
+      if (disc.done || disc.paging || !document.getElementById('discGrid')) return;
+      if (sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 600) discLoad(true);
+    });
+  })();
 
   // ---------- empty states ----------
   // A glyph, a line, a sentence and one button that goes somewhere useful — never a bare sentence.
