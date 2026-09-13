@@ -3330,11 +3330,14 @@
   }
   /** Newest-first, only things actually worth resuming. */
   function continueList(){
-    var p = getProgress(), out = [];
+    var p = getProgress(), out = [], off = {};
+    // what was opened from an add-on switched off in the list stays out — switched back on, it returns
+    getAddons().forEach(function(a){ if (a && a.off && a.url) off[a.url] = 1; });
     Object.keys(p).forEach(function(k){
       var r = p[k];
       if (!r || r.done || !r.pos || !r.dur) return;
       if (r.pos < PROG_MIN_POS || r.pos > r.dur - PROG_END_GAP) return;
+      if (r.addonUrl && off[r.addonUrl]) return;
       out.push(r);
     });
     // Settings › Continue Watching order: most recent first, or by name
@@ -3796,6 +3799,7 @@
         var arr = getAddons(); if (!arr[idx]) return;
         arr[idx].off = !arr[idx].off; if (!arr[idx].off) delete arr[idx].off;
         saveAddons(arr); renderAddons();
+        try { renderContinue(); } catch(e){}   // its titles leave (or rejoin) Continue watching
         var again = wrap.querySelectorAll('.addon-tog')[idx]; if (again && (IS_TV || kbUsed)){ try { again.focus({ preventScroll: true }); } catch(e){ again.focus(); } }
         setStatus((arr[idx].name || 'Add-on') + (arr[idx].off ? ' is off — it feeds nothing until you switch it back on.' : ' is on.'), 'ok');
       };
