@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.13.1",
+  "version": "2026.09.13.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Search has a Discover section: pick a type, one of your add-ons\u2019 catalogs and a genre, and browse the whole catalog page by page \u2014 no typing needed. Your pick is remembered."
+  "notes": "Continue watching leaves out what you were watching from an add-on you switched off \u2014 switch the add-on back on and it returns."
 }
