@@ -1879,7 +1879,7 @@
         <span id="puiLiveBadge" class="pui-live hot" style="display:none">LIVE</span>
         <button id="puiInfo" class="focusable pui-round" title="Playback info (i)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></button>
         <button id="puiPip" class="focusable pui-round" style="display:none" title="Picture-in-picture (p)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="12" width="7" height="5" rx="1" fill="currentColor" stroke="none"/></svg></button>
-        <button id="puiMini" class="focusable pui-round" style="display:none" title="Mini player — small window that stays on top (shift m)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="13" y="13" width="6" height="4" rx="1" fill="currentColor" stroke="none"/></svg></button>
+        <button id="puiMini" class="focusable pui-round" style="display:none" title="Mini player — small window that stays on top (shift m)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9l7 6M15 11v4h-4"/></svg></button>
         <button id="puiFull" class="focusable pui-round" style="display:none" title="Fullscreen (f)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4H4v4M16 4h4v4M8 20H4v-4M16 20h4v-4"/></svg></button>
       </div>
     </div>
@@ -6603,13 +6603,17 @@
   // and the player appends them over MSE — so the element keeps a real timeline and every control works unchanged.
   // Only on the desktop shell, only for plain files (never DASH/HLS/keys), only when Chromium could not take the file. ----
   var tc = null;                                                   // the active transcode session, or null
-  var TC_LEN = 10, TC_AHEAD = 45;
+  // the first piece after a start, a jump or a track change is short (the picture comes back sooner); the rest are long,
+  // since every piece pays the host's answer time once (a 10.9 Mbps file: 10 s pieces made 0.64–1.13× real time, 30 s 1.43×)
+  var TC_LEN = 10, TC_LEN_RUN = 30, TC_AHEAD = 45;
   var TC_AUDIO_OK = { aac:1, mp3:1, opus:1, vorbis:1, flac:1, pcm_s16le:1, pcm_s24le:1, pcm_s32le:1, pcm_f32le:1 };   // no alac, no mp2: Chromium decodes neither (measured 09-09)
   // (an extension-less link is handed to the element as video/mp4 so it sniffs the container — that says nothing
   // about the file, so such a link is a candidate like any other; a local file is blob: and never one)
+  // (a playlist is a candidate too, but only a refusal brings the shell in: the engine plays playlists itself, live
+  // included, and the app steps in when the engine could not fetch one — a host with no CORS, or one wanting the add-on's headers)
   function tcCandidate(url, keys){
     return IS_DESKTOP && !!(window.nebulaDesktop && window.nebulaDesktop.transcode) && !keys &&
-      /^https?:\/\//i.test(url) && !/\.(mpd|m3u8)(\?|#|$)/i.test(url);
+      /^https?:\/\//i.test(url) && !/\.mpd(\?|#|$)/i.test(url);
   }
   /** The codec string the element must accept to copy this HEVC stream through: Main 10 (10-bit, most HDR) is profile 2,
       and a machine whose decoder takes Main only would choke on it mid-play if asked with the Main string. */
@@ -6643,11 +6647,13 @@
     if (tcBadAudio(info).length) return 'audio';
     return '';
   }
+  /** The add-on's request headers, for the shell's FFmpeg to send with every read of the file (the page cannot set a Referer). */
+  function tcHdrs(h){ return h ? '&h=' + encodeURIComponent(JSON.stringify(h)) : ''; }
   /** What the shell's FFprobe sees in the file, or null — with what the host did kept on `c.fail` (a 403, a page). */
   async function tcProbe(url, c){
     var ctl = new AbortController(), timer = setTimeout(function(){ ctl.abort(); }, 25000);
     try {
-      var r = await fetch(location.origin + '/probe?src=' + encodeURIComponent(url), { signal: ctl.signal });
+      var r = await fetch(location.origin + '/probe?src=' + encodeURIComponent(url) + tcHdrs(c && c.h), { signal: ctl.signal });
       if (r.ok) return await r.json();
       if (c){ try { c.fail = await r.json(); } catch(e){ c.fail = { error: 'probe ' + r.status }; } }
       return null;
@@ -6659,7 +6665,8 @@
   // can read is converted whatever its codecs, one it cannot read gets a sentence naming what the host did. ----
   var tcCheck = null;                                              // { seq, url, restart, pending, info, fail, refused, code }
   function tcCheckStart(seq, url, restart){
-    tcCheck = { seq: seq, url: url, restart: restart, pending: null, info: undefined, fail: null, refused: false, code: 0 };
+    tcCheck = { seq: seq, url: url, restart: restart, pending: null, info: undefined, fail: null, refused: false, code: 0, h: ctx.playHeaders || null,
+      hls: /\.m3u8?(\?|#|$)/i.test(url) };
     return tcCheck;
   }
   /** The probe, once per play: the same answer for the up-front check, the safety net and a refusal. */
@@ -6672,6 +6679,10 @@
   function tcDecide(c, seq){
     if (seq !== playSeq || c !== tcCheck || tc) return;
     var info = c.info, why = tcReason(info) || ((c.refused && info && info.video) ? 'file' : '');
+    // a playlist the engine could not fetch is fetched by the app instead — never a live one (the converter needs a
+    // timeline with an end); a host that turned the engine away is named as such, not as a file it cannot open
+    if (c.hls && !(info && info.duration > 0)) why = '';
+    else if (why === 'file' && (c.hls || c.code === 1001 || c.code === 1002)) why = 'host';
     if (why){ info.why = why; c.restart(info); return; }
     if (c.refused){ setStatus(tcRefusedLine(c), 'err'); try { $id('puiSpin').style.display = 'none'; } catch(e){} }
   }
@@ -6695,7 +6706,7 @@
   }
   /** The file's own name for a track, then the language, never a bare index. */
   function tcTrackLabel(a){
-    var ln = langName(a.lang || '') || '', lb = String(a.title || '').trim();
+    var ln = knownLang(a.lang), lb = String(a.title || '').trim();
     if (/^(sound ?handler|audio|sound|stereo|mono|und|unknown)$/i.test(lb)) lb = '';
     var ch = a.channels >= 8 ? ' · 7.1' : (a.channels >= 6 ? ' · 5.1' : (a.channels >= 3 ? ' · ' + a.channels + 'ch' : ''));
     if (lb) return ((ln && lb.toLowerCase().indexOf(ln.toLowerCase()) < 0) ? ln + ' · ' + lb : lb) + (/5\.1|7\.1|\dch/.test(lb) ? '' : ch);
@@ -6720,7 +6731,7 @@
   }
   function tcSegUrl(t, len){
     return location.origin + '/seg?src=' + encodeURIComponent(tc.src) + '&t=' + t + '&len=' + len + '&a=' + tc.a + '&v=' + tc.vmode +
-      '&vc=' + encodeURIComponent(tc.info.video.codec || '');
+      '&vc=' + encodeURIComponent(tc.info.video.codec || '') + '&vh=' + (tc.info.video.height || 0) + '&st=' + (tc.info.start || 0) + tcHdrs(tc.h);
   }
   function tcWait(ms){ return new Promise(function(ok){ setTimeout(ok, ms); }); }
   function tcAhead(){
@@ -6765,7 +6776,7 @@
         if (tc.flush){ tc.flush = false; await tcRemove(0, 1e9); }
         if (tcAhead() > tcAheadGoal()){ await tcWait(800); continue; }
         var ctl = new AbortController(); tc.ctl = ctl;
-        var from = tc.next, len = TC_LEN, got = 0, r = null;
+        var from = tc.next, len = tc.warm ? TC_LEN_RUN : TC_LEN, got = 0, r = null;
         tc.pieceFrom = from;
         try { r = await fetch(tcSegUrl(from, len), { signal: ctl.signal }); } catch(e){ if (ctl.signal.aborted) continue; throw e; }
         if (!r.ok) throw new Error('piece ' + r.status);
@@ -6785,12 +6796,21 @@
         if (!got) throw new Error('empty piece');
         // the piece ran from the keyframe before `from` up to from+len; carry on from what actually landed
         var end = 0; try { var bb = tc.sb.buffered; for (var k = 0; k < bb.length; k++) if (bb.start(k) <= from + 0.5 && bb.end(k) > end) end = bb.end(k); } catch(e){}
-        tc.next = end > from + 0.75 ? end - 0.25 : from + len;
+        tc.next = end > from + 0.75 ? end - 0.25 : from + len; tc.warm = true;
+        tcGapJump();
         try { var b = tc.sb.buffered; if (b.length && b.start(0) < video.currentTime - 70) await tcRemove(0, video.currentTime - 50); } catch(e){}
       }
     } catch(e){
       if (tc === session && tc.gen === my) setStatus('This file could not be converted for playback (' + ((e && e.message) || e) + '). Try another source.', 'err');
     } finally { if (tc === session && tc.gen === my) tc.pumping = false; }
+  }
+  /** A piece whose first keyframe came after the second it was asked for (an MPEG-TS seeks by estimate) leaves a hole
+      the element will not cross: step over a short one, as the streaming engine's own gap jumper does. */
+  function tcGapJump(){
+    if (!tc || video.paused || video.seeking) return;
+    var t = video.currentTime, b = video.buffered, i;
+    for (i = 0; i < b.length; i++) if (b.start(i) <= t + 0.1 && b.end(i) > t + 0.5) return;   // not at a hole
+    for (i = 0; i < b.length; i++) if (b.start(i) > t && b.start(i) - t < 3){ video.currentTime = b.start(i) + 0.05; return; }
   }
   function tcFinish(){
     if (!tc) return; tc.done = true;
@@ -6802,7 +6822,7 @@
     try { var b = tc.sb.buffered; for (var i = 0; i < b.length; i++) if (b.start(i) <= t && b.end(i) >= t + 1) return; } catch(e){}   // already here
     // the piece in flight starts at or just before the target: let it land rather than fetch the same seconds again
     if (tc.ctl && !tc.ctl.signal.aborted && t >= tc.pieceFrom && t < tc.pieceFrom + TC_LEN - 1){ tc.done = false; tcPump(); return; }
-    tc.next = Math.max(0, Math.floor(t)); tc.done = false;
+    tc.next = Math.max(0, Math.floor(t)); tc.done = false; tc.warm = false;
     tcCut();
     tcPump();
   }
@@ -6817,7 +6837,7 @@
   function tcOnError(){ if (tc) setStatus(tcConvertLine('the player rejected the converted video: ' + (video.error && video.error.message || 'media error')), 'err'); }
   function tcSetAudio(i){
     if (!tc || i === tc.a) return;
-    tc.a = i; tc.flush = true; tc.next = Math.max(0, Math.floor(video.currentTime)); tc.done = false;
+    tc.a = i; tc.flush = true; tc.next = Math.max(0, Math.floor(video.currentTime)); tc.done = false; tc.warm = false;
     tcCut();
     tcPump();
   }
@@ -6828,7 +6848,7 @@
     var vc = String(info.video && info.video.codec || '').toLowerCase();
     var copyOk = vc === 'h264' || ((vc === 'hevc' || vc === 'h265') && tcHevcOk(info));
     tc = { src: url, info: info, a: (info.a >= 0 && info.audio && info.audio[info.a]) ? info.a : tcPickAudio(info), vmode: (why === 'video' || !copyOk) ? 'h264' : 'copy',
-      ms: null, sb: null, ctl: null, obj: null, next: Math.max(0, Math.floor(startAt || 0)), pumping: false, done: false, flush: false, gen: 0, why: why };
+      ms: null, sb: null, ctl: null, obj: null, next: Math.max(0, Math.floor(startAt || 0)), pumping: false, done: false, flush: false, gen: 0, why: why, h: ctx.playHeaders || null, warm: false };
     var session = tc;
     player = tcShim();
     var ms = new MediaSource(); tc.ms = ms;
@@ -6841,6 +6861,7 @@
     tc.sb = ms.addSourceBuffer(tcMime()); tc.sb.mode = 'segments';
     video.addEventListener('seeking', tcOnSeeking);
     video.addEventListener('error', tcOnError);
+    video.addEventListener('waiting', tcGapJump);
     if (startAt){ try { video.currentTime = startAt; } catch(e){} }
     tcPump();
     try { await video.play(); } catch(e){}
@@ -6848,6 +6869,7 @@
   function tcStop(){
     video.removeEventListener('seeking', tcOnSeeking);
     video.removeEventListener('error', tcOnError);
+    video.removeEventListener('waiting', tcGapJump);
     var s = tc; tc = null;
     if (s){ s.gen++; if (s.ctl) { try { s.ctl.abort(); } catch(e){} } try { if (s.ms.readyState === 'open') s.ms.endOfStream(); } catch(e){} if (s.obj){ try { URL.revokeObjectURL(s.obj); } catch(e){} } }
     Array.prototype.forEach.call(video.querySelectorAll('track'), function(t){ try { URL.revokeObjectURL(t.src); } catch(e){} t.remove(); });
@@ -6940,6 +6962,9 @@
     if (!initShaka()) return;
     var seq = ++playSeq;
     didRetry = false;
+    // what a stream row said (Dolby in its name, the add-on's headers) belongs to that row's address: a pasted link, a
+    // local file or a party's stream played after it must not inherit it
+    if (ctx.rowFor !== rawUrl){ ctx.playRow = ''; ctx.playHeaders = null; ctx.rowFor = ''; }
     lastPlay = { url: rawUrl, keys: clearKeys || null, title: title || '', subs: subtitles || [], mime: mimeType || '' };
     // a party host changing streams takes the whole room along
     if (party && party.isHost && party.ws.readyState === 1){
@@ -7045,16 +7070,18 @@
         // the restart through the shell, from wherever playback had got to
         try { flushProgress(true); } catch(e){}
         ctx.tcForce = info; ctx.startOver = false;
-        setStatus('Converting the ' + (info.why === 'video' ? 'video' : (info.why === 'file' ? 'file' : 'audio')) + ' for this device…', 'info');
+        setStatus(info.why === 'host' ? 'Fetching the stream through the app…'
+          : 'Converting the ' + (info.why === 'video' ? 'video' : (info.why === 'file' ? 'file' : 'audio')) + ' for this device…', 'info');
         playUrl(rawUrl, clearKeys, title, subtitles, mimeType);
       });
       var row = ctx.playRow || '';
-      if (audioCodecHint(row) || (/\b(hevc|x265|h\.?265)\b/i.test(row) && !tcHevcOk())){
+      // (a playlist is never probed up front or beside playback: only a refusal brings the shell in)
+      if (!tcc.hls && (audioCodecHint(row) || (/\b(hevc|x265|h\.?265)\b/i.test(row) && !tcHevcOk()))){
         setStatus('Checking the file…', 'info');
         tcInfo = await tcCheckProbe(tcc);
         if (seq !== playSeq) return;
         if (!(tcInfo && tcReason(tcInfo))) tcInfo = null;
-      } else tcLater = true;
+      } else if (!tcc.hls) tcLater = true;
     }
     var loaded = false;
     try {
@@ -7103,7 +7130,11 @@
     }
   }
   function playStream(s){
-    ctx.playRow = (s.name || '') + '\n' + (s.title || s.description || '') + '\n' + ((s.behaviorHints && s.behaviorHints.filename) || '');
+    var bh = s.behaviorHints || {}, ph = bh.proxyHeaders && bh.proxyHeaders.request;
+    ctx.playRow = (s.name || '') + '\n' + (s.title || s.description || '') + '\n' + (bh.filename || '');
+    // the add-on's own request headers for this file (a host that wants its Referer): the page cannot send them, the desktop shell's FFmpeg does
+    ctx.playHeaders = (ph && typeof ph === 'object' && !Array.isArray(ph)) ? ph : null;
+    ctx.rowFor = s.url;
     playUrl(s.url, extractClearKeys(s), ctx.streamTitle || (ctx.item && ctx.item.name) || s.name || 'Nebula', s.subtitles || []);
   }
   /** Settings › languages → the player's own preferences (they decide the next track choice). */
@@ -7390,6 +7421,8 @@
     try { var dn = new Intl.DisplayNames(['en'], { type:'language' }); return dn.of(c) || code; }
     catch(e){ return code; }
   }
+  /** A track's language as a name, or '' when the file does not say — a track is never called "Unknown". */
+  function knownLang(code){ var n = langName(code || ''); return n === 'Unknown' ? '' : (n || ''); }
   function fmtT(s){
     if (!isFinite(s) || s < 0) s = 0;
     s = Math.floor(s);
@@ -7897,7 +7930,7 @@
   /** A name for a native audio track: the file's own title ("Hindi 5.1") with the language in front when it
       lacks it, never the container's handler name ("SoundHandler"), the language alone otherwise. */
   function nativeTrackLabel(tr, i){
-    var ln = langName(tr.language || '') || '';
+    var ln = knownLang(tr.language);
     var lb = (tr.label && !/^(sound ?handler|audio ?handler|audio|sound|stereo|mono|und|unknown)$/i.test(tr.label.trim())) ? tr.label.trim() : '';
     if (lb) return (ln && lb.toLowerCase().indexOf(ln.toLowerCase()) < 0) ? ln + ' · ' + lb : lb;
     return ln || ('Track ' + (i + 1));
@@ -7937,11 +7970,12 @@
         });
         puiNote(tc.why === 'video' ? 'Converted by the app: this machine cannot decode the video, so it is re-encoded while it plays.'
           : tc.why === 'file' ? 'Converted by the app: this file comes in a container the player cannot open, so it is repackaged while it plays.'
+          : tc.why === 'host' ? 'Played through the app: this stream’s host does not serve the player directly, so the app fetches it while it plays.'
           : 'Converted by the app: the audio (' + (tcBadAudioNames(tc.info) || audioCodecHint(ctx.playRow || '') || String(tc.info.audio[tc.a].codec || '').toUpperCase()) + ') is turned into a format this device plays.');
       } else if (langs.length >= 2){
         var curLang=''; try { (player.getVariantTracks()||[]).forEach(function(v){ if(v.active) curLang=v.language; }); } catch(e){}
-        langs.forEach(function(l){
-          var label = l.label || (langName(l.language) + (l.role ? ' ('+l.role+')' : ''));
+        langs.forEach(function(l, li){
+          var label = l.label || ((knownLang(l.language) || 'Track ' + (li + 1)) + (l.role ? ' ('+l.role+')' : ''));
           menuOpt(label, l.language===curLang, function(){
             try { player.selectAudioLanguage(l.language, l.role); } catch(e){}
             setStatus('Audio: '+label,'ok'); closePuiMenu(true);
@@ -7961,7 +7995,7 @@
       } else {
         // one track (or none the pipeline has reported yet): name it, and say why there is nothing to pick
         var one = null;
-        if (langs.length === 1) one = langs[0].label || langName(langs[0].language || '');
+        if (langs.length === 1) one = langs[0].label || knownLang(langs[0].language) || 'Track 1';
         else { try { if (video.audioTracks && video.audioTracks.length === 1) one = nativeTrackLabel(video.audioTracks[0], 0); } catch(e){} }
         if (one) menuOpt(one, true, function(){ closePuiMenu(true); });
         if (audioSilentNoted){
@@ -8496,11 +8530,16 @@
     if (p && p.catch) p.catch(function(){});   // a rejected request is not an error worth surfacing
     puiShow();
   }
+  // an icon button: the corners turn inwards in fullscreen and the words stay in the tooltip (textContent here
+  // used to wipe the icon, leaving "Exit fullscreen" squeezed into a 44 px circle)
+  var FS_ICON_IN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4H4v4M16 4h4v4M8 20H4v-4M16 20h4v-4"/></svg>';
+  var FS_ICON_OUT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h4V4M20 8h-4V4M4 16h4v4M20 16h-4v4"/></svg>';
   function syncFsButton(){
     var on = !!fsEl(), b = $id('puiFull');
-    b.textContent = on ? 'Exit fullscreen' : 'Fullscreen';
+    b.innerHTML = on ? FS_ICON_OUT : FS_ICON_IN;
     b.title = (on ? 'Exit fullscreen' : 'Fullscreen') + ' (f)';
   }
+  $id('puiFull').innerHTML = FS_ICON_IN;
   if (fsOk()) $id('puiFull').style.display = '';
   $id('puiFull').onclick = function(){ toggleFullscreen(); };
   document.addEventListener('fullscreenchange', syncFsButton);
@@ -8851,6 +8890,11 @@
 
   // ---- picture-in-picture (browsers that support it) + desktop mini player ----
   var miniOn = false;
+  // the mini player's own glyph — an arrow into the window's corner — so it never reads as picture-in-picture's inset
+  // square beside it; it points back out while the window is small (textContent here used to wipe the icon for "Exit mini")
+  var MINI_ICON_IN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9l7 6M15 11v4h-4"/></svg>';
+  var MINI_ICON_OUT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M15 15L8 9M8 13V9h4"/></svg>';
+  $id('puiMini').innerHTML = MINI_ICON_IN;
   function exitPip(){
     try { if (document.pictureInPictureElement){ document.exitPictureInPicture().catch(function(){}); } } catch(e){}
   }
@@ -8858,7 +8902,9 @@
     if (!window.nebulaDesktop || !window.nebulaDesktop.setMiniMode) return;
     miniOn = !!on;
     try { window.nebulaDesktop.setMiniMode(miniOn); } catch(e){}
-    $id('puiMini').textContent = miniOn ? 'Exit mini' : 'Mini';
+    var mb = $id('puiMini');
+    mb.innerHTML = miniOn ? MINI_ICON_OUT : MINI_ICON_IN;
+    mb.title = miniOn ? 'Leave the mini player (shift m)' : 'Mini player — small window that stays on top (shift m)';
     setStatus(miniOn ? 'Mini player — window stays on top.' : 'Mini player off.','ok');
   }
   if (document.pictureInPictureEnabled && video.requestPictureInPicture) $id('puiPip').style.display = '';
