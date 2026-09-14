@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.13.2",
+  "version": "2026.09.15.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Continue watching leaves out what you were watching from an add-on you switched off \u2014 switch the add-on back on and it returns."
+  "notes": "On the desktop app, Dolby and DTS films play with sound on Linux, converted films no longer stop after half a minute, and streams whose host serves only the app play through it. A track without a language is no longer called Unknown."
 }
