@@ -6945,7 +6945,7 @@
     if (!mp) return 0;
     if (mp.pending != null) return mp.pending;
     var s = mp.st, t = s.t > 0 ? s.t : 0;
-    if (s.pause === false && !s.cache && !s.seeking && !mp.ended && mp.at) t += (Date.now() - mp.at) / 1000 * (s.speed || 1);
+    if (s.pause === false && !s.cache && !s.seeking && !mp.ended && !mp.reconnecting && mp.at) t += (Date.now() - mp.at) / 1000 * (s.speed || 1);
     return (s.dur > 0 && t > s.dur) ? s.dur : t;
   }
   function mpvSeek(v){
@@ -7017,6 +7017,9 @@
         if (agrees || Date.now() - hv.at > 1500) delete mp.hold[hk]; else s[hk] = hv.v;
       }
     }
+    // a reconnect's gap (a new helper, idle until the file reopens) says nothing about this play: its clock, length and
+    // pause hold — a resume point or a party host must not hear 0
+    if (mp.reconnecting){ if (!(s.t > 0)) s.t = p.t; if (!(s.dur > 0)) s.dur = p.dur; s.pause = p.pause; s.eof = false; }
     mp.st = s; mp.at = Date.now();
     if (mp.pending != null && ((!s.seeking && s.t != null && Math.abs(s.t - mp.pending) < 1.5) || Date.now() - mp.pendingAt > 8000)) mp.pending = null;
     if (!first && p.pause !== s.pause){ mpvFire(s.pause ? 'pause' : 'play'); if (!s.pause && !s.cache) mpvFire('playing'); }
