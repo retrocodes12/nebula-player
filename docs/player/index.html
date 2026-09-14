@@ -55,6 +55,7 @@
   ::selection { background:rgba(255,255,255,.22); }
 
   #video { position:fixed; top:0; left:0; right:0; bottom:0; width:100%; height:100%; background:#000; z-index:1; display:none; }
+  #mpvView { position:fixed; top:0; left:0; right:0; bottom:0; width:100%; height:100%; background:#000; z-index:1; display:none; }
 
   .view { position:fixed; top:var(--navh); left:0; right:0; bottom:0; z-index:2; overflow-y:auto; display:none;
     padding:26px var(--pad) 40px; scrollbar-width:none; }
@@ -1845,6 +1846,8 @@
   </div>
 
   <video id="video" autoplay playsinline></video>
+  <!-- the desktop's full-format player draws here, over the (then empty) video element -->
+  <canvas id="mpvView"></canvas>
   <!-- scrub preview: a silent second copy of a plain progressive stream that only ever seeks, for the frame in the tip -->
   <video id="puiShadow" muted playsinline preload="metadata" tabindex="-1"></video>
 
@@ -2217,6 +2220,10 @@
         <div class="setrow" data-lvl="all">
           <span class="setname">Resolution cap<small>Never above this, whatever the connection allows</small></span>
           <span id="setMaxRes" class="seg"></span>
+        </div>
+        <div class="setrow" id="setEngineRow" style="display:none">
+          <span class="setname">Player<small id="setEngineSub"></small></span>
+          <span id="setEngine" class="seg"></span>
         </div>
         <div class="setrow">
           <span class="setname">Buffer ahead<small>How much video is loaded ahead of you · Longer rides out a shaky connection, takes more memory and a moment longer after a jump · A live stream can only run as far as it has been broadcast</small></span>
@@ -6917,6 +6924,362 @@
     };
   }
 
+  // ---- the full-format player (desktop). The shell carries libmpv (mpv.js): it plays the file itself — every codec, every
+  // track the file has, the add-on's headers, 5.1 — and draws each frame into #mpvView. The rest of the player keeps talking to
+  // `video` as always: while mpv plays, the element answers from mpv (instance properties shadowing its own) and mpv's news is
+  // fired on it as the element's own events, so every listener, the scrubber, the party, the stall watchdog and the HUD work
+  // unchanged; `player` becomes mpvShim() for tracks and numbers. Keyed streams and DASH manifests stay with the streaming
+  // engine; so does everything when libmpv is missing or Settings › Player says Built-in. ----
+  var mpvApi = (IS_DESKTOP && window.nebulaDesktop && window.nebulaDesktop.mpv) || null;
+  var mpvInfo = null;                                   // { available, error, lib, version } — asked once, at boot
+  var mp = null;                                        // the play mpv is on (see mpvStart)
+  if (mpvApi){ try { mpvInfo = mpvApi.info(); } catch(e){ mpvInfo = { available:false, error:String((e && e.message) || e) }; } }
+  function mpvReady(){ return !!(mpvInfo && mpvInfo.available) && getPrefs().engine !== 'builtin'; }
+  /** mpv takes anything but a keyed stream or a DASH manifest (the streaming engine's own ground). */
+  function mpvCandidate(url, keys){
+    return mpvReady() && !keys && !ctx.forceBuiltin && (/^https?:\/\//i.test(url) || (!!ctx.localPath && ctx.localPath === url)) && !/\.mpd(\?|#|$)/i.test(url);
+  }
+  function mpvFire(type){ try { video.dispatchEvent(new Event(type)); } catch(e){} }
+  /** Where playback is: mpv's last word, carried forward by the clock while it plays (it reports four times a second). */
+  function mpvNow(){
+    if (!mp) return 0;
+    if (mp.pending != null) return mp.pending;
+    var s = mp.st, t = s.t > 0 ? s.t : 0;
+    if (s.pause === false && !s.cache && !s.seeking && !mp.ended && mp.at) t += (Date.now() - mp.at) / 1000 * (s.speed || 1);
+    return (s.dur > 0 && t > s.dur) ? s.dur : t;
+  }
+  function mpvSeek(v){
+    if (!mp) return;
+    v = Math.max(0, Number(v) || 0);
+    if (mp.st.dur > 0) v = Math.min(v, Math.max(0, mp.st.dur - 0.5));
+    mp.pending = v; mp.pendingAt = Date.now(); mp.seeking = true; mp.ended = false;
+    mpvApi.command(['seek', v.toFixed(3), 'absolute']);
+    mpvFire('seeking');
+  }
+  var MPV_OWN = ['currentTime','duration','paused','ended','seeking','readyState','networkState','buffered','volume','muted','playbackRate','videoWidth',
+    'videoHeight','error','currentSrc','webkitAudioDecodedByteCount','webkitVideoDecodedByteCount','audioTracks','play','pause','load','getVideoPlaybackQuality',
+    'requestPictureInPicture'];
+  /** The element answers from mpv from now on (mpvUnbind hands it back its own properties). */
+  function mpvBind(){
+    function prop(k, get, set){ Object.defineProperty(video, k, { configurable:true, get:get, set:set || function(){} }); }
+    function method(k, f){ Object.defineProperty(video, k, { configurable:true, writable:true, value:f }); }
+    prop('currentTime', mpvNow, mpvSeek);
+    prop('duration', function(){ var d = mp && mp.st.dur; return d > 0 ? d : (mp && mp.st.live ? Infinity : NaN); });
+    prop('paused', function(){ return !mp || mp.st.pause !== false || mp.ended; });
+    prop('ended', function(){ return !!(mp && mp.ended); });
+    prop('seeking', function(){ return !!(mp && (mp.seeking || mp.st.seeking)); });
+    prop('readyState', function(){ return (!mp || !mp.loaded) ? 0 : (mp.st.cache ? 2 : 4); });
+    prop('networkState', function(){ return 2; });
+    prop('buffered', function(){
+      var t = mpvNow(), a = (mp && mp.st.ahead > 0) ? mp.st.ahead : 0, on = !!(mp && mp.loaded);
+      return { length: on ? 1 : 0, start: function(){ return Math.max(0, t - 1); }, end: function(){ return t + a; } };
+    });
+    prop('volume', function(){ return (mp && mp.st.vol >= 0) ? Math.min(1, mp.st.vol / 100) : 1; },
+      function(v){ v = Math.max(0, Math.min(1, Number(v) || 0)); if (mp){ mp.st.vol = v * 100; mpvHold('vol', v * 100); } mpvApi.set('volume', String(Math.round(v * 100))); mpvFire('volumechange'); });
+    prop('muted', function(){ return !!(mp && mp.st.mute); }, function(v){ if (mp){ mp.st.mute = !!v; mpvHold('mute', !!v); } mpvApi.set('mute', v ? 'yes' : 'no'); mpvFire('volumechange'); });
+    prop('playbackRate', function(){ return (mp && mp.st.speed > 0) ? mp.st.speed : 1; },
+      function(v){ v = Number(v) || 1; if (mp){ mp.st.speed = v; mpvHold('speed', v); } mpvApi.set('speed', String(v)); mpvFire('ratechange'); });
+    prop('videoWidth', function(){ return (mp && mp.st.w) || 0; });
+    prop('videoHeight', function(){ return (mp && mp.st.h) || 0; });
+    prop('error', function(){ return (mp && mp.error) ? { code: 4, message: mp.error } : null; });
+    prop('currentSrc', function(){ return mp ? mp.url : ''; });        // what plays is mpv's (the element keeps the last source it had)
+    prop('webkitAudioDecodedByteCount', function(){ return 1e9; });   // mpv plays the sound itself: the no-sound check has nothing to find
+    prop('webkitVideoDecodedByteCount', function(){ return 1e9; });
+    prop('audioTracks', function(){ return { length: 0 }; });          // mpv's tracks have the Audio menu's own branch
+    method('play', function(){
+      if (!mp) return Promise.resolve();
+      if (mp.ended) mpvSeek(0);
+      mpvFreeze(); mp.st.pause = false; mpvHold('pause', false); mpvApi.set('pause', 'no'); mpvFire('play'); if (!mp.st.cache) mpvFire('playing');
+      return Promise.resolve();
+    });
+    method('pause', function(){ if (!mp) return; mpvFreeze(); mp.st.pause = true; mpvHold('pause', true); mpvApi.set('pause', 'yes'); mpvFire('pause'); });
+    method('load', function(){});
+    // mpv's drops out of the frames its helper drew (the page may show fewer: a slow screen skips to the newest)
+    method('getVideoPlaybackQuality', function(){ var s = (mp && mp.st) || {}; return { droppedVideoFrames: mpvDropped(s), totalVideoFrames: (s.drawn || 0) + (s.drop || 0) }; });
+    method('requestPictureInPicture', function(){ return Promise.reject(new Error('Picture-in-picture is not available with the full-format player.')); });
+  }
+  function mpvUnbind(){ MPV_OWN.forEach(function(k){ try { delete video[k]; } catch(e){} }); }
+  /** A change asked for here holds until mpv reports it (or 1.5 s pass): a state that left mpv before the change landed must
+      not flip it back and forth (a party host would pass the flicker on). */
+  function mpvHold(k, v){ if (!mp) return; if (!mp.hold) mp.hold = {}; mp.hold[k] = { v: v, at: Date.now() }; }
+  /** This file's frames that never reached the screen: mpv's drops, and those drawn faster than the page could show them. */
+  function mpvDropped(s){ return (s.drop || 0) + Math.max(0, (s.drawn || 0) - (s.frames || 0)); }
+  /** Where the clock is, fixed as the latest word (pausing must not jump back to mpv's last report). */
+  function mpvFreeze(){ if (!mp) return; mp.st.t = mpvNow(); mp.at = Date.now(); }
+  /** mpv's picture of itself (four times a second): the element's events follow from what changed. */
+  function mpvState(s){
+    if (!mp) return;
+    var p = mp.st, first = !mp.at;
+    if (mp.hold){
+      for (var hk in mp.hold){
+        var hv = mp.hold[hk], tol = hk === 'vol' ? 0.6 : 0.001;
+        var agrees = typeof hv.v === 'number' ? Math.abs((s[hk] || 0) - hv.v) < tol : s[hk] === hv.v;
+        if (agrees || Date.now() - hv.at > 1500) delete mp.hold[hk]; else s[hk] = hv.v;
+      }
+    }
+    mp.st = s; mp.at = Date.now();
+    if (mp.pending != null && ((!s.seeking && s.t != null && Math.abs(s.t - mp.pending) < 1.5) || Date.now() - mp.pendingAt > 8000)) mp.pending = null;
+    if (!first && p.pause !== s.pause){ mpvFire(s.pause ? 'pause' : 'play'); if (!s.pause && !s.cache) mpvFire('playing'); }
+    // the system's now-playing state follows (a pause asked for here changed mp.st before this, so compare with what was said)
+    var msWant = (s.pause === false && !mp.ended) ? 'playing' : 'paused';
+    if (mp.msState !== msWant){ mp.msState = msWant; try { navigator.mediaSession.playbackState = msWant; } catch(e){} }
+    // the spinner: buffering, a seek on its way, a reconnect
+    var busy = !!(mp.reconnecting || (mp.loaded && (s.cache || s.seeking || mp.seeking)));
+    if (busy !== !!mp.spin){ mp.spin = busy; try { $id('puiSpin').style.display = busy ? 'block' : 'none'; } catch(e){} }
+    // a reconnect is allowed again after a minute of healthy playback (as the engine's own retry re-arms)
+    if (mp.retried && mp.retriedAt && s.pause === false && !s.cache && Date.now() - mp.retriedAt > 60000) mp.retried = false;
+    if (s.cache && !p.cache) mpvFire('waiting');
+    if (!s.cache && p.cache && !s.pause) mpvFire('playing');
+    if (s.dur !== p.dur) mpvFire('durationchange');
+    if (!first && s.speed !== p.speed) mpvFire('ratechange');
+    if (!first && (s.vol !== p.vol || s.mute !== p.mute)) mpvFire('volumechange');
+    if (s.eof && !mp.ended){ mp.ended = true; mpvFire('pause'); mpvFire('ended'); }
+    else if (!s.eof && mp.ended && s.pause === false) mp.ended = false;
+    mpvFire('timeupdate');
+  }
+  function mpvOnEvent(e){
+    // the helper would not start: this session plays through the app's own engine (Settings says why)
+    if (e && e.type === 'available'){ mpvInfo = { available: !!e.ok, error: e.error || '', version: e.version || '' }; try { engineRowRender(); } catch(x){} return; }
+    if (!mp || !e) return;
+    if (e.type === 'state'){ mpvState(e.s || {}); return; }
+    if (e.type === 'loaded'){
+      mp.loaded = true; mp.tracks = e.tracks || [];
+      if (mp.reconnecting){ mpvReapply(); return; }
+      ['loadedmetadata','durationchange','loadeddata','canplay'].forEach(mpvFire);
+      if (mp.wait){ var w = mp.wait; mp.wait = null; w.ok(); }
+      return;
+    }
+    if (e.type === 'tracks'){ mp.tracks = e.tracks || []; if (puiState.menu === 'subs') subPanelRender(true); return; }
+    if (e.type === 'seek'){ if (!mp.seeking){ mp.seeking = true; mpvFire('seeking'); } return; }
+    if (e.type === 'restart'){ if (mp.seeking){ mp.seeking = false; mp.pending = null; mpvFire('seeked'); } if (mp.st.pause === false) mpvFire('playing'); return; }
+    if (e.type === 'end' && e.reason === 'error') mpvFailed(e);
+  }
+  if (mpvApi){ try { mpvApi.on(mpvOnEvent); } catch(e){} }
+  /** mpv gave up: before the file opened, the load fails (playUrl decides what next); mid-play, once more from where it was. */
+  function mpvFailed(e){
+    var why = mpvErrLine(e);
+    if (mp.wait){ var w = mp.wait; mp.wait = null; w.no({ code: 'mpv', mpv: true, data: why }); return; }
+    if (!mp.retried && mp.loaded){
+      // once more from where it was, with this play's sound track and speed (a new file would start on its own terms)
+      mp.retried = true; mp.retriedAt = Date.now(); mp.loaded = false; mp.reconnecting = true; mp.spin = true;
+      setStatus('Reconnecting…', 'info');
+      try { $id('puiSpin').style.display = 'block'; } catch(x){}
+      var o = mpvLoadOpts(mpvNow());
+      if (/^\d+$/.test(String(mp.st.aid || ''))) o.aid = String(mp.st.aid);
+      if (mp.st.speed > 0) o.speed = mp.st.speed;
+      mpvApi.load(mp.url, o);
+      return;
+    }
+    mp.reconnecting = false; mp.spin = false;
+    mp.error = why; mpvFire('error'); setStatus(why, 'err');
+    try { $id('puiSpin').style.display = 'none'; } catch(x){}
+  }
+  /** A reconnect reopened the file: what this play had chosen goes back on — the subtitle look and offset, the sound level,
+      the subtitle files it was given (re-added: the reopened file has none), the one showing. */
+  function mpvReapply(){
+    var session = mp, subs = mp.subs || [], was = mp.pick;
+    mp.reconnecting = false; mp.subs = [];
+    mpvSubStyle();
+    mpvApi.set('sub-delay', String(subOffset || 0));
+    if (mp.st.vol >= 0) mpvApi.set('volume', String(Math.round(mp.st.vol)));
+    mpvApi.set('mute', mp.st.mute ? 'yes' : 'no');
+    subs.reduce(function(chain, sb){
+      return chain.then(function(){
+        if (mp !== session) return null;
+        return mpvApi.subAdd(sb.text, sb.label, sb.lang).then(function(t){
+          if (!t || mp !== session) return;
+          mp.subs.push({ text: sb.text, label: sb.label, lang: sb.lang, id: t.id });
+          if (sb.id === was) mp.pick = t.id;
+        });
+      });
+    }, Promise.resolve()).then(function(){
+      if (mp !== session) return;
+      mpvApi.set('sid', (mp.show && mp.pick != null) ? String(mp.pick) : 'no');   // an embedded track keeps its number
+    });
+    clearStatus();
+  }
+  function mpvErrLine(e){
+    var d = String((e && (e.detail || e.error)) || ''), m = /HTTP error (\d{3})|\b(4\d\d|5\d\d) (Forbidden|Not Found|Gone|Unauthorized|Service Unavailable)/i.exec(d);
+    try { if (d) console.warn('[full-format] ' + d); } catch(x){}
+    if (m) return 'This stream cannot play here — its host answered ' + (m[1] || m[2]) + '. Try another source.';
+    if (/recognize file format|no video or audio|unrecognized/i.test(d)) return 'This link is not a film this player can open. Try another source.';
+    if (/stopped unexpectedly/i.test(d)) return 'The player stopped unexpectedly. Try again, or another source.';
+    return 'This stream could not be played. Try another source.';
+  }
+  /** Language codes mpv matches a track by: the two-letter code and the three-letter ones files carry. */
+  function mpvLangs(code){
+    code = String(code || '').toLowerCase(); if (!code) return '';
+    var three = { en:'eng', hi:'hin', ta:'tam', te:'tel', ml:'mal', kn:'kan', bn:'ben', mr:'mar', es:'spa', fr:'fre,fra', de:'ger,deu', pt:'por', it:'ita',
+      ar:'ara', ja:'jpn', ko:'kor', zh:'chi,zho' }[code];
+    return three ? code + ',' + three : code;
+  }
+  function mpvLoadOpts(startAt){
+    var n = bufferSecs();
+    return { start: startAt > 0 ? startAt : 0, headers: ctx.playHeaders || {}, ua: navigator.userAgent, alang: mpvLangs(prefLang('audioLang')),
+      slang: mpvLangs(prefLang('subLang')), aheadSecs: n || 0, maxBytes: n >= 240 ? 400 : (n >= 120 ? 250 : 150),
+      volume: (mp && mp.st.vol >= 0) ? Math.round(mp.st.vol) : 100, mute: !!(mp && mp.st.mute) };
+  }
+  /** Play `url` through mpv: resolves once the file has opened (like the engine's load()), rejects with a sentence. */
+  async function mpvStart(url, startAt, seq){
+    // the element's own sound level carries over (both players answer one volume control)
+    var ev = 1, em = false;
+    try { ev = Math.max(0, Math.min(1, Number(video.volume))); em = !!video.muted; } catch(e){}
+    if (!(ev >= 0)) ev = 1;
+    mp = { seq: seq, url: url, st: { pause: false, vol: ev * 100, mute: em }, at: 0, loaded: false, ended: false, seeking: false, pending: null, pendingAt: 0,
+      tracks: [], wait: null, error: '', retried: false, retriedAt: 0, reconnecting: false, spin: false, hold: null, subs: [], pick: null, show: false };
+    var session = mp;
+    player = mpvShim();
+    // the engine attached a source of its own before mpv was chosen: let it go, so the element holds nothing (and says so)
+    try { video.removeAttribute('src'); HTMLMediaElement.prototype.load.call(video); } catch(e){}
+    mpvBind();
+    video.style.display = 'block';
+    $id('mpvView').style.display = 'block';
+    if (!mpvApi.attach('mpvView')){ mpvStop(); throw { code: 'mpv', mpv: true, data: 'This computer could not draw the picture here.' }; }
+    mpvSubStyle();
+    var opened = new Promise(function(ok, no){ session.wait = { ok: ok, no: no }; });
+    var r = mpvApi.load(url, mpvLoadOpts(startAt));
+    if (!r || !r.ok){ session.wait = null; throw { code: 'mpv', mpv: true, data: 'The player would not start (' + ((r && r.error) || 'unknown') + ').' }; }
+    var timer = null;
+    try {
+      await Promise.race([opened, new Promise(function(ok, no){
+        timer = setTimeout(function(){ no({ code: 'mpv', mpv: true, data: 'The stream did not answer in 45 s. Try another source.' }); }, 45000);
+      })]);
+    } finally { clearTimeout(timer); if (session.wait) session.wait = null; }
+    if (seq !== playSeq || mp !== session) return;
+    mpvApi.set('sub-delay', String(subOffset || 0));
+    mpvMedia(true);
+  }
+  function mpvStop(){
+    var was = mp; mp = null;
+    if (was && was.wait){ var w = was.wait; was.wait = null; try { w.no({ code: 'mpv', mpv: true, stopped: true }); } catch(e){} }
+    try { mpvApi.stop(); } catch(e){}
+    mpvUnbind();
+    // the sound level set while mpv played is the element's again
+    if (was && was.st){ try { if (was.st.vol >= 0) video.volume = Math.min(1, was.st.vol / 100); video.muted = !!was.st.mute; } catch(e){} }
+    mpvMedia(false);
+    var cv = $id('mpvView'); if (cv) cv.style.display = 'none';
+  }
+  // Media keys and the system's now-playing panel follow a page that is playing sound; mpv plays it outside the page, so a
+  // silent loop stands in while the full-format player is on, and the keys reach mpv through the media session.
+  var mpvKeep = null;
+  function mpvSilence(){
+    var n = 8000, b = new ArrayBuffer(44 + n), d = new DataView(b);
+    function str(o, s){ for (var i = 0; i < s.length; i++) d.setUint8(o + i, s.charCodeAt(i)); }
+    str(0, 'RIFF'); d.setUint32(4, 36 + n, true); str(8, 'WAVE'); str(12, 'fmt '); d.setUint32(16, 16, true); d.setUint16(20, 1, true); d.setUint16(22, 1, true);
+    d.setUint32(24, 8000, true); d.setUint32(28, 8000, true); d.setUint16(32, 1, true); d.setUint16(34, 8, true); str(36, 'data'); d.setUint32(40, n, true);
+    for (var i = 0; i < n; i++) d.setUint8(44 + i, 128);            // one second of 8-bit silence (128 is the zero line)
+    return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+  }
+  function mpvMedia(on){
+    var ms = navigator.mediaSession, acts = ['play', 'pause', 'stop', 'seekbackward', 'seekforward', 'seekto'];
+    try {
+      if (on){
+        if (!mpvKeep){ mpvKeep = new Audio(mpvSilence()); mpvKeep.loop = true; }
+        var pl = mpvKeep.play(); if (pl && pl.catch) pl.catch(function(){});
+        if (!ms) return;
+        ms.metadata = new MediaMetadata({ title: ctx.playTitle || ctx.streamTitle || 'Nebula', artist: 'Nebula', artwork: ctx.playPoster ? [{ src: ctx.playPoster }] : [] });
+        ms.playbackState = 'playing';
+        var h = {
+          play: function(){ video.play(); }, pause: function(){ video.pause(); }, stop: function(){ video.pause(); },
+          seekbackward: function(){ mpvSeek(mpvNow() - seekStepSecs()); }, seekforward: function(){ mpvSeek(mpvNow() + seekStepSecs()); },
+          seekto: function(dt){ if (dt && dt.seekTime >= 0) mpvSeek(dt.seekTime); }
+        };
+        acts.forEach(function(a){ try { ms.setActionHandler(a, h[a]); } catch(e){} });
+      } else {
+        if (mpvKeep) mpvKeep.pause();
+        if (!ms) return;
+        ms.metadata = null; ms.playbackState = 'none';
+        acts.forEach(function(a){ try { ms.setActionHandler(a, null); } catch(e){} });
+      }
+    } catch(e){}
+  }
+  /** The file's tracks as mpv lists them now (the selection moves: never trust an old copy). */
+  function mpvTracksNow(){
+    if (!mp) return [];
+    try { var j = mpvApi.get('track-list'); if (j) mp.tracks = JSON.parse(j) || []; } catch(e){}
+    return mp.tracks || [];
+  }
+  var MPV_VCODEC = { h264:'H.264', hevc:'HEVC', av1:'AV1', vp9:'VP9', vp8:'VP8', mpeg2video:'MPEG-2', mpeg4:'MPEG-4' };
+  function mpvChannels(n){ n = Number(n) || 0; return n >= 8 ? '7.1' : (n >= 6 ? '5.1' : (n === 2 ? 'Stereo' : (n === 1 ? 'Mono' : ''))); }
+  function mpvAudioLabel(a, i){
+    var codec = FF_AUDIO_NAMES[String(a.codec || '').toLowerCase()] || '';
+    return [tcTrackLabel({ i: i, lang: a.lang || '', title: a.title || '', channels: 0 }), codec, mpvChannels(a['demux-channel-count'])].filter(Boolean).join(' · ');
+  }
+  /** A subtitle file for mpv: fetched here (the add-on rescue, the encoding rescue), handed over as text. */
+  async function mpvAddSub(url, lang, label){
+    var text = '';
+    if (/^blob:/i.test(url)){ var r = await fetch(url); text = await r.text(); }
+    else { var b = await fetchSubBlob(url); var r2 = await fetch(b.url); text = await r2.text(); }
+    if (!mp) return null;
+    var t = await mpvApi.subAdd(text, label || '', lang || '');
+    if (!t || !mp) return null;
+    mp.subs.push({ text: text, label: label || '', lang: lang || '', id: t.id });   // kept: a reconnect adds it again
+    mpvTracksNow();
+    return { id: t.id, language: t.lang || lang || 'und', label: t.title || label || '', kind: 'subtitles', active: false };
+  }
+  /** What the rest of the player asks a streaming engine for, answered from mpv. */
+  function mpvShim(){
+    // the chosen subtitle lives on the play (mp.show, mp.pick): a reconnect puts it back
+    function subs(){
+      return mpvTracksNow().filter(function(t){ return t.type === 'sub'; }).map(function(t){
+        return { id: t.id, language: t.lang || 'und', label: t.title || '', kind: 'subtitles', active: !!(mp && mp.show && t.id === mp.pick) };
+      });
+    }
+    function apply(){ if (mp) mpvApi.set('sid', (mp.show && mp.pick != null) ? String(mp.pick) : 'no'); }
+    return {
+      mpv: true,
+      destroy: function(){ mpvStop(); return Promise.resolve(); },
+      attach: function(){ return Promise.resolve(); }, configure: function(){}, retryStreaming: function(){ return false; },
+      getConfiguration: function(){ return { abr: { enabled: true }, streaming: { bufferingGoal: bufferSecs(), segmentPrefetchLimit: 0 } }; },
+      getLoadMode: function(){ return 'mpv'; },
+      seekRange: function(){
+        var d = mp && mp.st.dur; if (d > 0) return { start: 0, end: d };
+        if (mp && mp.st.live){ var t = mpvNow(); return { start: Math.max(0, t - 60), end: t + (mp.st.ahead || 0) }; }
+        return { start: 0, end: 0 };
+      },
+      isLive: function(){ return !!(mp && mp.st.live); }, isBuffering: function(){ return !!(mp && mp.st.cache); },
+      getStats: function(){ var s = (mp && mp.st) || {}; return { width: s.w || 0, height: s.h || 0, streamBandwidth: (s.vbr || 0) + (s.abr || 0), estimatedBandwidth: 0,
+        decodedFrames: (s.drawn || 0) + (s.drop || 0), droppedFrames: mpvDropped(s), liveLatency: NaN }; },
+      getVariantTracks: function(){ return []; }, selectVariantTrack: function(){}, getAudioLanguagesAndRoles: function(){ return []; }, selectAudioLanguage: function(){},
+      getImageTracks: function(){ return []; }, getThumbnails: function(){ return null; },
+      getNetworkingEngine: function(){ return { registerRequestFilter: function(){}, registerResponseFilter: function(){} }; },
+      addEventListener: function(){}, removeEventListener: function(){},
+      getTextTracks: subs,
+      isTextTrackVisible: function(){ return !!(mp && mp.show && mp.pick != null); },
+      selectTextTrack: function(t){ if (mp) mp.pick = t ? t.id : null; apply(); },
+      setTextTrackVisibility: function(on){ if (!mp) return; mp.show = !!on; if (mp.show && mp.pick == null){ var tt = subs(); if (tt.length) mp.pick = tt[0].id; } apply(); },
+      addTextTrackAsync: function(url, lang, kind, mime, codec, label){ return mpvAddSub(url, lang, label); }
+    };
+  }
+  // Settings › Subtitles, drawn by mpv: the same choices, in mpv's terms (a file's own styled subtitles keep their look)
+  var MPV_SUB = {
+    size: { small: 0.75, normal: 1, large: 1.3, xl: 1.65, huge: 2 },
+    color: { white: '#FFFFFF', yellow: '#FFE600', cyan: '#62F0FF', green: '#7DFF8A' },
+    bg: { dark: '#CC000000', light: '#73000000', none: '#00000000' },
+    pos: { bottom: 100, raised: 92, high: 82, centre: 60 }
+  };
+  function mpvSubStyle(){
+    if (!mp) return;
+    var s = subStyle, set = function(k, v){ mpvApi.set(k, String(v)); };
+    set('sub-scale', MPV_SUB.size[s.size] || 1);
+    set('sub-color', MPV_SUB.color[s.color] || '#FFFFFF');
+    set('sub-font', s.font === 'serif' ? 'serif' : (s.font === 'mono' ? 'monospace' : 'sans-serif'));
+    set('sub-bold', s.bold === 'on' ? 'yes' : 'no');
+    set('sub-back-color', MPV_SUB.bg[s.bg] || '#00000000');
+    set('sub-border-style', s.bg === 'none' ? 'outline-and-shadow' : 'opaque-box');   // a libmpv that knows it draws a real box
+    if (s.edge === 'outline'){ set('sub-border-size', 3); set('sub-shadow-offset', 0); set('sub-border-color', '#FF000000'); }
+    else if (s.edge === 'shadow'){ set('sub-border-size', 1.5); set('sub-shadow-offset', 2); set('sub-border-color', '#99000000'); set('sub-shadow-color', '#CC000000'); }
+    else { set('sub-border-size', 0); set('sub-shadow-offset', 0); }
+    mpvSubLift();
+  }
+  /** Subtitles clear the control bar while it shows, as the engine's own cues do. */
+  function mpvSubLift(){
+    if (!mp) return;
+    var base = MPV_SUB.pos[subStyle.pos] || 100;
+    var lift = document.body.classList.contains('pui-on') ? Math.round((IS_TV ? 288 : 228) / Math.max(300, window.innerHeight || 0) * 100) : 0;
+    mpvApi.set('sub-pos', String(Math.max(20, base - lift)));
+  }
+
   // ---- no sound: a browser engine that cannot decode the audio (Dolby Digital / DTS / TrueHD in a remux) plays the
   // picture in silence and never says so. Once the picture is moving and not one audio byte has been decoded, say it. ----
   var audioSilentNoted = false;
@@ -7064,8 +7427,11 @@
     // hardware). When the stream row already says so (DDP, DTS, x265…) the file is probed first; otherwise it starts
     // at once and a probe runs beside it, restarting through the shell only if it turns out to be needed.
     var tcInfo = null, tcLater = false, tcc = null;
+    // the full-format player (desktop) takes the file itself: no converter, no probe (once, after a failed try, it steps aside)
+    var useMpv = mpvCandidate(rawUrl, clearKeys);
+    ctx.forceBuiltin = false;
     if (ctx.tcForce){ tcInfo = ctx.tcForce; ctx.tcForce = null; }
-    else if (tcCandidate(rawUrl, clearKeys)){
+    else if (!useMpv && tcCandidate(rawUrl, clearKeys)){
       tcc = tcCheckStart(seq, cleanUrl(rawUrl), function(info){
         // the restart through the shell, from wherever playback had got to
         try { flushProgress(true); } catch(e){}
@@ -7085,7 +7451,11 @@
     }
     var loaded = false;
     try {
-      if (tcInfo){
+      if (useMpv){
+        try { await player.destroy(); } catch(e){}
+        await mpvStart(ctx.localPath === rawUrl ? rawUrl : cleanUrl(rawUrl), startAt, seq);
+      }
+      else if (tcInfo){
         try { await player.destroy(); } catch(e){}
         await tcStart(cleanUrl(rawUrl), tcInfo, startAt, seq);
       }
@@ -7123,6 +7493,22 @@
       if (seq !== playSeq) return;
       // Play through your PC: the sharing computer failed the load — the same thing again, direct (the relay is dropped for a while)
       if (!loaded && ctx.viaRelay && relayErrOwn(err)){ relayDrop(); return playUrl(rawUrl, clearKeys, title, subtitles, mimeType); }
+      // the full-format player could not open it: once through the app's own engine (a format it refused), unless the
+      // host itself said no — then the sentence
+      if (useMpv){
+        mpvStop();
+        if (err && err.stopped) return;
+        var why = (err && err.mpv && err.data) || 'This stream could not be played. Try another source.';
+        // a file from this computer the full-format player could not open: the engine plays it from a blob, as it always did
+        if (!loaded && ctx.localFile && ctx.localPath === rawUrl){
+          var lf = ctx.localFile; ctx.localFile = null; ctx.localPath = '';
+          setStatus('Trying the built-in player…', 'info');
+          return playBlobFile(lf);
+        }
+        if (!/answered 4\d\d/.test(why) && !loaded){ setStatus('Trying the built-in player…', 'info'); ctx.forceBuiltin = true; return playUrl(rawUrl, clearKeys, title, subtitles, mimeType); }
+        setStatus(why, 'err'); $id('puiSpin').style.display = 'none';
+        return;
+      }
       var code=(err&&(err.code||err.message))||'unknown'; var extra=err&&err.data?(' — '+JSON.stringify(err.data).slice(0,180)):'';
       // Chromium would not take a plain file the shell could convert: the shell looks at it before anything is said
       if (!loaded && tcc && tcRefused(seq, code)) return;
@@ -7349,6 +7735,7 @@
       'video::-webkit-media-text-track-container{transform:translateY(-' + up + ')}' +
       'body.pui-on video::-webkit-media-text-track-container{transform:translateY(calc(-' + up + ' - 228px))}' +
       'html.tv body.pui-on video::-webkit-media-text-track-container{transform:translateY(calc(-' + up + ' - 288px))}';
+    if (mp) mpvSubStyle();                  // the full-format player draws its own subtitles: the same choices, in its terms
   }
   applySubStyle();
   // rides the add-on/progress mirrors: a TV storage wipe shouldn't reset your subtitles
@@ -7590,7 +7977,7 @@
   function shadowBucket(t){ return Math.floor(t / 10); }
   /** Arm the shadow for what is playing: a plain progressive http(s) file, in the clear, not live, setting on. */
   function shadowArm(){
-    if (tc) return;                         // a converted file cannot be read by a second element
+    if (tc || (player && player.mpv)) return;   // a converted file, or one the full-format player reads, is not the element's to read
     shadowTeardown();
     if (!shadow || !lastPlay || !lastPlay.url || lastPlay.keys || puiIsLive() || !scrubFramesOn()) return;
     var u = cleanUrl(lastPlay.url);
@@ -7722,6 +8109,7 @@
     if (!pui) return;
     pui.className = '';
     document.body.classList.add('pui-on');
+    if (mp) mpvSubLift();
     pauseBoardHide();
     clearTimeout(puiState.idleTimer);
     puiState.idleTimer = setTimeout(function(){
@@ -7733,6 +8121,7 @@
     scrubCancel();                       // the preview card never outlives the chrome
     closePuiMenu(false);
     document.body.classList.remove('pui-on');
+    if (mp) mpvSubLift();
     if (document.activeElement && pui.contains(document.activeElement)) document.activeElement.blur();
     pui.className = 'idle';
     if (skipState.kind) skipFocus();     // with the chrome asleep, OK is the skip
@@ -7867,7 +8256,16 @@
     var res = (w && h) ? (w + '×' + h) : '—';
     if (act && act.frameRate) res += ' · ' + Math.round(act.frameRate) + ' fps';
     if (act && act.hdr && /pq|hlg|smpte2084/i.test(String(act.hdr))) res += ' · HDR';
+    if (player && player.mpv && mp && /^(pq|hlg)$/.test(String(mp.st.gamma || ''))) res += ' · HDR';   // tone-mapped for this screen (the shell's shader)
     row('Picture', res);
+    if (player && player.mpv && mp){
+      var ms = mp.st, mvc = String(ms.vcodec || '').split(/[ (]/)[0].toLowerCase(), mac = String(ms.acodec || '').toLowerCase();
+      row('Codec', [MPV_VCODEC[mvc] || mvc.toUpperCase(), [FF_AUDIO_NAMES[mac] || mac.toUpperCase(), mpvChannels(ms.ach)].filter(Boolean).join(' ')].filter(Boolean).join(' / '));
+      // drawing is the helper's CPU work: slow for its frame rate means frames at risk; a machine that cannot keep up gets a smaller picture
+      var mslot = 1000 / Math.max(10, ms.vfps || ms.fps || 24);
+      row('Player', 'Full-format' + (ms.drawMs ? ' · ' + ms.drawMs + ' ms a frame' : '') + (ms.sc < 1 && ms.rw ? ' · drawn at ' + ms.rw + '×' + ms.rh + ' to keep up' : ''),
+        ms.drawMs > mslot * 0.75);
+    }
     var vc = act && codecName(act.videoCodec), ac = act && codecName(act.audioCodec);
     if (vc || ac) row('Codec', [vc, ac].filter(Boolean).join(' / '));
     if (st && st.streamBandwidth) row('Stream', fmtBits(st.streamBandwidth));
@@ -7916,6 +8314,7 @@
     subOffset = Math.round(v * 10) / 10;
     if (Math.abs(subOffset) < 0.05) subOffset = 0;
     applySubOffset();
+    if (mp) mpvApi.set('sub-delay', String(subOffset));
     // the readout and the "Back in sync" mark live in the panel's Style column
     Array.prototype.forEach.call(pui.querySelectorAll('.qtime'), function(t){ t.innerHTML = subOffsetHtml(); });
     Array.prototype.forEach.call(pui.querySelectorAll('[data-sync]'), function(b){ b.classList.toggle('on', !subOffset); });
@@ -7972,6 +8371,14 @@
           : tc.why === 'file' ? 'Converted by the app: this file comes in a container the player cannot open, so it is repackaged while it plays.'
           : tc.why === 'host' ? 'Played through the app: this stream’s host does not serve the player directly, so the app fetches it while it plays.'
           : 'Converted by the app: the audio (' + (tcBadAudioNames(tc.info) || audioCodecHint(ctx.playRow || '') || String(tc.info.audio[tc.a].codec || '').toUpperCase()) + ') is turned into a format this device plays.');
+      } else if (player && player.mpv){
+        // the full-format player: every sound track the file carries, by the file's own names
+        var mat = mpvTracksNow().filter(function(t){ return t.type === 'audio'; });
+        mat.forEach(function(a, i){
+          var label = mpvAudioLabel(a, i);
+          menuOpt(label, !!a.selected, function(){ mpvApi.set('aid', String(a.id)); setStatus('Audio: ' + label, 'ok'); closePuiMenu(true); });
+        });
+        puiNote(mat.length > 1 ? 'Every sound track this file carries.' : (mat.length ? 'This file carries one sound track.' : 'This stream has no sound track.'));
       } else if (langs.length >= 2){
         var curLang=''; try { (player.getVariantTracks()||[]).forEach(function(v){ if(v.active) curLang=v.language; }); } catch(e){}
         langs.forEach(function(l, li){
@@ -8266,6 +8673,11 @@
   function bufferSecs(){ var n = Number(getPrefs().buffer); return BUFFER_STEPS[n] ? n : 0; }
   function bufferLabel(n){ return n >= 60 ? (n / 60) + ' min' : n + ' s'; }
   function applyBufferPolicy(){
+    if (player && player.mpv){
+      var mn = bufferSecs();   // Buffer ahead is how far mpv's cache reads (Auto: mpv's own, as far as its memory allows)
+      mpvApi.set('cache-secs', String(mn || 3600000)); mpvApi.set('demuxer-max-bytes', (mn >= 240 ? 400 : (mn >= 120 ? 250 : 150)) + 'MiB');
+      return;
+    }
     if (!player || player.tc) return;
     var n = bufferSecs(), st = BUFFER_STEPS[n], d = null;
     try { d = shaka.util.PlayerConfiguration.createDefault().streaming; } catch(e){}
@@ -8282,6 +8694,7 @@
   /** What the buffer is aiming for right now: the converter's target, the engine's goal, or nothing for a plain file. */
   function bufferTarget(){
     if (tc) return tcAheadGoal();
+    if (player && player.mpv) return bufferSecs();
     try { if (player && player.getLoadMode && player.getLoadMode() === shaka.Player.LoadMode.MEDIA_SOURCE) return Math.round(player.getConfiguration().streaming.bufferingGoal); } catch(e){}
     return 0;
   }
@@ -8458,6 +8871,8 @@
     // a viewer hunting for a button that is not there
     $id('puiAudio').style.display = '';
     $id('puiNext').style.display = nextEpisode() ? '' : 'none';
+    // picture-in-picture needs the element's own picture: not while the full-format player draws it
+    $id('puiPip').style.display = (!player.mpv && document.pictureInPictureEnabled && HTMLVideoElement.prototype.requestPictureInPicture) ? '' : 'none';
   }
   // webOS fills the element's native audio-track list (progressive files play
   // through src=, where Shaka cannot see the container's tracks) a moment after
@@ -10393,6 +10808,7 @@
     segChips('setQuality', [['Auto','auto'], ['Start high','high'], ['Data saver','saver']], pr.quality || 'auto', function(v){ setPref('quality', v); applyQualityPolicy(); });
     segChips('setMaxRes', [['No cap','none'], ['720p','720'], ['1080p','1080'], ['1440p','1440']], pr.maxRes === '720' || pr.maxRes === '1080' || pr.maxRes === '1440' ? pr.maxRes : 'none', function(v){ setPref('maxRes', v); applyQualityPolicy(); });
     segChips('setBuffer', [['Auto','auto'], ['1 min',60], ['2 min',120], ['4 min',240]], bufferSecs() || 'auto', function(v){ setPref('buffer', v); applyBufferPolicy(); });
+    engineRowRender();
     relayRowsRender();                 // Play through your PC (TV) · Share with your TV (desktop)
     stepper('setAudioLang', PREF_LANGS, pr.audioLang || '', function(v){ setPref('audioLang', v); applyLangPrefs(); });
     stepper('setSubLang', PREF_LANGS, pr.subLang || '', function(v){ setPref('subLang', v); applyLangPrefs(); });
@@ -10580,10 +10996,39 @@
   $id('fileBtn').onclick = function(){ $id('filePick').click(); };
   function playLocalFile(f){
     if (!f) return;
-    if (lastFileUrl){ try { URL.revokeObjectURL(lastFileUrl); } catch(e){} }
-    lastFileUrl = URL.createObjectURL(f);
+    if (lastFileUrl){ try { URL.revokeObjectURL(lastFileUrl); } catch(e){} lastFileUrl = null; }
     clearPlayIdentity();
+    ctx.localFile = null;
+    // the full-format player reads the file where it lies (every codec, every track) — the shell hands the page a name for
+    // it ('local:N'), never its path — and the engine needs a blob of it
+    if (mpvReady() && mpvApi.localFile){
+      mpvApi.localFile(f).then(function(id){
+        if (!id) return playBlobFile(f);
+        ctx.localPath = id; ctx.localFile = f;
+        playUrl(id, null, f.name, [], fileMime(f));
+      }, function(){ playBlobFile(f); });
+      return;
+    }
+    playBlobFile(f);
+  }
+  function playBlobFile(f){
+    lastFileUrl = URL.createObjectURL(f);
     playUrl(lastFileUrl, null, f.name, [], fileMime(f));
+  }
+  /** Settings › Player (desktop): the full-format player, or the app's own engine — redrawn when the shell's check of this
+      computer answers (a moment after launch). */
+  function engineRowRender(){
+    var engRow = $id('setEngineRow');
+    if (!engRow || !mpvApi) return;
+    var engOk = !!(mpvInfo && mpvInfo.available), ua = navigator.userAgent || '', winBox = /Windows/.test(ua), linuxBox = /Linux/.test(ua) && !/Android/.test(ua);
+    engRow.style.display = '';
+    segChips('setEngine', [['Full-format','mpv'], ['Built-in','builtin']], (engOk && getPrefs().engine !== 'builtin') ? 'mpv' : 'builtin',
+      function(v){ if (v === 'mpv' && !engOk) return; setPref('engine', v); });
+    $id('setEngineSub').textContent = engOk
+      ? 'Full-format plays every file, every sound and subtitle track, the way a desktop player does · Built-in uses the app’s streaming engine · From the next play'
+      : (winBox ? 'Full-format could not start on this computer — reinstalling Nebula puts back what it needs'
+        : linuxBox ? 'Full-format needs a video library this computer does not have — install the libmpv2 package (Fedora: mpv-libs, Arch: mpv) and restart Nebula'
+        : 'Full-format is not available on this computer') + ' · Until then the built-in engine plays';
   }
   $id('filePick').onchange = function(){
     playLocalFile(this.files && this.files[0]);
