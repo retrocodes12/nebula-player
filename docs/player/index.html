@@ -6947,12 +6947,14 @@
     if (mp.pending != null) return mp.pending;
     var s = mp.st, t = s.t > 0 ? s.t : 0;
     if (s.pause === false && !s.cache && !s.seeking && !mp.ended && !mp.reconnecting && !mp.error && mp.at) t += (Date.now() - mp.at) / 1000 * (s.speed || 1);
-    return (s.dur > 0 && t > s.dur) ? s.dur : t;
+    var len = mpvLen(s);
+    return (len > 0 && t > len) ? len : t;
   }
   function mpvSeek(v){
     if (!mp) return;
     v = Math.max(0, Number(v) || 0);
-    if (mp.st.dur > 0) v = Math.min(v, Math.max(0, mp.st.dur - 0.5));
+    var len = mpvLen(mp.st);                            // (a length mpv only estimates is no limit: it seeks past what it has read)
+    if (len > 0) v = Math.min(v, Math.max(0, len - 0.5));
     // a stream that cannot seek: mpv refuses every jump (even inside what it holds, mpv 0.34) — none is asked; said once
     if (mpvStuck() && !mp.error){ mpvFire('seeking'); mpvFire('seeked'); mpvFire('timeupdate'); if (!mp.seekNote){ mp.seekNote = true; setStatus('This stream cannot jump to that point.', 'info'); } return; }
     // after the sentence nothing is open: the play's point moves there, and the play button tries again from it (a source
@@ -7053,6 +7055,13 @@
       || (mpvLen(s) > 0 && (s.t || 0) < s.dur - 10) || (s.seekable === false && s.neterr != null && (s.t || 0) < s.neterr + 10));
     if (cutNow){ s.eof = false; s.pause = p.pause; }
     mp.st = s; mp.at = Date.now();
+    // a container that carries no length (an unfinished recording, a remux): mpv's "length" is what it has read and moves with
+    // it — none for the rest of the player (mpvLen); a length that holds across two looks is the file's own
+    if (mp.loaded && !mp.reconnecting && !mp.error && s.dur > 0 && !s.eof){
+      if (mp.durSeen == null) mp.durSeen = s.dur;
+      else if (Math.abs(s.dur - mp.durSeen) > 0.5) mp.durEst = true;
+      else if (!mp.durEst) mp.durOk = true;
+    }
     // (a resume point this stream could not honour, learnt from its state rather than from mpv's refusal: said, and kept)
     if (mp.startAt > 0 && !mp.keepFrom && mp.loaded && !mp.reconnecting && s.seekable === false && !s.live && (s.t || 0) < mp.startAt - 5){
       mp.keepFrom = mp.startAt; setStatus('This source can only play from the beginning — your place is kept.', 'info');
@@ -7088,7 +7097,8 @@
     } else { mp.cacheAt = 0; mp.cacheAhead = 0; }
     if (s.cache && !p.cache) mpvFire('waiting');
     if (!s.cache && p.cache && !s.pause) mpvFire('playing');
-    if (mpvLen(s) !== mpvLen(p) || !!s.live !== !!p.live) mpvFire('durationchange');
+    var lenNow = mpvLen(s);
+    if (lenNow !== mp.lenSaid || !!s.live !== !!p.live){ mp.lenSaid = lenNow; mpvFire('durationchange'); }
     if (!first && s.speed !== p.speed) mpvFire('ratechange');
     if (!first && (s.vol !== p.vol || s.mute !== p.mute)) mpvFire('volumechange');
     if (cutNow || stalled){ mp.cut = true; mp.cacheAt = 0; mpvFailed({ error: stalled ? 'the stream stopped sending' : 'the stream stopped before the end', detail: '' }); }
@@ -7209,9 +7219,10 @@
     return false;
   }
   /** The film's length as the rest of the player may use it: none while mpv only estimates it — a source that cannot seek
-      and gives no size (a stream remuxed on the fly) grows its "length" with what it has read, which would tick the film
-      off and offer the next episode within seconds. */
-  function mpvLen(st){ return (st && st.dur > 0 && (st.seekable !== false || st.fsize > 0)) ? st.dur : 0; }
+      and gives no size (a stream remuxed on the fly), or a container that carries no length at all (mp.durEst: its "length"
+      moves with what mpv has read), would tick the film off and offer the next episode within seconds — and none until it
+      has held across two looks (mp.durOk). */
+  function mpvLen(st){ return (st && st.dur > 0 && (st.seekable !== false || st.fsize > 0) && mp && mp.durOk && !mp.durEst) ? st.dur : 0; }
   /** This play cannot pick up mid-film: a reconnect could only start it again from the top (a live stream has its edge). */
   function mpvStuck(){ return !!(mp && mp.st.seekable === false && !mp.st.live); }
   /** A reconnect reopened the file: what this play had chosen goes back on — the subtitle look and offset, the sound level,
@@ -7302,7 +7313,7 @@
     if (!(ev >= 0)) ev = 1;
     mp = { seq: seq, url: url, st: { pause: false, vol: mpvVolOf(ev), mute: em }, at: 0, loaded: false, ended: false, seeking: false, pending: null, pendingAt: 0,
       tracks: [], wait: null, error: '', retried: false, retriedAt: 0, reconnecting: false, spin: false, hold: null, subs: [], pick: null, show: false,
-      cut: false, dv: false, ver: '', rcTry: 0, rcUntil: 0, rcFrom: 0, rcStart: 0, rcTimer: null, rcRetry: null, aid: '', seekNote: false, startAt: startAt > 0 ? startAt : 0, keepFrom: 0,
+      cut: false, dv: false, ver: '', rcTry: 0, rcUntil: 0, rcFrom: 0, rcStart: 0, rcTimer: null, rcRetry: null, aid: '', seekNote: false, startAt: startAt > 0 ? startAt : 0, keepFrom: 0, durSeen: null, durOk: false, durEst: false,
       liveHint: /^tv$/i.test(String(ctx.playType || '')) || /\.m3u8?(\?|#|$)/i.test(String(url)) };   // (a TV title, a playlist: live with no length)
     var session = mp;
     player = mpvShim();
@@ -9669,6 +9680,8 @@
       if (!s.live && Math.abs(video.currentTime - s.pos) > 1){ try { video.currentTime = s.pos; } catch(e){} }
       return;
     }
+    // (a host that started again from the top: a stream that cannot seek, ended here, follows by opening afresh)
+    if (s.pos < 5 && mp && mp.ended && mpvStuck()){ mpvRetryAsked(); return; }
     if (video.paused && !video.error){ try { video.play(); } catch(e){} }   // (a play that failed waits for the viewer's own press)
     var err;
     if (s.live){
