@@ -7064,7 +7064,9 @@
       // that — or mpv holds the whole file with no failed connection: its reader stopped, or has reached the length. A burst from
       // the host and then a pause, or the host gone, held an estimate still: round 12)
       var read = s.got != null ? s.got : (s.t || 0) + (s.ahead > 0 ? s.ahead : 0);
-      mp.durBeyond = s.dur > read + 1 || (s.neterr == null && (s.ridle === true || (mp.durOk && read >= s.dur - 1)));
+      // (a length already held as the film's own keeps that through a failed connection: a drop FFmpeg rode out must not take its
+      // last minutes' length away once mpv has read to the end, round 13)
+      mp.durBeyond = s.dur > read + 1 || ((s.neterr == null || mp.durOk) && (s.ridle === true || (mp.durOk && read >= s.dur - 1)));
       if (mp.durSeen == null){ mp.durSeen = mp.durRef = s.dur; mp.durT = s.t || 0; }
       else if (Math.abs(s.dur - mp.durRef) > 0.05){
         if (Math.abs(s.dur - mp.durSeen) > 0.5) mp.durEst = true;
