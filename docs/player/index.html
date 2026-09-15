@@ -7104,6 +7104,11 @@
       if (/^\d+$/.test(String(mp.st.aid || ''))) o.aid = String(mp.st.aid);
       if (mp.st.speed > 0) o.speed = mp.st.speed;
       mpvApi.load(mp.url, o);
+      // a reconnect that has not reopened the file in 20 s ends in the sentence, not a spinner (should the host answer
+      // later after all, playback restarting clears it)
+      var session = mp;
+      clearTimeout(mp.rcTimer);
+      mp.rcTimer = setTimeout(function(){ if (mp === session && mp.reconnecting) mpvFailed({ error: 'the stream stopped before the end', detail: '' }); }, 20000);
       return;
     }
     mp.reconnecting = false; mp.spin = false;
@@ -7116,6 +7121,7 @@
       the subtitle files it was given (re-added: the reopened file has none), the one showing. */
   function mpvReapply(){
     var session = mp, subs = mp.subs || [], was = mp.pick;
+    clearTimeout(mp.rcTimer);
     mp.reconnecting = false; mp.subs = []; mp.cut = false;
     mpvSubStyle();
     mpvApi.set('sub-delay', String(subOffset || 0));
@@ -7218,6 +7224,7 @@
   }
   function mpvStop(){
     var was = mp; mp = null;
+    if (was) clearTimeout(was.rcTimer);
     if (was && was.wait){ var w = was.wait; was.wait = null; try { w.no({ code: 'mpv', mpv: true, stopped: true }); } catch(e){} }
     try { mpvApi.stop(); } catch(e){}
     mpvUnbind();
