@@ -6945,7 +6945,7 @@
     if (!mp) return 0;
     if (mp.pending != null) return mp.pending;
     var s = mp.st, t = s.t > 0 ? s.t : 0;
-    if (s.pause === false && !s.cache && !s.seeking && !mp.ended && !mp.reconnecting && mp.at) t += (Date.now() - mp.at) / 1000 * (s.speed || 1);
+    if (s.pause === false && !s.cache && !s.seeking && !mp.ended && !mp.reconnecting && !mp.error && mp.at) t += (Date.now() - mp.at) / 1000 * (s.speed || 1);
     return (s.dur > 0 && t > s.dur) ? s.dur : t;
   }
   function mpvSeek(v){
@@ -7022,7 +7022,8 @@
     }
     // a reconnect's gap (a new helper, idle until the file reopens) says nothing about this play: its clock, length and
     // pause hold — a resume point or a party host must not hear 0
-    if (mp.reconnecting){ for (var pk in p){ if (s[pk] == null) s[pk] = p[pk]; } s.t = p.t; s.pause = p.pause; s.eof = false; s.cache = p.cache; }
+    // (and after a play that failed for good: its last position is what a resume point and the party keep)
+    if (mp.reconnecting || mp.error){ for (var pk in p){ if (s[pk] == null) s[pk] = p[pk]; } s.t = p.t; s.pause = p.pause; s.eof = false; s.cache = p.cache; }
     mp.st = s; mp.at = Date.now();
     if (mp.pending != null && ((!s.seeking && s.t != null && Math.abs(s.t - mp.pending) < 1.5) || Date.now() - mp.pendingAt > 8000)) mp.pending = null;
     if (!first && p.pause !== s.pause){ mpvFire(s.pause ? 'pause' : 'play'); if (!s.pause && !s.cache) mpvFire('playing'); }
@@ -7090,6 +7091,8 @@
       return;
     }
     mp.reconnecting = false; mp.spin = false;
+    // a film that had been cut off says so, unless the host itself answered something
+    if (mp.cut && !/answered/.test(why)) why = 'The stream stopped before the end. Try again, or another source.';
     mp.error = why; mpvFire('error'); setStatus(why, 'err');
     try { $id('puiSpin').style.display = 'none'; } catch(x){}
   }
