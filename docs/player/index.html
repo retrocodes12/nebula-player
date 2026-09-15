@@ -6952,8 +6952,9 @@
     if (!mp) return;
     v = Math.max(0, Number(v) || 0);
     if (mp.st.dur > 0) v = Math.min(v, Math.max(0, mp.st.dur - 0.5));
-    // after the sentence nothing is open: the play's point moves there, and the play button tries again from it
-    if (mp.error && !mp.reconnecting){ mp.st.t = v; mp.at = Date.now(); mpvFire('seeking'); mpvFire('seeked'); mpvFire('timeupdate'); return; }
+    // after the sentence nothing is open: the play's point moves there, and the play button tries again from it (a source
+    // that cannot seek starts again from the top whatever the point)
+    if (mp.error && !mp.reconnecting){ if (!mpvStuck()){ mp.st.t = v; mp.at = Date.now(); mpvFire('seeking'); mpvFire('seeked'); mpvFire('timeupdate'); } return; }
     mp.pending = v; mp.pendingAt = Date.now(); mp.seeking = true; mp.ended = false;
     mpvApi.command(['seek', v.toFixed(3), 'absolute']);
     mpvFire('seeking');
@@ -6966,7 +6967,7 @@
     function prop(k, get, set){ Object.defineProperty(video, k, { configurable:true, get:get, set:set || function(){} }); }
     function method(k, f){ Object.defineProperty(video, k, { configurable:true, writable:true, value:f }); }
     prop('currentTime', mpvNow, mpvSeek);
-    prop('duration', function(){ var d = mp && mp.st.dur; return d > 0 ? d : (mp && mp.st.live ? Infinity : NaN); });
+    prop('duration', function(){ var d = mp ? mpvLen(mp.st) : 0; return d > 0 ? d : (mp && mp.st.live ? Infinity : NaN); });
     prop('paused', function(){ return !mp || mp.st.pause !== false || mp.ended; });
     prop('ended', function(){ return !!(mp && mp.ended); });
     prop('seeking', function(){ return !!(mp && (mp.seeking || mp.st.seeking)); });
@@ -6990,7 +6991,8 @@
     prop('audioTracks', function(){ return { length: 0 }; });          // mpv's tracks have the Audio menu's own branch
     method('play', function(){
       if (!mp) return Promise.resolve();
-      if (mp.error && !mp.reconnecting){ mpvRetry(); return Promise.resolve(); }   // after the sentence: "Try again"
+      // after the sentence only the viewer's own press tries again (mpvRetryAsked): a party's once-a-second play() must not
+      if (mp.error && !mp.reconnecting) return Promise.resolve();
       if (mp.ended) mpvSeek(0);
       mpvFreeze(); mp.st.pause = false; mpvHold('pause', false); mpvApi.set('pause', 'no'); mpvFire('play'); if (!mp.st.cache) mpvFire('playing');
       return Promise.resolve();
@@ -7035,17 +7037,18 @@
     if (s.eof && (mp.pending != null || Date.now() - (mp.pendingAt || 0) < 800)) s.eof = false;
     // mpv keeps a file open at its end — and a host that went away mid-film looks just the same. Well short of the end (or
     // anywhere in a live stream) it is a lost connection: once more from here, then a sentence — never a finished film
-    // (ticked off, the next one up). Caught before any event is fired, so a party hears no pause either. A file with no
-    // length of its own has mpv's estimate of what it has read for one (it grows as the film arrives): there an end where
-    // the connection failed (the host logged it; s.neterr = how far the download had got) is a lost connection too.
-    if (s.dur > 0 && mp.loaded && !mp.reconnecting && !mp.error){ if (!mp.dur0) mp.dur0 = s.dur; else if (s.dur > mp.dur0 + 2) mp.durGrew = true; }
-    var cutNow = s.eof && !mp.ended && !mp.cut && mp.loaded && !mp.reconnecting && !mp.error && (s.live || !(s.dur > 0) || (s.t || 0) < s.dur - 10
-      || (mp.durGrew && s.neterr != null && (s.t || 0) < s.neterr + 10));
+    // (ticked off, the next one up). Caught before any event is fired, so a party hears no pause either. A source that
+    // cannot seek and gives no size has only mpv's estimate of what it has read for a length (mpvLen: none): there an end
+    // where the connection plainly failed (the host logged it; s.neterr = how far the download had got) is a lost
+    // connection too — a plain close is not (with no length given, that is how such a stream ends, whole or not).
+    var cutNow = s.eof && !mp.ended && !mp.cut && mp.loaded && !mp.reconnecting && !mp.error && (s.live || !(s.dur > 0)
+      || (mpvLen(s) > 0 && (s.t || 0) < s.dur - 10) || (s.seekable === false && s.neterr != null && (s.t || 0) < s.neterr + 10));
     if (cutNow){ s.eof = false; s.pause = p.pause; }
     mp.st = s; mp.at = Date.now();
     if (mp.loaded && !mp.reconnecting && !mp.error && /^\d+$/.test(String(s.aid || ''))) mp.aid = String(s.aid);   // what a reconnect goes back to
     if (mp.pending != null && ((!s.seeking && s.t != null && Math.abs(s.t - mp.pending) < 1.5) || Date.now() - mp.pendingAt > 8000)) mp.pending = null;
-    if (!first && p.pause !== s.pause){ mpvFire(s.pause ? 'pause' : 'play'); if (!s.pause && !s.cache) mpvFire('playing'); }
+    var saidPause = false;                             // (the end says pause once: mpv's own pause at the end is that one)
+    if (!first && p.pause !== s.pause && !(s.pause && mp.ended)){ saidPause = s.pause === true; mpvFire(s.pause ? 'pause' : 'play'); if (!s.pause && !s.cache) mpvFire('playing'); }
     // the system's now-playing state follows (a pause asked for here changed mp.st before this, so compare with what was said)
     var msWant = (s.pause === false && !mp.ended) ? 'playing' : 'paused';
     if (mp.msState !== msWant){
@@ -7070,11 +7073,11 @@
     } else { mp.cacheAt = 0; mp.cacheAhead = 0; }
     if (s.cache && !p.cache) mpvFire('waiting');
     if (!s.cache && p.cache && !s.pause) mpvFire('playing');
-    if (s.dur !== p.dur) mpvFire('durationchange');
+    if (mpvLen(s) !== mpvLen(p) || !!s.live !== !!p.live) mpvFire('durationchange');
     if (!first && s.speed !== p.speed) mpvFire('ratechange');
     if (!first && (s.vol !== p.vol || s.mute !== p.mute)) mpvFire('volumechange');
     if (cutNow || stalled){ mp.cut = true; mp.cacheAt = 0; mpvFailed({ error: stalled ? 'the stream stopped sending' : 'the stream stopped before the end', detail: '' }); }
-    else if (s.eof && !mp.ended){ mp.ended = true; mpvFire('pause'); mpvFire('ended'); }
+    else if (s.eof && !mp.ended){ mp.ended = true; if (!saidPause) mpvFire('pause'); mpvFire('ended'); }
     else if (!s.eof && mp.ended && s.pause === false) mp.ended = false;
     mpvFire('timeupdate');
   }
@@ -7116,16 +7119,18 @@
       if (wait > 0) mp.rcRetry = setTimeout(function(){ if (mp === session && mp.reconnecting) mpvApi.load(mp.url, mpvRcOpts()); }, wait);
       return;
     }
-    if (!mp.reconnecting && !mp.retried && mp.loaded){ mpvReconnect(); return; }
+    // (a source that cannot seek could only start again from the top: that is the viewer's call, after the sentence)
+    if (!mp.reconnecting && !mp.retried && mp.loaded && !mpvStuck()){ mpvReconnect(); return; }
     // for good: the sentence. mpv lets the file go (nothing left loading, nothing keeping the display awake) and the play
     // stands paused where it was — its resume point, a party — until the play button tries again from there (mpvRetry)
     clearTimeout(mp.rcTimer); clearTimeout(mp.rcRetry);
     mpvFreeze();
     mp.reconnecting = false; mp.loaded = false; mp.spin = false; mp.seeking = false; mp.pending = null;
     // a film that had been cut off says so, unless the host itself answered something
-    if (mp.cut && !/answered/.test(why)) why = 'The stream stopped before the end. Try again, or another source.';
+    if (mpvStuck() && !/answered/.test(why)) why = 'The stream stopped, and this source can only start again from the beginning. Press play for that, or try another source.';
+    else if (mp.cut && !/answered/.test(why)) why = 'The stream stopped before the end. Try again, or another source.';
     mp.error = why; mp.st.cache = false; mp.st.seeking = false;
-    try { mpvApi.stop(); } catch(x){}
+    try { mpvApi.stop(true); } catch(x){}               // (its last picture stays under the sentence)
     if (mp.st.pause === false){ mp.st.pause = true; mpvFire('pause'); }
     mpvFire('error'); setStatus(why, 'err');
     try { $id('puiSpin').style.display = 'none'; } catch(x){}
@@ -7144,19 +7149,28 @@
   }
   /** A reconnect's load: from where the play stands now (a live stream at its edge), as the viewer has it now. */
   function mpvRcOpts(){
-    var o = mpvLoadOpts(mp.st.live ? 0 : mpvNow());
+    var o = mpvLoadOpts((mp.st.live || mpvStuck()) ? 0 : mpvNow());   // (a source that cannot seek: from its top)
     if (mp.aid) o.aid = mp.aid;
     if (mp.st.speed > 0) o.speed = mp.st.speed;
-    o.pause = mp.st.pause === true;
+    o.pause = mp.st.pause === true; o.again = true;    // (again: the host keeps this film's subtitle files)
     mp.rcStart = o.start;
     return o;
   }
-  /** The play button after the sentence: a fresh reconnect from where the play stands. */
+  /** The play button after the sentence: a fresh reconnect from where the play stands (the top, for a source that cannot seek). */
   function mpvRetry(){
+    if (mpvStuck()){ mp.st.t = 0; mp.at = Date.now(); }
     mp.error = ''; mp.cut = false; mp.retried = false; mp.st.pause = false; mpvHold('pause', false);
     clearStatus(); mpvFire('play');
     mpvReconnect();
   }
+  /** The viewer's own play (the button, space, a media key) after the sentence: try again. True when it did. */
+  function mpvRetryAsked(){ if (mp && mp.error && !mp.reconnecting){ mpvRetry(); return true; } return false; }
+  /** The film's length as the rest of the player may use it: none while mpv only estimates it — a source that cannot seek
+      and gives no size (a stream remuxed on the fly) grows its "length" with what it has read, which would tick the film
+      off and offer the next episode within seconds. */
+  function mpvLen(st){ return (st && st.dur > 0 && (st.seekable !== false || st.fsize > 0)) ? st.dur : 0; }
+  /** This play cannot pick up mid-film: a reconnect could only start it again from the top (a live stream has its edge). */
+  function mpvStuck(){ return !!(mp && mp.st.seekable === false && !mp.st.live); }
   /** A reconnect reopened the file: what this play had chosen goes back on — the subtitle look and offset, the sound level,
       the subtitle files it was given (re-added: the reopened file has none), the one showing. */
   function mpvReapply(){
@@ -7245,7 +7259,7 @@
     if (!(ev >= 0)) ev = 1;
     mp = { seq: seq, url: url, st: { pause: false, vol: mpvVolOf(ev), mute: em }, at: 0, loaded: false, ended: false, seeking: false, pending: null, pendingAt: 0,
       tracks: [], wait: null, error: '', retried: false, retriedAt: 0, reconnecting: false, spin: false, hold: null, subs: [], pick: null, show: false,
-      cut: false, dv: false, ver: '', rcTry: 0, rcUntil: 0, rcFrom: 0, rcStart: 0, rcTimer: null, rcRetry: null, aid: '', dur0: 0, durGrew: false };
+      cut: false, dv: false, ver: '', rcTry: 0, rcUntil: 0, rcFrom: 0, rcStart: 0, rcTimer: null, rcRetry: null, aid: '' };
     var session = mp;
     player = mpvShim();
     // the engine attached a source of its own before mpv was chosen: let it go, so the element holds nothing (and says so)
@@ -7300,7 +7314,7 @@
         ms.metadata = new MediaMetadata({ title: ctx.playTitle || ctx.streamTitle || 'Nebula', artist: 'Nebula', artwork: ctx.playPoster ? [{ src: ctx.playPoster }] : [] });
         ms.playbackState = 'playing';
         var h = {
-          play: function(){ video.play(); }, pause: function(){ video.pause(); }, stop: function(){ video.pause(); },
+          play: function(){ if (!mpvRetryAsked()) video.play(); }, pause: function(){ video.pause(); }, stop: function(){ video.pause(); },
           seekbackward: function(){ mpvSeek(mpvNow() - seekStepSecs()); }, seekforward: function(){ mpvSeek(mpvNow() + seekStepSecs()); },
           seekto: function(dt){ if (dt && dt.seekTime >= 0) mpvSeek(dt.seekTime); }
         };
@@ -7353,7 +7367,7 @@
       getConfiguration: function(){ return { abr: { enabled: true }, streaming: { bufferingGoal: bufferSecs(), segmentPrefetchLimit: 0 } }; },
       getLoadMode: function(){ return 'mpv'; },
       seekRange: function(){
-        var d = mp && mp.st.dur; if (d > 0) return { start: 0, end: d };
+        var d = mp ? mpvLen(mp.st) : 0; if (d > 0) return { start: 0, end: d };
         if (mp && mp.st.live){ var t = mpvNow(); return { start: Math.max(0, t - 60), end: t + (mp.st.ahead || 0) }; }
         return { start: 0, end: 0 };
       },
@@ -8210,7 +8224,7 @@
     } else {
       var gone = t - r.start, left = span - gone;
       $id('puiTimeL').textContent = fmtT(gone);
-      $id('puiTimeR').textContent = puiState.total ? fmtT(span) : '−' + fmtT(left);
+      $id('puiTimeR').textContent = (span > 0 || !mp) ? (puiState.total ? fmtT(span) : '−' + fmtT(left)) : '';   // (a length mpv cannot know: none)
       // when this ends at the current speed — the TV-box line beside the clock
       if (span > 0) clock += ' · Ends ' + fmtClock(new Date(now.getTime() + left * 1000 / (video.playbackRate || 1)));
     }
@@ -8264,7 +8278,7 @@
   }
   function togglePlay(){
     if (!player) return;
-    if (video.paused){ try { video.play(); } catch(e){} } else { video.pause(); }
+    if (video.paused){ if (!mpvRetryAsked()){ try { video.play(); } catch(e){} } } else { video.pause(); }
     puiShow();
   }
 
@@ -9486,7 +9500,9 @@
   }
   function partyStreamDesc(){
     return {
-      url: lastPlay.url, title: lastPlay.title || 'Watch party',
+      // a file on the host's own computer (a granted name, a blob) means nothing on a viewer's: said so, never passed on
+      url: /^(local:|blob:)/i.test(lastPlay.url || '') ? '' : lastPlay.url, local: /^(local:|blob:)/i.test(lastPlay.url || '') || undefined,
+      title: lastPlay.title || 'Watch party',
       keys: lastPlay.keys || undefined,
       subs: (lastPlay.subs && lastPlay.subs.length) ? lastPlay.subs : undefined,
       // identity travels with the party so viewers get subtitles + progress
@@ -9606,7 +9622,7 @@
       if (!s.live && Math.abs(video.currentTime - s.pos) > 1){ try { video.currentTime = s.pos; } catch(e){} }
       return;
     }
-    if (video.paused){ try { video.play(); } catch(e){} }
+    if (video.paused && !video.error){ try { video.play(); } catch(e){} }   // (a play that failed waits for the viewer's own press)
     var err;
     if (s.live){
       // s.pos is the host's distance behind the live edge; positive err = we're further behind
@@ -9666,10 +9682,10 @@
       partyBadge();
       setStatus('Joined party ' + m.code + '.','ok');
       // the host owns the position here — nothing to resume, nothing to remember
-      if (m.stream && m.stream.url){
+      if (m.stream && m.stream.url && !/^(local:|blob:)/i.test(m.stream.url)){
         adoptPartyIdentity(m.stream);
         playUrl(m.stream.url, m.stream.keys || null, m.stream.title || 'Watch party', m.stream.subs || []);
-      }
+      } else if (m.stream && (m.stream.local || m.stream.url)) setStatus('The host is playing a file from their own computer — it cannot play here.', 'info');
       return;
     }
     if (!party || ws !== party.ws){
@@ -9680,7 +9696,8 @@
       party.lastState = { playing: !!m.playing, pos: Number(m.pos)||0, live: !!m.live, atLocal: Date.now() - (Number(m.age)||0) };
       if (!party.isHost) partyCorrect();
     } else if (m.t === 'stream'){
-      if (!party.isHost && m.stream && m.stream.url){
+      if (!party.isHost && m.stream && (m.stream.local || /^(local:|blob:)/i.test(m.stream.url || ''))) setStatus('The host is playing a file from their own computer — it cannot play here.', 'info');
+      else if (!party.isHost && m.stream && m.stream.url){
         setStatus('Host switched streams.','info');
         party.lastState = { playing:true, pos:0, live:false, atLocal: Date.now() };
         adoptPartyIdentity(m.stream);
