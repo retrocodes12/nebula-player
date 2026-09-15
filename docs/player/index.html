@@ -7024,6 +7024,13 @@
     // pause hold — a resume point or a party host must not hear 0
     // (and after a play that failed for good: its last position is what a resume point and the party keep)
     if (mp.reconnecting || mp.error){ for (var pk in p){ if (s[pk] == null) s[pk] = p[pk]; } s.t = p.t; s.pause = p.pause; s.eof = false; s.cache = p.cache; }
+    // a seek on its way (or just landed) is not the end, whatever a state taken before it says
+    if (s.eof && (mp.pending != null || Date.now() - (mp.pendingAt || 0) < 800)) s.eof = false;
+    // mpv keeps a file open at its end — and a host that went away mid-film looks just the same. Well short of the end (or
+    // anywhere in a live stream) it is a lost connection: once more from here, then a sentence — never a finished film
+    // (ticked off, the next one up). Caught before any event is fired, so a party hears no pause either.
+    var cutNow = s.eof && !mp.ended && !mp.cut && mp.loaded && !mp.reconnecting && !mp.error && (s.live || !(s.dur > 0) || (s.t || 0) < s.dur - 10);
+    if (cutNow){ s.eof = false; s.pause = p.pause; }
     mp.st = s; mp.at = Date.now();
     if (mp.pending != null && ((!s.seeking && s.t != null && Math.abs(s.t - mp.pending) < 1.5) || Date.now() - mp.pendingAt > 8000)) mp.pending = null;
     if (!first && p.pause !== s.pause){ mpvFire(s.pause ? 'pause' : 'play'); if (!s.pause && !s.cache) mpvFire('playing'); }
@@ -7040,17 +7047,20 @@
     if (busy !== !!mp.spin){ mp.spin = busy; try { $id('puiSpin').style.display = busy ? 'block' : 'none'; } catch(e){} }
     // a reconnect is allowed again after a minute of healthy playback (as the engine's own retry re-arms)
     if (mp.retried && mp.retriedAt && s.pause === false && !s.cache && Date.now() - mp.retriedAt > 60000) mp.retried = false;
+    // a host that stops sending without closing buffers for ever: 20 s of buffering with nothing more arriving is a lost
+    // connection too (a slow download that still grows is not)
+    var stalled = false;
+    if (s.cache && mp.loaded && !mp.reconnecting && !mp.error && !mp.cut){
+      if (!mp.cacheAt || (s.ahead || 0) > (mp.cacheAhead || 0) + 0.5){ mp.cacheAt = Date.now(); mp.cacheAhead = s.ahead || 0; }
+      else if (Date.now() - mp.cacheAt > 20000) stalled = true;
+    } else { mp.cacheAt = 0; mp.cacheAhead = 0; }
     if (s.cache && !p.cache) mpvFire('waiting');
     if (!s.cache && p.cache && !s.pause) mpvFire('playing');
     if (s.dur !== p.dur) mpvFire('durationchange');
     if (!first && s.speed !== p.speed) mpvFire('ratechange');
     if (!first && (s.vol !== p.vol || s.mute !== p.mute)) mpvFire('volumechange');
-    if (s.eof && !mp.ended){
-      // mpv keeps a file open at its end — and a host that went away mid-film looks just the same. Well short of the end it
-      // is a lost connection (once more from here, then a sentence), never a finished film (ticked off, the next one up)
-      if (!s.live && s.dur > 0 && (s.t || 0) < s.dur - 10){ if (!mp.cut){ mp.cut = true; mpvFailed({ error: 'the stream stopped before the end', detail: '' }); } }
-      else { mp.ended = true; mpvFire('pause'); mpvFire('ended'); }
-    }
+    if (cutNow || stalled){ mp.cut = true; mp.cacheAt = 0; mpvFailed({ error: stalled ? 'the stream stopped sending' : 'the stream stopped before the end', detail: '' }); }
+    else if (s.eof && !mp.ended){ mp.ended = true; mpvFire('pause'); mpvFire('ended'); }
     else if (!s.eof && mp.ended && s.pause === false) mp.ended = false;
     mpvFire('timeupdate');
   }
@@ -7069,9 +7079,15 @@
       if (mp.wait){ var w = mp.wait; mp.wait = null; w.ok(); }
       return;
     }
-    if (e.type === 'tracks'){ mp.tracks = e.tracks || []; if (puiState.menu === 'subs') subPanelRender(true); return; }
+    if (e.type === 'tracks'){ mp.tracks = e.tracks || []; if (mp.loaded) mpvDvNote(); if (puiState.menu === 'subs') subPanelRender(true); return; }
     if (e.type === 'seek'){ if (!mp.seeking){ mp.seeking = true; mpvFire('seeking'); } return; }
-    if (e.type === 'restart'){ if (mp.seeking){ mp.seeking = false; mp.pending = null; mpvFire('seeked'); } if (mp.st.pause === false) mpvFire('playing'); return; }
+    if (e.type === 'restart'){
+      // playing again after a failure (the file was still open and the network came back): the play is live again
+      if (mp.error){ mp.error = ''; mp.cut = false; clearStatus(); }
+      if (mp.seeking){ mp.seeking = false; mp.pending = null; mpvFire('seeked'); }
+      if (mp.st.pause === false) mpvFire('playing');
+      return;
+    }
     if (e.type === 'end' && e.reason === 'error') mpvFailed(e);
   }
   if (mpvApi){ try { mpvApi.on(mpvOnEvent); } catch(e){} }
@@ -7084,7 +7100,7 @@
       mp.retried = true; mp.retriedAt = Date.now(); mp.loaded = false; mp.reconnecting = true; mp.spin = true;
       setStatus('Reconnecting…', 'info');
       try { $id('puiSpin').style.display = 'block'; } catch(x){}
-      var o = mpvLoadOpts(mpvNow());
+      var o = mpvLoadOpts(mp.st.live ? 0 : mpvNow());   // a live stream comes back at its edge
       if (/^\d+$/.test(String(mp.st.aid || ''))) o.aid = String(mp.st.aid);
       if (mp.st.speed > 0) o.speed = mp.st.speed;
       mpvApi.load(mp.url, o);
@@ -7126,29 +7142,35 @@
     if (m) return 'This stream cannot play here — its host answered ' + (m[1] || m[2]) + '. Try another source.';
     if (/recognize file format|no video or audio|unrecognized/i.test(d)) return 'This link is not a film this player can open. Try another source.';
     if (/stopped unexpectedly/i.test(d)) return 'The player stopped unexpectedly. Try again, or another source.';
-    if (/before the end/i.test(d)) return 'The stream stopped before the end. Try again, or another source.';
+    if (/before the end|stopped sending/i.test(d)) return 'The stream stopped before the end. Try again, or another source.';
     return 'This stream could not be played. Try another source.';
   }
   /** Dolby Vision profile 5 keeps its colours in a form only a Dolby Vision screen decodes (mpv's software path cannot):
       the film plays, and the viewer is told why it may look off (mpv 0.39 on says which profile a track is). */
   function mpvDvNote(){
-    var vt = (mp.tracks || []).filter(function(t){ return t.type === 'video' && t.selected; })[0], session = mp;
-    mp.dv = !!(vt && Number(vt['dolby-vision-profile']) === 5);
-    if (mp.dv) setTimeout(function(){ if (mp === session) setStatus('This film’s colours are made for Dolby Vision screens and may look wrong here. Another source may look right.', 'info', 9000); }, 1500);
+    // the picture track playing, or the file's first one (at load mpv has not always marked a track selected yet)
+    var vids = (mp.tracks || []).filter(function(t){ return t.type === 'video' && !t.albumart; });
+    var vt = vids.filter(function(t){ return t.selected; })[0] || vids[0], session = mp;
+    if (mp.dv || !(vt && Number(vt['dolby-vision-profile']) === 5)) return;
+    mp.dv = true;
+    setTimeout(function(){ if (mp === session) setStatus('This film’s colours are made for Dolby Vision screens and may look wrong here. Another source may look right.', 'info', 9000); }, 1500);
   }
   /** A live playlist belongs to the app's own engine (its live window, the live edge): one look at it — and at its first
       variant — says so. A playlist this page cannot read stays with mpv, which sends the add-on's headers itself. */
   async function mpvLiveList(url){
+    // four seconds at most: a host that never answers must not hold the play (it then goes to mpv, as unread)
+    var ctl = null, timer = null, opt = { cache: 'no-store' };
+    try { ctl = new AbortController(); opt.signal = ctl.signal; timer = setTimeout(function(){ try { ctl.abort(); } catch(e){} }, 4000); } catch(e){}
     try {
-      var r = await fetch(url, { cache: 'no-store' }); if (!r.ok) return false;
+      var r = await fetch(url, opt); if (!r.ok) return false;
       var t = await r.text();
       if (/#EXT-X-STREAM-INF/.test(t)){
         var vm = /#EXT-X-STREAM-INF[^\n]*\n\s*([^#\s][^\n]*)/.exec(t); if (!vm) return false;
-        r = await fetch(new URL(vm[1].trim(), r.url || url).href, { cache: 'no-store' }); if (!r.ok) return false;
+        r = await fetch(new URL(vm[1].trim(), r.url || url).href, opt); if (!r.ok) return false;
         t = await r.text();
       }
       return /#EXTINF/.test(t) && !/#EXT-X-ENDLIST|#EXT-X-PLAYLIST-TYPE:\s*VOD/.test(t);
-    } catch(e){ return false; }
+    } catch(e){ return false; } finally { clearTimeout(timer); }
   }
   /** Language codes mpv matches a track by: the two-letter code and the three-letter ones files carry. */
   function mpvLangs(code){
@@ -11088,7 +11110,7 @@
     $id('setEngineSub').textContent = engOk
       ? 'Full-format plays every file, every sound and subtitle track, the way a desktop player does · Built-in uses the app’s streaming engine · From the next play'
       : (winBox ? 'Full-format could not start on this computer — reinstalling Nebula puts back what it needs'
-        : linuxBox ? 'Full-format needs a video library this computer does not have — install the libmpv2 package, then restart Nebula'
+        : linuxBox ? 'Full-format needs a video library this computer does not have — install the libmpv2 package (libmpv1 on Ubuntu 22.04 and systems like it), then restart Nebula'
         : 'Full-format is not available on this computer') + ' · Until then the built-in engine plays';
   }
   $id('filePick').onchange = function(){
