@@ -6996,7 +6996,7 @@
       if (!mp) return Promise.resolve();
       // after the sentence only the viewer's own press tries again (mpvRetryAsked): a party's once-a-second play() must not
       if (mp.error && !mp.reconnecting) return Promise.resolve();
-      if (mp.ended) mpvSeek(0);
+      if (mp.ended){ if (mpvStuck()){ mpvReplay(); return Promise.resolve(); } mpvSeek(0); }   // (such a stream only opens afresh)
       mpvFreeze(); mp.st.pause = false; mpvHold('pause', false); mpvApi.set('pause', 'no'); mpvFire('play'); if (!mp.st.cache) mpvFire('playing');
       return Promise.resolve();
     });
@@ -7164,11 +7164,11 @@
   }
   /** Once more from where the play stands (a connection lost mid-film; the play button after the sentence): this play's
       sound track, speed and pause go with it, and a refused try is tried again until 20 s are up (mpvFailed). */
-  function mpvReconnect(){
+  function mpvReconnect(label){
     var session = mp;
     mp.retried = true; mp.retriedAt = Date.now(); mp.loaded = false; mp.reconnecting = true; mp.spin = true; mp.error = '';
     mp.rcTry = 0; mp.rcUntil = Date.now() + 20000; mp.rcFrom = mpvNow();
-    setStatus('Reconnecting…', 'info');
+    setStatus(label || 'Reconnecting…', 'info');
     try { $id('puiSpin').style.display = 'block'; } catch(x){}
     clearTimeout(mp.rcTimer); clearTimeout(mp.rcRetry);
     mpvApi.load(mp.url, mpvRcOpts());
@@ -7185,13 +7185,20 @@
   }
   /** The play button after the sentence: a fresh reconnect from where the play stands (the top, for a source that cannot seek). */
   function mpvRetry(){
-    if (mpvStuck()){ mp.st.t = 0; mp.at = Date.now(); }
+    // (from the top: the place it reached stays saved until the play passes it again — mpvKeptPlace)
+    if (mpvStuck()){ mp.keepFrom = Math.max(mp.keepFrom || 0, mpvNow()); mp.st.t = 0; mp.at = Date.now(); }
     mp.error = ''; mp.cut = false; mp.retried = false; mp.st.pause = false; mpvHold('pause', false);
     clearStatus(); mpvFire('play');
     mpvReconnect();
   }
   /** The resume point was one this stream could not honour: it plays from the top, and the saved place stays until passed. */
   function mpvKeptPlace(){ return !!(mp && mp.keepFrom); }
+  /** Play again after the end, for a stream that cannot seek: it can only be opened afresh, from the top. */
+  function mpvReplay(){
+    mp.ended = false; mp.st.t = 0; mp.at = Date.now(); mp.st.pause = false; mpvHold('pause', false);
+    mpvFire('play');
+    mpvReconnect('Starting from the beginning…');
+  }
   /** The viewer's own play (the button, space, a media key) after the sentence: try again. True when it did. */
   function mpvRetryAsked(){ if (mp && mp.error && !mp.reconnecting){ mpvRetry(); return true; } return false; }
   /** The film's length as the rest of the player may use it: none while mpv only estimates it — a source that cannot seek
