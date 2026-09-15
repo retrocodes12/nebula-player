@@ -3325,6 +3325,7 @@
   function flushProgress(mirror){
     if (!player || !curPlay || !curPlay.id) return;
     try { if (puiIsLive()) return; } catch(e){ return; }
+    if (mpvKeptPlace() && video.currentTime < mp.keepFrom) return;   // (a place this stream could not resume stays until passed)
     var r = puiRange(), dur = r.end - r.start, pos = video.currentTime - r.start;
     if (dur > 0 && isFinite(dur) && isFinite(pos)) noteProgress(pos, dur, false);
     if (mirror) saveProgress(true);
@@ -6952,7 +6953,8 @@
     if (!mp) return;
     v = Math.max(0, Number(v) || 0);
     if (mp.st.dur > 0) v = Math.min(v, Math.max(0, mp.st.dur - 0.5));
-    if (mpvStuck() && !mp.error) v = Math.min(v, mpvNow() + Math.max(0, (mp.st.ahead || 0) - 0.5));   // (no further than it holds)
+    // a stream that cannot seek: mpv refuses every jump (even inside what it holds, mpv 0.34) — none is asked; said once
+    if (mpvStuck() && !mp.error){ mpvFire('seeking'); mpvFire('seeked'); mpvFire('timeupdate'); if (!mp.seekNote){ mp.seekNote = true; setStatus('This stream cannot jump to that point.', 'info'); } return; }
     // after the sentence nothing is open: the play's point moves there, and the play button tries again from it (a source
     // that cannot seek starts again from the top whatever the point)
     if (mp.error && !mp.reconnecting){ if (!mpvStuck()){ mp.st.t = v; mp.at = Date.now(); mpvFire('seeking'); mpvFire('seeked'); mpvFire('timeupdate'); } return; }
@@ -7049,6 +7051,10 @@
       || (mpvLen(s) > 0 && (s.t || 0) < s.dur - 10) || (s.seekable === false && s.neterr != null && (s.t || 0) < s.neterr + 10));
     if (cutNow){ s.eof = false; s.pause = p.pause; }
     mp.st = s; mp.at = Date.now();
+    // (a resume point this stream could not honour, learnt from its state rather than from mpv's refusal: said, and kept)
+    if (mp.startAt > 0 && !mp.keepFrom && mp.loaded && !mp.reconnecting && s.seekable === false && !s.live && (s.t || 0) < mp.startAt - 5){
+      mp.keepFrom = mp.startAt; setStatus('This source can only play from the beginning — your place is kept.', 'info');
+    }
     if (mp.loaded && !mp.reconnecting && !mp.error && /^\d+$/.test(String(s.aid || ''))) mp.aid = String(s.aid);   // what a reconnect goes back to
     if (mp.pending != null && ((!s.seeking && s.t != null && Math.abs(s.t - mp.pending) < 1.5) || Date.now() - mp.pendingAt > 8000)){
       mp.pending = null;
@@ -7107,6 +7113,13 @@
     if (e.type === 'tracks'){ mp.tracks = e.tracks || []; if (mp.loaded) mpvDvNote(); if (puiState.menu === 'subs') subPanelRender(true); return; }
     if (e.type === 'seek'){ if (!mp.seeking){ mp.seeking = true; mpvFire('seeking'); } return; }
     if (e.type === 'seekfail'){
+      // a refusal nothing here asked for is the resume point's (a stream that cannot seek): the place is kept (mpvKeptPlace) and
+      // said — by playUrl when the play has not begun yet, else here, over its "Resumed from"
+      if (mp.startAt > 0 && !mp.keepFrom && !mp.reconnecting && mp.pending == null && !mp.seeking){
+        mp.keepFrom = mp.startAt;
+        if (mp.loaded) setStatus('This source can only play from the beginning — your place is kept.', 'info');
+        return;
+      }
       // mpv could not jump there (a stream that cannot seek, past what it holds): the play stays where it is, and says so once
       if (mp.seeking || mp.pending != null){ mp.seeking = false; mp.pending = null; mpvFire('seeked'); mpvFire('timeupdate'); }
       if (mp.spin && !mp.reconnecting && !mp.st.cache){ mp.spin = false; try { $id('puiSpin').style.display = 'none'; } catch(x){} }
@@ -7177,6 +7190,8 @@
     clearStatus(); mpvFire('play');
     mpvReconnect();
   }
+  /** The resume point was one this stream could not honour: it plays from the top, and the saved place stays until passed. */
+  function mpvKeptPlace(){ return !!(mp && mp.keepFrom); }
   /** The viewer's own play (the button, space, a media key) after the sentence: try again. True when it did. */
   function mpvRetryAsked(){ if (mp && mp.error && !mp.reconnecting){ mpvRetry(); return true; } return false; }
   /** The film's length as the rest of the player may use it: none while mpv only estimates it — a source that cannot seek
@@ -7273,7 +7288,7 @@
     if (!(ev >= 0)) ev = 1;
     mp = { seq: seq, url: url, st: { pause: false, vol: mpvVolOf(ev), mute: em }, at: 0, loaded: false, ended: false, seeking: false, pending: null, pendingAt: 0,
       tracks: [], wait: null, error: '', retried: false, retriedAt: 0, reconnecting: false, spin: false, hold: null, subs: [], pick: null, show: false,
-      cut: false, dv: false, ver: '', rcTry: 0, rcUntil: 0, rcFrom: 0, rcStart: 0, rcTimer: null, rcRetry: null, aid: '', seekNote: false,
+      cut: false, dv: false, ver: '', rcTry: 0, rcUntil: 0, rcFrom: 0, rcStart: 0, rcTimer: null, rcRetry: null, aid: '', seekNote: false, startAt: startAt > 0 ? startAt : 0, keepFrom: 0,
       liveHint: /^tv$/i.test(String(ctx.playType || '')) || /\.m3u8?(\?|#|$)/i.test(String(url)) };   // (a TV title, a playlist: live with no length)
     var session = mp;
     player = mpvShim();
@@ -7632,7 +7647,7 @@
       loaded = true;
       // the safety net: a file that looked ordinary but Chromium cannot voice restarts through the shell
       if (tcLater) tcCheckProbe(tcc).then(function(){ tcDecide(tcc, seq); });
-      setStatus(swapName ? ('Switched to ' + swapName + '.') : startAt ? ('Resumed from ' + fmtT(startAt) + '.') : (fresh ? 'Starting from the beginning.' : 'Playing.'), 'ok');
+      setStatus(swapName ? ('Switched to ' + swapName + '.') : startAt ? (mpvKeptPlace() ? 'This source can only play from the beginning — your place is kept.' : 'Resumed from ' + fmtT(startAt) + '.') : (fresh ? 'Starting from the beginning.' : 'Playing.'), 'ok');
       try { await video.play(); } catch(e){}
       $id('puiSpin').style.display = 'none';
       puiRefreshButtons(); puiTick();
