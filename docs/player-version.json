@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.15.1",
+  "version": "2026.09.15.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "On the desktop app, Dolby and DTS films play with sound on Linux, converted films no longer stop after half a minute, and streams whose host serves only the app play through it. A track without a language is no longer called Unknown."
+  "notes": "The desktop app now plays films through a full-format player: every video and sound format a file carries, every sound and subtitle track, 5.1 sound as 5.1, and HDR films shown right on an ordinary screen. A dropped connection is picked up again from where it was."
 }

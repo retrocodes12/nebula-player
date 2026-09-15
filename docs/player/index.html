@@ -2503,7 +2503,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.15.1';
+  var PLAYER_VERSION = '2026.09.15.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -6924,7 +6924,7 @@
     };
   }
 
-  // ---- the full-format player (desktop). The shell carries libmpv (mpv.js): it plays the file itself — every codec, every
+  // ---- the full-format player (desktop). The shell carries libmpv (a helper process, mpv-host.js): it plays the file itself — every codec, every
   // track the file has, the add-on's headers, 5.1 — and draws each frame into #mpvView. The rest of the player keeps talking to
   // `video` as always: while mpv plays, the element answers from mpv (instance properties shadowing its own) and mpv's news is
   // fired on it as the element's own events, so every listener, the scrubber, the party, the stall watchdog and the HUD work
@@ -6952,6 +6952,8 @@
     if (!mp) return;
     v = Math.max(0, Number(v) || 0);
     if (mp.st.dur > 0) v = Math.min(v, Math.max(0, mp.st.dur - 0.5));
+    // after the sentence nothing is open: the play's point moves there, and the play button tries again from it
+    if (mp.error && !mp.reconnecting){ mp.st.t = v; mp.at = Date.now(); mpvFire('seeking'); mpvFire('seeked'); mpvFire('timeupdate'); return; }
     mp.pending = v; mp.pendingAt = Date.now(); mp.seeking = true; mp.ended = false;
     mpvApi.command(['seek', v.toFixed(3), 'absolute']);
     mpvFire('seeking');
@@ -6988,6 +6990,7 @@
     prop('audioTracks', function(){ return { length: 0 }; });          // mpv's tracks have the Audio menu's own branch
     method('play', function(){
       if (!mp) return Promise.resolve();
+      if (mp.error && !mp.reconnecting){ mpvRetry(); return Promise.resolve(); }   // after the sentence: "Try again"
       if (mp.ended) mpvSeek(0);
       mpvFreeze(); mp.st.pause = false; mpvHold('pause', false); mpvApi.set('pause', 'no'); mpvFire('play'); if (!mp.st.cache) mpvFire('playing');
       return Promise.resolve();
@@ -7020,18 +7023,27 @@
         if (agrees || Date.now() - hv.at > 1500) delete mp.hold[hk]; else s[hk] = hv.v;
       }
     }
-    // a reconnect's gap (a new helper, idle until the file reopens) says nothing about this play: its clock, length and
-    // pause hold — a resume point or a party host must not hear 0
-    // (and after a play that failed for good: its last position is what a resume point and the party keep)
-    if (mp.reconnecting || mp.error){ for (var pk in p){ if (s[pk] == null) s[pk] = p[pk]; } s.t = p.t; s.pause = p.pause; s.eof = false; s.cache = p.cache; }
+    // a reconnect's gap (a new helper, idle until the file reopens) says nothing about this play: its clock, length, pause
+    // and settings hold — a resume point or a party host must not hear 0, nor a new helper's 1× and first track. After the
+    // sentence (mpv let the file go) the play stands paused at its last position, nothing loading
+    if (mp.reconnecting || mp.error){
+      for (var pk in p){ if (s[pk] == null || /^(t|dur|live|pause|speed|vol|mute|aid|sid)$/.test(pk)) s[pk] = p[pk]; }
+      s.eof = false; s.seeking = false;
+      if (mp.error){ s.pause = true; s.cache = false; }
+    }
     // a seek on its way (or just landed) is not the end, whatever a state taken before it says
     if (s.eof && (mp.pending != null || Date.now() - (mp.pendingAt || 0) < 800)) s.eof = false;
     // mpv keeps a file open at its end — and a host that went away mid-film looks just the same. Well short of the end (or
     // anywhere in a live stream) it is a lost connection: once more from here, then a sentence — never a finished film
-    // (ticked off, the next one up). Caught before any event is fired, so a party hears no pause either.
-    var cutNow = s.eof && !mp.ended && !mp.cut && mp.loaded && !mp.reconnecting && !mp.error && (s.live || !(s.dur > 0) || (s.t || 0) < s.dur - 10);
+    // (ticked off, the next one up). Caught before any event is fired, so a party hears no pause either. A file with no
+    // length of its own has mpv's estimate of what it has read for one (it grows as the film arrives): there an end where
+    // the connection failed (the host logged it; s.neterr = how far the download had got) is a lost connection too.
+    if (s.dur > 0 && mp.loaded && !mp.reconnecting && !mp.error){ if (!mp.dur0) mp.dur0 = s.dur; else if (s.dur > mp.dur0 + 2) mp.durGrew = true; }
+    var cutNow = s.eof && !mp.ended && !mp.cut && mp.loaded && !mp.reconnecting && !mp.error && (s.live || !(s.dur > 0) || (s.t || 0) < s.dur - 10
+      || (mp.durGrew && s.neterr != null && (s.t || 0) < s.neterr + 10));
     if (cutNow){ s.eof = false; s.pause = p.pause; }
     mp.st = s; mp.at = Date.now();
+    if (mp.loaded && !mp.reconnecting && !mp.error && /^\d+$/.test(String(s.aid || ''))) mp.aid = String(s.aid);   // what a reconnect goes back to
     if (mp.pending != null && ((!s.seeking && s.t != null && Math.abs(s.t - mp.pending) < 1.5) || Date.now() - mp.pendingAt > 8000)) mp.pending = null;
     if (!first && p.pause !== s.pause){ mpvFire(s.pause ? 'pause' : 'play'); if (!s.pause && !s.cache) mpvFire('playing'); }
     // the system's now-playing state follows (a pause asked for here changed mp.st before this, so compare with what was said)
@@ -7045,8 +7057,10 @@
     // the spinner: buffering, a seek on its way, a reconnect
     var busy = !!(mp.reconnecting || (mp.loaded && (s.cache || s.seeking || mp.seeking)));
     if (busy !== !!mp.spin){ mp.spin = busy; try { $id('puiSpin').style.display = busy ? 'block' : 'none'; } catch(e){} }
-    // a reconnect is allowed again after a minute of healthy playback (as the engine's own retry re-arms)
-    if (mp.retried && mp.retriedAt && s.pause === false && !s.cache && Date.now() - mp.retriedAt > 60000) mp.retried = false;
+    // a reconnect is allowed again once the play is healthy and has moved on: 30 s of film past where it came back, or a
+    // minute since (a file that ends early at one point reopens there once, then says so: never a loop)
+    if (mp.retried && mp.loaded && !mp.reconnecting && !mp.error && s.pause === false && !s.cache
+      && ((s.t || 0) > mp.rcFrom + 30 || Date.now() - mp.retriedAt > 60000)) mp.retried = false;
     // a host that stops sending without closing buffers for ever: 20 s of buffering with nothing more arriving is a lost
     // connection too (a slow download that still grows is not)
     var stalled = false;
@@ -7069,6 +7083,7 @@
     if (e && e.type === 'available'){ mpvInfo = { available: !!e.ok, error: e.error || '', version: e.version || '' }; try { engineRowRender(); } catch(x){} return; }
     if (!mp || !e) return;
     if (e.type === 'state'){ mpvState(e.s || {}); return; }
+    if (mp.error) return;                               // after the sentence mpv let the file go: news that crossed it is old
     if (e.type === 'loaded'){
       mp.loaded = true; mp.tracks = e.tracks || [];
       if (e.version) mp.ver = e.version;
@@ -7082,8 +7097,6 @@
     if (e.type === 'tracks'){ mp.tracks = e.tracks || []; if (mp.loaded) mpvDvNote(); if (puiState.menu === 'subs') subPanelRender(true); return; }
     if (e.type === 'seek'){ if (!mp.seeking){ mp.seeking = true; mpvFire('seeking'); } return; }
     if (e.type === 'restart'){
-      // playing again after a failure (the file was still open and the network came back): the play is live again
-      if (mp.error){ mp.error = ''; mp.cut = false; clearStatus(); }
       if (mp.seeking){ mp.seeking = false; mp.pending = null; mpvFire('seeked'); }
       if (mp.st.pause === false) mpvFire('playing');
       return;
@@ -7091,42 +7104,75 @@
     if (e.type === 'end' && e.reason === 'error') mpvFailed(e);
   }
   if (mpvApi){ try { mpvApi.on(mpvOnEvent); } catch(e){} }
-  /** mpv gave up: before the file opened, the load fails (playUrl decides what next); mid-play, once more from where it was. */
+  /** mpv gave up: before the file opened, the load fails (playUrl decides what next); mid-play, it reconnects (mpvReconnect). */
   function mpvFailed(e){
     var why = mpvErrLine(e);
     if (mp.wait){ var w = mp.wait; mp.wait = null; w.no({ code: 'mpv', mpv: true, data: why }); return; }
-    if (!mp.retried && mp.loaded){
-      // once more from where it was, with this play's sound track and speed (a new file would start on its own terms)
-      mp.retried = true; mp.retriedAt = Date.now(); mp.loaded = false; mp.reconnecting = true; mp.spin = true;
-      setStatus('Reconnecting…', 'info');
-      try { $id('puiSpin').style.display = 'block'; } catch(x){}
-      var o = mpvLoadOpts(mp.st.live ? 0 : mpvNow());   // a live stream comes back at its edge
-      if (/^\d+$/.test(String(mp.st.aid || ''))) o.aid = String(mp.st.aid);
-      if (mp.st.speed > 0) o.speed = mp.st.speed;
-      mpvApi.load(mp.url, o);
-      // a reconnect that has not reopened the file in 20 s ends in the sentence, not a spinner (should the host answer
-      // later after all, playback restarting clears it)
-      var session = mp;
-      clearTimeout(mp.rcTimer);
-      mp.rcTimer = setTimeout(function(){ if (mp === session && mp.reconnecting) mpvFailed({ error: 'the stream stopped before the end', detail: '' }); }, 20000);
+    // a reconnect's try refused (the host still away, the network still down): another after a longer wait (1, 2, 3, 4 s…)
+    // until its 20 s are up — its timer then says it. A host that answered 4xx has said the address is no good: at once.
+    if (mp.reconnecting && !e.final && !/answered 4\d\d/.test(why)){
+      var session = mp, wait = Math.min(4000, 1000 * ++mp.rcTry, mp.rcUntil - Date.now() - 1000);
+      clearTimeout(mp.rcRetry);
+      if (wait > 0) mp.rcRetry = setTimeout(function(){ if (mp === session && mp.reconnecting) mpvApi.load(mp.url, mpvRcOpts()); }, wait);
       return;
     }
-    mp.reconnecting = false; mp.spin = false;
+    if (!mp.reconnecting && !mp.retried && mp.loaded){ mpvReconnect(); return; }
+    // for good: the sentence. mpv lets the file go (nothing left loading, nothing keeping the display awake) and the play
+    // stands paused where it was — its resume point, a party — until the play button tries again from there (mpvRetry)
+    clearTimeout(mp.rcTimer); clearTimeout(mp.rcRetry);
+    mpvFreeze();
+    mp.reconnecting = false; mp.loaded = false; mp.spin = false; mp.seeking = false; mp.pending = null;
     // a film that had been cut off says so, unless the host itself answered something
     if (mp.cut && !/answered/.test(why)) why = 'The stream stopped before the end. Try again, or another source.';
-    mp.error = why; mpvFire('error'); setStatus(why, 'err');
+    mp.error = why; mp.st.cache = false; mp.st.seeking = false;
+    try { mpvApi.stop(); } catch(x){}
+    if (mp.st.pause === false){ mp.st.pause = true; mpvFire('pause'); }
+    mpvFire('error'); setStatus(why, 'err');
     try { $id('puiSpin').style.display = 'none'; } catch(x){}
+  }
+  /** Once more from where the play stands (a connection lost mid-film; the play button after the sentence): this play's
+      sound track, speed and pause go with it, and a refused try is tried again until 20 s are up (mpvFailed). */
+  function mpvReconnect(){
+    var session = mp;
+    mp.retried = true; mp.retriedAt = Date.now(); mp.loaded = false; mp.reconnecting = true; mp.spin = true; mp.error = '';
+    mp.rcTry = 0; mp.rcUntil = Date.now() + 20000; mp.rcFrom = mpvNow();
+    setStatus('Reconnecting…', 'info');
+    try { $id('puiSpin').style.display = 'block'; } catch(x){}
+    clearTimeout(mp.rcTimer); clearTimeout(mp.rcRetry);
+    mpvApi.load(mp.url, mpvRcOpts());
+    mp.rcTimer = setTimeout(function(){ if (mp === session && mp.reconnecting) mpvFailed({ error: 'the stream stopped before the end', detail: '', final: true }); }, 20000);
+  }
+  /** A reconnect's load: from where the play stands now (a live stream at its edge), as the viewer has it now. */
+  function mpvRcOpts(){
+    var o = mpvLoadOpts(mp.st.live ? 0 : mpvNow());
+    if (mp.aid) o.aid = mp.aid;
+    if (mp.st.speed > 0) o.speed = mp.st.speed;
+    o.pause = mp.st.pause === true;
+    mp.rcStart = o.start;
+    return o;
+  }
+  /** The play button after the sentence: a fresh reconnect from where the play stands. */
+  function mpvRetry(){
+    mp.error = ''; mp.cut = false; mp.retried = false; mp.st.pause = false; mpvHold('pause', false);
+    clearStatus(); mpvFire('play');
+    mpvReconnect();
   }
   /** A reconnect reopened the file: what this play had chosen goes back on — the subtitle look and offset, the sound level,
       the subtitle files it was given (re-added: the reopened file has none), the one showing. */
   function mpvReapply(){
     var session = mp, subs = mp.subs || [], was = mp.pick;
-    clearTimeout(mp.rcTimer);
+    clearTimeout(mp.rcTimer); clearTimeout(mp.rcRetry);
     mp.reconnecting = false; mp.subs = []; mp.cut = false;
     mpvSubStyle();
     mpvApi.set('sub-delay', String(subOffset || 0));
     if (mp.st.vol >= 0) mpvApi.set('volume', String(Math.round(mp.st.vol)));
     mpvApi.set('mute', mp.st.mute ? 'yes' : 'no');
+    // and what was asked for while it reopened: a pause (held, so an older state cannot undo it), a speed, a seek
+    mpvHold('pause', mp.st.pause === true); mpvApi.set('pause', mp.st.pause === true ? 'yes' : 'no');
+    if (mp.st.speed > 0) mpvApi.set('speed', String(mp.st.speed));
+    if (mp.pending != null && Math.abs(mp.pending - mp.rcStart) > 1) mpvApi.command(['seek', mp.pending.toFixed(3), 'absolute']);
+    // (the reopened file says 0 until its first seek lands: the clock holds at the reconnect's point meanwhile, seen 09-15)
+    else if (mp.pending == null && !mp.st.live){ mp.pending = mp.rcStart; mp.pendingAt = Date.now(); }
     subs.reduce(function(chain, sb){
       return chain.then(function(){
         if (mp !== session) return null;
@@ -7199,7 +7245,7 @@
     if (!(ev >= 0)) ev = 1;
     mp = { seq: seq, url: url, st: { pause: false, vol: mpvVolOf(ev), mute: em }, at: 0, loaded: false, ended: false, seeking: false, pending: null, pendingAt: 0,
       tracks: [], wait: null, error: '', retried: false, retriedAt: 0, reconnecting: false, spin: false, hold: null, subs: [], pick: null, show: false,
-      cut: false, dv: false, ver: '' };
+      cut: false, dv: false, ver: '', rcTry: 0, rcUntil: 0, rcFrom: 0, rcStart: 0, rcTimer: null, rcRetry: null, aid: '', dur0: 0, durGrew: false };
     var session = mp;
     player = mpvShim();
     // the engine attached a source of its own before mpv was chosen: let it go, so the element holds nothing (and says so)
@@ -7224,7 +7270,7 @@
   }
   function mpvStop(){
     var was = mp; mp = null;
-    if (was) clearTimeout(was.rcTimer);
+    if (was){ clearTimeout(was.rcTimer); clearTimeout(was.rcRetry); }
     if (was && was.wait){ var w = was.wait; was.wait = null; try { w.no({ code: 'mpv', mpv: true, stopped: true }); } catch(e){} }
     try { mpvApi.stop(); } catch(e){}
     mpvUnbind();
