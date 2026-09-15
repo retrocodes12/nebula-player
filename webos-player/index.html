@@ -6952,6 +6952,7 @@
     if (!mp) return;
     v = Math.max(0, Number(v) || 0);
     if (mp.st.dur > 0) v = Math.min(v, Math.max(0, mp.st.dur - 0.5));
+    if (mpvStuck() && !mp.error) v = Math.min(v, mpvNow() + Math.max(0, (mp.st.ahead || 0) - 0.5));   // (no further than it holds)
     // after the sentence nothing is open: the play's point moves there, and the play button tries again from it (a source
     // that cannot seek starts again from the top whatever the point)
     if (mp.error && !mp.reconnecting){ if (!mpvStuck()){ mp.st.t = v; mp.at = Date.now(); mpvFire('seeking'); mpvFire('seeked'); mpvFire('timeupdate'); } return; }
@@ -7033,6 +7034,9 @@
       s.eof = false; s.seeking = false;
       if (mp.error){ s.pause = true; s.cache = false; }
     }
+    // a live stream mpv cannot tell from a film (it gives a raw live stream a length that grows with what it has read): a TV
+    // title or a playlist with no real length is live — its edge, its badge, no progress written, a drop reconnects there
+    if (!s.live && mp.liveHint && !(mpvLen(s) > 0)) s.live = true;
     // a seek on its way (or just landed) is not the end, whatever a state taken before it says
     if (s.eof && (mp.pending != null || Date.now() - (mp.pendingAt || 0) < 800)) s.eof = false;
     // mpv keeps a file open at its end — and a host that went away mid-film looks just the same. Well short of the end (or
@@ -7046,7 +7050,10 @@
     if (cutNow){ s.eof = false; s.pause = p.pause; }
     mp.st = s; mp.at = Date.now();
     if (mp.loaded && !mp.reconnecting && !mp.error && /^\d+$/.test(String(s.aid || ''))) mp.aid = String(s.aid);   // what a reconnect goes back to
-    if (mp.pending != null && ((!s.seeking && s.t != null && Math.abs(s.t - mp.pending) < 1.5) || Date.now() - mp.pendingAt > 8000)) mp.pending = null;
+    if (mp.pending != null && ((!s.seeking && s.t != null && Math.abs(s.t - mp.pending) < 1.5) || Date.now() - mp.pendingAt > 8000)){
+      mp.pending = null;
+      if (mp.seeking && !s.seeking){ mp.seeking = false; mpvFire('seeked'); }   // (a seek mpv refused brings no restart: no spinner for ever)
+    }
     var saidPause = false;                             // (the end says pause once: mpv's own pause at the end is that one)
     if (!first && p.pause !== s.pause && !(s.pause && mp.ended)){ saidPause = s.pause === true; mpvFire(s.pause ? 'pause' : 'play'); if (!s.pause && !s.cache) mpvFire('playing'); }
     // the system's now-playing state follows (a pause asked for here changed mp.st before this, so compare with what was said)
@@ -7099,6 +7106,13 @@
     }
     if (e.type === 'tracks'){ mp.tracks = e.tracks || []; if (mp.loaded) mpvDvNote(); if (puiState.menu === 'subs') subPanelRender(true); return; }
     if (e.type === 'seek'){ if (!mp.seeking){ mp.seeking = true; mpvFire('seeking'); } return; }
+    if (e.type === 'seekfail'){
+      // mpv could not jump there (a stream that cannot seek, past what it holds): the play stays where it is, and says so once
+      if (mp.seeking || mp.pending != null){ mp.seeking = false; mp.pending = null; mpvFire('seeked'); mpvFire('timeupdate'); }
+      if (mp.spin && !mp.reconnecting && !mp.st.cache){ mp.spin = false; try { $id('puiSpin').style.display = 'none'; } catch(x){} }
+      if (!mp.seekNote){ mp.seekNote = true; setStatus('This stream cannot jump to that point.', 'info'); }
+      return;
+    }
     if (e.type === 'restart'){
       if (mp.seeking){ mp.seeking = false; mp.pending = null; mpvFire('seeked'); }
       if (mp.st.pause === false) mpvFire('playing');
@@ -7259,7 +7273,8 @@
     if (!(ev >= 0)) ev = 1;
     mp = { seq: seq, url: url, st: { pause: false, vol: mpvVolOf(ev), mute: em }, at: 0, loaded: false, ended: false, seeking: false, pending: null, pendingAt: 0,
       tracks: [], wait: null, error: '', retried: false, retriedAt: 0, reconnecting: false, spin: false, hold: null, subs: [], pick: null, show: false,
-      cut: false, dv: false, ver: '', rcTry: 0, rcUntil: 0, rcFrom: 0, rcStart: 0, rcTimer: null, rcRetry: null, aid: '' };
+      cut: false, dv: false, ver: '', rcTry: 0, rcUntil: 0, rcFrom: 0, rcStart: 0, rcTimer: null, rcRetry: null, aid: '', seekNote: false,
+      liveHint: /^tv$/i.test(String(ctx.playType || '')) || /\.m3u8?(\?|#|$)/i.test(String(url)) };   // (a TV title, a playlist: live with no length)
     var session = mp;
     player = mpvShim();
     // the engine attached a source of its own before mpv was chosen: let it go, so the element holds nothing (and says so)
@@ -7475,9 +7490,12 @@
     // local file or a party's stream played after it must not inherit it
     if (ctx.rowFor !== rawUrl){ ctx.playRow = ''; ctx.playHeaders = null; ctx.rowFor = ''; }
     lastPlay = { url: rawUrl, keys: clearKeys || null, title: title || '', subs: subtitles || [], mime: mimeType || '' };
-    // a party host changing streams takes the whole room along
+    // a party host changing streams takes the whole room along — but not to a file from this computer, which the room cannot
+    // open: they stay where they are, no longer steered, until the host plays a stream again (told once the play has begun)
     if (party && party.isHost && party.ws.readyState === 1){
-      try { party.ws.send(JSON.stringify({ t:'stream', stream: partyStreamDesc() })); } catch(e){}
+      party.hostLocal = !partyShareable();
+      if (party.hostLocal) setTimeout(function(){ if (party && party.hostLocal) setStatus('Your watch party cannot see a file from this computer — they stay where they are until you play a stream.', 'info'); }, 3000);
+      else { try { party.ws.send(JSON.stringify({ t:'stream', stream: partyStreamDesc() })); } catch(e){} }
     }
     await stopPlayer();
     if (seq !== playSeq) return;
@@ -9498,11 +9516,11 @@
       .then(function(j){ partyServerCached = (j && j.server) || PARTY_FALLBACK; cb(partyServerCached); })
       .catch(function(){ cb(PARTY_FALLBACK); });
   }
+  /** A file on the host's own computer (a granted name, a blob) means nothing on a viewer's: it is never sent to a party. */
+  function partyShareable(){ return !!(lastPlay && lastPlay.url) && !/^(local:|blob:)/i.test(lastPlay.url); }
   function partyStreamDesc(){
     return {
-      // a file on the host's own computer (a granted name, a blob) means nothing on a viewer's: said so, never passed on
-      url: /^(local:|blob:)/i.test(lastPlay.url || '') ? '' : lastPlay.url, local: /^(local:|blob:)/i.test(lastPlay.url || '') || undefined,
-      title: lastPlay.title || 'Watch party',
+      url: lastPlay.url, title: lastPlay.title || 'Watch party',
       keys: lastPlay.keys || undefined,
       subs: (lastPlay.subs && lastPlay.subs.length) ? lastPlay.subs : undefined,
       // identity travels with the party so viewers get subtitles + progress
@@ -9599,7 +9617,7 @@
     if (party !== p){ clearPartyTimers(p); return; }
     p.n++;
     if (p.isHost){
-      if ((p.dirty || p.n % 4 === 0) && player && video.style.display==='block' && p.ws.readyState===1){
+      if ((p.dirty || p.n % 4 === 0) && !p.hostLocal && player && video.style.display==='block' && p.ws.readyState===1){
         p.dirty = false;
         // live: send "seconds behind the live edge" (engine-neutral); VOD: absolute position
         var live = puiIsLive(), pos = video.currentTime;
@@ -9645,6 +9663,9 @@
   }
   function partyConnect(){
     if (!partyPending) return;
+    if (partyPending.kind === 'create' && lastPlay && !partyShareable()){
+      partyPending = null; setStatus('A watch party needs a stream everyone can open — a file from this computer cannot be shared.', 'err'); return;
+    }
     partyServer(function(url){
       if (!partyPending) return;
       var ws;
