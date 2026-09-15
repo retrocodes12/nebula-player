@@ -6996,7 +6996,9 @@
       if (!mp) return Promise.resolve();
       // after the sentence only the viewer's own press tries again (mpvRetryAsked): a party's once-a-second play() must not
       if (mp.error && !mp.reconnecting) return Promise.resolve();
-      if (mp.ended){ if (mpvStuck()){ mpvReplay(); return Promise.resolve(); } mpvSeek(0); }   // (such a stream only opens afresh)
+      // (at its end a stream that cannot seek can only open afresh — on the viewer's own press, mpvRetryAsked; a party's
+      // once-a-second play() must not restart it)
+      if (mp.ended){ if (mpvStuck()) return Promise.resolve(); mpvSeek(0); }
       mpvFreeze(); mp.st.pause = false; mpvHold('pause', false); mpvApi.set('pause', 'no'); mpvFire('play'); if (!mp.st.cache) mpvFire('playing');
       return Promise.resolve();
     });
@@ -7199,8 +7201,13 @@
     mpvFire('play');
     mpvReconnect('Starting from the beginning…');
   }
-  /** The viewer's own play (the button, space, a media key) after the sentence: try again. True when it did. */
-  function mpvRetryAsked(){ if (mp && mp.error && !mp.reconnecting){ mpvRetry(); return true; } return false; }
+  /** The viewer's own play (the button, space, a media key) after the sentence: try again — or, at the end of a stream that
+      cannot seek, start it again from the top. True when it did. */
+  function mpvRetryAsked(){
+    if (mp && mp.error && !mp.reconnecting){ mpvRetry(); return true; }
+    if (mp && mp.ended && mpvStuck()){ mpvReplay(); return true; }
+    return false;
+  }
   /** The film's length as the rest of the player may use it: none while mpv only estimates it — a source that cannot seek
       and gives no size (a stream remuxed on the fly) grows its "length" with what it has read, which would tick the film
       off and offer the next episode within seconds. */
