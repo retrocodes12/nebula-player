@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.16.4",
+  "version": "2026.09.17.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "This build puts the player back the way it was before tonight's design pass, while that pass is looked at again. Nothing else changes."
+  "notes": "Streams from add-ons that serve more than one kind of content, such as films and live channels together, now appear where they were missing."
 }
