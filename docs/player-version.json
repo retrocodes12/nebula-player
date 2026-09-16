@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.16.2",
+  "version": "2026.09.16.3",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Marking episodes watched is fixed. Ticking one off no longer moves your place in a show — only the episode you were about to watch does that. On a TV, holding OK now reaches the sheet instead of starting the film. The title page no longer offers to resume an episode you have just ticked off, and finishing a show no longer points you at a behind-the-scenes extra."
+  "notes": "Marking a film watched now has a button on its title page, and the buttons there sit on one line instead of wrapping onto two. Holding an episode is spelled out under the seasons until you have used it once. Quality lists the sizes you recognise and opens under the button you pressed. The subtitles panel no longer sits on top of the title or the bar. On a TV, a selected row in a sheet or an episode list now wears a white ring. On a computer, Settings has its sections down the side. Stream rows no longer say the same thing twice."
 }
