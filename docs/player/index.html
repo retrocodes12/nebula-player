@@ -2503,7 +2503,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.16.1';
+  var PLAYER_VERSION = '2026.09.16.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -2628,6 +2628,12 @@
   var kbUsed = false, lastKeyAt = 0, lastPointerAt = 0;   // lastKeyAt/lastPointerAt: has anyone moved since a list opened?
   document.addEventListener('mousedown', function(){ kbUsed = false; lastPointerAt = Date.now(); }, true);
   document.addEventListener('touchstart', function(){ kbUsed = false; lastPointerAt = Date.now(); }, true);
+  // Is OK held down RIGHT NOW? A remote repeats keydown while it is held, and a
+  // hold opens a sheet mid-press — without this the repeats reach whatever the
+  // sheet just focused and fire it. Capture, so it is true before any element sees the key.
+  var enterDown = false;
+  document.addEventListener('keydown', function(e){ if (e.keyCode === 13) enterDown = true; }, true);
+  document.addEventListener('keyup', function(e){ if (e.keyCode === 13) enterDown = false; }, true);
   function focusFirst(preserveScroll){
     if (!IS_TV && !kbUsed) return;
     var ae = document.activeElement;
@@ -3263,7 +3269,10 @@
   // One record per playable thing, keyed "<type>:<id>" — for a series that id is
   // the episode id, so each episode resumes on its own. Finished items keep a
   // {done:true} tombstone so episode lists can tick them off.
-  var PROG_MAX = 200;        // newest N kept; TVs have little storage
+  // Newest N kept; TVs have little storage. Raised from 200 on 09-16: a mark
+  // costs a record and a season can be ticked off in seconds, so the old cap
+  // was one gesture away from evicting a live resume point.
+  var PROG_MAX = 400;
   var PROG_MIN_POS = 15;     // below this it isn't worth resuming
   var PROG_END_GAP = 60;     // within this of the end counts as finished
   var progCache = null, progMirrorAt = 0;
@@ -3275,8 +3284,28 @@
   function saveProgress(mirrorNow){
     var p = getProgress(), keys = Object.keys(p);
     if (keys.length > PROG_MAX){
-      keys.sort(function(a,b){ return (p[b].at||0) - (p[a].at||0); });
+      // What dies first matters. A mark carries at = now, so a season ticked off
+      // by hand is the newest thing here and a plain oldest-first trim takes a
+      // LIVE resume point — a position the viewer cannot get back. Rank instead,
+      // the way saveLibrary does: stale tombstones go first (old enough that no
+      // device can still hold the record they exist to beat), then ticks, and a
+      // resume point is the last thing dropped.
+      var now = Date.now();
+      // a null value is junk, not a record — drop it outright rather than rank it
+      // (the old `!r ? 0 : …` dereferenced r to assign, so it threw instead)
+      keys = keys.filter(function(k){ if (!p[k]){ delete p[k]; return false; } return true; });
+      keys.forEach(function(k){
+        var r = p[k];
+        r.__rank = r.dismissed ? (now - (r.at||0) > 180*24*3600000 ? 0 : 2)
+          : r.done ? 2
+          : 3;
+      });
+      keys.sort(function(a,b){
+        if (p[a].__rank !== p[b].__rank) return p[b].__rank - p[a].__rank;
+        return (p[b].at||0) - (p[a].at||0);
+      });
       keys.slice(PROG_MAX).forEach(function(k){ delete p[k]; });
+      keys.forEach(function(k){ if (p[k]) delete p[k].__rank; });   // never reaches storage or the wire
     }
     var json = JSON.stringify(p);
     try { LS.setItem('progress', json); } catch(e){}
@@ -3340,8 +3369,16 @@
       playing it to the end leaves, so the episode ticks, the series cursor
       advances and Continue watching drops it exactly as if it had been watched. */
   function markWatched(type, id){
-    var p = getProgress();
-    p[progKey(type, id)] = { type: type, id: id, done: true, at: Date.now() };
+    var p = getProgress(), k = progKey(type, id), had = p[k];
+    // `hand` means "no playback ever happened here" — that is the difference
+    // seriesCursor reads. Ticking off the episode you are PART-WAY THROUGH is not a
+    // claim about the past: it is you finishing the thing you were demonstrably
+    // watching, and stamping it `hand` would throw away the only evidence of where
+    // you are, sending Up next back to the first episode you never played.
+    var real = !!(had && !had.dismissed && (had.done || (had.pos > 0 && had.dur > 0)));
+    p[k] = real
+      ? { type: type, id: id, done: true, at: Date.now() }
+      : { type: type, id: id, done: true, hand: true, at: Date.now() };
     saveProgress(true);
   }
   /** Undo that (or a part-way position): the dismissed tombstone, which every
@@ -4165,10 +4202,11 @@
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.2l2.8 2.8L16 9.6"/></svg>',
     uncheck: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.4 8.4l7.2 7.2"/></svg>',
   };
-  var sheetState = { el: null, scrim: null, prev: null, keys: null };
+  var sheetState = { el: null, scrim: null, prev: null, keys: null, rel: null, armed: true };
   function closeSheet(restoreFocus){
     var s = sheetState; if (!s.el) return;
     if (s.keys){ document.removeEventListener('keydown', s.keys, true); s.keys = null; }
+    if (s.rel){ document.removeEventListener('keyup', s.rel, true); s.rel = null; }
     var el = s.el, scrim = s.scrim, prev = s.prev;
     s.el = null; s.scrim = null; s.prev = null;
     el.className = el.className.replace(' in', '');
@@ -4219,11 +4257,19 @@
       }
       if (k === 37 || k === 39){ e.preventDefault(); e.stopPropagation(); return; }
       if (k === 13){
+        // The OK that opened this sheet is usually STILL DOWN — a hold fires at
+        // 480 ms and the remote goes on repeating keydown. A button activates on
+        // Enter keydown, so the row we just focused would run itself. Nothing
+        // counts until that press has been released.
+        if (!sheetState.armed){ e.preventDefault(); e.stopPropagation(); return; }
         if (at >= 0) return;                       // let the button take its own Enter
         if (list[0]) list[0].focus();
         e.preventDefault(); e.stopPropagation();
       }
     };
+    sheetState.armed = !enterDown;                 // opened by pointer: live at once
+    sheetState.rel = function(e){ if (e.keyCode === 13) sheetState.armed = true; };
+    document.addEventListener('keyup', sheetState.rel, true);
     document.addEventListener('keydown', sheetState.keys, true);
     setTimeout(function(){
       scrim.className = 'sheet-scrim in'; el.className = 'sheet in';
@@ -4243,11 +4289,17 @@
    */
   function bindCard(el, onTap, onHold){
     var timer = null, held = false, sx = 0, sy = 0;
+    var keyTimer = null, keyDown = false, keyHeld = false;
     function cancel(){ if (timer){ clearTimeout(timer); timer = null; } }
+    function keyCancel(){ if (keyTimer){ clearTimeout(keyTimer); keyTimer = null; } }
     function arm(){ cancel(); held = false; timer = setTimeout(function(){ timer = null; held = true; onHold(); }, 480); }
     el.onclick = function(){ if (held){ held = false; return; } onTap(); };
     el.addEventListener('pointerdown', function(e){
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      // The right button never arms the hold timer, but it MUST clear a `held`
+      // left behind by the last right-click — `arm()` is what normally resets it,
+      // so without this `contextmenu`'s `if (!held)` gate means a right-click
+      // opens the sheet once per element and then never again.
+      if (e.pointerType === 'mouse' && e.button !== 0){ held = false; return; }
       sx = e.clientX; sy = e.clientY; arm();
     });
     el.addEventListener('pointermove', function(e){
@@ -4263,16 +4315,27 @@
     });
     // A remote's OK fires click on keydown, which would open the card before we
     // know whether it was a hold — so Enter is taken over and acted on release.
+    // The key press keeps its OWN state, never the pointer's: a release must only
+    // ever act for a press THIS element saw. Sharing it cost two real bugs — a
+    // sheet action that re-focuses a card handed that card the Enter keyup and it
+    // opened, and a card whose hold moved focus to the sheet kept `held` set for
+    // ever, so the next OK on it did nothing at all.
     el.addEventListener('keydown', function(e){
       if (e.keyCode !== 13 || sheetState.el) return;
       e.preventDefault();
-      if (!timer && !held) arm();
+      if (keyDown) return;                        // a remote repeats keydown while OK is held
+      keyDown = true; keyHeld = false;
+      keyTimer = setTimeout(function(){ keyTimer = null; keyHeld = true; onHold(); }, 480);
     });
     el.addEventListener('keyup', function(e){
-      if (e.keyCode !== 13) return;
-      var wasHold = held; cancel(); held = false;
-      if (!wasHold && !sheetState.el){ e.preventDefault(); onTap(); }
+      if (e.keyCode !== 13 || !keyDown) return;   // a release whose press landed elsewhere
+      keyDown = false; keyCancel();
+      if (!keyHeld && !sheetState.el){ e.preventDefault(); onTap(); }
+      keyHeld = false;
     });
+    // the sheet takes the remote on a TV, so this element stops being the key
+    // target mid-press — its press state goes with the focus
+    el.addEventListener('blur', function(){ keyDown = false; keyHeld = false; keyCancel(); });
   }
 
   /** Resume what you were watching. Rendered from local storage, so it paints
@@ -5958,8 +6021,11 @@
       } else {
         lbl.textContent = 'Play';
         play.onclick = function(){
-          var first = document.querySelector('#detEpList .stream:not(.skel)');
-          if (first) first.click(); else openSeries(meta, type);
+          // nothing half-watched, but episodes may still be ticked off — continue
+          // the show from the up-next ring rather than restarting it at episode 1
+          var go = document.querySelector('#detEpList .ep-next') ||
+                   document.querySelector('#detEpList .stream:not(.skel)');
+          if (go) go.click(); else openSeries(meta, type);
         };
       }
     } else {
@@ -6067,17 +6133,51 @@
   var epView = null;
   /** Where the viewer is in this series: newest progress record wins; a
       finished episode advances the cursor to the one after it. */
+  /**
+   * Where the viewer is in this series, as {upIdx, up}: `upIdx` is the row that
+   * wears the Up next ring (-1 when there is nothing left), `up` the episode whose
+   * SEASON the title should open on — which still exists when the ring does not.
+   *
+   * Two kinds of record, read differently on purpose. Something PLAYED is a fact
+   * about now, so the newest one says where the viewer is. A mark made by HAND
+   * says "I saw THIS one" and nothing more — never "I saw everything up to here" —
+   * so all it may do is push the cursor PAST episodes already ticked off, one at a
+   * time. Tick something far ahead and it paints a tick and leaves your place
+   * alone; tick the episode you were about to watch and the cursor steps over it.
+   * Reading a mark as a position is what used to drag the cursor back to Season 1,
+   * and reading the furthest mark as a position is what used to teleport it
+   * forward past everything unwatched in between.
+   */
   function seriesCursor(type, flat){
-    var p = getProgress(), best = null, bestIdx = -1;
+    var p = getProgress(), last = flat.length - 1;
+    var played = null, playedIdx = -1, anyHand = false, inSpecials = false;
     flat.forEach(function(v, i){
       var r = p[progKey(type, v.id)];
       if (!r || r.dismissed) return;
+      if (seasonNum(v) === 0) inSpecials = true;       // this viewer does watch the extras
+      if (r.hand){ if (r.done) anyHand = true; return; }
       if (!r.done && !(r.pos >= PROG_MIN_POS && r.dur > 0)) return;
-      if (!best || (r.at||0) > (best.at||0)){ best = r; bestIdx = i; }
+      if (!played || (r.at||0) > (played.at||0)){ played = r; playedIdx = i; }
     });
-    if (bestIdx === -1) return null;
-    var upIdx = best.done ? Math.min(bestIdx + 1, flat.length - 1) : bestIdx;
-    return { upIdx: upIdx, up: flat[upIdx] };
+    if (playedIdx === -1 && !anyHand) return null;
+    // Specials sit at the END of `flat` — groupEpisodes puts season 0 last on
+    // purpose — so a viewer who finishes the regular run walks straight into them
+    // and gets told a behind-the-scenes extra is what to watch next.
+    var lastReal = last;
+    while (lastReal > 0 && seasonNum(flat[lastReal]) === 0) lastReal--;
+    var hasReal = seasonNum(flat[lastReal]) !== 0;
+    var seat = hasReal ? lastReal : last;
+    var i = playedIdx === -1 ? 0 : (played.done ? playedIdx + 1 : playedIdx);
+    while (i <= last){
+      var r = p[progKey(type, flat[i].id)];
+      if (!r || !r.hand || !r.done) break;
+      i++;
+    }
+    // nothing left to watch: no ring, but the season of the last real episode is
+    // still where the viewer belongs. A viewer who HAS touched the specials keeps
+    // them in the chain; one who never has is simply finished.
+    if (i > last || (hasReal && !inSpecials && seasonNum(flat[i]) === 0)) return { upIdx: -1, up: flat[seat] };
+    return { upIdx: i, up: flat[i] };
   }
   async function openSeries(meta, type){
     var seq = ++seriesSeq;
@@ -6207,6 +6307,10 @@
     try { if (detEp && detEp.redraw) detEp.redraw(); } catch(e){}
     try { if (epView && epView.redraw) epView.redraw(); } catch(e){}
     try { renderContinue(); } catch(e){}
+    // the title page's own button carries the resume point in its LABEL — leave
+    // it alone and it goes on offering "Resume S1E3" for an episode just ticked
+    // off, and opens it
+    try { if (detCur) syncDetButtons(); } catch(e){}
     if (!epId || !(IS_TV || kbUsed)) return;
     var lists = [$id('detEpList'), $id('epList')];
     for (var i = 0; i < lists.length; i++){
@@ -6240,14 +6344,18 @@
       markWatched(type, v.id); epListsRedraw(v.id);
       setStatus(epTag(v) + ' marked as watched.', 'ok');
     } });
-    // only worth offering against something to undo: a tick, or a place to resume
-    if (pr && (pr.done || at)) acts.push({ icon:'uncheck', label:'Mark as not watched', fn: function(){
-      markUnwatched(type, v.id); epListsRedraw(v.id);
-      setStatus(epTag(v) + ' marked as not watched.', 'ok');
-    } });
+    // Only worth offering against something to undo. Two names for one call on
+    // purpose: against a tick it means "not watched"; against a part-way episode it
+    // THROWS AWAY a position, and a label that does not say so is a trap — the
+    // Continue watching sheet words the same act honestly too.
+    if (pr && (pr.done || at)) acts.push({
+      icon:'uncheck', label: pr.done ? 'Mark as not watched' : 'Forget my place', fn: function(){
+        markUnwatched(type, v.id); epListsRedraw(v.id);
+        setStatus(epTag(v) + (pr.done ? ' marked as not watched.' : ' back to the start.'), 'ok');
+      } });
     openSheet({
-      title: v.name || v.title || ('Episode ' + (epNum(v) != null ? epNum(v) : '')),
-      sub: [epKick(v), fmtAirDate(v.released), at && pr ? fmtLeft(pr.dur - at) : ''].filter(Boolean).join('  ·  '),
+      title: v.name || v.title || (epNum(v) != null ? 'Episode ' + epNum(v) : 'Episode'),
+      sub: [epKick(v), fmtAirDate(v.released), at && pr ? fmtLeft(pr.dur - at) : ''].filter(Boolean).join(' · '),
       poster: v.thumbnail || seriesMeta.poster || '',
       shape: v.thumbnail ? 'landscape' : 'poster',
       actions: acts,
@@ -10178,6 +10286,11 @@
       progCache = local;
       saveProgress(true);
       try { renderContinue(); } catch(e){}
+      // an episode ticked off on the phone must not leave stale ticks on an
+      // episode list that is already open here
+      try { if (detEp && detEp.redraw) detEp.redraw(); } catch(e){}
+      try { if (epView && epView.redraw) epView.redraw(); } catch(e){}
+      try { if (detCur) syncDetButtons(); } catch(e){}
     }
     return { changed: changed, localNewer: localNewer };
   }

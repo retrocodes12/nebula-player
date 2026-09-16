@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.16.1",
+  "version": "2026.09.16.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "You can now tick an episode off by hand. Hold an episode in a series — right-click, a touch hold, or OK held down on a remote — and the sheet offers Mark as watched and Mark as not watched, alongside Play. A marked episode moves Up next along and leaves Continue watching, exactly as finishing it would."
+  "notes": "Marking episodes watched is fixed. Ticking one off no longer moves your place in a show — only the episode you were about to watch does that. On a TV, holding OK now reaches the sheet instead of starting the film. The title page no longer offers to resume an episode you have just ticked off, and finishing a show no longer points you at a behind-the-scenes extra."
 }
