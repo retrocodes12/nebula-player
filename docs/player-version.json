@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.16.3",
+  "version": "2026.09.16.4",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Marking a film watched now has a button on its title page, and the buttons there sit on one line instead of wrapping onto two. Holding an episode is spelled out under the seasons until you have used it once. Quality lists the sizes you recognise and opens under the button you pressed. The subtitles panel no longer sits on top of the title or the bar. On a TV, a selected row in a sheet or an episode list now wears a white ring. On a computer, Settings has its sections down the side. Stream rows no longer say the same thing twice."
+  "notes": "This build puts the player back the way it was before tonight's design pass, while that pass is looked at again. Nothing else changes."
 }
