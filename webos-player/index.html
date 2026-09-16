@@ -3336,6 +3336,21 @@
     var p = getProgress(), k = progKey(type, id);
     if (p[k]){ p[k] = { type: type, id: id, dismissed: true, at: Date.now() }; saveProgress(true); }
   }
+  /** Tick something off by hand. Deliberately the SAME {done:true} record that
+      playing it to the end leaves, so the episode ticks, the series cursor
+      advances and Continue watching drops it exactly as if it had been watched. */
+  function markWatched(type, id){
+    var p = getProgress();
+    p[progKey(type, id)] = { type: type, id: id, done: true, at: Date.now() };
+    saveProgress(true);
+  }
+  /** Undo that (or a part-way position): the dismissed tombstone, which every
+      list and the cursor read as "never started". */
+  function markUnwatched(type, id){
+    var p = getProgress();
+    p[progKey(type, id)] = { type: type, id: id, dismissed: true, at: Date.now() };
+    saveProgress(true);
+  }
   /** Newest-first, only things actually worth resuming. */
   function continueList(){
     var p = getProgress(), out = [], off = {};
@@ -4147,6 +4162,8 @@
     bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h12v17l-6-4.2L6 21z"/><path d="M9.4 9.6h5.2"/></svg>',
     restart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 8-8 8.7 8.7 0 0 0-6 2.4L4 8.5"/><path d="M4 4v4.5h4.5"/></svg>',
     heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.3C7 16.6 3.2 13.3 3.2 9.4 3.2 6.9 5.2 5 7.6 5c1.6 0 3.2.8 4.4 2.4C13.2 5.8 14.8 5 16.4 5c2.4 0 4.4 1.9 4.4 4.4 0 3.9-3.8 7.2-8.8 10.9z"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.2l2.8 2.8L16 9.6"/></svg>',
+    uncheck: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.4 8.4l7.2 7.2"/></svg>',
   };
   var sheetState = { el: null, scrim: null, prev: null, keys: null };
   function closeSheet(restoreFocus){
@@ -5852,8 +5869,9 @@
         openStreams(type, v.id, ctx.streamTitle);
       };
     }
-    var upIdx = -1;
+    var upIdx = -1, curSeason = null;
     function renderSeason(sn){
+      curSeason = sn;
       Array.prototype.forEach.call(sRow.children, function(ch){ ch.classList.toggle('on', ch.__season === sn); });
       list.innerHTML = '';
       bySeason[sn].forEach(function(v){
@@ -5865,6 +5883,14 @@
       var cur = seriesCursor(type, flat);
       upIdx = cur ? cur.upIdx : -1;
       renderSeason(cur ? seasonNum(cur.up) : seasons[0]);
+    }
+    /** After a mark made by hand: fresh ticks and a fresh "Up next", but the
+        season the viewer is reading stays on screen — the cursor may have just
+        moved to a different one. */
+    function redrawHere(){
+      var cur = seriesCursor(type, flat);
+      upIdx = cur ? cur.upIdx : -1;
+      renderSeason(curSeason != null && bySeason[curSeason] ? curSeason : (cur ? seasonNum(cur.up) : seasons[0]));
     }
     if (seasons.length > 1){
       sRow.style.display = '';
@@ -5878,7 +5904,7 @@
       });
     }
     renderCurrent();
-    detEp = { refresh: renderCurrent };
+    detEp = { refresh: renderCurrent, redraw: redrawHere };
   }
   function renderDetailArt(meta){
     // full-bleed: the backdrop carries the page, the title-art logo replaces
@@ -6077,8 +6103,9 @@
     ctx.seriesPoster = meta.poster || ''; ctx.seriesBack = meta.background || '';
     var row = document.getElementById('seasonRow');
     row.innerHTML = '';
-    var upIdx = -1;
+    var upIdx = -1, curSeason = null;
     function renderSeason(s, keepScroll){
+      curSeason = s;
       Array.prototype.forEach.call(row.children, function(ch){ ch.classList.toggle('on', ch.__season === s); });
       var list = document.getElementById('epList');
       var keptScroll = keepScroll ? list.parentNode.scrollTop : 0;
@@ -6108,7 +6135,17 @@
     });
     setStatus(res.videos.length + ' episodes','ok');
     renderCurrent(false);
-    epView = { refresh: function(){ if (seq === seriesSeq) renderCurrent(true); } };
+    epView = {
+      refresh: function(){ if (seq === seriesSeq) renderCurrent(true); },
+      // a mark keeps the season on screen and the scroll where it was — only
+      // the ticks and "Up next" change
+      redraw: function(){
+        if (seq !== seriesSeq) return;
+        var cur = seriesCursor(type, flat);
+        upIdx = cur ? cur.upIdx : -1;
+        renderSeason(curSeason != null && bySeason[curSeason] ? curSeason : (cur ? seasonNum(cur.up) : seasons[0]), true);
+      },
+    };
     focusFirst();
   }
   function epLabel(seriesName, v){
@@ -6158,8 +6195,67 @@
     try { return new Intl.DateTimeFormat('en', { day:'numeric', month:'short', year:'numeric' }).format(d); }
     catch(e){ return String(iso).slice(0, 10); }
   }
+  /** "Season 1 · Episode 2", written out for the sheet's context line. */
+  function epKick(v){
+    var e = epNum(v);
+    return 'Season ' + seasonNum(v) + (e != null ? ' · Episode ' + e : '');
+  }
+  /** Repaint whatever episode list is on screen after a mark — the season the
+      viewer is looking at stays put (the cursor may have moved to another one),
+      and the remote lands back on the episode it was on. */
+  function epListsRedraw(epId){
+    try { if (detEp && detEp.redraw) detEp.redraw(); } catch(e){}
+    try { if (epView && epView.redraw) epView.redraw(); } catch(e){}
+    try { renderContinue(); } catch(e){}
+    if (!epId || !(IS_TV || kbUsed)) return;
+    var lists = [$id('detEpList'), $id('epList')];
+    for (var i = 0; i < lists.length; i++){
+      var l = lists[i]; if (!l || l.offsetParent === null) continue;
+      for (var j = 0; j < l.children.length; j++){
+        if (l.children[j].__epId === epId){
+          try { l.children[j].focus({ preventScroll: true }); } catch(e){ l.children[j].focus(); }
+          return;
+        }
+      }
+    }
+  }
+  /** Held on an episode row: play it, or tick it off by hand. Nebula's per-item
+      actions all live behind a hold rather than buttons parked on the row. */
+  function episodeSheet(seriesMeta, v, index){
+    var type = ctx.seriesType || 'series';
+    var pr = progFor(type, v.id), at = resumeAt(type, v.id);
+    function play(fresh){
+      ctx.epIndex = (index == null ? -1 : index);
+      ctx.streamTitle = epLabel(seriesMeta.name, v);
+      openStreams(type, v.id, ctx.streamTitle, fresh === true);
+    }
+    var acts = [];
+    if (at){
+      acts.push({ icon:'play', label:'Resume', fn: function(){ play(false); } });
+      acts.push({ icon:'restart', label:'Start over', fn: function(){ play(true); } });
+    } else {
+      acts.push({ icon:'play', label:'Play', fn: function(){ play(false); } });
+    }
+    if (!(pr && pr.done)) acts.push({ icon:'check', label:'Mark as watched', fn: function(){
+      markWatched(type, v.id); epListsRedraw(v.id);
+      setStatus(epTag(v) + ' marked as watched.', 'ok');
+    } });
+    // only worth offering against something to undo: a tick, or a place to resume
+    if (pr && (pr.done || at)) acts.push({ icon:'uncheck', label:'Mark as not watched', fn: function(){
+      markUnwatched(type, v.id); epListsRedraw(v.id);
+      setStatus(epTag(v) + ' marked as not watched.', 'ok');
+    } });
+    openSheet({
+      title: v.name || v.title || ('Episode ' + (epNum(v) != null ? epNum(v) : '')),
+      sub: [epKick(v), fmtAirDate(v.released), at && pr ? fmtLeft(pr.dur - at) : ''].filter(Boolean).join('  ·  '),
+      poster: v.thumbnail || seriesMeta.poster || '',
+      shape: v.thumbnail ? 'landscape' : 'poster',
+      actions: acts,
+    });
+  }
   function episodeRow(seriesMeta, v, index, upNext){
     var row = document.createElement('button'); row.className = 'stream focusable' + (upNext ? ' ep-next' : '');
+    row.__epId = v.id;
     var e = epNum(v);
     var ph = '<div class="ep-thumb-ph">' + (e != null ? e : '•') + '</div>';
     var thumb = v.thumbnail
@@ -6183,11 +6279,11 @@
       '<span class="ep-titlerow"><span class="stream-name">' + title + '</span>' +
       (upNext ? '<span class="ep-upnext">Up next</span>' : '') + '</span>' +
       (v.overview ? '<span class="ep-sub">' + esc(v.overview) + '</span>' : '') + '</span>';
-    row.onclick = function(){
+    bindCard(row, function(){
       ctx.epIndex = (index == null ? -1 : index);
       ctx.streamTitle = epLabel(seriesMeta.name, v);
       openStreams(ctx.seriesType || 'series', v.id, ctx.streamTitle);
-    };
+    }, function(){ episodeSheet(seriesMeta, v, index); });
     return row;
   }
 
