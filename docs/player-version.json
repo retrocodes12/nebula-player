@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.15.2",
+  "version": "2026.09.16.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "The desktop app now plays films through a full-format player: every video and sound format a file carries, every sound and subtitle track, 5.1 sound as 5.1, and HDR films shown right on an ordinary screen. A dropped connection is picked up again from where it was."
+  "notes": "You can now tick an episode off by hand. Hold an episode in a series — right-click, a touch hold, or OK held down on a remote — and the sheet offers Mark as watched and Mark as not watched, alongside Play. A marked episode moves Up next along and leaves Continue watching, exactly as finishing it would."
 }
