@@ -5490,23 +5490,32 @@
   // Stremio semantics: catalog add-ons and stream add-ons are separate things.
   // Opening an item asks EVERY installed add-on whose manifest says it serves
   // streams for this type/id, not just the add-on the item came from.
-  function resourceSupport(m, name){
-    var rs = (m && m.resources) || [];
+  // A manifest may name the SAME resource more than once with different scopes (PenguPlay:
+  // stream for movie/series under tt/tmdb/…, and again for tv under pp-live:) — every scope
+  // counts, so a type/id matching ANY of them is served. Android kept the last scope and never
+  // asked that add-on for a film (09-17); this side kept the first and would miss its channels.
+  function resourceScopes(m, name){
+    var rs = (m && m.resources) || [], out = [];
     for (var i=0;i<rs.length;i++){
       var r = rs[i];
-      if (r === name) return { types: m.types||null, idPrefixes: m.idPrefixes||null };
-      if (r && r.name === name) return { types: r.types||m.types||null, idPrefixes: r.idPrefixes||m.idPrefixes||null };
+      if (r === name) out.push({ types: m.types||null, idPrefixes: m.idPrefixes||null });
+      else if (r && r.name === name) out.push({ types: r.types||m.types||null, idPrefixes: r.idPrefixes||m.idPrefixes||null });
     }
-    return null;
+    return out;
   }
   function supports(m, name, type, id){
-    var r = resourceSupport(m, name); if (!r) return false;
-    if (r.types && r.types.length && r.types.indexOf(type) === -1) return false;
-    if (r.idPrefixes && r.idPrefixes.length){
-      for (var i=0;i<r.idPrefixes.length;i++){ if (id.indexOf(r.idPrefixes[i]) === 0) return true; }
-      return false;
+    var scopes = resourceScopes(m, name);
+    for (var k=0;k<scopes.length;k++){
+      var r = scopes[k];
+      if (r.types && r.types.length && r.types.indexOf(type) === -1) continue;
+      if (r.idPrefixes && r.idPrefixes.length){
+        var ok = false;
+        for (var i=0;i<r.idPrefixes.length;i++){ if (id.indexOf(r.idPrefixes[i]) === 0){ ok = true; break; } }
+        if (!ok) continue;
+      }
+      return true;
     }
-    return true;
+    return false;
   }
   function canStream(m, type, id){ return supports(m, 'stream', type, id); }
   function canMeta(m, type, id){ return supports(m, 'meta', type, id); }
