@@ -125,7 +125,7 @@
   .page-title { font-size:calc(34px * var(--ts)); font-weight:700; letter-spacing:-.028em; margin:0 0 4px; }
   .setrow { display:flex; align-items:center; flex-wrap:wrap; padding:14px 0; }
   .setrow + .setrow { border-top:1px solid var(--sep); }
-  .setname { flex:1 1 180px; font-size:calc(15px * var(--ts)); font-weight:600; }
+  .setname { flex:1 1 180px; padding-right:24px; max-width:58ch; font-size:calc(15px * var(--ts)); font-weight:600; }
   .setname small { display:block; color:var(--label2); font-weight:400; font-size:calc(12.5px * var(--ts)); margin-top:2px; }
   .setrow .chip { margin:4px 8px 4px 0; }
   .swatch { width:36px; height:36px; border-radius:50%; border:0; cursor:pointer; margin:4px 10px 4px 0;
@@ -209,7 +209,8 @@
   .disc-pills { display:flex; flex-wrap:wrap; margin-bottom:12px; }
   .disc-pills .chip { margin:0 8px 8px 0; background:var(--l2); border-color:var(--line); color:var(--ink); font-weight:600; }
   .disc-pills .chip .dp-v { margin-right:6px; }
-  .disc-pills .chip .dp-c { opacity:.55; font-size:.85em; }
+  .disc-pills .chip .dp-c { opacity:.55; display:inline-flex; margin-left:6px; }
+  .disc-pills .chip .dp-c svg { width:.9em; height:.9em; }
   .disc-src { color:var(--label2); font-size:calc(14px * var(--ts)); margin:0 0 14px; }
   .disc-status { color:var(--label2); font-size:calc(14px * var(--ts)); margin:0 0 12px; }
   .sheet-acts { max-height:60vh; overflow-y:auto; scrollbar-width:none; }
@@ -261,6 +262,14 @@
   #setPane > .con-sec:first-child { margin-top:18px; }
   .det-chips .sk-chip { border:0; padding:0; }
   .con-nav { display:none; }
+  @media (min-width:1100px){
+    html:not(.tv) #setConsole { display:flex; align-items:flex-start; }
+    html:not(.tv) .con-nav { display:block; flex:0 0 250px; position:-webkit-sticky; position:sticky; top:84px; margin-right:36px; }
+    html:not(.tv) .con-pane { flex:1 1 auto; min-width:0; }
+    html:not(.tv) .con-item { font-size:calc(15px * var(--ts)); padding:11px 16px; margin:0 0 6px; }
+    html:not(.tv) .con-item > svg { width:20px; height:20px; margin-right:12px; }
+    html:not(.tv) .con-item .con-chev { display:none; }
+  }
   .con-item { display:flex; align-items:center; width:100%; text-align:left; cursor:pointer; border:0;
     border-radius:var(--r-pill); background:rgba(255,255,255,.04); color:var(--label2); font-family:var(--sans);
     font-size:calc(21px * var(--ts)); font-weight:600; letter-spacing:-.015em; padding:20px 26px; margin:0 0 14px;
@@ -293,7 +302,7 @@
   #libTabs { margin:14px 0 18px; }
   .lib-friends { margin-top:38px; padding-top:22px; border-top:1px solid var(--sep); }
   .fr-quiet { display:flex; align-items:center; flex-wrap:wrap; }
-  .fr-quiet p { flex:1 1 300px; color:var(--label2); font-size:calc(14px * var(--ts)); line-height:1.5; margin:0 16px 8px 0; }
+  .fr-quiet p { flex:1 1 300px; max-width:60ch; color:var(--label2); font-size:calc(14px * var(--ts)); line-height:1.5; margin:0 16px 8px 0; }
   .fr-quiet p b { display:block; color:var(--label); font-weight:600; margin-bottom:2px; }
   .fr-quiet .btn { margin:0 0 8px; }
   html.tv .fr-quiet p { font-size:calc(17px * var(--ts)); }
@@ -306,6 +315,8 @@
     white-space:nowrap; transition:color .18s var(--ease), background .18s var(--ease); }
   .textbtn:hover { color:var(--label); background:var(--fill); }
   .textbtn:disabled { opacity:.55; cursor:default; background:transparent; }
+  .setrow .textbtn, .linkrow .textbtn { border:1px solid rgba(255,255,255,.28); border-radius:var(--r-pill); padding:8px 16px; color:var(--label); }
+  .setrow .textbtn:hover, .linkrow .textbtn:hover { background:rgba(255,255,255,.10); border-color:rgba(255,255,255,.4); }
   html.tv .textbtn.focusable:focus { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
   .textbtn.focusable:focus-visible { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
   html.tv .textbtn { font-size:calc(17px * var(--ts)); padding:9px 14px; }
@@ -336,6 +347,27 @@
   .btn .btn-ic { display:inline-flex; vertical-align:-2px; margin-right:8px; }
   .btn .btn-ic svg { width:13px; height:13px; display:block; }
   html.tv .btn .btn-ic svg { width:17px; height:17px; }
+  /* the title page's secondary actions: round icon buttons beside the Play pill, on one optical line —
+     three same-weight ghost pills wrapped on a phone, and marking a film watched had no control at all */
+  .rbtn { width:44px; height:44px; border-radius:50%; border:1px solid rgba(255,255,255,.28); background:rgba(255,255,255,.08);
+    color:var(--label); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0;
+    transition:transform .18s var(--ease), background .18s var(--ease); }
+  .rbtn svg { width:20px; height:20px; display:block; }
+  .rbtn:hover { background:rgba(255,255,255,.16); transform:scale(1.05); }
+  .rbtn.on { background:#fff; color:#000; border-color:#fff; }
+  html.tv .rbtn.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.45); }
+  .rbtn.focusable:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.45); }
+  html.tv .rbtn.on.focusable:focus { box-shadow:0 0 0 3px #000, 0 0 0 6px #fff; }
+  .rbtn.on.focusable:focus-visible { box-shadow:0 0 0 3px #000, 0 0 0 6px #fff; }
+  html.tv .rbtn { width:56px; height:56px; }
+  html.tv .rbtn svg { width:26px; height:26px; }
+  .det-acts .btn { height:44px; padding-top:0; padding-bottom:0; display:inline-flex; align-items:center; }
+  html.tv .det-acts .btn { height:56px; }
+  /* one line under the seasons that says the hold exists, until it has been used once */
+  .det-hint { display:none; color:var(--label3); font-family:var(--mono); font-size:calc(11px * var(--ts)); font-weight:500;
+    letter-spacing:.14em; text-transform:uppercase; margin:2px 0 6px; }
+  .det-hint.on { display:block; }
+  html.tv .det-hint { font-size:calc(14px * var(--ts)); }
   .section-title { font-size:calc(21px * var(--ts)); font-weight:600; letter-spacing:-.021em; margin:30px 0 12px; }
 
   /* ---- add-ons ---- */
@@ -421,8 +453,9 @@
     display:flex; align-items:center; justify-content:center; }
   .hrm-check svg { width:22px; height:22px; }
   .hrm.off .hrm-name { color:var(--label2); font-weight:500; }
+  .hrm-check { border-radius:50%; }
   .hrm.off .hrm-sub { opacity:.7; }
-  .hrm.off .hrm-check { visibility:hidden; }
+  .hrm.off .hrm-check { color:transparent; box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.3); }
   .hrmlist.dragging .hrm { transition:transform .18s var(--ease); }
   .hrmlist.dragging .hrm.drag-src { transition:none; }
   .hrm.drag-src, .hrm.lifted { z-index:6; background:var(--l2); box-shadow:0 20px 44px rgba(0,0,0,.62); }
@@ -498,7 +531,7 @@
   .card .thumb img { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; display:block; }
   .thumb-ph { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:calc(22px * var(--ts));
     font-weight:600; color:var(--label3); }
-  .card-label { padding:9px 2px 0; font-size:calc(13px * var(--ts)); font-weight:500; color:var(--label2); line-height:1.35;
+  .card-label { padding:9px 2px 0; font-size:calc(13px * var(--ts)); font-weight:500; color:var(--label2); line-height:1.35; min-height:calc(2.7em + 9px);
     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
     transition:color .18s var(--ease); }
   .card-sub { padding:2px 2px 0; font-size:calc(12px * var(--ts)); color:var(--label3);
@@ -552,9 +585,9 @@
   html.tv .s-spec b { font-size:calc(17px * var(--ts)); }
   .stream:hover { background:var(--l2); }
   html.tv .stream.focusable:focus { background:var(--l2); transform:scale(1.015);
-    box-shadow:0 14px 32px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
+    box-shadow:0 14px 32px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.85); }
   .stream.focusable:focus-visible { background:var(--l2); transform:scale(1.015);
-    box-shadow:0 14px 32px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
+    box-shadow:0 14px 32px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.85); }
   .stream-name { display:block; font-size:calc(15.5px * var(--ts)); font-weight:600; letter-spacing:-.015em;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .stream-sub { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
@@ -738,9 +771,9 @@
     padding:16px 18px; color:var(--label); font:inherit; font-size:calc(15px * var(--ts)); font-weight:500; text-align:left; }
   .sheet-act svg { width:21px; height:21px; flex:0 0 auto; margin-right:15px; }
   .sheet-act:hover { background:rgba(255,255,255,.07); }
-  html.tv .sheet-act.focusable:focus { background:rgba(255,255,255,.07); }
-  .sheet-act.focusable:focus-visible { background:rgba(255,255,255,.07); }
-  .sheet-act.bad { color:#FF5A5F; }
+  html.tv .sheet-act.focusable:focus { background:rgba(255,255,255,.07); box-shadow:inset 0 0 0 3px #fff; }
+  .sheet-act.focusable:focus-visible { background:rgba(255,255,255,.07); box-shadow:inset 0 0 0 3px #fff; }
+  .sheet-act.bad { color:var(--red); }
   /* On a TV it is a centred panel, not a phone sheet — nothing is within thumb reach */
   html.tv .sheet { left:50%; right:auto; bottom:auto; top:50%; width:520px;
     transform:translate(-50%,-44%); opacity:0; border-radius:22px; border:1px solid var(--sep);
@@ -945,10 +978,15 @@
   .pui-party { background:#fff; color:#000; }
   .pui-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
     display:flex; align-items:center; }
+  /* a soft dark pool behind the transport: over a white frame the glass discs nearly vanished, worst
+     under html.lite where the blur is off — a gradient costs no blur */
+  .pui-center::before { content:''; position:absolute; left:50%; top:50%; width:440px; height:240px; margin:-120px 0 0 -220px;
+    background:radial-gradient(ellipse at center, rgba(0,0,0,.42), rgba(0,0,0,0) 68%); z-index:-1; pointer-events:none; }
   .pui-center > * + * { margin-left:36px; }
   .pui-skip { width:58px; height:58px; position:relative; }
   .pui-skip svg { width:25px; height:25px; }
-  .pui-skipnum { position:absolute; bottom:9px; font-size:calc(9px * var(--ts)); font-weight:700; }
+  .pui-skipnum { position:absolute; bottom:9px; font-size:calc(11px * var(--ts)); font-weight:700; }
+  html.tv .pui-skipnum { font-size:calc(14px * var(--ts)); bottom:11px; }
   .pui-playpause { width:82px; height:82px; }
   .pui-playpause svg { width:36px; height:36px; }
   .pui-bottom { position:absolute; left:0; right:0; bottom:0; padding:0 40px 24px; }
@@ -1012,13 +1050,16 @@
     background:rgba(80,80,88,.42); white-space:nowrap; }
   .pui-time.focusable { cursor:pointer; transition:background .18s var(--ease); }
   .pui-time.focusable:hover { background:rgba(110,110,120,.55); }
-  html.tv .pui-time.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
-  .pui-time.focusable:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
+  html.tv .pui-time.focusable:focus { box-shadow:0 0 0 4px #fff; }
+  .pui-time.focusable:focus-visible { box-shadow:0 0 0 4px #fff; }
   /* the bar takes its own line; when it is wider than the screen it scrolls sideways (auto
      margins collapse to 0 on overflow, so it starts at the left edge instead of losing its head) */
   .pui-barwrap { order:1; flex:0 0 100%; width:100%; display:flex; margin-top:12px; overflow-x:auto; overflow-y:hidden;
     -webkit-overflow-scrolling:touch; scrollbar-width:none; }
   .pui-barwrap::-webkit-scrollbar { display:none; }
+  html:not(.lite) .pui-barwrap, html:not(.lite) .det-seasons, html:not(.lite) .hrow {
+    -webkit-mask-image:linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 30px), transparent);
+    mask-image:linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 30px), transparent); }
   .pui-bar { display:flex; flex:0 0 auto; align-items:center; margin:0 auto; padding:5px; border-radius:var(--r-pill);
     background:rgba(44,44,46,.78); box-shadow:inset 0 0 0 1px rgba(255,255,255,.10); }
   .pui-bar .pui-btn { display:flex; align-items:center; background:transparent; padding:8px 14px;
@@ -1048,14 +1089,13 @@
   .qopt:hover { background:rgba(255,255,255,.10); }
   html.tv .qopt.focusable:focus { background:rgba(255,255,255,.16); box-shadow:0 0 0 3px rgba(255,255,255,.35); }
   .qopt.focusable:focus-visible { background:rgba(255,255,255,.16); box-shadow:0 0 0 3px rgba(255,255,255,.35); }
-  .qopt.on { font-weight:600; }
-  .qopt.on::after { content:' ✓'; color:rgba(235,235,245,.6); }
+  .qopt.on { font-weight:600; background:rgba(255,255,255,.92); color:#000; }
   .qsep { height:1px; margin:7px 12px; background:rgba(255,255,255,.14); }
   .qnote { color:rgba(235,235,245,.6); font-size:calc(12.5px * var(--ts)); line-height:1.45; padding:7px 12px 9px;
     white-space:normal; max-width:250px; }
   .qmenu.wide { min-width:292px; max-height:74vh; }
   .qprev { margin:2px 6px 8px; padding:16px 10px; border-radius:10px; text-align:center; overflow:hidden;
-    background:#2A3550; }
+    background:var(--l1); box-shadow:inset 0 0 0 1px var(--sep); }
   .qprev-t { display:inline-block; padding:.06em .3em; line-height:1.3; border-radius:2px; white-space:normal; }
   /* subtitle timing readout: one big number, the way a camera shows exposure offset */
   .qtime { text-align:center; padding:10px 12px 12px; }
@@ -1161,11 +1201,13 @@
   #subPanel.open { display:block; }
   /* under the panel the title block and bar stay, dimmed; the back button and transport would
      show through the heading and the middle column, so they step out */
-  body.sp-on #puiBack, body.sp-on .pui-center { opacity:0; }
+  body.sp-on #puiBack, body.sp-on .pui-center, body.sp-on .pui-titles, body.sp-on .pui-time, body.sp-on .pui-seek { opacity:0; }
+  /* on a phone the top-right cluster (info · mini · fullscreen) sat on the panel's heading */
+  @media (max-width:480px){ body.sp-on .pui-top { opacity:0; } }
   .sp-scrim { position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.72); }
   .sp-head { position:absolute; left:40px; right:40px; top:34px; }
   .sp-title { font-size:calc(28px * var(--ts)); font-weight:600; letter-spacing:-.02em; color:#fff; }
-  .sp-cols { position:absolute; left:40px; right:40px; top:96px; bottom:36px; display:flex; }
+  .sp-cols { position:absolute; left:40px; right:40px; top:96px; bottom:100px; display:flex; }
   #subPanel.open .sp-cols { animation:riseIn .16s var(--ease) both; }
   .sp-col { flex:1 1 0; min-width:0; display:flex; flex-direction:column; padding:0 24px;
     border-left:1px solid rgba(255,255,255,.12); }
@@ -1286,6 +1328,10 @@
   .det-chips span { background:transparent; border:1px solid rgba(255,255,255,.22); border-radius:var(--r-pill);
     padding:6px 14px; margin:0 8px 8px 0; font-size:calc(13px * var(--ts)); font-weight:500; color:var(--label); }
   .det-chips.cast span { border-color:var(--sep); color:var(--label2); font-weight:400; }
+  /* genres and cast are facts, not controls: no pill, a middot between (the season chips below are the controls) */
+  .det-chips span, .det-chips.cast span { border:0; padding:0; margin:0 0 6px; color:var(--label2); font-weight:500; }
+  .det-chips span + span::before { content:'·'; margin:0 10px; color:var(--label3); }
+  .det-chips.cast span { color:var(--label); font-weight:400; }
   .det-castlbl { color:var(--label3); font-family:var(--mono); font-size:calc(11px * var(--ts)); font-weight:500;
     letter-spacing:.16em; margin:14px 0 8px; }
   /* the catalogue's score: a small mono plate in the facts line */
@@ -1343,7 +1389,7 @@
   .ep-titlerow { display:flex; align-items:center; }
   .ep-titlerow .stream-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .ep-date { flex:0 0 auto; color:var(--label2); font-size:calc(12.5px * var(--ts)); margin-left:10px; }
-  html.tv .det-chips span { font-size:calc(16px * var(--ts)); padding:9px 18px; }
+  html.tv .det-chips span { font-size:calc(16px * var(--ts)); padding:0; }
   html.tv .det-castlbl { font-size:calc(14px * var(--ts)); }
   html.tv .det-chips span { font-weight:500; }
   html.tv .ep-date { font-size:calc(15px * var(--ts)); }
@@ -1464,11 +1510,13 @@
     .pui-time { font-size:calc(11px * var(--ts)); padding:5px 9px; }
     .pui-barwrap { margin-top:10px; }
     .pui-bar .pui-btn { font-size:calc(12.5px * var(--ts)); padding:8px 12px; }
-    .pui-bar .pui-btn svg { width:18px; height:18px; margin-right:6px; }
+    .pui-bar .pui-btn svg { width:18px; height:18px; margin-right:0; }
+    .pui-bar .pui-btn .pl, .pui-bar .pui-btn .pv { display:none; }
+    .pui-bar .pui-btn { padding:10px 11px; }
     body.pui-on #status { bottom:76px; }
     .sp-head { left:16px; right:16px; top:18px; }
     .sp-title { font-size:calc(22px * var(--ts)); }
-    .sp-cols { left:16px; right:16px; top:60px; bottom:12px; display:block; overflow-y:auto; }
+    .sp-cols { left:16px; right:16px; top:60px; bottom:76px; display:block; overflow-y:auto; }
     .sp-col { display:block; padding:14px 0; border-left:0; border-top:1px solid rgba(255,255,255,.12); }
     .sp-col:first-child { border-top:0; padding-top:0; }
     .sp-list { overflow:visible; }
@@ -1626,7 +1674,7 @@
   html.tv #srcBtn { right:56px; bottom:266px; padding:15px 28px; font-size:calc(19px * var(--ts)); }
   html.tv .sp-head { left:56px; right:56px; top:44px; }
   html.tv .sp-title { font-size:calc(36px * var(--ts)); }
-  html.tv .sp-cols { left:56px; right:56px; top:124px; bottom:48px; }
+  html.tv .sp-cols { left:56px; right:56px; top:124px; bottom:120px; }
   html.tv .sp-col { padding:0 32px; }
   html.tv .sp-kick { font-size:calc(14px * var(--ts)); margin-bottom:16px; }
   html.tv .sp-opt { font-size:calc(19px * var(--ts)); padding:14px 18px; border-radius:14px; }
@@ -1689,7 +1737,7 @@
     html:not(.tv) .hf-art::after { background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 34%, rgba(0,0,0,.6) 66%, var(--bg) 100%); }
     html:not(.tv) .hf-info { left:16px; right:16px; bottom:44px; max-width:none; text-align:center; }
     html:not(.tv) .hf-facts, html:not(.tv) .hf-desc, html:not(.tv) #hfList, html:not(.tv) #hfOpen .btn-ic { display:none; }
-    html:not(.tv) .hf-meta { display:block; color:rgba(235,235,245,.84); font-size:calc(14px * var(--ts)); font-weight:500;
+    html:not(.tv) .hf-meta { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:rgba(235,235,245,.84); font-size:calc(14px * var(--ts)); font-weight:500;
       margin:0 0 14px; text-shadow:0 1px 8px rgba(0,0,0,.7); }
     html:not(.tv) .hf-logo { margin:0 auto 12px; max-width:78%; max-height:110px; }
     html:not(.tv) .hf-title { font-size:calc(34px * var(--ts)); margin:0 0 10px; }
@@ -2024,12 +2072,13 @@
       <div class="det-kicker" id="detMeta"></div>
       <p class="det-desc" id="detDesc"></p>
       <div class="det-credits" id="detCredits"></div>
-      <div class="row">
+      <div class="row det-acts">
         <button id="detPlay" class="focusable btn"><span class="btn-ic"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span id="detPlayLbl">Play</span></button>
         <button id="detEpisodes" class="focusable btn ghost" style="display:none">Episodes</button>
-        <button id="detShuffle" class="focusable btn ghost" style="display:none" title="Play a random episode">Surprise me</button>
-        <button id="detList" class="focusable btn ghost">My List</button>
-        <button id="detRec" class="focusable btn ghost" style="display:none">Recommend</button>
+        <button id="detWatched" class="focusable rbtn" style="display:none" title="Mark as watched" aria-label="Mark as watched"></button>
+        <button id="detList" class="focusable rbtn" title="Add to My List" aria-label="Add to My List"></button>
+        <button id="detShuffle" class="focusable rbtn" style="display:none" title="Surprise me" aria-label="Play a random episode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg></button>
+        <button id="detRec" class="focusable rbtn" style="display:none" title="Recommend to a friend" aria-label="Recommend to a friend"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.6-4.7-9.4-9.3C1.3 8 3.3 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.7 0 5.7 3.5 4.4 6.7-1.8 4.6-9.4 9.3-9.4 9.3Z"/></svg></button>
       </div>
       <div class="det-facts" id="detFacts"></div>
       <div class="det-rate" id="detRate"></div>
@@ -2037,6 +2086,7 @@
       <div class="det-castlbl" id="detCastLbl" style="display:none">CAST</div>
       <div class="det-chips cast" id="detCastRow"></div>
       <div class="det-seasons" id="detSeasonRow" style="display:none"></div>
+      <div class="det-hint" id="detHint"></div>
       <div id="detEpList" class="streams eplist det-eps"></div>
     </div>
   </div>
@@ -2063,7 +2113,7 @@
         <div id="setPane" class="con-pane">
       <!-- how much of Settings to show: the common choices, or every option -->
       <div class="con-mode" id="setModeRow">
-        <span class="setname">Essential · Everything<small>Essential keeps the common choices. Everything shows every option.</small></span>
+        <span class="setname">How much to show<small>Essential keeps the common choices. Everything shows every option.</small></span>
         <span id="setMode" class="seg"></span>
       </div>
       <section class="con-sec on" data-sec="profile">
@@ -2080,7 +2130,7 @@
         <h2 class="con-title">Appearance</h2>
         <p class="con-sub">The accent colour, how focus grows and what shows on artwork.</p>
         <div class="setrow">
-          <span class="setname">Accent<small>Colours the brand, play buttons and badges</small></span>
+          <span class="setname">Accent<small>Colours the brand, play buttons and badges<span id="setAccentNote"> · Gold, Ice and Mint come with supporting Nebula</span></small></span>
           <span id="setAccent"></span>
         </div>
         <div class="setrow" data-lvl="all">
@@ -2214,7 +2264,7 @@
           <span id="setSpeed" class="seg"></span>
         </div>
         <div class="setrow">
-          <span class="setname">Picture quality<small>Auto adapts to your connection · Start high opens at the best rendition · Data saver caps at 720p</small></span>
+          <span class="setname">Picture quality<small>Auto adapts to your connection · Start high opens at the sharpest picture · Data saver caps at 720p</small></span>
           <span id="setQuality" class="seg"></span>
         </div>
         <div class="setrow" data-lvl="all">
@@ -2389,13 +2439,13 @@
 
   <div id="view-addons" class="view">
     <div class="page-title">Add-ons</div>
-    <p class="sub">Add an add-on and its catalogs show up on Home. Every format plays, decrypted on-device.</p>
+    <p class="sub">Add an add-on and its catalogs show up on Home. Every format plays, right on this device.</p>
     <div class="panel">
       <div class="lbl">Add-on manifest URL</div>
       <input id="addonUrl" class="focusable field" type="url" placeholder="https://your-addon/…/manifest.json" autocomplete="off" />
       <div class="row">
-        <button id="phoneBtn" class="focusable btn">Add via phone</button>
-        <button id="addAddonBtn" class="focusable btn ghost">Add typed URL</button>
+        <button id="addAddonBtn" class="focusable btn">Add this add-on</button>
+        <button id="phoneBtn" class="focusable btn ghost">Add from your phone</button>
       </div>
       <div class="linkrow">
         <span class="lbl">Or play something directly</span>
@@ -3837,7 +3887,7 @@
     }
     if (addons.length > 1){
       var hint = document.createElement('div'); hint.className = 'addon-hint';
-      hint.textContent = 'Drag by the handle to rank them. Home rows follow this order, ' +
+      hint.textContent = (IS_TV ? 'Their order matters: ' : 'Drag by the handle to rank them. ') + 'Home rows follow this order, ' +
         'and streams, artwork and subtitles are taken from the highest add-on that has them.';
       wrap.appendChild(hint);
     }
@@ -4087,7 +4137,7 @@
     var thumb = art
       ? '<div class="thumb">'+posterImg(art, meta.name)+rate+'</div>'
       : '<div class="thumb"><span class="thumb-ph">'+phFor(meta.name)+'</span>'+rate+'</div>';
-    var year = meta.releaseInfo || meta.year || '';
+    var year = String(meta.releaseInfo || meta.year || '').replace(/\s*[–-]\s*$/, '');   // "2023–" is a truncation to the eye
     card.innerHTML = thumb + '<div class="card-label">'+esc(meta.name||meta.id)+'</div>' +
       (year ? '<div class="card-sub">'+esc(String(year))+'</div>' : '');
     card.onclick=function(){
@@ -4407,7 +4457,7 @@
             openDetail({ id: id, type: r.type, name: (r.name||'').split(' · ')[0],
                          poster: r.poster, posterShape: r.shape }, r.type);
           } },
-          { icon:'trash', label:'Remove from Continue watching', bad:true, fn: function(){
+          { icon:'trash', label:'Remove from Continue Watching', bad:true, fn: function(){
             clearProgress(r.type, r.id); renderContinue(); focusFirst();
           } },
         ],
@@ -4489,23 +4539,16 @@
     var facts = [];
     var y = metaYear(meta);
     var g = meta.genres || meta.genre;
-    if (IS_TV){
-      // the TV meta line reads "Movie · Crime · 1h 51m · 2026"
-      var kind = { movie:'Movie', series:'Series' }[meta.type] || typeLabel(meta.type);
-      if (kind) facts.push(kind);
-      if (g && g.length) facts.push(g.slice(0, 2).join(' · '));
-      if (meta.runtime) facts.push(runtimeShort(meta.runtime));
-      if (y) facts.push(y);
-    } else {
-      if (y) facts.push(y);
-      if (meta.runtime) facts.push(String(meta.runtime));
-      if (meta.imdbRating) facts.push('★ ' + meta.imdbRating);
-      if (g && g.length) facts.push(g.slice(0, 2).join(' · '));
-    }
+    // one order and one runtime format on every surface: "Movie · Crime · 1h 51m · 2026", the rating last
+    var kind = { movie:'Movie', series:'Series' }[meta.type] || typeLabel(meta.type);
+    if (kind) facts.push(kind);
+    if (g && g.length) facts.push(g.slice(0, 2).join(' · '));
+    if (meta.runtime) facts.push(runtimeShort(meta.runtime));
+    if (y) facts.push(y);
+    if (!IS_TV && meta.imdbRating) facts.push('★ ' + meta.imdbRating);
     var art = meta.background || meta.poster;
     // the phone reads one line under the title: "Series · Drama · 2026–" (type · first genre · years)
-    var kind2 = { movie:'Movie', series:'Series' }[meta.type] || typeLabel(meta.type);
-    var metaLine = [kind2, g && g.length ? g[0] : '', y].filter(Boolean).join('  ·  ');
+    var metaLine = facts.join('  ·  ');       // the same facts; CSS truncates the tail on a phone
     var head = meta.logo
       ? '<img class="hf-logo" src="'+esc(meta.logo)+'" alt="'+esc(meta.name)+'">'
       : '<div class="hf-title">'+esc(meta.name)+'</div>';
@@ -4843,7 +4886,7 @@
         : 'Add an add-on first — then one search covers everything it has.') + '</p>';
     while (intro.firstChild) box.appendChild(intro.firstChild);
     if (addons.length){
-      var chips = document.createElement('div'); chips.className = 'chips';
+      var chips = document.createElement('div'); chips.className = 'chips src-chips';
       addons.forEach(function(a){
         var b = document.createElement('button'); b.className = 'chip focusable';
         b.textContent = a.name || 'Add-on'; b.onclick = function(){ openAddon(a); };
@@ -4852,6 +4895,17 @@
       box.appendChild(chips);
     }
     wrap.innerHTML = ''; wrap.appendChild(box);
+    // a subtitle-only add-on has no catalogue and never returns a title: once the manifests are
+    // known, it leaves the count and the chip row — this is the copy that says "one search covers"
+    if (addons.length) Promise.all(addons.map(function(a){ return getManifest(a.url).then(function(m){ return m; }, function(){ return null; }); }))
+      .then(function(ms){
+        var keep = addons.filter(function(a, i){ var m = ms[i]; return !m || ((m.catalogs && m.catalogs.length) || (m.resources || []).some(function(r){ return r === 'catalog' || r === 'meta' || (r && (r.name === 'catalog' || r.name === 'meta')); })); });
+        if (keep.length === addons.length || !box.parentNode) return;
+        var lbl = box.querySelector('.lbl'); if (lbl && /^One search/.test(lbl.textContent)) lbl.textContent = 'One search · ' + keep.length + ' add-on' + (keep.length > 1 ? 's' : '');
+        Array.prototype.forEach.call(box.querySelectorAll('.src-chips .chip'), function(c){
+          if (!keep.some(function(a){ return (a.name || 'Add-on') === c.textContent; })) c.parentNode.removeChild(c);
+        });
+      });
     // the grid must not inherit the intro column's reading width — it hangs off the results wrap
     if (addons.length) discoverMount(wrap);
   }
@@ -4889,7 +4943,7 @@
   }
   function discPill(value, fn){
     var b = document.createElement('button'); b.className = 'chip focusable';
-    b.innerHTML = '<span class="dp-v">' + esc(value) + '</span><span class="dp-c">▾</span>';
+    b.innerHTML = '<span class="dp-v">' + esc(value) + '</span><span class="dp-c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span>';
     b.onclick = fn; return b;
   }
   function discPicker(title, opts, cur, fn){
@@ -5671,13 +5725,23 @@
   }
   /** Whatever is left of the description after the badges, facts and the page
       itself have taken their share. */
-  function cleanStreamDesc(desc, addonName){
+  var RE_FMT = /\b(2160p|1440p|1080p|720p|480p|360p|4k|uhd|fhd|web-?dl|web-?rip|hdtv|blu-?ray|bdrip|remux|hevc|x265|h\.?265|x264|h\.?264|avc|hdr10\+?|hdr|dv|dovi|dolby\.?vision|atmos|ddp|dd\+?5\.1|eac3|ac3|aac|truehd|dts(?:-?hd)?)\b/ig;
+  function cleanStreamDesc(desc, addonName, shown, stripFmt){
     var known = String((ctx.playTitle || '') + ' ' + ((ctx.item && ctx.item.name) || '')).toLowerCase();
     var epTagRe = /^s\d{1,2}\s*e\d{1,3}$/i;
     var out = [];
+    var already = (shown || []).map(function(x){ return String(x || '').toLowerCase().trim(); }).filter(Boolean);
     String(desc || '').split(' · ').forEach(function(tok){
       var t = tok.replace(RE_EMOJI, ' ').replace(/\s{2,}/g, ' ').trim();
       if (!t) return;
+      // the name, the provider and the languages are on the row already — say nothing twice
+      if (already.some(function(a){ return a === t.toLowerCase() || (t.length >= 2 && a.indexOf(t.toLowerCase()) >= 0); })) return;
+      // the plate and the badges already carry the format words — a release name keeps its own words only
+      if (stripFmt){
+        var t2 = t.replace(RE_FMT, '').replace(/[.\-_ ]{2,}/g, ' ').replace(/^[.\-_ ]+|[.\-_ ]+$/g, '').trim();
+        if (!t2) return;
+        t = t2;
+      }
       if (/\bs\d{1,2}\s*e\d{1,3}\b/i.test(t)) return;             // the header already says the episode
       if (epTagRe.test(t.replace(/[\s()]/g, ''))) return;
       if (/^\(?(19|20)\d\d\)?$/.test(t)) return;                  // bare year
@@ -5704,7 +5768,8 @@
     var badges = streamBadges(raw, plate ? 'resolution' : null);
     var f = streamFacts(s, text, badges.fired);
     var name = cleanStreamName(s.name, addonName) || f.provider || cleanStreamName(text.split('\n')[0], addonName) || 'Stream';
-    var sub = [f.provider && name.indexOf(f.provider) < 0 ? f.provider : '', f.langs, cleanStreamDesc(f.desc, addonName)]
+    var shown = [name, f.provider || '', f.langs || ''];
+    var sub = [f.provider && name.indexOf(f.provider) < 0 ? f.provider : '', f.langs, cleanStreamDesc(f.desc, addonName, shown, !!(plate || badges.fired))]
       .filter(Boolean).join('  ·  ');
     var spec = f.size ? '<b>' + esc(f.size) + '</b>' : '';
     var line2 = [f.bitrate, f.seeds ? f.seeds + ' seeds' : ''].filter(Boolean).join(' · ');
@@ -5873,7 +5938,7 @@
       df.className = 'det-facts' + (row.length ? ' on' : '');
     }
     var bits = [];
-    var y = metaYear(meta); if (y) bits.push(y);
+    var y = metaYear(meta); if (y) bits.push(y.replace(/[–-]$/, ' – now'));
     if (meta.runtime && !row.length) bits.push(String(meta.runtime));
     if (meta.videos && meta.videos.length){
       var sn = {}; meta.videos.forEach(function(v){ var x = seasonNum(v); if (x > 0) sn[x] = 1; });
@@ -5922,6 +5987,14 @@
     var bySeason = grouped.bySeason, seasons = grouped.seasons, flat = grouped.flat;
     ctx.seriesType = type;
     ctx.seriesEpisodes = flat; ctx.seriesName = meta.name || ''; ctx.seriesPoster = meta.poster || ''; ctx.seriesBack = meta.background || '';
+    // nothing on an episode row advertises the hold — say so once, in the eyebrow register, until it has been used
+    var hint = $id('detHint');
+    if (hint){
+      var seen = false; try { seen = localStorage.getItem('ephint_seen') === '1'; } catch(e){}
+      hint.textContent = IS_TV ? 'Hold OK on an episode to mark it watched or start it over'
+        : (isPhone() ? 'Hold an episode to mark it watched or start it over' : 'Hold or right-click an episode to mark it watched or start it over');
+      hint.className = 'det-hint' + (seen ? '' : ' on');
+    }
     var pool = surprisePool(flat);
     if (pool.length >= 2){
       sh.style.display = '';
@@ -6033,13 +6106,39 @@
       lbl.textContent = (pr && !pr.done && pr.pos) ? 'Resume' : 'Play';
       play.onclick = function(){ ctx.streamTitle = meta.name || null; openStreams(type, meta.id, meta.name); };
     }
-    var on = inLibrary(type, meta.id);
-    $id('detList').textContent = on ? '✓ In My List' : '+ My List';
-    $id('detList').onclick = function(){
+    var on = inLibrary(type, meta.id), dl = $id('detList');
+    dl.classList.toggle('on', on);
+    dl.innerHTML = on ? DET_ICONS.check : DET_ICONS.plus;
+    dl.title = on ? 'In My List — remove' : 'Add to My List'; dl.setAttribute('aria-label', dl.title);
+    dl.onclick = function(){
       toggleLibrary(type, detCur.meta, (detCur.addon && detCur.addon.url) || '');
       syncDetButtons();
     };
+    // Mark as watched, for films: the same {done} record playback leaves, so Continue watching agrees.
+    // A series is marked on its episode rows — what one tick should mean for a whole show is undecided.
+    var dw = $id('detWatched');
+    if (dw){
+      if (type === 'movie'){
+        var pw = progFor(type, meta.id), done = !!(pw && pw.done);
+        dw.style.display = '';
+        dw.classList.toggle('on', done);
+        dw.innerHTML = done ? DET_ICONS.checkc : DET_ICONS.checkco;
+        dw.title = done ? 'Mark as not watched' : 'Mark as watched'; dw.setAttribute('aria-label', dw.title);
+        dw.onclick = function(){
+          if (done) markUnwatched(type, meta.id); else markWatched(type, meta.id);
+          setStatus(done ? 'Marked as not watched.' : 'Marked as watched.', 'ok');
+          try { renderContinue(); } catch(e){}
+          syncDetButtons();
+        };
+      } else dw.style.display = 'none';
+    }
   }
+  var DET_ICONS = {
+    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.6 4.5L19 7.5"/></svg>',
+    checkco: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.2l2.8 2.8L16 9.6"/></svg>',
+    checkc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.6 4.5L19 7.5"/></svg>'
+  };
   function openDetail(meta, type){
     type = type || meta.type || 'movie';
     ctx.item = meta;                       // stream/poster identity keys off this
@@ -6326,6 +6425,8 @@
   /** Held on an episode row: play it, or tick it off by hand. Nebula's per-item
       actions all live behind a hold rather than buttons parked on the row. */
   function episodeSheet(seriesMeta, v, index){
+    try { localStorage.setItem('ephint_seen', '1'); } catch(e){}
+    var hn = $id('detHint'); if (hn) hn.className = 'det-hint';
     var type = ctx.seriesType || 'series';
     var pr = progFor(type, v.id), at = resumeAt(type, v.id);
     function play(fresh){
@@ -8217,7 +8318,13 @@
   var upnextState = { open:false, counting:false, dismissed:false, timer:null, left:0, target:null };
   function $id(x){ return document.getElementById(x); }
 
-  function heightLabel(h){ return h ? (h + 'p') : 'Auto'; }
+  function heightLabel(h){
+    if (!h) return 'Auto';
+    // a ladder's raw heights (1636p, 818p, 364p) mean nothing to a viewer: the nearest familiar rung
+    var rungs = [[2160, '4K'], [1440, '1440p'], [1080, '1080p'], [720, '720p'], [480, '480p'], [360, '360p'], [240, '240p']];
+    for (var i = 0; i < rungs.length; i++) if (h >= rungs[i][0] * 0.8) return rungs[i][1];
+    return h + 'p';
+  }
   function videoTracks(){ try { return (player.getVariantTracks()||[]).filter(function(t){ return t.height; }); } catch(e){ return []; } }
   function distinctHeights(tracks){
     var seen={}, out=[];
@@ -8635,8 +8742,7 @@
     } else if (puiIsLive()){
       chip(r.end - t > 12 ? fmtT(r.end - t) + ' behind live' : 'At the live edge');
     } else if (r.end > r.start){
-      var remain = r.end - t, mins = Math.round(remain / 60);
-      chip(mins < 1 ? 'Under a minute left' : (mins + ' min left'));
+      var remain = r.end - t;
       var h = new Date(Date.now() + remain * 1000 / (video.playbackRate || 1)), hh = h.getHours(), mm = h.getMinutes();   // at this speed, like the clock line
       chip('Ends ' + (hh % 12 || 12) + ':' + (mm < 10 ? '0' : '') + mm + (hh < 12 ? ' am' : ' pm'));
     }
@@ -8784,7 +8890,9 @@
       var abrOn=true; try { abrOn = player.getConfiguration().abr.enabled; } catch(e){}
       var activeH=0; if(!abrOn) tracks.forEach(function(v){ if(v.active) activeH=v.height; });
       menuOpt('Auto', abrOn, function(){ selectQuality(0); });
-      heights.forEach(function(h){ menuOpt(heightLabel(h), !abrOn&&h===activeH, function(){ selectQuality(h); }); });
+      // two rungs that snap to the same familiar name keep their true height so they can be told apart
+      var seenLbl = {}; heights.forEach(function(h){ var l = heightLabel(h); seenLbl[l] = (seenLbl[l] || 0) + 1; });
+      heights.forEach(function(h){ var l = heightLabel(h); menuOpt(seenLbl[l] > 1 ? l + ' (' + h + 'p)' : l, !abrOn&&h===activeH, function(){ selectQuality(h); }); });
     } else if (kind==='audio'){
       var langs=[]; try { langs = player.getAudioLanguagesAndRoles()||[]; } catch(e){}
       if (tc && tc.info.audio && tc.info.audio.length){
@@ -8853,6 +8961,15 @@
       puiNote(sleepState.mode==='min' ? 'Pausing in ' + sleepLabel(sleepLeft()) + '.' : 'Playback pauses when the time is up.');
     }
     puiMenuEl.classList.add('open');
+    // the menu opens under the button that asked for it, not over the transport in a fixed corner
+    puiMenuEl.style.left = ''; puiMenuEl.style.right = '';
+    if (opener && opener.getBoundingClientRect){
+      try {
+        var orct = opener.getBoundingClientRect(), mw = puiMenuEl.offsetWidth || 216, vw = window.innerWidth;
+        var mleft = Math.max(16, Math.min(vw - mw - 16, orct.left + orct.width / 2 - mw / 2));
+        puiMenuEl.style.left = mleft + 'px'; puiMenuEl.style.right = 'auto';
+      } catch(e){}
+    }
     puiState.menu = kind; puiState.opener = opener || null;
     positionPuiMenu(opener);
     var on = puiMenuEl.querySelector('.qopt.on') || puiMenuEl.querySelector('.qopt');
@@ -10595,7 +10712,7 @@
         h += IS_TV
           ? '<div class="sup-tv"><div id="supQr" aria-hidden="true"></div><div><div class="sup-url">' + SUPPORT_SHORT + '</div>' +
             '<p class="tagline" style="margin-top:4px">Open it on your phone — it takes a minute.</p></div></div>'
-          : '<div class="row"><a id="supGo" class="btn focusable" href="' + esc(supportCfg.url) + '" target="_blank" rel="noopener">Support Nebula</a></div>';
+          : '<div class="row"><a id="supGo" class="btn focusable" href="' + esc(supportCfg.url) + '" target="_blank" rel="noopener">Become a supporter</a></div>';
       }
       h += '<div class="setrow" style="display:block"><span class="setname" style="display:block">Have a supporter code?' +
         '<small>It comes with the thank-you. One code, typed once on any signed-in device — the mark follows your profile.</small></span>';
@@ -10727,7 +10844,7 @@
     var modes = st === 'legacy'
       ? [['attach', 'Add a profile'], ['signin', 'Sign in to another']]
       : (IS_TV ? [['code', 'Sign in with a code'], ['signin', 'Handle and password'], ['create', 'Create profile']]
-               : [['signin', 'Sign in'], ['create', 'Create profile'], ['code', 'Sign in with a code']]);
+               : [['signin', 'Handle and password'], ['create', 'Create profile'], ['code', 'Sign in with a code']]);
     h += '<div class="seg pmode" id="pfModes"></div><div class="panel" id="pfPanel"></div>';
     body.innerHTML = h;
     var seg = $id('pfModes');
@@ -11163,7 +11280,10 @@
   function setNavItems(){ return Array.prototype.filter.call(document.querySelectorAll('#setNav .con-item'), function(b){ return b.offsetParent !== null; }); }
   (function(){
     Array.prototype.forEach.call(document.querySelectorAll('#setNav .con-item'), function(b){
-      b.onclick = function(){ setSection(b.getAttribute('data-sec'), false); };
+      b.onclick = function(){
+        setSection(b.getAttribute('data-sec'), false);
+        if (!IS_TV){ var sec = document.querySelector('#setPane .con-sec[data-sec="' + b.getAttribute('data-sec') + '"]'); if (sec){ try { sec.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch(e){ sec.scrollIntoView(); } } }
+      };
       // on a TV the pane follows the highlight, so it always shows what the lit row says
       b.addEventListener('focus', function(){ if (IS_TV) setSection(b.getAttribute('data-sec'), false); });
     });
@@ -11290,6 +11410,7 @@
       ? an + ' add-on' + (an === 1 ? '' : 's') + (offN ? ' · ' + (an - offN) + ' on · ' + offN + ' off' : '') + ' · Add, remove and rank them'
       : 'None yet — add one and its catalogs fill Home';
     profileCardRender();
+    var accNote = $id('setAccentNote'); if (accNote) accNote.style.display = acc.querySelector('.swatch.lock') ? '' : 'none';
     if (keepGrp){
       var grp = $id(keepGrp), again = null;
       if (grp) Array.prototype.forEach.call(grp.children, function(c){ if (!again && (c.title || c.textContent || '') === keepLbl) again = c; });
