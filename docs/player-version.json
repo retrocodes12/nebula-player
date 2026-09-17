@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.17.1",
+  "version": "2026.09.17.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Streams from add-ons that serve more than one kind of content, such as films and live channels together, now appear where they were missing."
+  "notes": "On a TV, Left and Right now show where you are about to jump before you go there: press OK to jump, Back to stay. Preview pictures are no longer offered on LG TVs, where they could interrupt the film."
 }

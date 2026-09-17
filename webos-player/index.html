@@ -2503,7 +2503,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.17.1';
+  var PLAYER_VERSION = '2026.09.17.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -3117,7 +3117,10 @@
     });
   }
 
-  var DB8_KIND = 'com.nuvio.clearkey.player:1';
+  // the TV's own store is owned by the app that runs this file: com.nebula.player since 1.79.0, and the
+  // old com.nuvio.clearkey.player install (still in the feed as "Nebula (old version)") keeps its own
+  var WEBOS_APP_ID = (window.PalmSystem && window.PalmSystem.identifier ? String(window.PalmSystem.identifier).split(' ')[0] : '') || 'com.nebula.player';
+  var DB8_KIND = WEBOS_APP_ID + ':1';
   var db8Ready = null;
   function lunaCall(path, params){
     return new Promise(function(res){
@@ -3138,7 +3141,7 @@
   function db8Init(){
     if (!window.WebOSServiceBridge && !window.PalmServiceBridge) return Promise.resolve(false);
     if (!db8Ready) db8Ready = lunaCall('com.webos.service.db/putKind', {
-      id: DB8_KIND, owner: 'com.nuvio.clearkey.player',
+      id: DB8_KIND, owner: WEBOS_APP_ID,
       indexes: [{ name:'key', props:[{ name:'key' }] }]
     }).then(function(r){ return !!(r && r.returnValue); });
     return db8Ready;
