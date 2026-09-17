@@ -2273,7 +2273,7 @@
           <span class="setname">Controls hide after<small>How long the controls stay once you stop touching them</small></span>
           <span id="setControlsHide" class="seg"></span>
         </div>
-        <div class="setrow" data-lvl="all">
+        <div class="setrow" id="rowScrub" data-lvl="all">
           <span class="setname">Preview frames while scrubbing<small>A picture of where you are about to jump · Turn it off if playback stutters on your TV</small></span>
           <span id="setScrub" class="seg"></span>
         </div>
@@ -2939,9 +2939,11 @@
         e.preventDefault(); return;
       }
       if (pui.className === 'idle'){
-        // controls hidden: arrows seek straight away, anything else wakes the UI
+        // controls hidden: arrows seek straight away, anything else wakes the UI.
+        // On a TV ←/→ open the preview on the rail instead — the bubble moves, OK jumps, Back drops it
         puiShow();
-        if (k===37){ seekBy(-seekStepSecs()); }
+        if ((k===37||k===39) && IS_TV && $id('puiSeek')){ $id('puiSeek').focus(); scrubStep(k===37?-1:1); }
+        else if (k===37){ seekBy(-seekStepSecs()); }
         else if (k===39){ seekBy(seekStepSecs()); }
         else if (k===32){ togglePlay(); }
         else if (k===13 && document.activeElement && document.activeElement.id === 'skipBtn'){ skipNow(); }
@@ -8281,8 +8283,9 @@
   var SCRUB_HOLD = 4000, SCRUB_DEBOUNCE = 120, SHADOW_CAP = 240, SHADOW_STALL = 4000;
   var shadow = $id('puiShadow'), shadowCache = new Map();
   var shadowState = { armed:false, want:-1, busy:false, busyAt:0, reqT:0, timer:null };
-  /** Frames from the shadow copy: on by default, off on the TV itself (a second decode can stall the one playing). */
-  function scrubFramesOn(){ var pr = getPrefs(); return IS_WEBOS ? pr.scrubFrames === true : pr.scrubFrames !== false; }
+  /** Frames from the shadow copy: on by default, never on the TV itself — it has one decoder, so a
+      second video gives no picture and can black out the one playing (its Settings row is hidden). */
+  function scrubFramesOn(){ return !IS_WEBOS && getPrefs().scrubFrames !== false; }
   function tipFrameSize(){
     if (IS_TV) return [240, 135];
     return (window.innerWidth <= 480 || window.innerHeight <= 480) ? [128, 72] : [160, 90];
@@ -11272,6 +11275,7 @@
     segChips('setPauseBoard', [['Show', true], ['Hide', false]], pr.pauseBoard !== false, function(v){ setPref('pauseBoard', v); });
     segChips('setControlsHide', [['2 s','2'], ['3.5 s','3.5'], ['6 s','6']], controlsHideKey(), function(v){ setPref('controlsHide', v); });
     segChips('setScrub', [['On', true], ['Off', false]], scrubFramesOn(), function(v){ setPref('scrubFrames', v); });
+    if (IS_WEBOS && $id('rowScrub')) $id('rowScrub').style.display = 'none';   // no frames to be had on the TV itself
     // ---- streams ----
     segChips('setStreamSort', [['As listed','listed'], ['Best quality first','quality'], ['Smallest first','size']], pr.streamSort === 'quality' || pr.streamSort === 'size' ? pr.streamSort : 'listed', function(v){ setPref('streamSort', v); });
     segChips('setMinRes', [['Any','any'], ['720p','720'], ['1080p','1080'], ['4K','2160']], pr.minRes === '720' || pr.minRes === '1080' || pr.minRes === '2160' ? pr.minRes : 'any', function(v){ setPref('minRes', v); });
