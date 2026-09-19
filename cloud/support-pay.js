@@ -103,7 +103,8 @@ module.exports = function attach(deps) {
     let b;
     try { b = JSON.parse(raw.toString('utf8')); } catch (e) { return json(res, 400, { error: 'bad payload' }); }
     if (!b || typeof b !== 'object') return json(res, 400, { error: 'bad payload' });
-    const event = String(b.event || b.type || '').toLowerCase();
+    // the event name rides in a header (X-Pocketsflow-Event); the body carries it in older shapes
+    const event = String(req.headers['x-pocketsflow-event'] || b.event || b.type || '').toLowerCase();
     const order = b.order && typeof b.order === 'object' ? b.order : {};
     const orderId = String(order.id || b.orderId || b.id || '').slice(0, 80);
     if (event !== 'order.completed') {

@@ -780,10 +780,12 @@ const PAY = {
   products: { supporter: 'prod_sup', plus: 'prod_plus', founder: 'prod_founder' },
 };
 function hook(body, secret = PAY.webhookSecret, headers = {}) {
-  const raw = JSON.stringify(body);
+  // the real service names the event in a header and NOT in the body (seen in its own webhook test, 09-19)
+  const { event, ...rest } = body;
+  const raw = JSON.stringify(rest);
   const sig = require('crypto').createHmac('sha256', secret).update(raw).digest('hex');
   return fetch(base + '/v1/support/webhook/pocketsflow', { method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Pocketsflow-Signature': sig, ...headers }, body: raw })
+    headers: { 'Content-Type': 'application/json', 'X-Pocketsflow-Signature': sig, ...(event ? { 'X-Pocketsflow-Event': event } : {}), ...headers }, body: raw })
     .then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) }));
 }
 

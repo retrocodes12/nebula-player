@@ -94,7 +94,7 @@ module.exports = function attach(core) {
   let cfg = { url: null, admin: null, site: null, pay: null }, cfgStamp = '', cfgAt = 0;
   function config() {
     const now = Date.now();
-    if (now - cfgAt > CONFIG_CHECK_MS) {
+    if (now - cfgAt >= CONFIG_CHECK_MS) {
       cfgAt = now;
       let stamp = 'none', file = null;
       try {
