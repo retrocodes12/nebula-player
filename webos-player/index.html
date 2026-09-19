@@ -145,6 +145,12 @@
   a.btn { display:inline-block; text-decoration:none; }
   .sup-head { display:flex; align-items:center; margin:8px 0 0; font-size:calc(19px * var(--ts)); font-weight:700; letter-spacing:-.02em; }
   .sup-head .sup-star { width:.9em; height:.9em; }
+  /* Founders: a gold ring on the avatar, everywhere it is drawn */
+  .pav.founder, .fr-av.founder { box-shadow:0 0 0 2px #E0B24A; }
+  /* Supporter Plus: any colour — a picker drawn as one more swatch (not on a TV: no pointer) */
+  .swatch.any { position:relative; overflow:hidden; display:inline-block; vertical-align:top; background:conic-gradient(#E50914, #FFB07A, #B4E33D, #5AC8FA, #B08CFF, #E50914); }
+  .swatch.any input { position:absolute; left:0; top:0; width:100%; height:100%; opacity:0; cursor:pointer; border:0; padding:0; }
+  html.tv .swatch.any { display:none; }
   .sup-tv { display:flex; align-items:center; flex-wrap:wrap; margin-top:14px; }
   .sup-tv > * { margin:0 28px 12px 0; }
   #supQr { background:#fff; padding:12px; border-radius:var(--r-tile); display:inline-block; }
@@ -5270,7 +5276,8 @@
           av.textContent = (f.name || f.handle || '?').slice(0, 1).toUpperCase();
           if (f.avatar){ av.style.background = f.avatar; if (f.avatar === '#F2F2F7') av.style.color = '#000'; }
           var col = document.createElement('span');
-          var nm = document.createElement('span'); nm.className = 'fr-name'; nm.innerHTML = esc(friendLabel(f)) + (f.sup ? SUP_STAR : '');
+          var nm = document.createElement('span'); nm.className = 'fr-name'; nm.innerHTML = esc(friendLabel(f)) + (f.sup ? supMark(f.mark) : '');
+          if (f.tier === 'founder') av.classList.add('founder');
           var sb = document.createElement('span'); sb.className = 'fr-sub';
           sb.textContent = (f.handle && f.name ? '@' + f.handle + ' · ' : '') +
             (prof && prof.ratings ? prof.ratings.length : 0) + ' rated';
@@ -10515,9 +10522,17 @@
     if (!cloudLinked()) return Promise.resolve(null);
     return cloudApi('GET', '/v1/profile/me').then(function(r){
       profile = r.on ? { handle: r.handle, name: r.name, avatar: r.avatar, sup: !!r.supporter,
-        since: r.supporter ? (r.supporter.since || 0) : 0, wall: !!(r.supporter && r.supporter.wall) } : null; profileSave();
+        since: r.supporter ? (r.supporter.since || 0) : 0, wall: !!(r.supporter && r.supporter.wall),
+        tier: r.supporter ? (r.supporter.tier || 'supporter') : null, mark: r.supporter ? (r.supporter.mark || 'star') : null } : null; profileSave();
       pfDevices = r.devices || [];
       profileCardRender(); syncPanelRender();
+      // the view drew from the stored copy before this answer came — patch its head in place (never redraw the
+      // form: a redraw replaces the fields under someone's fingers) so a tier raised elsewhere shows now, not next time
+      if (profile){
+        var ph = document.querySelector('#profileBody .phead .pav'), pn = document.querySelector('#profileBody .pname');
+        if (ph) ph.classList.toggle('founder', supRank() >= 3);
+        if (pn) pn.innerHTML = esc(profile.name) + supMine();
+      }
       return r;
     }).catch(function(){ return null; });
   }
@@ -10528,7 +10543,8 @@
     av.className = 'pav' + (st === 'in' ? '' : ' dim');
     av.setAttribute('style', st === 'in' ? avStyle(profile.avatar) : '');
     av.textContent = st === 'in' ? avLetter(profile.name || profile.handle) : '?';
-    $id('setProfileName').innerHTML = st === 'in' ? esc(profile.name) + (profile.sup ? SUP_STAR : '') : (st === 'legacy' ? 'Add a profile' : 'Sign in or create a profile');
+    $id('setProfileName').innerHTML = st === 'in' ? esc(profile.name) + supMine() : (st === 'legacy' ? 'Add a profile' : 'Sign in or create a profile');
+    av.classList.toggle('founder', st === 'in' && supRank() >= 3);
     supportSync();
     $id('setProfileSub').textContent = st === 'in'
       ? '@' + profile.handle + (pfDevices.length > 1 ? ' · ' + pfDevices.length + ' devices' : '')
@@ -10548,14 +10564,40 @@
 
   // ---- Support Nebula (brief support-2026-09-05): the link and the wall come from the server, the
   // supporter mark rides on the profile. Nothing that exists is behind it. ----
-  var SUP_STAR = '<span class="sup-star" role="img" aria-label="Supporter"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.5l-5.9 3.1 1.2-6.5L2.5 9.5l6.6-.9z"/></svg></span>';
+  // the marks: a star for every supporter; Supporter Plus and Founders choose theirs (tiers pass, 2026-09-19)
+  var SUP_MARKS = {
+    star: '<path d="M12 2.6l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.5l-5.9 3.1 1.2-6.5L2.5 9.5l6.6-.9z"/>',
+    heart: '<path d="M12 21s-7.5-4.6-9.5-9.3C1.2 8.4 3.3 5 6.8 5c2 0 3.5 1.1 5.2 3 1.7-1.9 3.2-3 5.2-3 3.5 0 5.6 3.4 4.3 6.7C19.5 16.4 12 21 12 21z"/>',
+    bolt: '<path d="M13.5 2L4 13.5h6.5L9.5 22 20 9.5h-6.5z"/>',
+    crown: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.5 11h-15z"/>'
+  };
+  function supMark(kind){
+    var k = SUP_MARKS[kind] ? kind : 'star';
+    return '<span class="sup-star" role="img" aria-label="Supporter"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + SUP_MARKS[k] + '</svg></span>';
+  }
+  var SUP_STAR = supMark('star');
+  var SUP_TIERS = { supporter: ['Supporter', 1], plus: ['Supporter Plus', 2], founder: ['Founder', 3] };
+  function supRank(){ return isSupporter() && SUP_TIERS[profile.tier] ? SUP_TIERS[profile.tier][1] : (isSupporter() ? 1 : 0); }
+  function supTierName(){ return isSupporter() && SUP_TIERS[profile.tier] ? SUP_TIERS[profile.tier][0] : 'Supporter'; }
+  /** The mark by THIS profile's name (friends' marks come with their cards). */
+  function supMine(){ return isSupporter() ? supMark(supRank() >= 2 ? profile.mark : 'star') : ''; }
   var SUP_ACCENTS = [['Gold', '#E0B24A'], ['Ice', '#64D2FF'], ['Mint', '#66D4CF']];
+  // Supporter Plus: more colours, and any colour at all off a TV (the picker below the swatches)
+  var PLUS_ACCENTS = [['Coral', '#FF7A5C'], ['Lavender', '#B08CFF'], ['Lime', '#B4E33D'], ['Sky', '#5AC8FA'], ['Peach', '#FFB07A'], ['Slate', '#8E9AAF']];
   var SUPPORT_SHORT = 'play.rifflehq.in/support';
   var supportCfg = { url: null, wall: [], count: 0, at: 0 };
   try { supportCfg = JSON.parse(LS.getItem('support_v1') || 'null') || supportCfg; } catch(e){}
   if (!supportCfg.wall) supportCfg.wall = [];
   function isSupporter(){ return !!(profile && profile.sup); }
   function isSupAccent(v){ if (!SUP_ACCENTS || !v) return false; for (var i = 0; i < SUP_ACCENTS.length; i++) if (SUP_ACCENTS[i][1] === v) return true; return false; }
+  /** Which tier a stored accent needs: 0 = anyone, 1 = supporter colours, 2 = the Plus palette or a colour of one's own. */
+  function accentRank(v){
+    if (!v) return 0;
+    var i;
+    for (i = 0; i < PREF_ACCENTS.length; i++) if (PREF_ACCENTS[i][1] === v) return 0;
+    if (isSupAccent(v)) return 1;
+    return 2;
+  }
   function supportVisible(){ return !!supportCfg.url || isSupporter(); }
   function supportNavRender(){
     var off = !supportVisible(), b = $id('setNavSupport'), s = $id('setSupport');
@@ -10574,7 +10616,7 @@
     if (!force && supportCfg.at && Date.now() - supportCfg.at < 300000) return Promise.resolve(supportCfg);
     var was = supportVisible();
     return cloudPublic('GET', '/v1/support' + (force ? '?t=' + Date.now() : '')).then(function(r){
-      var wall = (r && r.wall && r.wall.length ? r.wall : []).slice(0, 200).map(function(w){ return { name: String((w && w.name) || '').slice(0, 40), avatar: (w && w.avatar) || null }; });
+      var wall = (r && r.wall && r.wall.length ? r.wall : []).slice(0, 200).map(function(w){ return { name: String((w && w.name) || '').slice(0, 40), avatar: (w && w.avatar) || null, tier: String((w && w.tier) || 'supporter'), mark: String((w && w.mark) || 'star') }; });
       supportCfg = { url: r && /^https:\/\//.test(String(r.url || '')) ? String(r.url) : null, wall: wall, count: (r && r.count) | 0, at: Date.now() };
       try { LS.setItem('support_v1', JSON.stringify(supportCfg)); } catch(e){}
       supportNavRender(); supportRender();
@@ -10587,7 +10629,7 @@
     if (e.status === 429) return 'Too many tries — give it a minute.';
     var m = e.body && e.body.error;
     if (m === 'code not found') return 'That code was not found — check it against the thank-you note.';
-    if (m === 'already a supporter') return 'You’re already a supporter.';
+    if (m === 'already a supporter') return isSupporter() && supRank() > 1 ? 'That code is for a tier you already have.' : 'You’re already a supporter.';
     if (m === 'no profile' || e.status === 401) return 'Sign in first — the supporter mark lives on your profile, so it follows you to every device.';
     return 'Something went wrong (' + e.status + ').';
   }
@@ -10595,23 +10637,43 @@
     if (list.length <= 1) return list.join('');
     return list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1];
   }
+  /** Open the support page. Signed in: with a link token, so the thank-you lands on this profile without a code. */
+  function supportOpen(){
+    var url = supportCfg.url; if (!url) return;
+    var go = function(u){ window.open(u, '_blank', 'noopener'); };      // the desktop shell hands https links to the browser
+    if (pfState() !== 'in'){ go(url); return; }
+    cloudApi('POST', '/v1/support/link').then(function(r){
+      go(r && r.token ? url + (url.indexOf('?') < 0 ? '?' : '&') + 'for=' + r.token : url);
+    }).catch(function(){ go(url); });
+  }
   function supportRender(){
     var body = $id('supBody'); if (!body) return;
-    var h = '';
+    var h = '', rank = supRank();
     if (isSupporter()){
       var since = profile.since ? new Date(profile.since).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
-      h += '<div class="sup-head">You’re a supporter' + SUP_STAR + '</div>' +
+      h += '<div class="sup-head">You’re a ' + esc(supTierName()) + supMine() + '</div>' +
         '<p class="tagline" style="margin-top:4px">' + (since ? 'Since ' + esc(since) + '. ' : '') + 'Thank you — this is what keeps Nebula going.</p>' +
         '<div class="setrow"><span class="setname">Your name on the wall<small>In Settings › Support on every device, and on the website</small></span><span id="supWallSeg" class="seg"></span></div>';
+      if (rank >= 2) h += '<div class="setrow"><span class="setname">Your mark<small>Beside your name, for you and your friends</small></span><span id="supMarkSeg" class="seg"></span></div>';
+      if (rank < 3 && supportCfg.url){
+        h += '<div class="setrow" style="display:block"><span class="setname" style="display:block">Raise your tier' +
+          '<small>' + (rank < 2 ? 'Supporter Plus: any accent colour, your own mark, early builds. ' : '') + 'Founder: the Founders list, a gold ring, Nebula Sports without the sponsor prompt.</small></span>';
+        h += IS_TV
+          ? '<div class="sup-tv"><div id="supQr" aria-hidden="true"></div><div><div class="sup-url">' + SUPPORT_SHORT + '</div><p class="tagline" style="margin-top:4px">Open it on your phone — it takes a minute.</p></div></div>'
+          : '<div class="row" style="margin-top:10px"><button id="supGo" class="btn ghost focusable" type="button">See the tiers</button></div>';
+        h += '</div>';
+      }
     } else {
       h += '<p class="tagline" style="margin-top:4px">Every feature stays free for everyone. Supporting keeps the sync server and the site running, and you get a ' +
-        'small thank-you: a supporter mark beside your name, three more accent colours, and your name on the wall if you like.</p>';
+        'small thank-you: a mark beside your name, more accent colours, your name on the wall if you like — and more at the higher tiers.</p>';
       if (supportCfg.url){
         h += IS_TV
           ? '<div class="sup-tv"><div id="supQr" aria-hidden="true"></div><div><div class="sup-url">' + SUPPORT_SHORT + '</div>' +
-            '<p class="tagline" style="margin-top:4px">Open it on your phone — it takes a minute.</p></div></div>'
-          : '<div class="row"><a id="supGo" class="btn focusable" href="' + esc(supportCfg.url) + '" target="_blank" rel="noopener">Support Nebula</a></div>';
+            '<p class="tagline" style="margin-top:4px">Open it on your phone — it takes a minute.' + (pfState() === 'in' ? ' The code lands on this profile by itself.' : '') + '</p></div></div>'
+          : '<div class="row"><button id="supGo" class="btn focusable" type="button">Support Nebula</button></div>';
       }
+    }
+    if (rank < 3){
       h += '<div class="setrow" style="display:block"><span class="setname" style="display:block">Have a supporter code?' +
         '<small>It comes with the thank-you. One code, typed once on any signed-in device — the mark follows your profile.</small></span>';
       h += pfState() === 'in'
@@ -10623,8 +10685,10 @@
       h += '</div>';
     }
     if (supportCfg.wall.length){
-      h += '<div class="lbl" style="margin-top:20px">Thanks to</div><p class="sup-wall" id="supWall">' +
-        esc(joinNames(supportCfg.wall.map(function(w){ return w.name; }).filter(Boolean))) + '</p>';
+      var founders = supportCfg.wall.filter(function(w){ return w.tier === 'founder'; }).map(function(w){ return w.name; }).filter(Boolean);
+      var others = supportCfg.wall.filter(function(w){ return w.tier !== 'founder'; }).map(function(w){ return w.name; }).filter(Boolean);
+      if (founders.length) h += '<div class="lbl" style="margin-top:20px">Founders</div><p class="sup-wall" id="supFounders">' + esc(joinNames(founders)) + '</p>';
+      if (others.length) h += '<div class="lbl" style="margin-top:' + (founders.length ? 12 : 20) + 'px">Thanks to</div><p class="sup-wall" id="supWall">' + esc(joinNames(others)) + '</p>';
     }
     body.innerHTML = h;
     if (isSupporter()){
@@ -10635,11 +10699,24 @@
           supportLoad(true);
         }).catch(function(e){ setStatus(supErr(e), 'err'); });
       });
+      if (rank >= 2) segChips('supMarkSeg', [['Star', 'star'], ['Heart', 'heart'], ['Bolt', 'bolt'], ['Crown', 'crown']], profile.mark || 'star', function(v){
+        cloudApi('PUT', '/v1/support', { mark: v }).then(function(r){
+          profile.mark = (r && r.supporter && r.supporter.mark) || 'star'; profileSave();
+          profileCardRender(); supportRender();
+        }).catch(function(e){ setStatus(supErr(e), 'err'); });
+      });
       if (profile.since == null) profileRefresh().then(function(r){ if (r) supportRender(); });   // a creds reply carries no date
-      return;
     }
     var qb = $id('supQr');
-    if (qb){ try { var qr = qrcode(0, 'M'); qr.addData('https://' + SUPPORT_SHORT); qr.make(); qb.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0 }); } catch(e){} }
+    if (qb){
+      var draw = function(u){ try { var qr = qrcode(0, 'M'); qr.addData(u); qr.make(); qb.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0 }); } catch(e){} };
+      draw('https://' + SUPPORT_SHORT);
+      // a signed-in TV: the QR carries a 15-min token, so the phone's purchase lands on this profile
+      if (pfState() === 'in' && supportCfg.url) cloudApi('POST', '/v1/support/link').then(function(r){
+        if (r && r.token && $id('supQr') === qb) draw(supportCfg.url + (supportCfg.url.indexOf('?') < 0 ? '?' : '&') + 'for=' + r.token);
+      }).catch(function(){});
+    }
+    var sg = $id('supGo'); if (sg) sg.onclick = supportOpen;
     var si = $id('supSignIn'); if (si) si.onclick = function(){ show('profile'); };
     var rd = $id('supRedeem');
     if (rd){
@@ -10653,7 +10730,7 @@
           return profileRefresh();
         }).then(function(){
           settingsRender();                        // the Appearance swatches unlock
-          setStatus('You’re a supporter — thank you. Three more accents are yours in Appearance.', 'ok');
+          setStatus('You’re a ' + supTierName() + ' — thank you. ' + (supRank() >= 2 ? 'Any colour is yours in Appearance.' : 'Three more accents are yours in Appearance.'), 'ok');
           supportLoad(true);
         }).catch(function(e){ pfBusy('supRedeem', null); setStatus(supErr(e), 'err'); });
       };
@@ -10893,8 +10970,8 @@
   }
   function pfRenderIn(body){
     var me = profile;
-    var h = '<div class="phead"><span class="pav big" style="' + avStyle(me.avatar) + '">' + esc(avLetter(me.name || me.handle)) + '</span>' +
-      '<div><div class="pname">' + esc(me.name) + (me.sup ? SUP_STAR : '') + '</div><div class="phandle">@' + esc(me.handle) + '</div></div></div>';
+    var h = '<div class="phead"><span class="pav big' + (supRank() >= 3 ? ' founder' : '') + '" style="' + avStyle(me.avatar) + '">' + esc(avLetter(me.name || me.handle)) + '</span>' +
+      '<div><div class="pname">' + esc(me.name) + supMine() + '</div><div class="phandle">@' + esc(me.handle) + '</div></div></div>';
     h += '<div class="panel"><div class="lbl">Profile</div>' +
       '<div class="setrow"><span class="setname">Name<small>What friends and watch parties see</small></span>' +
       '<input id="pfName" class="field focusable" type="text" maxlength="40" autocomplete="nickname" value="' + esc(me.name) + '"></div>' +
@@ -10922,7 +10999,7 @@
       cloudApi('PUT', '/v1/profile', { name: v }).then(function(r){
         profile = r.profile; profileSave(); profileCardRender();
         var pn = body.querySelector('.pname'), pa = body.querySelector('.pav.big');
-        if (pn) pn.innerHTML = esc(profile.name) + (profile.sup ? SUP_STAR : '');
+        if (pn) pn.innerHTML = esc(profile.name) + supMine();
         if (pa) pa.textContent = avLetter(profile.name);
         setStatus('Name saved.', 'ok');
         socialPublishSoon();
@@ -11073,7 +11150,7 @@
   function applyPrefs(){
     var pr = getPrefs(), root = document.documentElement, st = root.style, cl = root.classList;
     // a supporter colour left by a profile that signed out falls back to red; the choice itself is kept for its return
-    st.setProperty('--accent', isSupAccent(pr.accent) && !isSupporter() ? '#E50914' : (pr.accent || '#E50914'));
+    st.setProperty('--accent', accentRank(pr.accent) > supRank() ? '#E50914' : (pr.accent || '#E50914'));
     st.setProperty('--fzoom', pr.zoom || '1.04');
     var sf = SURFACES[pr.surface] || null, tk = ['--bg','--l1','--l2','--l3','--fill'];
     for (var i = 0; i < tk.length; i++){ if (sf) st.setProperty(tk[i], sf[tk[i]]); else st.removeProperty(tk[i]); }
@@ -11220,17 +11297,29 @@
     // the supporter colours: theirs to pick once the mark is on the profile, a locked tease before —
     // and not offered at all while there is no way to support yet
     if (supportVisible()){
-      var supOk = isSupporter();
-      SUP_ACCENTS.forEach(function(a){
-        var b = document.createElement('button');
-        b.className = 'swatch focusable' + (supOk && pr.accent === a[1] ? ' on' : '') + (supOk ? '' : ' lock');
-        b.style.background = a[1]; b.title = a[0] + (supOk ? '' : ' — a supporter colour');
+      var rank = supRank();
+      var swatchFor = function(a, need, what){
+        var ok = rank >= need, b = document.createElement('button');
+        b.className = 'swatch focusable' + (ok && pr.accent === a[1] ? ' on' : '') + (ok ? '' : ' lock');
+        b.style.background = a[1]; b.title = a[0] + (ok ? '' : ' — ' + what);
         b.setAttribute('aria-label', b.title);
-        b.onclick = supOk
+        b.onclick = ok
           ? function(){ setPref('accent', a[1]); }
-          : function(){ setStatus(a[0] + ' is a supporter colour.', 'info'); setSection('support', true); };
+          : function(){ setStatus(a[0] + ' is ' + what + '.', 'info'); setSection('support', true); };
         acc.appendChild(b);
-      });
+      };
+      SUP_ACCENTS.forEach(function(a){ swatchFor(a, 1, 'a supporter colour'); });
+      if (rank >= 1) PLUS_ACCENTS.forEach(function(a){ swatchFor(a, 2, 'a Supporter Plus colour'); });   // shown once one is a supporter; the page tells the rest
+      // any colour at all (Supporter Plus): the picker sits inside one more swatch; a TV has no pointer for it
+      if (rank >= 2 && !IS_TV){
+        var anyB = document.createElement('label'), own = accentRank(pr.accent) >= 2 && PLUS_ACCENTS.every(function(a){ return a[1] !== pr.accent; });
+        anyB.className = 'swatch any' + (own ? ' on' : ''); anyB.title = 'Any colour';
+        var inp = document.createElement('input'); inp.type = 'color'; inp.value = own ? pr.accent : '#E50914'; inp.setAttribute('aria-label', 'Any colour');
+        // live while dragging, stored on close — storing re-renders the swatches, which would kill the picker mid-drag
+        inp.oninput = function(){ if (/^#[0-9a-f]{6}$/i.test(inp.value)) document.documentElement.style.setProperty('--accent', inp.value); };
+        inp.onchange = function(){ if (/^#[0-9a-f]{6}$/i.test(inp.value)) setPref('accent', inp.value.toUpperCase()); };
+        anyB.appendChild(inp); acc.appendChild(anyB);
+      }
     }
     segChips('setSurface', [['Black','black'], ['Pure black','pure'], ['Graphite','graphite']], pr.surface || 'black', function(v){ setPref('surface', v); });
     segChips('setTextSize', [['Compact','compact'], ['Standard','standard'], ['Large','large']], pr.textSize || 'standard', function(v){ setPref('textSize', v); });

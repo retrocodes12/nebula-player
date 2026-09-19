@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support Nebula</title>
+<meta name="description" content="Nebula is free for everyone. Chip in once and get a small thank-you back: a mark by your name, more colours, your name on the wall.">
+<style>
+  :root {
+    --red:#E50914; --gold:#E0B24A;
+    --bg:#0a0a0c; --surface:#141419;
+    --line:#26262e; --text:#f2f2f4; --muted:#9aa3af;
+    --disp:"Archivo", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --body:system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:var(--body); line-height:1.6; }
+  .wrap { max-width:920px; margin:0 auto; padding:0 24px; }
+  header { padding:28px 0 8px; }
+  header a { color:var(--muted); text-decoration:none; font-size:.9rem; }
+  header a:hover { color:#fff; }
+  .brand { display:flex; align-items:center; gap:10px; font-family:var(--disp); font-weight:700; font-size:1.05rem; }
+  .brand .dia { color:var(--red); }
+  h1 { font-family:var(--disp); font-weight:800; font-size:clamp(1.9rem, 5vw, 2.7rem); letter-spacing:-.02em; margin:34px 0 8px; }
+  .lede { color:#cfd4db; font-size:1.05rem; max-width:640px; margin:0 0 8px; }
+  .note { color:var(--muted); font-size:.92rem; max-width:640px; }
+  .for { margin:22px 0 0; padding:12px 16px; border:1px solid var(--line); border-radius:12px; background:var(--surface); font-size:.95rem; color:#cfd4db; }
+  .for b { color:#fff; }
+  .for[hidden] { display:none; }
+  .tiers { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin:30px 0 8px; }
+  .tier { position:relative; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:22px 20px 20px; display:flex; flex-direction:column; min-width:0; }
+  .tier.founder { border-color:rgba(224,178,74,.55); }
+  .tier .kick { font-family:ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  .tier.founder .kick { color:var(--gold); }
+  .tier h2 { font-family:var(--disp); font-weight:800; font-size:1.35rem; letter-spacing:-.01em; margin:6px 0 2px; }
+  .price { font-family:var(--disp); font-weight:800; font-size:2rem; letter-spacing:-.02em; margin:6px 0 2px; }
+  .price small { font-family:var(--body); font-weight:400; font-size:.85rem; color:var(--muted); letter-spacing:0; margin-left:6px; }
+  .tier ul { list-style:none; padding:0; margin:14px 0 18px; flex:1; }
+  .tier li { position:relative; padding-left:20px; margin:8px 0; color:#cfd4db; font-size:.95rem; }
+  .tier li::before { content:""; position:absolute; left:2px; top:.62em; width:8px; height:8px; border-radius:50%; border:1.5px solid var(--muted); }
+  .tier.founder li::before { border-color:var(--gold); }
+  .tier li.inc { color:var(--muted); }
+  .tier li.inc::before { border-style:dashed; }
+  .btn { appearance:none; border:1px solid #3a3a44; background:transparent; color:#fff; border-radius:999px; padding:11px 18px; font:600 .95rem var(--body); cursor:pointer; width:100%; }
+  .btn:hover { border-color:#fff; }
+  .btn.primary { background:var(--red); border-color:var(--red); }
+  .btn.primary:hover { background:#f6121d; }
+  .btn.gold { background:var(--gold); border-color:var(--gold); color:#141419; }
+  .btn.gold:hover { background:#ecc25e; }
+  .btn[disabled] { opacity:.55; cursor:default; }
+  .msg { margin:14px 0 0; color:var(--muted); font-size:.92rem; min-height:1.4em; }
+  .msg.err { color:#ff6b6b; }
+  .thanks { margin:28px 0; padding:22px 24px; border:1px solid var(--line); border-radius:16px; background:var(--surface); }
+  .thanks[hidden] { display:none; }
+  .thanks h2 { font-family:var(--disp); font-weight:800; font-size:1.4rem; margin:0 0 6px; }
+  .code { font-family:ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size:1.6rem; letter-spacing:.08em; margin:12px 0; user-select:all; }
+  h3 { font-family:var(--disp); font-weight:700; font-size:1.05rem; margin:40px 0 8px; }
+  p, li { color:#cfd4db; font-size:.97rem; }
+  .wall { display:flex; flex-wrap:wrap; gap:8px 10px; margin:10px 0 0; padding:0; list-style:none; }
+  .wall li { border:1px solid var(--line); border-radius:999px; padding:5px 12px; font-size:.9rem; color:#e6e8ec; }
+  .wall li.founder { border-color:rgba(224,178,74,.6); }
+  .wall li.founder::before { content:"◆ "; color:var(--gold); }
+  .faq p { margin:4px 0 14px; }
+  .faq b { color:#fff; }
+  a { color:#c9ced6; }
+  a:hover { color:#fff; }
+  footer { border-top:1px solid var(--line); margin-top:56px; padding:26px 0 40px; color:var(--muted); font-size:.86rem; }
+  @media (max-width:760px) { .tiers { grid-template-columns:1fr; } .price { font-size:1.7rem; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="brand"><span class="dia">◆</span> Nebula &nbsp;·&nbsp; <a href="/">← nebula home</a></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>Support Nebula</h1>
+  <p class="lede">Nebula is free, with no ads and no account required, and every feature stays free for everyone.
+  If it earns a place in your evenings, you can chip in once — and get a small thank-you back.</p>
+  <p class="note">Supporting keeps the sync server, the site and the sports feed running. Nothing here is a subscription: you pay once and it is yours for good.</p>
+
+  <div class="for" id="forBox" hidden>Buying for <b id="forHandle"></b> — the thank-you lands on that profile the moment the payment clears.</div>
+  <div class="for" id="anonBox" hidden>Not signed in on this browser? That is fine: after paying you get a one-time code to type into Settings › Support on any signed-in device. Opening this page from the app (Settings › Support) skips the code.</div>
+
+  <section class="thanks" id="thanks" hidden>
+    <h2 id="thanksTitle">Confirming your payment…</h2>
+    <p id="thanksText">This takes a few seconds.</p>
+    <div class="code" id="thanksCode" hidden></div>
+    <p class="note" id="thanksNote" hidden></p>
+  </section>
+
+  <div class="tiers" id="tiers">
+    <div class="tier" data-tier="supporter">
+      <div class="kick">Supporter</div>
+      <h2>Supporter</h2>
+      <div class="price">$2<small>once</small></div>
+      <ul>
+        <li>A supporter mark beside your name — your friends see it too</li>
+        <li>Three more accent colours: Gold, Ice and Mint</li>
+        <li>Your name on the wall, if you like</li>
+      </ul>
+      <button class="btn" data-buy="supporter">Choose Supporter</button>
+    </div>
+    <div class="tier" data-tier="plus">
+      <div class="kick">Supporter Plus</div>
+      <h2>Supporter Plus</h2>
+      <div class="price">$5<small>once</small></div>
+      <ul>
+        <li class="inc">Everything in Supporter</li>
+        <li>Any accent colour you like — pick your own</li>
+        <li>Choose your mark: star, heart, bolt or crown</li>
+        <li>Early builds, before everyone else</li>
+        <li>A say in what gets built next</li>
+      </ul>
+      <button class="btn primary" data-buy="plus">Choose Supporter Plus</button>
+    </div>
+    <div class="tier founder" data-tier="founder">
+      <div class="kick">Founder</div>
+      <h2>Founder</h2>
+      <div class="price">$20<small>once</small></div>
+      <ul>
+        <li class="inc">Everything in Supporter Plus</li>
+        <li>A permanent place on the Founders list, right here</li>
+        <li>A gold ring on your avatar</li>
+        <li>Nebula Sports without the sponsor prompt, anywhere — a lifetime key for the add-on</li>
+      </ul>
+      <button class="btn gold" data-buy="founder">Become a Founder</button>
+    </div>
+  </div>
+  <p class="msg" id="msg"></p>
+
+  <h3 id="foundersHead" hidden>Founders</h3>
+  <ul class="wall" id="founders" hidden></ul>
+  <h3 id="wallHead" hidden>Thanks to</h3>
+  <ul class="wall" id="wall" hidden></ul>
+
+  <div class="faq">
+    <h3>Questions</h3>
+    <p><b>Is anything locked without paying?</b> No. Every feature is free for everyone and stays that way. Supporters get thank-yous — a mark, colours, a name on a list — not features.</p>
+    <p><b>Does it expire?</b> No. One payment, yours for good. Paying a higher tier later simply raises you; you never pay twice for the same thing.</p>
+    <p><b>Where does it show?</b> On your Nebula profile, so on every device you sign in to — TV, phone, computer. The wall is opt-in: your name appears only if you switch it on in Settings › Support.</p>
+    <p><b>Something wrong with a purchase?</b> Open an issue on the Nebula repository with the order number from your receipt — never your card details.</p>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span><span style="color:var(--red)">◆</span> Nebula · open source (GPL-3.0) · <a href="/privacy.html">Privacy</a></span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var CLOUD = "https://play.rifflehq.in/cloud";
+  var q = new URLSearchParams(location.search);
+  var forToken = String(q.get("for") || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  var sid = String(q.get("thanks") || "");
+  var msg = document.getElementById("msg");
+  var buttons = Array.prototype.slice.call(document.querySelectorAll("[data-buy]"));
+  var TIER_NAMES = { supporter: "Supporter", plus: "Supporter Plus", founder: "Founder" };
+
+  function say(text, err) { msg.textContent = text || ""; msg.className = "msg" + (err ? " err" : ""); }
+  function api(method, path, body) {
+    return fetch(CLOUD + path, { method: method, headers: { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body) })
+      .then(function (r) { return r.json().catch(function () { return null; }).then(function (j) { return { status: r.status, body: j }; }); });
+  }
+
+  // whose profile this page buys for
+  if (forToken.length === 8) {
+    api("GET", "/v1/support/link?t=" + forToken).then(function (r) {
+      if (r.status === 200 && r.body && r.body.handle) {
+        document.getElementById("forHandle").textContent = "@" + r.body.handle;
+        document.getElementById("forBox").hidden = false;
+      } else {
+        forToken = "";
+        say("That link from the app has expired — open Settings › Support again for a fresh one, or buy anyway and use the code.");
+        document.getElementById("anonBox").hidden = false;
+      }
+    }).catch(function () { document.getElementById("anonBox").hidden = false; });
+  } else if (!sid) {
+    document.getElementById("anonBox").hidden = false;
+  }
+
+  // the tier list, prices and the wall come from the server (prices are shown there too, so they never drift)
+  api("GET", "/v1/support").then(function (r) {
+    var s = r.body || {};
+    (s.tiers || []).forEach(function (t) {
+      var card = document.querySelector('.tier[data-tier="' + t.id + '"] .price');
+      if (card && typeof t.price === "number") card.firstChild.nodeValue = "$" + t.price;
+    });
+    if (!s.checkout) buttons.forEach(function (b) { b.disabled = true; b.textContent = "Not open yet"; });
+    var founders = [], others = [];
+    (s.wall || []).forEach(function (w) {
+      var name = String(w && w.name || "").slice(0, 40);
+      if (!name) return;
+      (w.tier === "founder" ? founders : others).push({ name: name, tier: w.tier });
+    });
+    function fill(id, headId, rows) {
+      if (!rows.length) return;
+      var ul = document.getElementById(id);
+      rows.forEach(function (row) {
+        var li = document.createElement("li");
+        li.textContent = row.name;
+        if (row.tier === "founder") li.className = "founder";
+        ul.appendChild(li);
+      });
+      ul.hidden = false;
+      document.getElementById(headId).hidden = false;
+    }
+    fill("founders", "foundersHead", founders);
+    fill("wall", "wallHead", others);
+  }).catch(function () {});
+
+  buttons.forEach(function (b) {
+    b.addEventListener("click", function () {
+      var tier = b.getAttribute("data-buy");
+      buttons.forEach(function (x) { x.disabled = true; });
+      say("Opening the checkout…");
+      api("POST", "/v1/support/checkout", { tier: tier, for: forToken || undefined }).then(function (r) {
+        if (r.status === 200 && r.body && r.body.url) { location.href = r.body.url; return; }
+        buttons.forEach(function (x) { x.disabled = false; });
+        if (r.status === 503) say("Checkout is not switched on yet.", true);
+        else if (r.status === 429) say("Too many tries — give it a minute.", true);
+        else say("The payment service did not answer — try again in a minute.", true);
+      }).catch(function () {
+        buttons.forEach(function (x) { x.disabled = false; });
+        say("Could not reach the server.", true);
+      });
+    });
+  });
+
+  // back from the checkout: ask what happened until the payment service has told us
+  if (/^[0-9a-f]{24}$/.test(sid)) {
+    var box = document.getElementById("thanks");
+    var title = document.getElementById("thanksTitle"), text = document.getElementById("thanksText");
+    var code = document.getElementById("thanksCode"), note = document.getElementById("thanksNote");
+    box.hidden = false;
+    document.getElementById("tiers").style.display = "none";
+    var tries = 0;
+    (function poll() {
+      api("GET", "/v1/support/claim?sid=" + sid).then(function (r) {
+        var s = r.body || {};
+        var name = TIER_NAMES[s.tier] || "supporter";
+        if (s.state === "granted") {
+          title.textContent = "You're a " + name + " — thank you.";
+          text.textContent = "It is already on your profile. Open Nebula on any device you are signed in to: the mark, the colours and the wall switch are in Settings › Support.";
+          return;
+        }
+        if (s.state === "code") {
+          title.textContent = "You're a " + name + " — thank you.";
+          text.textContent = "Here is your one-time code. Type it into Settings › Support on any device you are signed in to; the thank-you follows your profile from there.";
+          code.textContent = s.code;
+          code.hidden = false;
+          note.textContent = "Keep this page or write the code down — it is shown here only.";
+          note.hidden = false;
+          return;
+        }
+        if (s.state === "unknown" || ++tries > 40) {
+          title.textContent = s.state === "unknown" ? "We do not recognise this link." : "Still waiting for the payment service.";
+          text.textContent = s.state === "unknown"
+            ? "If you just paid, keep your receipt and open an issue on the Nebula repository with the order number."
+            : "It usually takes seconds, sometimes a few minutes. Leave this page open — it keeps checking. If nothing arrives, the order number on your receipt is enough to sort it out.";
+          if (s.state !== "unknown") setTimeout(poll, 15000);
+          return;
+        }
+        setTimeout(poll, 2000);
+      }).catch(function () { setTimeout(poll, 4000); });
+    })();
+  }
+})();
+</script>
+</body>
+</html>

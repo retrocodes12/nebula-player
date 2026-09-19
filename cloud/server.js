@@ -505,7 +505,7 @@ function socialOf(a) { return a.g.social && (a.g.social.code || a.g.social.on) ?
 function socialCard(gid, g) {
   const s = g.social, p = g.profile;
   return { code: s.code || null, handle: p ? p.handle : null, avatar: p ? p.avatar : null,
-    name: (p && p.name) || s.name || '', sup: !!g.supporter };
+    name: (p && p.name) || s.name || '', sup: !!g.supporter, tier: g.supporter ? (g.supporter.tier || 'supporter') : null, mark: g.supporter ? support.markOf(g.supporter) : null };
 }
 /** Resolve `{handle}` or `{code}` in a request body to a group id. */
 function socialTarget(body) {

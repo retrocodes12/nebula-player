@@ -4,6 +4,7 @@
 
 process.env.GROUP_BURST = '40';
 process.env.SIGNIN_BURST = '100';       // the per-IP limiter would ration the suite; the per-handle one is tested
+process.env.SUPPORT_CONFIG_CHECK_MS = '0';
 process.env.DATA_DIR = require('fs').mkdtempSync(
   require('path').join(require('os').tmpdir(), 'nebula-cloud-test-'));
 
@@ -18,9 +19,10 @@ before(async () => {
 });
 after(() => server.close());
 
-async function api(method, path, body, token) {
+async function api(method, path, body, token, from) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = 'Bearer ' + token;
+  if (from) headers['X-Forwarded-For'] = from;     // its own rate-limit buckets (the server trusts the last hop)
   const r = await fetch(base + path, {
     method, headers, body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -394,7 +396,7 @@ test('profile: create → sign in elsewhere → devices → edit → remove devi
   assert.match(a.gid, /^[0-9a-f]{16}$/);
   assert.match(a.token, /^[0-9a-f]{32}$/);
   assert.match(a.recovery, /^([A-Z2-9]{4}-){3}[A-Z2-9]{4}$/);
-  assert.deepEqual(a.profile, { handle: 'asha_01', name: 'Asha', avatar: '#636366', sup: false });
+  assert.deepEqual(a.profile, { handle: 'asha_01', name: 'Asha', avatar: '#636366', sup: false, tier: null, mark: null });
 
   // the device token is a full credential for sync
   assert.equal((await api('PUT', '/v1/kv/library', { v: '{"x":1}' }, tok(a))).status, 200);
@@ -416,7 +418,7 @@ test('profile: create → sign in elsewhere → devices → edit → remove devi
 
   // name and avatar edits; junk avatar falls back to grey
   const ed = await api('PUT', '/v1/profile', { name: '  Asha  K ', avatar: '#0a84ff' }, tok(a));
-  assert.deepEqual(ed.body.profile, { handle: 'asha_01', name: 'Asha K', avatar: '#0A84FF', sup: false });
+  assert.deepEqual(ed.body.profile, { handle: 'asha_01', name: 'Asha K', avatar: '#0A84FF', sup: false, tier: null, mark: null });
   assert.equal((await api('PUT', '/v1/profile', { avatar: 'red' }, tok(a))).body.profile.avatar, '#636366');
 
   // removing the TV kills its token, nothing else
@@ -604,7 +606,8 @@ async function admin(method, p, body) {
 test('support: off until a link is configured; the link and the go redirect follow the config file', async () => {
   const off = await api('GET', '/v1/support');
   assert.equal(off.status, 200);
-  assert.deepEqual(off.body, { url: null, count: 0, wall: [] });
+  assert.deepEqual(off.body, { url: null, count: 0, wall: [], tiers: off.body.tiers, checkout: false });
+  assert.equal(off.body.tiers.length, 3);
   // admin routes are dead without a token in the config
   assert.equal((await admin('POST', '/v1/support/codes', { n: 1 })).status, 401);
   const go0 = await fetch(base + '/v1/support/go', { redirect: 'manual' });
@@ -612,8 +615,6 @@ test('support: off until a link is configured; the link and the go redirect foll
   assert.equal(go0.headers.get('location'), '/');
 
   await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN });
-  // the config is checked at most every 5 s — wait it out once, here
-  await new Promise((ok) => setTimeout(ok, 5100));
   const on = await api('GET', '/v1/support');
   assert.equal(on.body.url, 'https://example.org/support-nebula');
   const go = await fetch(base + '/v1/support/go', { redirect: 'manual' });
@@ -686,7 +687,7 @@ test('support: the wall is opt-in, names come from the profile, count is every s
   assert.equal(put.status, 200);
   assert.equal(put.body.supporter.wall, true);
   const on = (await api('GET', '/v1/support')).body;
-  assert.deepEqual(on.wall, [{ name: 'Ada L', avatar: '#0A84FF' }]);
+  assert.deepEqual(on.wall, [{ name: 'Ada L', avatar: '#0A84FF', tier: 'supporter', mark: 'star' }]);
   assert.equal(on.count, 1);
   // the founder grants bob by hand; he is counted, and off the wall until he says so
   const gr = await admin('POST', '/v1/support/grant', { handle: '@SUP_BOB', note: 'patreon' });
@@ -708,6 +709,167 @@ test('support: the wall is opt-in, names come from the profile, count is every s
   // deleting a supporter's profile takes it off the count too
   assert.equal((await api('DELETE', '/v1/profile', { password: 'password1' }, tok(a.body))).status, 200);
   assert.equal((await api('GET', '/v1/support')).body.count, 0);
+});
+
+test('support: tiers — a code carries one, a higher code upgrades and keeps since, a lower one is 409; founders lead the wall', async () => {
+  await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN });
+  const pub = (await api('GET', '/v1/support')).body;
+  assert.deepEqual(pub.tiers.map((t) => t.id), ['supporter', 'plus', 'founder']);
+  assert.equal(pub.tiers[2].price, 20);
+  assert.equal(pub.checkout, false);
+  const a = await mkProfile('tier_ada', 'Ada T', 'password1');
+  const b = await mkProfile('tier_bob', 'Bob T', 'password1');
+  const c1 = (await admin('POST', '/v1/support/codes', { n: 1, tier: 'plus' })).body.codes[0];
+  const c2 = (await admin('POST', '/v1/support/codes', { n: 1, tier: 'founder' })).body.codes[0];
+  const c3 = (await admin('POST', '/v1/support/codes', { n: 1 })).body.codes[0];          // no tier = supporter
+  const red = await api('POST', '/v1/support/redeem', { code: c1 }, tok(a), '10.9.9.1');
+  assert.equal(red.status, 200);
+  assert.equal(red.body.supporter.tier, 'plus');
+  const since = red.body.supporter.since;
+  // a supporter-tier code is below plus: refused and kept
+  assert.equal((await api('POST', '/v1/support/redeem', { code: c3 }, tok(a), '10.9.9.1')).status, 409);
+  assert.equal((await api('POST', '/v1/support/redeem', { code: c3 }, tok(b), '10.9.9.1')).status, 200);
+  // founder upgrades ada, since is kept
+  const up = await api('POST', '/v1/support/redeem', { code: c2 }, tok(a), '10.9.9.1');
+  assert.equal(up.status, 200);
+  assert.equal(up.body.supporter.tier, 'founder');
+  assert.equal(up.body.supporter.since, since);
+  const me = (await api('GET', '/v1/profile/me', undefined, tok(a))).body;
+  assert.equal(me.supporter.tier, 'founder');
+  // grant by handle with a tier; a lower grant changes nothing
+  assert.equal((await admin('POST', '/v1/support/grant', { handle: 'tier_bob', tier: 'plus' })).body.supporter.tier, 'plus');
+  assert.equal((await admin('POST', '/v1/support/grant', { handle: 'tier_bob', tier: 'supporter' })).body.supporter.tier, 'plus');
+  const list = (await admin('GET', '/v1/support/codes')).body;
+  assert.equal(list.codes.find((c) => c.code === c2).tier, 'founder');
+  assert.equal(list.supporters.find((s) => s.handle === 'tier_ada').tier, 'founder');
+  // the wall: bob (plus) opted in first, ada (founder) second — founders lead
+  await api('PUT', '/v1/support', { wall: true }, tok(b), '10.9.9.1');
+  await api('PUT', '/v1/support', { wall: true }, tok(a), '10.9.9.1');
+  const wall = (await api('GET', '/v1/support')).body.wall;
+  assert.deepEqual(wall.map((w) => w.name + ':' + w.tier), ['Ada T:founder', 'Bob T:plus']);
+  // the mark: plus and up choose one; a supporter is a star; friends and the wall see it
+  assert.equal((await api('PUT', '/v1/support', { mark: 'crown' }, tok(b))).body.supporter.mark, 'crown');
+  assert.equal((await api('PUT', '/v1/support', { mark: 'dragon' }, tok(b))).status, 400);
+  assert.equal((await api('GET', '/v1/profile/me', undefined, tok(b))).body.supporter.mark, 'crown');
+  assert.equal((await api('GET', '/v1/support')).body.wall.find((w) => w.name === 'Bob T').mark, 'crown');
+  const c = await mkProfile('tier_cy', 'Cy T', 'password1');
+  await admin('POST', '/v1/support/grant', { handle: 'tier_cy' });
+  assert.equal((await api('PUT', '/v1/support', { mark: 'bolt' }, tok(c))).status, 403);
+  assert.equal((await api('GET', '/v1/profile/me', undefined, tok(c))).body.supporter.mark, 'star');
+  await admin('POST', '/v1/support/revoke', { handle: 'tier_cy' });
+  await admin('POST', '/v1/support/revoke', { handle: 'tier_ada' });
+  await admin('POST', '/v1/support/revoke', { handle: 'tier_bob' });
+});
+
+// a stand-in for the payment service: answers the session call, remembers what was asked
+const http = require('http');
+let payAsked = [];
+const payStub = http.createServer((req, res) => {
+  let raw = '';
+  req.on('data', (c) => { raw += c; });
+  req.on('end', () => {
+    payAsked.push({ path: req.url, auth: req.headers.authorization, body: JSON.parse(raw || '{}') });
+    if (req.url === '/checkout/sessions' && req.headers.authorization === 'Bearer pk_test_0123456789abcdef') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ id: 'sess_1', url: 'https://retrocodes.pocketsflow.com/checkout?session=sess_1' }));
+    } else { res.writeHead(401); res.end('{}'); }
+  });
+});
+const PAY = {
+  apiKey: 'pk_test_0123456789abcdef', webhookSecret: 'whsec_test_secret_1234',
+  products: { supporter: 'prod_sup', plus: 'prod_plus', founder: 'prod_founder' },
+};
+function hook(body, secret = PAY.webhookSecret, headers = {}) {
+  const raw = JSON.stringify(body);
+  const sig = require('crypto').createHmac('sha256', secret).update(raw).digest('hex');
+  return fetch(base + '/v1/support/webhook/pocketsflow', { method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Pocketsflow-Signature': sig, ...headers }, body: raw })
+    .then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) }));
+}
+
+test('support: checkout — a signed-in buyer is raised on the webhook, a stranger gets a code on the success page, orders never apply twice', async () => {
+  await new Promise((ok) => payStub.listen(0, '127.0.0.1', ok));
+  const api0 = 'http://127.0.0.1:' + payStub.address().port;
+  // off until the whole pay block is there
+  await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN, pay: { ...PAY, products: { supporter: 'x' } } });
+  assert.equal((await api('POST', '/v1/support/checkout', { tier: 'plus' })).status, 503);
+  assert.equal((await hook({ event: 'order.completed' })).status, 503);
+  await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN, site: 'https://play.example.org', pay: { ...PAY, api: api0 } });
+  assert.equal((await api('GET', '/v1/support')).body.checkout, true);
+  assert.equal((await api('POST', '/v1/support/checkout', { tier: 'gold' })).status, 400);
+
+  // signed in: the session carries the profile, the webhook raises it
+  const a = await mkProfile('pay_ada', 'Ada P', 'password1');
+  const s1 = await api('POST', '/v1/support/checkout', { tier: 'plus' }, tok(a));
+  assert.equal(s1.status, 200);
+  assert.match(s1.body.url, /^https:\/\/retrocodes\.pocketsflow\.com\//);
+  assert.match(s1.body.sid, /^[0-9a-f]{24}$/);
+  const asked = payAsked[payAsked.length - 1];
+  assert.equal(asked.body.productId, 'prod_plus');
+  assert.equal(asked.body.successUrl, 'https://play.example.org/support.html?thanks=' + s1.body.sid);
+  assert.equal(asked.body.metadata.sid, s1.body.sid);
+  assert.equal(asked.body.metadata.handle, 'pay_ada');
+  assert.deepEqual((await api('GET', '/v1/support/claim?sid=' + s1.body.sid)).body, { state: 'waiting', tier: 'plus' });
+  // a bad signature is refused; the shared-secret header form is accepted
+  assert.equal((await hook({ event: 'order.completed', order: { id: 'o1' }, product: { id: 'prod_plus' }, metadata: asked.body.metadata }, 'wrong')).status, 401);
+  const ok = await hook({ event: 'order.completed', order: { id: 'o1' }, product: { id: 'prod_plus' }, customer: { email: 'ada@example.org' }, metadata: asked.body.metadata });
+  assert.equal(ok.status, 200);
+  assert.deepEqual(ok.body, { ok: true, tier: 'plus', state: 'granted' });
+  assert.equal((await api('GET', '/v1/profile/me', undefined, tok(a))).body.supporter.tier, 'plus');
+  assert.deepEqual((await api('GET', '/v1/support/claim?sid=' + s1.body.sid)).body, { state: 'granted', tier: 'plus' });
+  // the same order again does nothing
+  assert.equal((await hook({ event: 'order.completed', order: { id: 'o1' }, product: { id: 'prod_founder' }, metadata: asked.body.metadata })).body.duplicate, true);
+  assert.equal((await api('GET', '/v1/profile/me', undefined, tok(a))).body.supporter.tier, 'plus');
+  // the PRODUCT decides the tier, not the metadata
+  const s2 = await api('POST', '/v1/support/checkout', { tier: 'supporter' }, tok(a));
+  const meta2 = payAsked[payAsked.length - 1].body.metadata;
+  const r2 = await fetch(base + '/v1/support/webhook/pocketsflow', { method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-webhook-secret': PAY.webhookSecret },
+    body: JSON.stringify({ event: 'order.completed', order: { id: 'o2' }, product: { id: 'prod_founder' }, metadata: meta2 }) });
+  assert.equal((await r2.json()).tier, 'founder');
+  assert.equal((await api('GET', '/v1/profile/me', undefined, tok(a))).body.supporter.tier, 'founder');
+
+  // a link token from an app stands in for the sign-in (the TV's QR): the tier lands on that profile
+  const c = await mkProfile('pay_cat', 'Cat P', 'password1');
+  assert.equal((await api('POST', '/v1/support/link')).status, 401);
+  const lk = await api('POST', '/v1/support/link', undefined, tok(c));
+  assert.equal(lk.status, 200);
+  assert.match(lk.body.token, /^[A-Z2-9]{8}$/);
+  assert.deepEqual((await api('GET', '/v1/support/link?t=' + lk.body.token)).body, { handle: 'pay_cat' });
+  assert.equal((await api('GET', '/v1/support/link?t=NOPE0000')).status, 404);
+  const s4 = await api('POST', '/v1/support/checkout', { tier: 'plus', for: lk.body.token.toLowerCase() });
+  assert.equal(s4.status, 200);
+  assert.equal(payAsked[payAsked.length - 1].body.metadata.handle, 'pay_cat');
+  await hook({ event: 'order.completed', order: { id: 'o5' }, product: { id: 'prod_plus' }, metadata: payAsked[payAsked.length - 1].body.metadata });
+  assert.equal((await api('GET', '/v1/profile/me', undefined, tok(c))).body.supporter.tier, 'plus');
+  // a junk token is simply "not signed in"
+  assert.equal((await api('POST', '/v1/support/checkout', { tier: 'plus', for: 'NOPE0000' })).status, 200);
+  assert.equal(payAsked[payAsked.length - 1].body.metadata.gid, '');
+
+  // a stranger: no profile on the session → a code appears for the success page, tiered as paid
+  const s3 = await api('POST', '/v1/support/checkout', { tier: 'founder' });
+  assert.equal(s3.status, 200);
+  const meta3 = payAsked[payAsked.length - 1].body.metadata;
+  assert.equal(meta3.gid, '');
+  await hook({ event: 'order.completed', order: { id: 'o3' }, product: { id: 'prod_founder' }, metadata: meta3 });
+  const claim = (await api('GET', '/v1/support/claim?sid=' + s3.body.sid)).body;
+  assert.equal(claim.state, 'code');
+  assert.match(claim.code, /^NEB-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+  const b = await mkProfile('pay_bob', 'Bob P', 'password1');
+  assert.equal((await api('POST', '/v1/support/redeem', { code: claim.code }, tok(b), '10.9.9.2')).body.supporter.tier, 'founder');
+  assert.deepEqual((await api('GET', '/v1/support/claim?sid=000000000000000000000000')).body, { state: 'unknown' });
+  // other events are acknowledged and ignored; a purchase with no session still mints a code for the admin list
+  assert.equal((await hook({ event: 'order.refunded', order: { id: 'o3' } })).body.ignored, 'order.refunded');
+  await hook({ event: 'order.completed', order: { id: 'o4' }, product: { id: 'prod_sup' } });
+  const codes = (await admin('GET', '/v1/support/codes')).body.codes;
+  assert.ok(codes.some((c) => c.note.includes('order o4') && c.tier === 'supporter' && !c.used));
+  // the payment service down = 502, never a crash
+  payStub.close();
+  assert.equal((await api('POST', '/v1/support/checkout', { tier: 'plus' }, tok(a))).status, 502);
+  await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN });
+  await admin('POST', '/v1/support/revoke', { handle: 'pay_ada' });
+  await admin('POST', '/v1/support/revoke', { handle: 'pay_bob' });
+  await admin('POST', '/v1/support/revoke', { handle: 'pay_cat' });
 });
 
 test('support: guessing codes is rate limited', async () => {

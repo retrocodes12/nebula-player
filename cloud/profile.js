@@ -108,7 +108,14 @@ module.exports = function attach(core) {
     d = d && typeof d === 'object' ? d : {};
     return { name: cleanName(d.name) || 'Device', plat: String(d.plat || 'web').replace(/[^a-z]/g, '').slice(0, 12) || 'web' };
   }
-  function pub(g) { const p = g.profile; return p ? { handle: p.handle, name: p.name, avatar: p.avatar, sup: !!g.supporter } : null; }
+  /** The chosen mark, only once the tier allows one (the same rule support.js applies). */
+  function supMark(g) {
+    const s = g.supporter;
+    if (!s) return null;
+    const plus = s.tier === 'plus' || s.tier === 'founder';
+    return plus && ['star', 'heart', 'bolt', 'crown'].includes(s.mark) ? s.mark : 'star';
+  }
+  function pub(g) { const p = g.profile; return p ? { handle: p.handle, name: p.name, avatar: p.avatar, sup: !!g.supporter, tier: g.supporter ? (g.supporter.tier || 'supporter') : null, mark: supMark(g) } : null; }
 
   // ---------- devices ----------
   // The token itself only ever lives on the device; the store keeps its hash,
@@ -289,7 +296,7 @@ module.exports = function attach(core) {
         friendsOn: !!g.social };
       if (prof) {
         out.handle = prof.handle; out.name = prof.name; out.avatar = prof.avatar;
-        out.supporter = g.supporter ? { since: g.supporter.since, wall: !!g.supporter.wall } : null;
+        out.supporter = g.supporter ? { since: g.supporter.since, wall: !!g.supporter.wall, tier: g.supporter.tier || 'supporter', mark: supMark(g) } : null;
       }
       return json(res, 200, out);
     }
