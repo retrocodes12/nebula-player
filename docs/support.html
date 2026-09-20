@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Support Nebula</title>
-<meta name="description" content="Nebula is free for everyone. Chip in once and get a small thank-you back: a mark by your name, more colours, your name on the wall.">
+<meta name="description" content="Nebula Sports is free and shows one sponsor link every 12 hours. Chip in once, from $2, and get your own key: same streams, no sponsor prompt, for good.">
 <style>
   :root {
     --red:#E50914; --gold:#E0B24A;
@@ -12,6 +12,7 @@
     --line:#26262e; --text:#f2f2f4; --muted:#9aa3af;
     --disp:"Archivo", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --body:system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono:ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font-family:var(--body); line-height:1.6; }
@@ -29,8 +30,10 @@
   .for[hidden] { display:none; }
   .tiers { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin:30px 0 8px; }
   .tier { position:relative; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:22px 20px 20px; display:flex; flex-direction:column; min-width:0; }
+  .tier.pick { border-color:rgba(229,9,20,.55); }
   .tier.founder { border-color:rgba(224,178,74,.55); }
-  .tier .kick { font-family:ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  .tier .kick { font-family:var(--mono); font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  .tier.pick .kick { color:#ff6b72; }
   .tier.founder .kick { color:var(--gold); }
   .tier h2 { font-family:var(--disp); font-weight:800; font-size:1.35rem; letter-spacing:-.01em; margin:6px 0 2px; }
   .price { font-family:var(--disp); font-weight:800; font-size:2rem; letter-spacing:-.02em; margin:6px 0 2px; }
@@ -38,10 +41,15 @@
   .tier ul { list-style:none; padding:0; margin:14px 0 18px; flex:1; }
   .tier li { position:relative; padding-left:20px; margin:8px 0; color:#cfd4db; font-size:.95rem; }
   .tier li::before { content:""; position:absolute; left:2px; top:.62em; width:8px; height:8px; border-radius:50%; border:1.5px solid var(--muted); }
+  .tier li.key { color:#fff; font-weight:600; }
+  .tier li.key::before { background:var(--red); border-color:var(--red); }
+  .tier.founder li.key::before { background:var(--gold); border-color:var(--gold); }
   .tier.founder li::before { border-color:var(--gold); }
   .tier li.inc { color:var(--muted); }
   .tier li.inc::before { border-style:dashed; }
-  .btn { appearance:none; border:1px solid #3a3a44; background:transparent; color:#fff; border-radius:999px; padding:11px 18px; font:600 .95rem var(--body); cursor:pointer; width:100%; }
+  .tier li.app { color:var(--muted); font-size:.88rem; }
+  .tier li.app::before { border-color:#4a4a55; }
+  .btn { appearance:none; border:1px solid #3a3a44; background:transparent; color:#fff; border-radius:999px; padding:11px 18px; font:600 .95rem var(--body); cursor:pointer; width:100%; text-decoration:none; display:inline-block; text-align:center; }
   .btn:hover { border-color:#fff; }
   .btn.primary { background:var(--red); border-color:var(--red); }
   .btn.primary:hover { background:#f6121d; }
@@ -50,10 +58,19 @@
   .btn[disabled] { opacity:.55; cursor:default; }
   .msg { margin:14px 0 0; color:var(--muted); font-size:.92rem; min-height:1.4em; }
   .msg.err { color:#ff6b6b; }
+  .trust { color:var(--muted); font-size:.88rem; margin:6px 0 0; }
   .thanks { margin:28px 0; padding:22px 24px; border:1px solid var(--line); border-radius:16px; background:var(--surface); }
   .thanks[hidden] { display:none; }
   .thanks h2 { font-family:var(--disp); font-weight:800; font-size:1.4rem; margin:0 0 6px; }
-  .code { font-family:ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size:1.6rem; letter-spacing:.08em; margin:12px 0; user-select:all; }
+  .thanks h3 { margin:22px 0 6px; }
+  .code { font-family:var(--mono); font-size:1.6rem; letter-spacing:.08em; margin:12px 0; user-select:all; }
+  .keybox { margin:14px 0 4px; padding:16px 18px; border:1px solid rgba(229,9,20,.45); border-radius:14px; background:#111116; }
+  .keybox[hidden] { display:none; }
+  .keybox .acts { display:flex; gap:10px; flex-wrap:wrap; margin:12px 0 10px; }
+  .keybox .acts .btn { width:auto; padding:11px 20px; }
+  .keylink { font-family:var(--mono); font-size:.82rem; color:#cfd4db; word-break:break-all; user-select:all; margin:8px 0 0; }
+  .steps { margin:10px 0 0; padding-left:20px; }
+  .steps li { margin:4px 0; }
   h3 { font-family:var(--disp); font-weight:700; font-size:1.05rem; margin:40px 0 8px; }
   p, li { color:#cfd4db; font-size:.97rem; }
   .wall { display:flex; flex-wrap:wrap; gap:8px 10px; margin:10px 0 0; padding:0; list-style:none; }
@@ -65,7 +82,7 @@
   a { color:#c9ced6; }
   a:hover { color:#fff; }
   footer { border-top:1px solid var(--line); margin-top:56px; padding:26px 0 40px; color:var(--muted); font-size:.86rem; }
-  @media (max-width:760px) { .tiers { grid-template-columns:1fr; } .price { font-size:1.7rem; } }
+  @media (max-width:760px) { .tiers { grid-template-columns:1fr; } .price { font-size:1.7rem; } .tier.pick { order:-1; } }
 </style>
 </head>
 <body>
@@ -76,60 +93,73 @@
 </header>
 
 <main class="wrap">
-  <h1>Support Nebula</h1>
-  <p class="lede">Nebula is free, with no ads and no account required, and every feature stays free for everyone.
-  If it earns a place in your evenings, you can chip in once — and get a small thank-you back.</p>
-  <p class="note">Supporting keeps the sync server, the site and the sports feed running. Nothing here is a subscription: you pay once and it is yours for good.</p>
+  <h1>Nebula Sports, without the sponsor prompt.</h1>
+  <p class="lede">The add-on is free for everyone. What keeps its servers paid for is one sponsor link, shown once every 12 hours before a stream plays.
+  Chip in once — from $2 — and you get your own key: the same streams, the same schedule, and that prompt is gone for good.</p>
+  <p class="note">No subscription, no account. You pay once at the checkout, and your key is on the next page.</p>
 
-  <div class="for" id="forBox" hidden>Buying for <b id="forHandle"></b> — the thank-you lands on that profile the moment the payment clears.</div>
-  <div class="for" id="anonBox" hidden>Not signed in on this browser? That is fine: after paying you get a one-time code to type into Settings › Support on any signed-in device. Opening this page from the app (Settings › Support) skips the code.</div>
+  <div class="for" id="forBox" hidden>Buying for <b id="forHandle"></b> — the thank-you lands on that Nebula Player profile the moment the payment clears.</div>
 
   <section class="thanks" id="thanks" hidden>
     <h2 id="thanksTitle">Confirming your payment…</h2>
     <p id="thanksText">This takes a few seconds.</p>
+    <div class="keybox" id="keyBox" hidden>
+      <h3 id="keyTitle" style="margin-top:0">Your Nebula Sports key is ready.</h3>
+      <div class="acts">
+        <a class="btn primary" id="keyInstall" href="#">Install the add-on</a>
+        <button class="btn" id="keyCopy" type="button">Copy the add-on link</button>
+      </div>
+      <div class="keylink" id="keyLink"></div>
+      <ol class="steps">
+        <li>Tap <b>Install the add-on</b> — or paste the link into your add-ons list on any device.</li>
+        <li>Remove the free <b>Nebula Sports</b> add-on, so you do not see two of everything.</li>
+        <li>That is all. Same streams, no sponsor prompt, on every device you install it on.</li>
+      </ol>
+      <p class="note" id="keyNote">Keep this page's address: it shows your key whenever you come back.</p>
+    </div>
     <div class="code" id="thanksCode" hidden></div>
     <p class="note" id="thanksNote" hidden></p>
   </section>
 
   <div class="tiers" id="tiers">
-    <div class="tier" data-tier="supporter">
-      <div class="kick">Supporter</div>
+    <div class="tier pick" data-tier="supporter">
+      <div class="kick">Most people pick this</div>
       <h2>Supporter</h2>
       <div class="price">$2<small>once</small></div>
       <ul>
-        <li>A supporter mark beside your name — your friends see it too</li>
-        <li>Three more accent colours: Gold, Ice and Mint</li>
-        <li>Your name on the wall, if you like</li>
+        <li class="key">Your own Nebula Sports key — no sponsor prompt, ever</li>
+        <li>Works on every device you use the add-on on: phone, TV, computer</li>
+        <li class="app">In Nebula Player: a mark beside your name, three more colours, the wall</li>
       </ul>
-      <button class="btn" data-buy="supporter">Choose Supporter</button>
+      <button class="btn primary" data-buy="supporter">Get the key · <span data-price="supporter">$2</span></button>
     </div>
     <div class="tier" data-tier="plus">
       <div class="kick">Supporter Plus</div>
       <h2>Supporter Plus</h2>
       <div class="price">$5<small>once</small></div>
       <ul>
-        <li class="inc">Everything in Supporter</li>
-        <li>Any accent colour you like — pick your own</li>
-        <li>Choose your mark: star, heart, bolt or crown</li>
-        <li>Early builds, before everyone else</li>
+        <li class="inc">Everything in Supporter, key included</li>
         <li>A say in what gets built next</li>
+        <li>Early builds of Nebula Player, before everyone else</li>
+        <li class="app">In Nebula Player: any accent colour, your own mark</li>
       </ul>
-      <button class="btn primary" data-buy="plus">Choose Supporter Plus</button>
+      <button class="btn" data-buy="plus">Get the key · <span data-price="plus">$5</span></button>
     </div>
     <div class="tier founder" data-tier="founder">
       <div class="kick">Founder</div>
       <h2>Founder</h2>
       <div class="price">$20<small>once</small></div>
       <ul>
-        <li class="inc">Everything in Supporter Plus</li>
-        <li>A permanent place on the Founders list, right here</li>
-        <li>A gold ring on your avatar</li>
-        <li>Nebula Sports without the sponsor prompt, anywhere — a lifetime key for the add-on</li>
+        <li class="inc">Everything in Supporter Plus, key included</li>
+        <li>Your name on the Founders list, permanently, right here</li>
+        <li class="app">In Nebula Player: a gold ring on your avatar</li>
       </ul>
-      <button class="btn gold" data-buy="founder">Become a Founder</button>
+      <button class="btn gold" data-buy="founder">Become a Founder · <span data-price="founder">$20</span></button>
     </div>
   </div>
   <p class="msg" id="msg"></p>
+  <p class="trust">Card payment through Pocketsflow; we never see your card. The key is shown right after paying — nothing to sign up for.</p>
+  <p class="note" id="anonBox" hidden>Use Nebula Player too? Open this page from Settings › Support there and the thank-you lands on your profile as well. Otherwise you get a one-time code for it after paying.</p>
 
   <h3 id="foundersHead" hidden>Founders</h3>
   <ul class="wall" id="founders" hidden></ul>
@@ -138,9 +168,11 @@
 
   <div class="faq">
     <h3>Questions</h3>
-    <p><b>Is anything locked without paying?</b> No. Every feature is free for everyone and stays that way. Supporters get thank-yous — a mark, colours, a name on a list — not features.</p>
+    <p><b>What is different from the free add-on?</b> Nothing in what you can watch — same streams, same schedule. The free install shows a sponsor link once every 12 hours; your key never does.</p>
     <p><b>Does it expire?</b> No. One payment, yours for good. Paying a higher tier later simply raises you; you never pay twice for the same thing.</p>
-    <p><b>Where does it show?</b> On your Nebula profile, so on every device you sign in to — TV, phone, computer. The wall is opt-in: your name appears only if you switch it on in Settings › Support.</p>
+    <p><b>Can I use the key on more than one device?</b> Yes — install it on your phone, your TV and your computer. It is meant for you and your household, not for passing around.</p>
+    <p><b>Where do the Nebula Player thank-yous show?</b> On your Nebula profile, so on every device you sign in to. The wall is opt-in: your name appears only if you switch it on in Settings › Support.</p>
+    <p><b>I lost my key.</b> The page you landed on after paying shows it — keep that address. Otherwise open an issue on the Nebula repository with the order number from your receipt and it will be sent to you.</p>
     <p><b>Something wrong with a purchase?</b> Open an issue on the Nebula repository with the order number from your receipt — never your card details.</p>
   </div>
 </main>
@@ -157,6 +189,7 @@
   var q = new URLSearchParams(location.search);
   var forToken = String(q.get("for") || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
   var sid = String(q.get("thanks") || "");
+  var via = String(location.hash || "").replace(/^#from=/, "").replace(/[^a-z0-9-]/gi, "").slice(0, 24);
   var msg = document.getElementById("msg");
   var buttons = Array.prototype.slice.call(document.querySelectorAll("[data-buy]"));
   var TIER_NAMES = { supporter: "Supporter", plus: "Supporter Plus", founder: "Founder" };
@@ -188,8 +221,11 @@
   api("GET", "/v1/support").then(function (r) {
     var s = r.body || {};
     (s.tiers || []).forEach(function (t) {
+      if (typeof t.price !== "number") return;
       var card = document.querySelector('.tier[data-tier="' + t.id + '"] .price');
-      if (card && typeof t.price === "number") card.firstChild.nodeValue = "$" + t.price;
+      if (card) card.firstChild.nodeValue = "$" + t.price;
+      var b = document.querySelector('[data-price="' + t.id + '"]');
+      if (b) b.textContent = "$" + t.price;
     });
     if (!s.checkout) buttons.forEach(function (b) { b.disabled = true; b.textContent = "Not open yet"; });
     var founders = [], others = [];
@@ -218,44 +254,74 @@
     b.addEventListener("click", function () {
       var tier = b.getAttribute("data-buy");
       buttons.forEach(function (x) { x.disabled = true; });
+      b.setAttribute("aria-busy", "true");
       say("Opening the checkout…");
-      api("POST", "/v1/support/checkout", { tier: tier, for: forToken || undefined }).then(function (r) {
+      api("POST", "/v1/support/checkout", { tier: tier, for: forToken || undefined, via: via || undefined }).then(function (r) {
         if (r.status === 200 && r.body && r.body.url) { location.href = r.body.url; return; }
-        buttons.forEach(function (x) { x.disabled = false; });
+        buttons.forEach(function (x) { x.disabled = false; x.removeAttribute("aria-busy"); });
         if (r.status === 503) say("Checkout is not switched on yet.", true);
         else if (r.status === 429) say("Too many tries — give it a minute.", true);
         else say("The payment service did not answer — try again in a minute.", true);
       }).catch(function () {
-        buttons.forEach(function (x) { x.disabled = false; });
+        buttons.forEach(function (x) { x.disabled = false; x.removeAttribute("aria-busy"); });
         say("Could not reach the server.", true);
       });
     });
   });
 
-  // back from the checkout: ask what happened until the payment service has told us
+  // back from the checkout: ask what happened until the payment service has told us, then until the key is there
   if (/^[0-9a-f]{24}$/.test(sid)) {
     var box = document.getElementById("thanks");
     var title = document.getElementById("thanksTitle"), text = document.getElementById("thanksText");
     var code = document.getElementById("thanksCode"), note = document.getElementById("thanksNote");
+    var keyBox = document.getElementById("keyBox"), keyTitle = document.getElementById("keyTitle");
+    var keyInstall = document.getElementById("keyInstall"), keyCopy = document.getElementById("keyCopy"), keyLink = document.getElementById("keyLink");
     box.hidden = false;
     document.getElementById("tiers").style.display = "none";
-    var tries = 0;
+    document.getElementById("anonBox").hidden = true;
+    var tries = 0, keyTries = 0;
+
+    function showKey(s) {
+      keyBox.hidden = false;
+      if (s.sportsKey && s.sportsManifest) {
+        keyTitle.textContent = "Your Nebula Sports key is ready.";
+        keyInstall.href = s.sportsInstall || ("stremio://" + s.sportsManifest.replace(/^https:\/\//, ""));
+        keyInstall.style.display = "";
+        keyCopy.style.display = "";
+        keyLink.textContent = s.sportsManifest;
+        keyCopy.onclick = function () {
+          var done = function () { keyCopy.textContent = "Copied"; setTimeout(function () { keyCopy.textContent = "Copy the add-on link"; }, 1800); };
+          if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(s.sportsManifest).then(done, function () { window.prompt("Copy this link:", s.sportsManifest); });
+          else window.prompt("Copy this link:", s.sportsManifest);
+        };
+        return true;
+      }
+      keyTitle.textContent = keyTries < 20 ? "Making your Nebula Sports key… a few seconds." : "Your key is taking longer than usual.";
+      keyInstall.style.display = "none";
+      keyCopy.style.display = "none";
+      keyLink.textContent = keyTries < 20 ? "" : "Leave this page open — it keeps checking. If nothing arrives, the order number on your receipt is enough to sort it out.";
+      return false;
+    }
+
     (function poll() {
       api("GET", "/v1/support/claim?sid=" + sid).then(function (r) {
         var s = r.body || {};
-        var name = TIER_NAMES[s.tier] || "supporter";
-        if (s.state === "granted") {
+        var name = TIER_NAMES[s.tier] || "Supporter";
+        if (s.state === "granted" || s.state === "code") {
           title.textContent = "You're a " + name + " — thank you.";
-          text.textContent = "It is already on your profile. Open Nebula on any device you are signed in to: the mark, the colours and the wall switch are in Settings › Support.";
-          return;
-        }
-        if (s.state === "code") {
-          title.textContent = "You're a " + name + " — thank you.";
-          text.textContent = "Here is your one-time code. Type it into Settings › Support on any device you are signed in to; the thank-you follows your profile from there.";
-          code.textContent = s.code;
-          code.hidden = false;
-          note.textContent = "Keep this page or write the code down — it is shown here only.";
-          note.hidden = false;
+          if (s.state === "granted") {
+            text.textContent = "The " + name + " thank-you is already on your Nebula Player profile: the mark, the colours and the wall switch are in Settings › Support.";
+          } else {
+            text.textContent = "Below is your key for the sports add-on. Use Nebula Player as well? The one-time code further down puts the " + name + " thank-you on your profile there.";
+            code.textContent = s.code;
+            code.hidden = false;
+            note.textContent = "Type the code into Settings › Support on any device you are signed in to. It is shown here only.";
+            note.hidden = false;
+          }
+          if (s.sportsKey || s.sportsPending) {
+            var ready = showKey(s);
+            if (!ready) { keyTries++; setTimeout(poll, 3000); }
+          }
           return;
         }
         if (s.state === "unknown" || ++tries > 40) {

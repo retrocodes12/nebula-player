@@ -296,7 +296,8 @@ module.exports = function attach(core) {
         friendsOn: !!g.social };
       if (prof) {
         out.handle = prof.handle; out.name = prof.name; out.avatar = prof.avatar;
-        out.supporter = g.supporter ? { since: g.supporter.since, wall: !!g.supporter.wall, tier: g.supporter.tier || 'supporter', mark: supMark(g) } : null;
+        out.supporter = g.supporter ? { since: g.supporter.since, wall: !!g.supporter.wall, tier: g.supporter.tier || 'supporter', mark: supMark(g),
+          ...(g.supporter.sportsKey ? { sportsKey: g.supporter.sportsKey, sportsManifest: g.supporter.sportsManifest || null } : {}) } : null;
       }
       return json(res, 200, out);
     }

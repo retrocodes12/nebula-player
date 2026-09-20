@@ -11,24 +11,35 @@
 // gets a one-time code minted, which the success page reads back through
 // GET /v1/support/claim?sid= and shows. Orders are remembered by id so a
 // re-delivered webhook does nothing twice.
+//
+// Every paid order also earns a Nebula Sports install key (2026-09-20: the
+// add-on's audience is the one paying, and the key — no sponsor prompt, for
+// good — is the thing they want). The key is minted by the sports backend
+// over loopback (`sports` block: {url, token}); the success page shows it with
+// a one-tap install. A backend that was down when the webhook came is asked
+// again on every claim poll — minting is idempotent by order id over there.
 
 'use strict';
 
 const crypto = require('crypto');
 
-const PENDING_TTL_MS = 14 * 24 * 3600_000;
-const ORDER_TTL_MS = 400 * 24 * 3600_000;
+const PENDING_TTL_MS = 14 * 24 * 3600_000;      // a checkout nobody finished
+const ORDER_TTL_MS = 400 * 24 * 3600_000;       // a paid order: the thanks link keeps showing the key
 const MAX_WEBHOOK_BYTES = 256 * 1024;
 const SESSION_TIMEOUT_MS = 10_000;
+const MINT_TIMEOUT_MS = 8_000;
+const MINT_RETRY_MS = 5_000;                    // claim polls are 2 s apart; do not hammer a dead backend
 
 module.exports = function attach(deps) {
-  const { store, persistStore, json, mintCode, cleanTier, TIERS, grantGid } = deps;
+  const { store, persistStore, json, mintCode, cleanTier, TIERS, grantGid, noteSportsKey } = deps;
 
   function sweep() {
     const now = Date.now();
     let dirty = false;
     for (const sid of Object.keys(store.pending)) {
-      if (now - (store.pending[sid].at || 0) > PENDING_TTL_MS) { delete store.pending[sid]; dirty = true; }
+      const p = store.pending[sid];
+      const ttl = p.state === 'waiting' ? PENDING_TTL_MS : ORDER_TTL_MS;
+      if (now - (p.at || 0) > ttl) { delete store.pending[sid]; dirty = true; }
     }
     for (const id of Object.keys(store.orders)) {
       if (now - (store.orders[id].at || 0) > ORDER_TTL_MS) { delete store.orders[id]; dirty = true; }
@@ -37,7 +48,7 @@ module.exports = function attach(deps) {
   }
 
   /** Open a hosted checkout for one tier. Returns {url, sid}; throws when the service does not answer. */
-  async function checkout({ tier, gid, handle, site, cfg }) {
+  async function checkout({ tier, gid, handle, via, site, cfg }) {
     sweep();
     const sid = crypto.randomBytes(12).toString('hex');
     const base = site.replace(/\/$/, '');
@@ -61,18 +72,69 @@ module.exports = function attach(deps) {
     // the buyer is sent here: https only (a loopback http address is allowed for the rigs)
     const url = body && typeof body.url === 'string' && /^(https:\/\/|http:\/\/127\.0\.0\.1[:/])/.test(body.url) ? body.url : null;
     if (!r.ok || !url) throw new Error('checkout session ' + r.status + ' ' + JSON.stringify(body || '').slice(0, 200));
-    store.pending[sid] = { tier, gid: gid || null, handle: handle || null, at: Date.now(), state: 'waiting', session: body.id || null };
+    store.pending[sid] = { tier, gid: gid || null, handle: handle || null, via: via || null, at: Date.now(), state: 'waiting', session: body.id || null };
     persistStore();
     return { url, sid };
   }
 
-  /** What the success page shows: waiting (webhook not here yet), granted, or a code to type. */
-  function claim(sid) {
+  // ---------- the Nebula Sports key ----------
+  /** Ask the sports backend for this order's install key. Resolves {installKey, manifestUrl, installUrl} or throws. */
+  async function mintSportsKey(rec, sports) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), MINT_TIMEOUT_MS);
+    let r, body;
+    try {
+      r = await fetch(sports.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Sports-Mint-Token': sports.token },
+        body: JSON.stringify({ orderId: rec.order, tier: rec.tier, email: rec.email || '', label: 'pocketsflow ' + rec.tier + (rec.handle ? ' @' + rec.handle : '') }),
+        signal: ctl.signal,
+      });
+      body = await r.json().catch(() => null);
+    } finally { clearTimeout(timer); }
+    const key = body && typeof body.installKey === 'string' && /^[A-Za-z0-9_-]{8,120}$/.test(body.installKey) ? body.installKey : null;
+    const manifest = body && typeof body.manifestUrl === 'string' && /^https:\/\/[^\s"'<>]{8,300}$/.test(body.manifestUrl) ? body.manifestUrl : null;
+    if (!r.ok || !key || !manifest) throw new Error('sports mint ' + r.status + ' ' + JSON.stringify(body || '').slice(0, 200));
+    return { installKey: key, manifestUrl: manifest };
+  }
+  /** Attach the key to a paid record (and the profile, when there is one). Quiet on failure: the next claim retries. */
+  async function ensureSportsKey(rec, sports) {
+    if (!sports || !rec || !rec.order || rec.sportsKey) return;
+    if (Date.now() - (rec.sportsTriedAt || 0) < MINT_RETRY_MS) return;
+    rec.sportsTriedAt = Date.now();
+    try {
+      const k = await mintSportsKey(rec, sports);
+      rec.sportsKey = k.installKey;
+      rec.sportsManifest = k.manifestUrl;
+      delete rec.sportsError;
+      if (rec.gid) noteSportsKey(rec.gid, k.installKey, k.manifestUrl);
+      persistStore();
+      console.log('support: order ' + rec.order + ' → sports key ready');
+    } catch (e) {
+      rec.sportsError = String(e.message || e).slice(0, 120);
+      persistStore();
+      console.error('support: sports key for order ' + rec.order + ' failed — ' + rec.sportsError + ' (retried on the next claim)');
+    }
+  }
+  function sportsOut(rec, out, sports) {
+    if (rec.sportsKey && rec.sportsManifest) {
+      out.sportsKey = rec.sportsKey;
+      out.sportsManifest = rec.sportsManifest;
+      out.sportsInstall = 'stremio://' + rec.sportsManifest.replace(/^https:\/\//, '');
+    } else if (sports && rec.order) {
+      out.sportsPending = true;                  // the backend has not answered yet — the page keeps asking
+    }
+    return out;
+  }
+
+  /** What the success page shows: waiting (webhook not here yet), granted, or a code to type — plus the sports key once minted. */
+  async function claim(sid, sports) {
     const p = /^[0-9a-f]{24}$/.test(sid) ? store.pending[sid] : null;
     if (!p) return { state: 'unknown' };
+    if (p.state !== 'waiting' && p.state !== 'failed') await ensureSportsKey(p, sports);
     const out = { state: p.state, tier: p.tier };
     if (p.state === 'code') out.code = p.code;
-    return out;
+    return p.state === 'waiting' ? out : sportsOut(p, out, sports);
   }
 
   function readRaw(req) {
@@ -94,8 +156,16 @@ module.exports = function attach(deps) {
     if (sig && same(sig, crypto.createHmac('sha256', secret).update(raw).digest('hex'))) return true;
     return same(req.headers['x-webhook-secret'], secret);
   }
+  /** The buyer's address, wherever the service put it — kept only to label the sports key over there (masked). */
+  function emailOf(b, order) {
+    for (const v of [b.email, order.email, order.customerEmail, b.customer && b.customer.email, order.customer && order.customer.email, b.buyer && b.buyer.email]) {
+      const s = String(v || '').trim().toLowerCase();
+      if (/^[^\s@]{1,64}@[^\s@]{1,190}\.[a-z]{2,24}$/.test(s)) return s;
+    }
+    return '';
+  }
 
-  async function webhook(req, res, cfg) {
+  async function webhook(req, res, cfg, sports) {
     if (!cfg) return json(res, 503, { error: 'not configured' });
     const raw = await readRaw(req);
     if (!raw) return json(res, 400, { error: 'bad payload' });
@@ -128,6 +198,7 @@ module.exports = function attach(deps) {
     const rec = pending || { tier, gid, handle: null, at: Date.now(), state: 'waiting' };
     rec.tier = tier;
     rec.order = orderId;
+    rec.email = emailOf(b, order);
     if (gid && grantGid(gid, tier, 'order ' + orderId)) {
       rec.state = 'granted';
     } else {
@@ -139,7 +210,9 @@ module.exports = function attach(deps) {
     store.orders[orderId] = { at: Date.now(), tier, state: rec.state };
     persistStore();
     console.log('support webhook: order ' + orderId + ' → ' + tier + ' ' + rec.state);
-    return json(res, 200, { ok: true, tier, state: rec.state });
+    // the sports key: answer the service first, mint right after (its retry is on the claim poll)
+    json(res, 200, { ok: true, tier, state: rec.state });
+    await ensureSportsKey(rec, sports);
   }
 
   return { checkout, claim, webhook };

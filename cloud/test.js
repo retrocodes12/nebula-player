@@ -2,7 +2,7 @@
 // proxy's target validation. Uses a throwaway data dir and an ephemeral port.
 'use strict';
 
-process.env.GROUP_BURST = '40';
+process.env.GROUP_BURST = '48';           // one more profile since the sports-key test (09-20)
 process.env.SIGNIN_BURST = '100';       // the per-IP limiter would ration the suite; the per-handle one is tested
 process.env.SUPPORT_CONFIG_CHECK_MS = '0';
 process.env.DATA_DIR = require('fs').mkdtempSync(
@@ -606,7 +606,7 @@ async function admin(method, p, body) {
 test('support: off until a link is configured; the link and the go redirect follow the config file', async () => {
   const off = await api('GET', '/v1/support');
   assert.equal(off.status, 200);
-  assert.deepEqual(off.body, { url: null, count: 0, wall: [], tiers: off.body.tiers, checkout: false });
+  assert.deepEqual(off.body, { url: null, count: 0, wall: [], tiers: off.body.tiers, checkout: false, sports: false });
   assert.equal(off.body.tiers.length, 3);
   // admin routes are dead without a token in the config
   assert.equal((await admin('POST', '/v1/support/codes', { n: 1 })).status, 401);
@@ -779,6 +779,23 @@ const PAY = {
   apiKey: 'pk_test_0123456789abcdef', webhookSecret: 'whsec_test_secret_1234',
   products: { supporter: 'prod_sup', plus: 'prod_plus', founder: 'prod_founder' },
 };
+// a stand-in for the sports backend's key mint: idempotent by order id, can be told to fail
+let mintAsked = [], mintDown = false;
+const minted = {};
+const mintStub = http.createServer((req, res) => {
+  let raw = '';
+  req.on('data', (c) => { raw += c; });
+  req.on('end', () => {
+    const b = JSON.parse(raw || '{}');
+    mintAsked.push({ token: req.headers['x-sports-mint-token'], body: b });
+    if (mintDown) { res.writeHead(503); res.end('{"error":"down"}'); return; }
+    if (req.headers['x-sports-mint-token'] !== 'sports_mint_token_0123456789') { res.writeHead(401); res.end('{}'); return; }
+    minted[b.orderId] = minted[b.orderId] || ('nsports_' + require('crypto').randomBytes(9).toString('base64url'));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ installKey: minted[b.orderId], manifestUrl: 'https://sports.example.org/sports/i/' + minted[b.orderId] + '/manifest.json' }));
+  });
+});
+const until = async (fn, ms = 3000) => { const t0 = Date.now(); let v; while (!(v = await fn()) && Date.now() - t0 < ms) await new Promise((r) => setTimeout(r, 400)); return v; };   // the claim route is rate limited: poll like the page does, not in a tight loop
 function hook(body, secret = PAY.webhookSecret, headers = {}) {
   // the real service names the event in a header and NOT in the body (seen in its own webhook test, 09-19)
   const { event, ...rest } = body;
@@ -872,6 +889,81 @@ test('support: checkout — a signed-in buyer is raised on the webhook, a strang
   await admin('POST', '/v1/support/revoke', { handle: 'pay_ada' });
   await admin('POST', '/v1/support/revoke', { handle: 'pay_bob' });
   await admin('POST', '/v1/support/revoke', { handle: 'pay_cat' });
+});
+
+test('support: every paid order earns a Nebula Sports key — minted over loopback, shown by the claim, kept on the profile, retried while the backend is down', async () => {
+  await new Promise((ok) => mintStub.listen(0, '127.0.0.1', ok));
+  const payStub2 = http.createServer((req, res) => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ id: 'sess_k', url: 'https://retrocodes.pocketsflow.com/checkout?session=k' })); });
+  await new Promise((ok) => payStub2.listen(0, '127.0.0.1', ok));
+  const SPORTS = { url: 'http://127.0.0.1:' + mintStub.address().port + '/sports/internal/keys', token: 'sports_mint_token_0123456789' };
+  const pay = { ...PAY, api: 'http://127.0.0.1:' + payStub2.address().port };
+  try {
+  // a bad block is no block
+  await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN, site: 'https://play.example.org', pay, sports: { url: 'http://evil.example/keys', token: SPORTS.token } });
+  assert.equal((await api('GET', '/v1/support')).body.sports, false);
+  await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN, site: 'https://play.example.org', pay, sports: SPORTS });
+  assert.equal((await api('GET', '/v1/support')).body.sports, true);
+
+  // a stranger buys the $2 tier: the code AND the key come back on the claim; the mint saw the order and the tier
+  const s = await api('POST', '/v1/support/checkout', { tier: 'supporter' }, undefined, '10.7.7.1');
+  await hook({ event: 'order.completed', order: { id: 'k1' }, product: { id: 'prod_sup' }, customer: { email: 'kim@example.org' }, metadata: { sid: s.body.sid, tier: 'supporter', gid: '', handle: '' } });
+  const c1 = await until(async () => { const r = (await api('GET', '/v1/support/claim?sid=' + s.body.sid, undefined, undefined, '10.7.7.9')).body; return r.sportsKey ? r : null; });
+  assert.ok(c1, 'the claim never carried a key');
+  assert.equal(c1.state, 'code');
+  assert.match(c1.sportsKey, /^nsports_[A-Za-z0-9_-]+$/);
+  assert.equal(c1.sportsManifest, 'https://sports.example.org/sports/i/' + c1.sportsKey + '/manifest.json');
+  assert.equal(c1.sportsInstall, 'stremio://sports.example.org/sports/i/' + c1.sportsKey + '/manifest.json');
+  assert.equal(c1.sportsPending, undefined);
+  assert.deepEqual(mintAsked[0].body, { orderId: 'k1', tier: 'supporter', email: 'kim@example.org', label: 'pocketsflow supporter' });
+  assert.equal(mintAsked[0].token, SPORTS.token);
+  // asking again mints nothing new
+  const before = mintAsked.length;
+  assert.equal((await api('GET', '/v1/support/claim?sid=' + s.body.sid, undefined, undefined, '10.7.7.9')).body.sportsKey, c1.sportsKey);
+  assert.equal(mintAsked.length, before);
+
+  // signed in: the key lands on the profile too (/me), labelled with the handle
+  const d = await mkProfile('pay_dee', 'Dee P', 'password1');
+  const s2 = await api('POST', '/v1/support/checkout', { tier: 'founder' }, tok(d), '10.7.7.2');
+  await hook({ event: 'order.completed', order: { id: 'k2' }, product: { id: 'prod_founder' }, metadata: { sid: s2.body.sid, tier: 'founder', gid: d.gid, handle: 'pay_dee' } });
+  const c2 = await until(async () => { const r = (await api('GET', '/v1/support/claim?sid=' + s2.body.sid, undefined, undefined, '10.7.7.9')).body; return r.sportsKey ? r : null; });
+  assert.equal(c2.state, 'granted');
+  const me = (await api('GET', '/v1/profile/me', undefined, tok(d))).body.supporter;
+  assert.equal(me.tier, 'founder');
+  assert.equal(me.sportsKey, c2.sportsKey);
+  assert.equal(me.sportsManifest, c2.sportsManifest);
+  assert.equal(mintAsked[mintAsked.length - 1].body.label, 'pocketsflow founder @pay_dee');
+
+  // the backend is down when the webhook comes: the claim says pending, then finds the key once it is back
+  mintDown = true;
+  const s3 = await api('POST', '/v1/support/checkout', { tier: 'plus' }, undefined, '10.7.7.3');
+  await hook({ event: 'order.completed', order: { id: 'k3' }, product: { id: 'prod_plus' }, metadata: { sid: s3.body.sid, tier: 'plus', gid: '', handle: '' } });
+  await until(async () => mintAsked.some((m) => m.body.orderId === 'k3'));
+  const c3 = (await api('GET', '/v1/support/claim?sid=' + s3.body.sid, undefined, undefined, '10.7.7.9')).body;
+  assert.equal(c3.state, 'code');
+  assert.equal(c3.sportsPending, true);
+  assert.equal(c3.sportsKey, undefined);
+  mintDown = false;
+  // the retry is throttled to one every few seconds — wait it out, then the poll picks the key up
+  const c3b = await until(async () => { const r = (await api('GET', '/v1/support/claim?sid=' + s3.body.sid, undefined, undefined, '10.7.7.9')).body; return r.sportsKey ? r : null; }, 9000);
+  assert.ok(c3b && c3b.sportsKey, 'the key never arrived after the backend came back');
+  assert.equal(c3b.sportsPending, undefined);
+
+  // no sports block → no key, no pending flag, nothing asked
+  await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN, site: 'https://play.example.org', pay });
+  const n = mintAsked.length;
+  const s4 = await api('POST', '/v1/support/checkout', { tier: 'supporter' }, undefined, '10.7.7.1');
+  await hook({ event: 'order.completed', order: { id: 'k4' }, product: { id: 'prod_sup' }, metadata: { sid: s4.body.sid, tier: 'supporter', gid: '', handle: '' } });
+  const c4 = (await api('GET', '/v1/support/claim?sid=' + s4.body.sid, undefined, undefined, '10.7.7.9')).body;
+  assert.equal(c4.state, 'code');
+  assert.equal(c4.sportsKey, undefined);
+  assert.equal(c4.sportsPending, undefined);
+  assert.equal(mintAsked.length, n);
+
+  } finally {
+    payStub2.close(); mintStub.close();
+    await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN });
+    await admin('POST', '/v1/support/revoke', { handle: 'pay_dee' });
+  }
 });
 
 test('support: guessing codes is rate limited', async () => {

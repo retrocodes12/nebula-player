@@ -102,6 +102,26 @@ async function main() {
     console.log('Saved (live within 5 s, no restart). Webhook to register at the store: <site>/cloud/v1/support/webhook/pocketsflow, event order.completed');
     return;
   }
+  if (cmd === 'sports') {
+    // the sports backend mints a Nebula Sports install key for every paid order (support-pay.js)
+    const c = readConfig() || {};
+    const [what, a] = rest;
+    if (!what) {
+      console.log('mint url ' + (c.sports && c.sports.url ? c.sports.url : '(unset)'));
+      console.log('token    ' + (c.sports && c.sports.token ? '(set)' : '(unset)'));
+      console.log('keys     ' + (c.sports && c.sports.url && c.sports.token ? 'ON — every paid order earns a sports key' : 'off until both are set'));
+      return;
+    }
+    if (what === 'off') { delete c.sports; writeConfig(c); console.log('Sports keys off (orders still grant the tier)'); return; }
+    const sports = c.sports && typeof c.sports === 'object' ? c.sports : {};
+    if (what === 'url' && /^(https:\/\/\S{8,}|http:\/\/127\.0\.0\.1(:\d+)?\/\S+)$/.test(a || '')) sports.url = a;
+    else if (what === 'token' && /^[A-Za-z0-9_-]{16,200}$/.test(a || '')) sports.token = a;
+    else { console.error('sports url <http://127.0.0.1:3002/sports/internal/keys> | sports token <SPORTS_KEY_MINT_TOKEN from the sports .env> | sports off'); process.exit(2); }
+    c.sports = sports;
+    writeConfig(c);
+    console.log('Saved (live within 5 s, no restart).');
+    return;
+  }
   if (cmd === 'list') {
     const r = await call('GET', '/v1/support/codes');
     const open = r.codes.filter((c) => !c.used), used = r.codes.filter((c) => c.used);

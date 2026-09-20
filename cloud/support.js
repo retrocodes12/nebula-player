@@ -90,8 +90,9 @@ module.exports = function attach(core) {
   function flush() { if (storeTimer) { clearTimeout(storeTimer); storeTimer = null; writeStore(); } }
 
   // ---------- config: the link, the admin token and the payment service, live-reloaded ----------
-  // support-config.json = {url, admin, site?, pay?: {apiKey, webhookSecret, products: {supporter, plus, founder}, api?}}
-  let cfg = { url: null, admin: null, site: null, pay: null }, cfgStamp = '', cfgAt = 0;
+  // support-config.json = {url, admin, site?, pay?: {apiKey, webhookSecret, products: {supporter, plus, founder}, api?},
+  //                        sports?: {url, token}}   — the sports backend's key-minting route (loopback) + its shared token
+  let cfg = { url: null, admin: null, site: null, pay: null, sports: null }, cfgStamp = '', cfgAt = 0;
   function config() {
     const now = Date.now();
     if (now - cfgAt >= CONFIG_CHECK_MS) {
@@ -105,7 +106,7 @@ module.exports = function attach(core) {
         cfgStamp = stamp;
         try { file = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch (e) { file = null; }
         cfg = { url: cleanUrl(file && file.url), admin: cleanAdmin(file && file.admin), site: cleanSite(file && file.site),
-          pay: cleanPay(file && file.pay) };
+          pay: cleanPay(file && file.pay), sports: cleanSports(file && file.sports) };
         wallAt = 0;                                       // a new link should show at once
       }
     }
@@ -116,7 +117,16 @@ module.exports = function attach(core) {
       admin: cleanAdmin(process.env.SUPPORT_ADMIN) || cfg.admin,
       site: cleanSite(process.env.SUPPORT_SITE) || cfg.site || 'https://play.rifflehq.in',
       pay: envPay || cfg.pay,
+      sports: cleanSports({ url: process.env.SPORTS_MINT_URL, token: process.env.SPORTS_MINT_TOKEN }) || cfg.sports,
     };
+  }
+  /** The sports backend's mint route: loopback http (the two services share a box) or https, plus a shared token. */
+  function cleanSports(s) {
+    if (!s || typeof s !== 'object') return null;
+    const url = String(s.url || '').trim(), token = String(s.token || '').trim();
+    if (!/^(https:\/\/[^\s"'<>]{8,300}|http:\/\/127\.0\.0\.1(:\d+)?\/[^\s"'<>]{1,200})$/.test(url)) return null;
+    if (!/^[A-Za-z0-9_-]{16,200}$/.test(token)) return null;
+    return { url, token };
   }
   function cleanUrl(v) { const s = String(v || '').trim(); return /^https:\/\/[^\s"'<>]{4,400}$/.test(s) ? s : null; }
   /** Where the success/cancel pages live: https, or a loopback http address for the rigs. */
@@ -165,7 +175,10 @@ module.exports = function attach(core) {
   // ---------- supporter records live on the group ----------
   function view(g) {
     const s = g && g.supporter;
-    return s ? { since: s.since, wall: !!s.wall, tier: cleanTier(s.tier), mark: markOf(s) } : null;
+    if (!s) return null;
+    const out = { since: s.since, wall: !!s.wall, tier: cleanTier(s.tier), mark: markOf(s) };
+    if (s.sportsKey) { out.sportsKey = s.sportsKey; out.sportsManifest = s.sportsManifest || null; }
+    return out;
   }
   function markOf(s) { return s && rankOf(s.tier) >= 2 && MARKS.includes(s.mark) ? s.mark : 'star'; }
   /** Make (or raise) a supporter. A tier at or below the one held changes nothing; higher keeps `since`. */
@@ -256,6 +269,14 @@ module.exports = function attach(core) {
       grant(gid, g, 'pocketsflow', note, tier);
       return true;
     },
+    /** The sports key a paid order earned, kept on the profile so every signed-in device can show it (`/me`). */
+    noteSportsKey(gid, key, manifest) {
+      const g = loadGroup(gid);
+      if (!g || !g.supporter) return;
+      g.supporter.sportsKey = String(key).slice(0, 120);
+      g.supporter.sportsManifest = String(manifest || '').slice(0, 300);
+      persistSoon(gid);
+    },
   });
   function redirect(res, to) {
     try { res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' }); res.end(); } catch (e) {}
@@ -267,7 +288,7 @@ module.exports = function attach(core) {
     if (p === '/v1/support' && m === 'GET') {
       if (!allow('support', ip, 120, 60)) return json(res, 429, { error: 'rate limited' });
       const w = wall(), c = config();
-      return json(res, 200, { url: c.url, count: w.count, wall: w.wall, tiers: TIER_LIST, checkout: !!c.pay }, 30);
+      return json(res, 200, { url: c.url, count: w.count, wall: w.wall, tiers: TIER_LIST, checkout: !!c.pay, sports: !!c.sports }, 30);
     }
     if (p === '/v1/support/go' && m === 'GET') {
       if (!allow('support', ip, 120, 60)) return json(res, 429, { error: 'rate limited' });
@@ -277,7 +298,8 @@ module.exports = function attach(core) {
     // ---- the payment service (support-pay.js): a checkout, its outcome, and the signed webhook
     if (p === '/v1/support/webhook/pocketsflow' && m === 'POST') {
       if (!allow('swebhook', ip, 60, 60)) return json(res, 429, { error: 'rate limited' });
-      return pay.webhook(req, res, config().pay);
+      const c = config();
+      return pay.webhook(req, res, c.pay, c.sports);
     }
     if (p === '/v1/support/checkout' && m === 'POST') {
       if (!allow('scheckout', ip, 6, 10)) return json(res, 429, { error: 'rate limited' });
@@ -293,7 +315,8 @@ module.exports = function attach(core) {
       const lk = linkTake(b.for);
       if (!gid && lk) { gid = lk.gid; handle = lk.handle; }
       try {
-        const out = await pay.checkout({ tier, gid, handle, site: c.site, cfg: c.pay });
+        const via = String(b.via || '').replace(/[^a-z0-9-]/gi, '').slice(0, 24) || null;   // where the buyer came from (#from=sports-addon), for the books
+        const out = await pay.checkout({ tier, gid, handle, via, site: c.site, cfg: c.pay });
         return json(res, 200, out);
       } catch (e) {
         console.error('support checkout', e.message);
@@ -315,7 +338,7 @@ module.exports = function attach(core) {
     if (p === '/v1/support/claim' && m === 'GET') {
       if (!allow('sclaim', ip, 30, 30)) return json(res, 429, { error: 'rate limited' });
       const sid = new URL(req.url, 'http://x').searchParams.get('sid') || '';
-      return json(res, 200, pay.claim(sid));
+      return json(res, 200, await pay.claim(sid, config().sports));
     }
 
     // ---- admin: the Founder issuing and listing codes, granting and revoking by handle
