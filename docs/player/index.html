@@ -1056,7 +1056,6 @@
   .qopt.focusable:focus-visible { background:rgba(255,255,255,.16); box-shadow:0 0 0 3px rgba(255,255,255,.35); }
   .qopt.on { font-weight:600; }
   .qopt.on::after { content:' ✓'; color:rgba(235,235,245,.6); }
-  .qsep { height:1px; margin:7px 12px; background:rgba(255,255,255,.14); }
   .qnote { color:rgba(235,235,245,.6); font-size:calc(12.5px * var(--ts)); line-height:1.45; padding:7px 12px 9px;
     white-space:normal; max-width:250px; }
   .qmenu.wide { min-width:292px; max-height:74vh; }
@@ -8789,7 +8788,6 @@
     b.onkeydown=function(ev){ if(ev.keyCode===13){ fn(); ev.preventDefault(); ev.stopPropagation(); } };
     puiMenuEl.appendChild(b);
   }
-  function puiSep(){ var d=document.createElement('div'); d.className='qsep'; puiMenuEl.appendChild(d); }
   function puiNote(text){ var d=document.createElement('div'); d.className='qnote'; d.textContent=text; puiMenuEl.appendChild(d); }
   function openPuiMenu(kind, opener){
     if (!player) return;
