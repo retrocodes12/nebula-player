@@ -7,7 +7,7 @@
 <meta name="description" content="Nebula is a free player for the TV, the desktop and the phone. Add a source and it turns into a library, with artwork, episode lists, subtitles and your place kept across screens. No account, no email.">
 <meta name="theme-color" content="#07080b">
 <meta property="og:title" content="Nebula — plays your add-ons on every screen you own">
-<meta property="og:description" content="A free player for the TV, the desktop and the phone. Windows · Linux · Android · Android TV · LG webOS · Web.">
+<meta property="og:description" content="A free player for the TV, the desktop and the phone. Windows · Linux · Mac · Android · Android TV · iPhone · LG webOS · Web.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://play.rifflehq.in/">
 <meta property="og:image" content="https://play.rifflehq.in/site/player.jpg">
@@ -116,6 +116,9 @@
   .panel .dl svg { width:16px; height:16px; fill:currentColor; }
   .panel .dl .sz { font-weight:400; opacity:.65; font-size:13px; margin-left:2px; }
   .panel .label { font-size:12px; color:var(--ink45); margin-top:6px; }
+  .panel .plat { display:flex; flex-direction:column; gap:12px; align-items:flex-start; }
+  .panel .plat .label { margin-top:0; }
+  .panel .plat + .plat { margin-top:10px; }
   .codebox { display:flex; gap:8px; width:100%; max-width:420px; }
   .codebox code { flex:1; min-width:0; display:block; background:#000; color:var(--ink); border:1px solid rgba(255,255,255,.14); border-radius:12px;
     padding:11px 14px; font:500 13px ui-monospace, "SF Mono", Menlo, Consolas, monospace; overflow-x:auto; white-space:nowrap; scrollbar-width:none; }
@@ -276,9 +279,11 @@
   <div class="strip">
     <div class="wrap">
       <span><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/></svg>Android</span>
+      <span><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/></svg>iPhone</span>
       <span><svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="12" rx="1.6"/><path d="M8 20.5h8"/></svg>Android TV</span>
       <span><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12.5" rx="1.6"/><path d="M9 21h6M12 17v4"/></svg>Windows</span>
       <span><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12.5" rx="1.6"/><path d="M9 21h6M12 17v4M7.4 8.6l2 2-2 2M12.2 12.6h4"/></svg>Linux</span>
+      <span><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12.5" rx="1.6"/><path d="M9 21h6M12 17v4"/></svg>Mac</span>
       <span><svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="12" rx="1.6"/><path d="M8 20.5h8"/></svg>LG webOS</span>
       <span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.4 3.8 5.6 3.8 9S14.5 18.6 12 21c-2.5-2.4-3.8-5.6-3.8-9S9.5 5.4 12 3z"/></svg>Web</span>
     </div>
@@ -298,10 +303,12 @@
 
     <div class="panel on" id="panel-phone" role="tabpanel">
       <div>
-        <h3>Nebula for Android phones and tablets<span class="ver" data-ver="android">v1.73.0</span></h3>
-        <p>Browse, search and play on the phone. Sign in with a profile and your library and progress carry over to the TV. One file covers phones, tablets and Android TV.</p>
+        <h3>Nebula for phones and tablets</h3>
+        <p>Browse, search and play on the phone. Sign in with a profile and your library and progress carry over to the TV. On Android, one file covers phones, tablets and Android TV.</p>
       </div>
       <div class="right">
+        <div class="plat" id="plat-android">
+        <span class="label">Android phones and tablets<span class="ver" data-ver="android">v1.73.0</span></span>
         <div class="row">
           <a class="dl" data-dl="apk" href="https://github.com/retrocodes12/nebula-android/releases/latest/download/Nebula.apk"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Download for Android<span class="sz">27 MB</span></a>
         </div>
@@ -312,6 +319,22 @@
             <li>Updates install over the old version and keep your add-ons and progress.</li>
           </ol>
         </details>
+        </div>
+        <div class="plat" id="plat-ios">
+        <span class="label">iPhone and iPad, iOS 16 or later<span class="ver" data-ver="apple">v0.2.0</span></span>
+        <div class="row">
+          <a class="dl alt" data-dl="ipa" href="https://github.com/retrocodes12/nebula-mac/releases/latest/download/Nebula.ipa"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Download for iPhone<span class="sz">13 MB</span></a>
+        </div>
+        <details id="iosnotes">
+          <summary>Install notes — read these first</summary>
+          <ol>
+            <li>Nebula is not on the App Store, and this file is unsigned: you sign it yourself with your own Apple ID. The first install needs a Windows or Mac computer.</li>
+            <li>On the computer, add <code>Nebula.ipa</code> to AltStore, SideStore or Sideloadly and sign in with your Apple ID. Then on the phone, open Settings, General, VPN &amp; Device Management, and trust your Apple ID.</li>
+            <li>A free Apple ID signs an app for seven days at a time. AltStore and SideStore renew it for you; with Sideloadly you repeat the step each week.</li>
+            <li>This version was built and checked on build machines only. If something is off on your phone, please open an issue.</li>
+          </ol>
+        </details>
+        </div>
       </div>
     </div>
 
@@ -341,12 +364,13 @@
     <div class="panel" id="panel-desktop" role="tabpanel">
       <div>
         <h3>Nebula for the desktop<span class="ver" data-ver="desktop">v1.78.0</span></h3>
-        <p>The same player in a window, with a mini player that stays on top while you work. Windows 10 and 11, or a 64-bit Linux desktop. It keeps itself up to date.</p>
+        <p>The same player in a window, with a mini player that stays on top while you work. Windows 10 and 11, or a 64-bit Linux desktop; both keep themselves up to date. On a Mac there is a native app.</p>
         <details>
           <summary>Install notes</summary>
           <ol>
             <li><b>Windows:</b> Portable needs no install — download it and double-click. The app is not signed, so Windows may warn the first time. Choose More info, then Run anyway.</li>
             <li><b>Linux:</b> the AppImage needs no install either. Download it, tick Allow executing file as program in its properties, and open it. The .deb installs it like any other app: open it with your software installer, or run <code>sudo apt install ./Nebula.deb</code>.</li>
+            <li><b>Mac:</b> open the download and drag Nebula to Applications. The app is not notarised, so the first time, right-click it and choose Open. It tells you when a newer version is out.</li>
           </ol>
         </details>
       </div>
@@ -360,6 +384,10 @@
         <div class="row">
           <a class="dl" data-dl="appimage" href="https://github.com/retrocodes12/nebula-desktop/releases/latest/download/Nebula.AppImage"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>AppImage<span class="sz">154 MB</span></a>
           <a class="dl alt" data-dl="deb" href="https://github.com/retrocodes12/nebula-desktop/releases/latest/download/Nebula.deb"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Debian &amp; Ubuntu<span class="sz">105 MB</span></a>
+        </div>
+        <span class="label">macOS 13 or later, Apple silicon and Intel<span class="ver" data-ver="apple">v0.2.0</span></span>
+        <div class="row">
+          <a class="dl" data-dl="dmg" href="https://github.com/retrocodes12/nebula-mac/releases/latest/download/Nebula.dmg"><svg viewBox="0 0 24 24"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Download for Mac<span class="sz">40 MB</span></a>
         </div>
       </div>
     </div>
@@ -508,10 +536,10 @@
     <div class="open">
       <div>
         <h2>Made in the open.</h2>
-        <p class="sub">The player, the Android app and the desktop app are public on GitHub. Read the code, build it yourself, or send a patch. Every release is built by the repository's own workflow.</p>
+        <p class="sub">The player, the Android app, the desktop app and the Apple apps are public on GitHub. Read the code, build it yourself, or send a patch. Every release is built by the repository's own workflow.</p>
         <div class="stats">
           <div class="stat"><b id="statReleases">—</b><span>Releases in the last 30 days</span></div>
-          <div class="stat"><b>6</b><span>Screens: Android, Android TV, LG TV, Windows, Linux and the web</span></div>
+          <div class="stat"><b>8</b><span>Screens: Android, Android TV, LG TV, iPhone, Windows, Linux, Mac and the web</span></div>
         </div>
         <a class="btn solid onlight" href="https://github.com/retrocodes12" style="margin-top:28px"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>Open on GitHub</a>
       </div>
@@ -520,6 +548,7 @@
           <a class="repo" href="https://github.com/retrocodes12/nebula-player"><span class="eyebrow">Web · LG TV · server</span><b>nebula-player</b><p>The shared player, the TV package, this site and the small service behind profiles and parties.</p></a>
           <a class="repo" href="https://github.com/retrocodes12/nebula-android"><span class="eyebrow">Android · Android TV</span><b>nebula-android</b><p>The native app. One file for phones, tablets and TVs.</p></a>
           <a class="repo" href="https://github.com/retrocodes12/nebula-desktop"><span class="eyebrow">Windows · Linux</span><b>nebula-desktop</b><p>A thin desktop shell around the shared player, with the mini player.</p></a>
+          <a class="repo" href="https://github.com/retrocodes12/nebula-mac"><span class="eyebrow">Mac · iPhone · iPad</span><b>nebula-mac</b><p>The native Swift apps. One set of sources builds both.</p></a>
         </div>
         <div class="rel">
           <span class="eyebrow">Latest releases</span>
@@ -527,6 +556,7 @@
             <div class="card"><span class="eyebrow">nebula-player</span><b id="rel-player">webOS 1.80.0</b><span id="reld-player">Sep 19, 2026</span></div>
             <div class="card"><span class="eyebrow">nebula-android</span><b id="rel-android">1.73.0</b><span id="reld-android">Sep 20, 2026</span></div>
             <div class="card"><span class="eyebrow">nebula-desktop</span><b id="rel-desktop">1.78.0</b><span id="reld-desktop">Sep 19, 2026</span></div>
+            <div class="card"><span class="eyebrow">nebula-mac</span><b id="rel-apple">0.2.0</b><span id="reld-apple">Sep 21, 2026</span></div>
           </div>
           <a class="more" href="https://github.com/retrocodes12/nebula-player/releases">See every release</a>
         </div>
@@ -563,7 +593,7 @@
         <p class="small" id="supWall" hidden></p>
       </div>
       <ul><li><a href="#screens">Download</a></li><li><a href="./player/">Web player</a></li><li><a href="/privacy.html">Privacy</a></li><li id="supLi" hidden><a href="/support">Support Nebula</a></li></ul>
-      <ul><li><a href="https://github.com/retrocodes12/nebula-player">nebula-player</a></li><li><a href="https://github.com/retrocodes12/nebula-android">nebula-android</a></li><li><a href="https://github.com/retrocodes12/nebula-desktop">nebula-desktop</a></li></ul>
+      <ul><li><a href="https://github.com/retrocodes12/nebula-player">nebula-player</a></li><li><a href="https://github.com/retrocodes12/nebula-android">nebula-android</a></li><li><a href="https://github.com/retrocodes12/nebula-desktop">nebula-desktop</a></li><li><a href="https://github.com/retrocodes12/nebula-mac">nebula-mac</a></li></ul>
       <ul><li><a href="https://github.com/retrocodes12/nebula-player/security/policy">Security</a></li><li><a href="https://github.com/retrocodes12/nebula-player/releases">Releases</a></li><li><a href="https://github.com/retrocodes12">GitHub</a></li></ul>
     </div>
   </div>
@@ -573,8 +603,11 @@
 (function () {
   var ua = navigator.userAgent;
   // Android and webOS both say "Linux" in their user agent, so they are read first
+  // an iPad says it is a Mac; only one of the two has a touch screen
   var os = /Windows/i.test(ua) ? "windows" : /Android/i.test(ua) ? "android" : /Web0S|webOS|NetCast/i.test(ua) ? "webos"
-    : /Linux|X11/i.test(ua) && !/iPhone|iPad|Mac OS/i.test(ua) ? "linux" : null;
+    : /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) ? "ios"
+    : /Macintosh|Mac OS X/i.test(ua) ? "mac"
+    : /Linux|X11/i.test(ua) ? "linux" : null;
 
   // tabs
   var tabs = document.querySelectorAll(".tab");
@@ -589,6 +622,17 @@
   if (os === "windows") { showTab("desktop"); smart.href = document.querySelector('[data-dl="portable"]').href; label.textContent = "Download for Windows"; }
   else if (os === "linux") { showTab("desktop"); smart.href = document.querySelector('[data-dl="appimage"]').href; label.textContent = "Download for Linux"; }
   else if (os === "android") { showTab("phone"); smart.href = document.querySelector('[data-dl="apk"]').href; label.textContent = "Download for Android"; }
+  else if (os === "mac") { showTab("desktop"); smart.href = document.querySelector('[data-dl="dmg"]').href; label.textContent = "Download for Mac"; }
+  // an iPhone cannot install the file it downloads — it is signed from a computer — so the button
+  // leads to the notes that say so, opened, instead of to a file that would do nothing
+  else if (os === "ios") {
+    showTab("phone");
+    // their own platform first, and its button the filled one
+    var ios = document.getElementById("plat-ios"), and = document.getElementById("plat-android");
+    and.parentNode.insertBefore(ios, and);
+    ios.querySelector(".dl").classList.remove("alt"); and.querySelector(".dl").classList.add("alt");
+    document.getElementById("iosnotes").open = true; smart.href = "#iosnotes"; label.textContent = "Get Nebula for iPhone";
+  }
   else if (os === "webos") { showTab("tv"); smart.href = "#screens"; label.textContent = "Install on this TV"; }
   else { showTab("web"); smart.href = "./player/"; label.textContent = "Open the web player"; }
 
@@ -610,13 +654,14 @@
   var FEED = {
     player:  { verKey: "webos",   picks: { ipk: /^com\.nebula\.player_.*\.ipk$/i } },   // the release also carries the old-id package
     android: { verKey: "android", picks: { apk: /^Nebula\.apk$/i } },
-    desktop: { verKey: "desktop", picks: { portable: /Portable.*\.exe$/i, setup: /Setup.*\.exe$/i, appimage: /\.AppImage$/i, deb: /\.deb$/i } }
+    desktop: { verKey: "desktop", picks: { portable: /Portable.*\.exe$/i, setup: /Setup.*\.exe$/i, appimage: /\.AppImage$/i, deb: /\.deb$/i } },
+    apple:   { verKey: "apple",   picks: { ipa: /\.ipa$/i, dmg: /\.dmg$/i } }          // one release carries the Mac and the iPhone app
   };
   function applyRelease(key, rel) {
     var spec = FEED[key];
     if (!spec || !rel || !rel.version) return;
     var v = String(rel.version).replace(/^v/, "");
-    var ver = document.querySelector('[data-ver="' + spec.verKey + '"]'); if (ver) ver.textContent = "v" + v;
+    document.querySelectorAll('[data-ver="' + spec.verKey + '"]').forEach(function (ver) { ver.textContent = "v" + v; });
     var rb = document.getElementById("rel-" + key), rd = document.getElementById("reld-" + key);
     if (rb) rb.textContent = (key === "player" ? "webOS " : "") + v;
     if (rd && rel.published_at) rd.textContent = fmtDate(rel.published_at);
@@ -629,6 +674,7 @@
         if (k === "portable" && os === "windows") smart.href = a.url;
         if (k === "appimage" && os === "linux") smart.href = a.url;
         if (k === "apk" && os === "android") smart.href = a.url;
+        if (k === "dmg" && os === "mac") smart.href = a.url;
       });
     });
   }

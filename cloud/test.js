@@ -199,9 +199,9 @@ test('skip segments: shaped, cached, misses and failures handled, ids validated'
 });
 
 test('releases: one feed, shaped, cached, stale through outages, a bad repo is null', async () => {
-  // a stand-in for api.github.com: three repos, each switchable to a failure
+  // a stand-in for api.github.com: four repos, each switchable to a failure
   const hits = [];
-  const mode = { 'nebula-player': 200, 'nebula-android': 200, 'nebula-desktop': 404 };
+  const mode = { 'nebula-player': 200, 'nebula-android': 200, 'nebula-desktop': 404, 'nebula-mac': 404 };
   const ago = (h) => new Date(Date.now() - h * 3600_000).toISOString();
   const T159 = ago(0.5);
   const stub = require('http').createServer((req, res) => {
@@ -247,18 +247,19 @@ test('releases: one feed, shaped, cached, stale through outages, a bad repo is n
     const dead = await fetch(base + '/v1/releases');
     assert.equal(dead.status, 502);
     assert.equal(dead.headers.get('cache-control'), 'no-store');
-    assert.equal(hits.length, 3);
+    assert.equal(hits.length, 4);
     assert.ok(hits.every((h) => /\?per_page=10$/.test(h)), 'asks for ten releases per repo');
 
     // let the failed attempts expire, then the real shape: player = first player-v* that is not a prerelease
     process.env.RELEASES_TTL_MS = '1';
-    mode['nebula-player'] = 200; mode['nebula-android'] = 200; mode['nebula-desktop'] = 404;
+    mode['nebula-player'] = 200; mode['nebula-android'] = 200; mode['nebula-desktop'] = 404; mode['nebula-mac'] = 404;
     const r1 = await fetch(base + '/cloud/v1/releases');
     assert.equal(r1.status, 200);
     assert.equal(r1.headers.get('cache-control'), 'public, max-age=300');
     assert.equal(r1.headers.get('access-control-allow-origin'), '*');
     const b1 = await r1.json();
-    assert.deepEqual(Object.keys(b1).sort(), ['android', 'desktop', 'player']);
+    assert.deepEqual(Object.keys(b1).sort(), ['android', 'apple', 'desktop', 'player']);
+    assert.equal(b1.apple, null, 'the stand-in has no nebula-mac: null like any repo GitHub 404s');
     assert.equal(b1.player.version, '1.59.0');
     assert.equal(b1.player.tag, 'player-v1.59.0');
     assert.equal(b1.player.published_at, T159);
@@ -271,13 +272,13 @@ test('releases: one feed, shaped, cached, stale through outages, a bad repo is n
     assert.equal(b1.android.recent, 1);
     assert.equal(b1.android.assets.find((a) => a.name === 'Nebula.apk').url, 'https://github.com/retrocodes12/nebula-android/releases/download/v1.54.0/Nebula.apk');
     assert.equal(b1.desktop, null, 'a repo GitHub 404s is null, not an error');
-    assert.equal(hits.length, 6);
+    assert.equal(hits.length, 8);
 
     // within the TTL the second ask is answered from memory
     delete process.env.RELEASES_TTL_MS;
     const b2 = await (await fetch(base + '/v1/releases')).json();
     assert.deepEqual(b2, b1);
-    assert.equal(hits.length, 6, 'served from memory');
+    assert.equal(hits.length, 8, 'served from memory');
 
     // GitHub falls over: the last good copy keeps being served, with a 200
     process.env.RELEASES_TTL_MS = '1';
@@ -288,7 +289,7 @@ test('releases: one feed, shaped, cached, stale through outages, a bad repo is n
     assert.deepEqual(b3.player, b1.player);
     assert.deepEqual(b3.android, b1.android);
     assert.equal(b3.desktop, null);
-    assert.equal(hits.length, 9, 'it did try upstream again');
+    assert.equal(hits.length, 12, 'it did try upstream again');
 
     // the missing repo comes online → it appears on the next refresh
     mode['nebula-player'] = 200; mode['nebula-android'] = 200; mode['nebula-desktop'] = 200;

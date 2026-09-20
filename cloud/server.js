@@ -21,7 +21,7 @@
 //   /v1/social/*                           → friends, below
 //   /v1/support/*                          → support.js (supporter codes, the wall, the support link)
 //   GET  /v1/skip?id=tt…:S:E               → {intro, recap, outro} timestamps (cached, no auth)
-//   GET  /v1/releases                      → {player, android, desktop} latest GitHub releases, each
+//   GET  /v1/releases                      → {player, android, desktop, apple} latest GitHub releases, each
 //                                            {version, tag, published_at, assets:[{name,url,size}], recent} or null
 //                                            (recent = that repo's releases in the last 30 days, for the landing stat);
 //                                            one GitHub call per repo per 10 min, last good copy kept
@@ -383,6 +383,7 @@ const RELEASE_REPOS = {
   player: { repo: 'nebula-player', tag: /^player-v\d/ },   // the ipk lives under player-v*; other tags there are the legacy app
   android: { repo: 'nebula-android', tag: /^v\d/ },
   desktop: { repo: 'nebula-desktop', tag: /^v\d/ },
+  apple: { repo: 'nebula-mac', tag: /^v\d/ },           // one release: the Mac's dmg and the iPhone's ipa
 };
 const releasesCache = {};     // key -> {at, ok, body}   body = last GOOD copy, kept across failures
 const releasesPending = {};   // key -> Promise           one upstream call per repo at a time
