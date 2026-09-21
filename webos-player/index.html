@@ -2508,7 +2508,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.19.1';
+  var PLAYER_VERSION = '2026.09.21.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -6822,6 +6822,13 @@
       try { player.retryStreaming(); } catch(e){}
       return;
     }
+    // Nothing here can decode it and the full-format player can. BEFORE the converter on
+    // purpose: the converter is a candidate for playlists too, so it claimed this error, probed,
+    // found it could not help and printed the code anyway — which is how a live Dolby channel
+    // came to say "Failed to load (4032)" inside an app carrying an engine that plays it. For a
+    // plain file mpv has already had first refusal (mpvCandidate), so mpvTriedFor sends it
+    // straight on to the converter exactly as before.
+    if (mpvRescueTry(seq, code)) return;
     // a plain file the desktop shell could convert: the shell looks at it before anything is said
     if (tcRefused(seq, code)) return;
     var detail = d && d.data ? (' — ' + String(JSON.stringify(d.data)).slice(0,180)) : '';
@@ -7163,6 +7170,36 @@
   /** mpv takes anything but a keyed stream or a DASH manifest (the streaming engine's own ground). */
   function mpvCandidate(url, keys){
     return mpvReady() && !keys && !ctx.forceBuiltin && (/^https?:\/\//i.test(url) || (!!ctx.localPath && ctx.localPath === url)) && !/\.mpd(\?|#|$)/i.test(url);
+  }
+  // The engine's way of saying THIS MACHINE cannot decode what it was handed — not a network
+  // fault, not a bad address: the bytes arrived and nothing here can turn them into a picture or
+  // a sound. 4032 is the definitive one, 3018 is the MPEG-TS transmuxer giving up for the same
+  // reason. DELIBERATELY NOT 3014/3016/3019: those fire for a host refusing bytes as readily as
+  // for a codec, and putting them here sent a 403 on a round trip through mpv before its own
+  // sentence — measured, `electron-mpv` errors, the first try at this.
+  var MPV_RESCUE_CODES = { 3018:1, 4032:1 };
+  /**
+   * Whether the full-format player should be given a second go at something the engine refused.
+   *
+   * Live playlists go to the ENGINE first, for its rewind window (see mpvLiveList) — which left
+   * a live channel carrying Dolby audio with nowhere to go at all: Chromium has no E-AC-3
+   * decoder on any desktop, the converter refuses playlists by design, and the viewer was shown
+   * "Failed to load (4032)" by an app that bundles a second engine which plays it perfectly.
+   * This is the way back. Once per source: mpvCandidate already refuses once mpv has stepped
+   * aside (ctx.forceBuiltin), and mpvTriedFor stops the two engines handing it back and forth.
+   */
+  function mpvRescue(url, keys, code){
+    return !!MPV_RESCUE_CODES[Number(code)] && ctx.mpvTriedFor !== url && mpvCandidate(url, keys);
+  }
+  /** Start [url] again through the full-format player. True when it took the job. */
+  function mpvRescueTry(seq, code){
+    if (seq !== playSeq || !lastPlay || !mpvRescue(lastPlay.url, lastPlay.keys, code)) return false;
+    ctx.mpvForceFor = lastPlay.url;
+    var at = 0; try { at = video.currentTime || 0; } catch(e){}
+    ctx.swapAt = at > 1 ? at : 0;
+    setStatus('Playing this with the full-format player…', 'info');
+    playUrl(lastPlay.url, lastPlay.keys, lastPlay.title, lastPlay.subs, lastPlay.mime || undefined);
+    return true;
   }
   function mpvFire(type){ try { video.dispatchEvent(new Event(type)); } catch(e){} }
   /** Where playback is: mpv's last word, carried forward by the clock while it plays (it reports four times a second). */
@@ -7872,7 +7909,14 @@
     // the full-format player (desktop) takes the file itself: no converter, no probe (once, after a failed try, it steps aside)
     var useMpv = mpvCandidate(rawUrl, clearKeys);
     ctx.forceBuiltin = false;
-    if (useMpv && /\.m3u8(\?|#|$)/i.test(rawUrl) && await mpvLiveList(cleanUrl(rawUrl))) useMpv = false;   // live: the engine's window
+    // keyed to the address, never a bare flag: a rescue that never reached its own play must
+    // not send the NEXT stream to mpv (it did, and an ordinary live channel stopped using the
+    // engine's window — measured, `electron-mpv` live)
+    var mpvForced = ctx.mpvForceFor === rawUrl; ctx.mpvForceFor = '';
+    // live: the engine's window — unless the engine has already said it cannot decode this, and
+    // the full-format player is the only thing left that can (mpvRescue)
+    if (useMpv && !mpvForced && /\.m3u8(\?|#|$)/i.test(rawUrl) && await mpvLiveList(cleanUrl(rawUrl))) useMpv = false;
+    if (useMpv) ctx.mpvTriedFor = rawUrl;
     if (seq !== playSeq) return;
     if (ctx.tcForce){ tcInfo = ctx.tcForce; ctx.tcForce = null; }
     else if (!useMpv && tcCandidate(rawUrl, clearKeys)){
@@ -7956,6 +8000,9 @@
         return;
       }
       var code=(err&&(err.code||err.message))||'unknown'; var extra=err&&err.data?(' — '+JSON.stringify(err.data).slice(0,180)):'';
+      // A load-time failure REJECTS load() and fires no error event, so the rescue has to be
+      // asked for here as well as in handlePlaybackError — and first, for the reason given there.
+      if (!loaded && !tc && mpvRescueTry(seq, code)) return;
       // Chromium would not take a plain file the shell could convert: the shell looks at it before anything is said
       if (!loaded && tcc && tcRefused(seq, code)) return;
       setStatus(tc ? tcConvertLine(String(code) + extra) : playErrorLine(code, extra),'err'); $id('puiSpin').style.display='none';
@@ -11129,10 +11176,24 @@
     graphite: { '--bg':'#0B0B0F', '--l1':'#141418', '--l2':'#1C1C22', '--l3':'#26262E', '--fill':'rgba(118,118,128,.30)' }
   };
   var SYSTEM_SANS = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
-  // [label, code] — the same list the Android app offers; '' = the device's own language
-  var PREF_LANGS = [['Device', ''], ['English','en'], ['Hindi','hi'], ['Tamil','ta'], ['Telugu','te'], ['Malayalam','ml'], ['Kannada','kn'],
-    ['Bengali','bn'], ['Marathi','mr'], ['Spanish','es'], ['French','fr'], ['German','de'], ['Portuguese','pt'], ['Italian','it'],
-    ['Arabic','ar'], ['Japanese','ja'], ['Korean','ko'], ['Chinese','zh']];
+  // [label, code] — the SAME list the Android app offers, in the same order, on purpose: the
+  // preference syncs between surfaces, so a code one of them cannot name reads as a broken
+  // setting on the other. It was seventeen and was asked to be longer (nebula-android#1) — the
+  // first seventeen covered India and the biggest five of Europe and nothing else. Grouped by
+  // region rather than alphabetically, because a list you scroll is read in blocks. '' = the
+  // device's own language.
+  var PREF_LANGS = [['Device', ''], ['English','en'],
+    ['Spanish','es'], ['French','fr'], ['German','de'], ['Italian','it'], ['Portuguese','pt'],
+    ['Dutch','nl'], ['Swedish','sv'], ['Danish','da'], ['Norwegian','no'], ['Finnish','fi'], ['Icelandic','is'],
+    ['Polish','pl'], ['Czech','cs'], ['Slovak','sk'], ['Hungarian','hu'], ['Romanian','ro'], ['Bulgarian','bg'],
+    ['Greek','el'], ['Croatian','hr'], ['Serbian','sr'], ['Slovenian','sl'], ['Estonian','et'], ['Latvian','lv'],
+    ['Lithuanian','lt'], ['Russian','ru'], ['Ukrainian','uk'], ['Turkish','tr'],
+    ['Arabic','ar'], ['Hebrew','he'], ['Persian','fa'],
+    ['Hindi','hi'], ['Tamil','ta'], ['Telugu','te'], ['Malayalam','ml'], ['Kannada','kn'], ['Bengali','bn'],
+    ['Marathi','mr'], ['Gujarati','gu'], ['Punjabi','pa'], ['Urdu','ur'],
+    ['Chinese','zh'], ['Japanese','ja'], ['Korean','ko'], ['Thai','th'], ['Vietnamese','vi'],
+    ['Indonesian','id'], ['Malay','ms'], ['Filipino','tl'],
+    ['Swahili','sw']];
   function seekStepSecs(){ var n = Number(getPrefs().seekStep); return (n === 5 || n === 15 || n === 30) ? n : 10; }
   function deviceLang(){ try { return String(navigator.language || 'en').split('-')[0].toLowerCase(); } catch(e){ return 'en'; } }
   /** The language a preference resolves to: the chosen code, else the device's own. */
@@ -11199,6 +11260,20 @@
     var val = document.createElement('span'); val.className = 'pstep-v'; val.textContent = opts[idx] ? opts[idx][0] : '';
     var next = prefChip('›', false, function(){ go(1); }); next.title = 'Next'; next.setAttribute('aria-label', 'Next');
     host.appendChild(prev); host.appendChild(val); host.appendChild(next);
+  }
+  /**
+   * A preference with more answers than a stepper should carry. ‹ › is right for four seek
+   * steps and unusable for fifty languages — a viewer wanting Vietnamese would hold › past
+   * every other language on earth. The chip says what is chosen and opens the card sheet, which
+   * is the same picker Discover's pills use, so the remote already knows how to drive it.
+   */
+  function prefPicker(id, title, opts, cur, fn){
+    var host = $id(id); if (!host) return;
+    host.innerHTML = '';
+    var label = '';
+    opts.forEach(function(o){ if (o[1] === cur) label = o[0]; });
+    if (!label && opts.length) label = opts[0][0];
+    host.appendChild(prefChip(label + ' ▾', false, function(){ discPicker(title, opts, cur, fn); }));
   }
   /** The rows the carousel may be fed from: first to answer, all of them, or one by name. */
   function heroSourceOpts(){
@@ -11355,9 +11430,9 @@
     segChips('setBuffer', [['Auto','auto'], ['1 min',60], ['2 min',120], ['4 min',240]], bufferSecs() || 'auto', function(v){ setPref('buffer', v); applyBufferPolicy(); });
     engineRowRender();
     relayRowsRender();                 // Play through your PC (TV) · Share with your TV (desktop)
-    stepper('setAudioLang', PREF_LANGS, pr.audioLang || '', function(v){ setPref('audioLang', v); applyLangPrefs(); });
-    stepper('setSubLang', PREF_LANGS, pr.subLang || '', function(v){ setPref('subLang', v); applyLangPrefs(); });
-    stepper('setSubLang2', [['None', '']].concat(PREF_LANGS.slice(1)), pr.subLang2 || '', function(v){ setPref('subLang2', v); applyLangPrefs(); });
+    prefPicker('setAudioLang', 'Audio language', PREF_LANGS, pr.audioLang || '', function(v){ setPref('audioLang', v); applyLangPrefs(); });
+    prefPicker('setSubLang', 'Subtitle language', PREF_LANGS, pr.subLang || '', function(v){ setPref('subLang', v); applyLangPrefs(); });
+    prefPicker('setSubLang2', 'Second choice', [['None', '']].concat(PREF_LANGS.slice(1)), pr.subLang2 || '', function(v){ setPref('subLang2', v); applyLangPrefs(); });
     segChips('setSubStart', [['Off','off'], ['Preferred language','pref'], ['Always','always']], pr.subStart === 'pref' || pr.subStart === 'always' ? pr.subStart : 'off', function(v){ setPref('subStart', v); });
     subStyleSettingsBuild();
     segChips('setTimeDisplay', [['Time left','left'], ['Total','total']], pr.timeDisplay === 'total' ? 'total' : 'left', function(v){ setPref('timeDisplay', v); puiState.total = v === 'total'; if (player) puiTick(); });
