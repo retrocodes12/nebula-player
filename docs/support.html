@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Support Nebula</title>
-<meta name="description" content="Nebula Sports is free and shows one sponsor link every 12 hours. Chip in once, from $2, and get your own key: same streams, no sponsor prompt, for good.">
+<meta name="description" content="The add-on is free and shows one sponsor link every 12 hours. Chip in once, from $2, to help keep it running — and get your own key that skips the prompt for good.">
 <style>
   :root {
     --red:#E50914; --gold:#E0B24A;
@@ -93,9 +93,9 @@
 </header>
 
 <main class="wrap">
-  <h1>Nebula Sports, without the sponsor prompt.</h1>
-  <p class="lede">The add-on is free for everyone. What keeps its servers paid for is one sponsor link, shown once every 12 hours before a stream plays.
-  Chip in once — from $2 — and you get your own key: the same streams, the same schedule, and that prompt is gone for good.</p>
+  <h1>Help keep this add-on alive.</h1>
+  <p class="lede">The add-on is free for everyone, and it stays that way. What keeps its servers paid for is one sponsor link, shown once every 12 hours.
+  Chip in once — from $2 — and you get your own key, which skips that prompt for good.</p>
   <p class="note">No subscription, no account. You pay once at the checkout, and your key is on the next page.</p>
 
   <div class="for" id="forBox" hidden>Buying for <b id="forHandle"></b> — the thank-you lands on that Nebula Player profile the moment the payment clears.</div>
@@ -104,7 +104,7 @@
     <h2 id="thanksTitle">Confirming your payment…</h2>
     <p id="thanksText">This takes a few seconds.</p>
     <div class="keybox" id="keyBox" hidden>
-      <h3 id="keyTitle" style="margin-top:0">Your Nebula Sports key is ready.</h3>
+      <h3 id="keyTitle" style="margin-top:0">Your key is ready.</h3>
       <div class="acts">
         <a class="btn primary" id="keyInstall" href="#">Install the add-on</a>
         <button class="btn" id="keyCopy" type="button">Copy the add-on link</button>
@@ -112,8 +112,8 @@
       <div class="keylink" id="keyLink"></div>
       <ol class="steps">
         <li>Tap <b>Install the add-on</b> — or paste the link into your add-ons list on any device.</li>
-        <li>Remove the free <b>Nebula Sports</b> add-on, so you do not see two of everything.</li>
-        <li>That is all. Same streams, no sponsor prompt, on every device you install it on.</li>
+        <li>Remove the free add-on, so you do not see two of everything.</li>
+        <li>That is all — no sponsor prompt, on every device you install it on.</li>
       </ol>
       <p class="note" id="keyNote">Keep this page's address: it shows your key whenever you come back.</p>
     </div>
@@ -127,7 +127,7 @@
       <h2>Supporter</h2>
       <div class="price">$2<small>once</small></div>
       <ul>
-        <li class="key">Your own Nebula Sports key — no sponsor prompt, ever</li>
+        <li class="key">Your own key — no sponsor prompt, ever</li>
         <li>Works on every device you use the add-on on: phone, TV, computer</li>
         <li class="app">In Nebula Player: a mark beside your name, three more colours, the wall</li>
       </ul>
@@ -168,7 +168,6 @@
 
   <div class="faq">
     <h3>Questions</h3>
-    <p><b>What is different from the free add-on?</b> Nothing in what you can watch — same streams, same schedule. The free install shows a sponsor link once every 12 hours; your key never does.</p>
     <p><b>Does it expire?</b> No. One payment, yours for good. Paying a higher tier later simply raises you; you never pay twice for the same thing.</p>
     <p><b>Can I use the key on more than one device?</b> Yes — install it on your phone, your TV and your computer. It is meant for you and your household, not for passing around.</p>
     <p><b>Where do the Nebula Player thank-yous show?</b> On your Nebula profile, so on every device you sign in to. The wall is opt-in: your name appears only if you switch it on in Settings › Support.</p>
@@ -284,7 +283,7 @@
     function showKey(s) {
       keyBox.hidden = false;
       if (s.sportsKey && s.sportsManifest) {
-        keyTitle.textContent = "Your Nebula Sports key is ready.";
+        keyTitle.textContent = "Your key is ready.";
         keyInstall.href = s.sportsInstall || ("stremio://" + s.sportsManifest.replace(/^https:\/\//, ""));
         keyInstall.style.display = "";
         keyCopy.style.display = "";
@@ -296,7 +295,7 @@
         };
         return true;
       }
-      keyTitle.textContent = keyTries < 20 ? "Making your Nebula Sports key… a few seconds." : "Your key is taking longer than usual.";
+      keyTitle.textContent = keyTries < 20 ? "Making your key… a few seconds." : "Your key is taking longer than usual.";
       keyInstall.style.display = "none";
       keyCopy.style.display = "none";
       keyLink.textContent = keyTries < 20 ? "" : "Leave this page open — it keeps checking. If nothing arrives, the order number on your receipt is enough to sort it out.";
@@ -312,7 +311,7 @@
           if (s.state === "granted") {
             text.textContent = "The " + name + " thank-you is already on your Nebula Player profile: the mark, the colours and the wall switch are in Settings › Support.";
           } else {
-            text.textContent = "Below is your key for the sports add-on. Use Nebula Player as well? The one-time code further down puts the " + name + " thank-you on your profile there.";
+            text.textContent = "Below is your key for the add-on. Use Nebula Player as well? The one-time code further down puts the " + name + " thank-you on your profile there.";
             code.textContent = s.code;
             code.hidden = false;
             note.textContent = "Type the code into Settings › Support on any device you are signed in to. It is shown here only.";
