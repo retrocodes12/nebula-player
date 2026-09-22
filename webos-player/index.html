@@ -25,6 +25,7 @@
   :root {
     --bg:#000000;
     --l1:#1C1C1E; --l2:#2C2C2E; --l3:#3A3A3C;
+    --on-accent:#fff;   /* text on an accent fill: black when the accent is light (applyPrefs, by luminance) */
     --sep:rgba(255,255,255,.10);
     --label:#FFFFFF;
     --label2:rgba(235,235,245,.60);
@@ -34,6 +35,7 @@
     --red:#E50914; --red-hover:#F6121D;
     --accent:#E50914; --fzoom:1.04;
     --ok:#30D158;
+    --danger:#FF453A;   /* destructive actions only — never a second accent */
     --r-card:12px; --r-tile:18px; --r-ctl:12px; --r-pill:980px;
     --ts:1;          /* the text scale (Settings › Text size): every px font-size in this sheet is calc(N * var(--ts)) */
     --cardw:150px;   /* a poster's width in a Home row; landscape and square derive from it */
@@ -80,13 +82,15 @@
   .scroller::-webkit-scrollbar { display:none; }
 
   #updBanner { display:none; position:fixed; top:0; left:0; right:0; z-index:200; align-items:center;
-    padding:11px 20px; background:var(--accent); color:#fff; font-size:calc(14px * var(--ts)); font-weight:500; }
+    padding:11px 20px; background:var(--l1); color:var(--label); border-bottom:1px solid var(--sep);
+    font-size:calc(14px * var(--ts)); font-weight:500; }
   #updBanner.show { display:flex; }
   #updBanner > * + * { margin-left:12px; }
   #updBanner #updText { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }   /* one line: the layout reserves 44px */
-  #updBanner a, #updBanner button { color:#000; background:#fff; border:0; border-radius:var(--r-pill);
+  #updBanner a, #updBanner button { color:var(--label); background:var(--fill); border:0; border-radius:var(--r-pill);
     padding:7px 15px; font-weight:600; cursor:pointer; text-decoration:none; font-size:calc(13px * var(--ts));
     font-family:var(--sans); }
+  #updBanner #updGet, #updBanner #updAct { background:var(--accent); color:var(--on-accent); }
   html.tv #updBanner .focusable:focus { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
   #updBanner .focusable:focus-visible { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
   body.upd .view { top:calc(var(--navh) + 44px); }
@@ -360,7 +364,7 @@
     box-shadow:0 12px 30px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
   .addon-logo { width:46px; height:46px; border-radius:11px; object-fit:cover; background:#000; flex:0 0 auto; }
   .addon-logo.ph { display:flex; align-items:center; justify-content:center; font-size:calc(19px * var(--ts));
-    font-weight:600; color:#fff; background:var(--accent); }
+    font-weight:600; color:var(--on-accent); background:var(--accent); }
   .addon-meta { flex:1 1 auto; min-width:0; }
   .addon-name { font-size:calc(16px * var(--ts)); font-weight:600; letter-spacing:-.015em; }
   .addon-url { color:var(--label2); font-size:calc(12.5px * var(--ts)); word-break:break-all; margin-top:3px;
@@ -374,10 +378,10 @@
   .addon-del svg { width:13px; height:13px; }
   /* Quiet, but never invisible: it used to be opacity:0 and revealed on hover,
      which on a touch screen left a live destructive control you couldn't see. */
-  .addon-del:hover { background:var(--accent); color:#fff; }
+  .addon-del:hover { background:var(--accent); color:var(--on-accent); }
   .addon:hover .addon-del, .addon:focus-within .addon-del, .addon.focusable:focus .addon-del { color:var(--label2); }
-  html.tv .addon-del.focusable:focus { background:var(--accent); color:#fff; }
-  .addon-del.focusable:focus-visible { background:var(--accent); color:#fff; }
+  html.tv .addon-del.focusable:focus { background:var(--accent); color:var(--on-accent); }
+  .addon-del.focusable:focus-visible { background:var(--accent); color:var(--on-accent); }
   /* Drag to rank. touch-action:none is load-bearing — without it a drag down
      the list scrolls the page instead. */
   .addon-grip { flex:0 0 auto; width:34px; height:38px; border:0; border-radius:9px; padding:0;
@@ -530,7 +534,7 @@
     transition:background .18s var(--ease), transform .2s var(--ease); }
   .stream > * + * { margin-left:14px; }
   .stream-play { width:40px; height:40px; flex:0 0 auto; border-radius:var(--r-pill); background:var(--accent);
-    color:#fff; display:flex; align-items:center; justify-content:center; }
+    color:var(--on-accent); display:flex; align-items:center; justify-content:center; }
   .stream-play svg { width:15px; height:15px; }
   /* the resolution is what you actually choose by — it leads the row as a
      plate instead of a decorative play button, and lights up on focus */
@@ -540,10 +544,10 @@
   .s-plate i { display:block; font-style:normal; font-size:calc(9px * var(--ts)); letter-spacing:.1em;
     color:var(--label2); margin-top:3px; }
   .stream:hover .s-plate { background:var(--fill2); }
-  html.tv .stream.focusable:focus .s-plate { background:var(--accent); color:#fff; }
-  .stream.focusable:focus-visible .s-plate { background:var(--accent); color:#fff; }
-  html.tv .stream.focusable:focus .s-plate i { color:rgba(255,255,255,.82); }
-  .stream.focusable:focus-visible .s-plate i { color:rgba(255,255,255,.82); }
+  html.tv .stream.focusable:focus .s-plate { background:var(--accent); color:var(--on-accent); }
+  .stream.focusable:focus-visible .s-plate { background:var(--accent); color:var(--on-accent); }
+  html.tv .stream.focusable:focus .s-plate i { color:var(--on-accent); opacity:.82; }
+  .stream.focusable:focus-visible .s-plate i { color:var(--on-accent); opacity:.82; }
   .s-main { flex:1 1 auto; min-width:0; }
   .s-spec { flex:0 0 auto; text-align:right; font-family:var(--mono); font-size:calc(12px * var(--ts));
     color:var(--label2); line-height:1.55; white-space:nowrap; }
@@ -695,7 +699,7 @@
   .fr-card.focusable:focus-visible { background:var(--l2); transform:scale(1.04);
     box-shadow:0 10px 26px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
   .fr-card.on { box-shadow:inset 0 0 0 2px var(--accent); }
-  .fr-av { width:40px; height:40px; border-radius:var(--r-pill); background:var(--accent); color:#fff;
+  .fr-av { width:40px; height:40px; border-radius:var(--r-pill); background:var(--accent); color:var(--on-accent);
     display:flex; align-items:center; justify-content:center; font-weight:700; font-size:calc(17px * var(--ts));
     margin-right:11px; flex:0 0 auto; }
   .fr-name { font-size:calc(15px * var(--ts)); font-weight:600; }
@@ -746,7 +750,7 @@
   .sheet-act:hover { background:rgba(255,255,255,.07); }
   html.tv .sheet-act.focusable:focus { background:rgba(255,255,255,.07); }
   .sheet-act.focusable:focus-visible { background:rgba(255,255,255,.07); }
-  .sheet-act.bad { color:#FF5A5F; }
+  .sheet-act.bad { color:var(--danger); }
   /* On a TV it is a centred panel, not a phone sheet — nothing is within thumb reach */
   html.tv .sheet { left:50%; right:auto; bottom:auto; top:50%; width:520px;
     transform:translate(-50%,-44%); opacity:0; border-radius:22px; border:1px solid var(--sep);
@@ -839,8 +843,8 @@
   /* hidden = slid down AND invisible: with the player chrome up the toast is lifted (below), and a
      merely-translated one would park on the toolbar, still readable and eating its clicks */
   #status { position:fixed; left:50%; bottom:26px; transform:translate(-50%,180%); z-index:60;
-    padding:11px 18px 11px 34px; font-size:calc(14px * var(--ts)); font-weight:500; letter-spacing:-.01em;
-    border-radius:var(--r-pill); background:rgba(44,44,46,.92); color:var(--label);
+    padding:11px 18px 11px 34px; font-size:calc(14px * var(--ts)); font-weight:500; letter-spacing:-.01em; line-height:1.35;
+    border-radius:20px; background:rgba(44,44,46,.92); color:var(--label);
     box-shadow:0 16px 40px rgba(0,0,0,.6); max-width:80vw; visibility:hidden; pointer-events:none;
     transition:transform .34s var(--ease), visibility 0s linear .34s; }
   @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
@@ -915,7 +919,7 @@
   .pui-winrow > * + * { margin-left:12px; }
   .pui-live { flex:0 0 auto; background:rgba(80,80,88,.42); color:#fff; font-size:calc(11px * var(--ts)); font-weight:700;
     letter-spacing:.04em; padding:6px 12px; border-radius:var(--r-pill); }
-  .pui-live.hot { background:var(--accent); }
+  .pui-live.hot { background:var(--accent); color:var(--on-accent); }
   #partyCard { display:none; position:absolute; right:40px; top:90px; z-index:8; width:320px; max-width:80vw;
     background:rgba(20,20,25,.96); border:1px solid rgba(255,255,255,.14); border-radius:20px; padding:20px; }
   #partyCard.open { display:block; }
@@ -1013,7 +1017,7 @@
   .pui-seek:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.35); border-radius:8px; }
   /* under the scrubber: a time pill at each end, then one glass toolbar centred beneath them */
   .pui-foot { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; margin-top:10px; }
-  .pui-time { flex:0 0 auto; display:inline-block; font-family:var(--sans); font-size:calc(11.5px * var(--ts)); font-weight:600; letter-spacing:.01em;
+  .pui-time { flex:0 0 auto; display:inline-block; font-family:var(--mono); font-size:calc(11.5px * var(--ts)); font-weight:500; letter-spacing:0;
     line-height:1.2; color:#fff; font-variant-numeric:tabular-nums; padding:6px 11px; border-radius:var(--r-pill); border:0;
     background:rgba(80,80,88,.42); white-space:nowrap; }
   .pui-time.focusable { cursor:pointer; transition:background .18s var(--ease); }
@@ -1054,13 +1058,19 @@
   .qopt:hover { background:rgba(255,255,255,.10); }
   html.tv .qopt.focusable:focus { background:rgba(255,255,255,.16); box-shadow:0 0 0 3px rgba(255,255,255,.35); }
   .qopt.focusable:focus-visible { background:rgba(255,255,255,.16); box-shadow:0 0 0 3px rgba(255,255,255,.35); }
+  .qopt { position:relative; padding-right:36px; }
   .qopt.on { font-weight:600; }
-  .qopt.on::after { content:' ✓'; color:rgba(235,235,245,.6); }
+  .qopt.on::after { content:''; position:absolute; right:12px; top:50%; width:16px; height:16px; margin-top:-8px;
+    background:currentColor; opacity:.75;
+    -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / contain no-repeat; }
+  html.tv .qopt { padding-right:46px; }
+  html.tv .qopt.on::after { width:20px; height:20px; margin-top:-10px; right:16px; }
   .qnote { color:rgba(235,235,245,.6); font-size:calc(12.5px * var(--ts)); line-height:1.45; padding:7px 12px 9px;
     white-space:normal; max-width:250px; }
   .qmenu.wide { min-width:292px; max-height:74vh; }
   .qprev { margin:2px 6px 8px; padding:16px 10px; border-radius:10px; text-align:center; overflow:hidden;
-    background:#2A3550; }
+    background:var(--l3); box-shadow:inset 0 0 0 1px var(--sep); }
   .qprev-t { display:inline-block; padding:.06em .3em; line-height:1.3; border-radius:2px; white-space:normal; }
   /* subtitle timing readout: one big number, the way a camera shows exposure offset */
   .qtime { text-align:center; padding:10px 12px 12px; }
@@ -1286,7 +1296,11 @@
   .det-desc { color:rgba(235,235,245,.8); font-size:calc(15px * var(--ts)); line-height:1.6; margin:14px 0 6px; max-width:56ch;
     display:-webkit-box; -webkit-line-clamp:6; -webkit-box-orient:vertical; overflow:hidden;
     text-shadow:0 1px 10px rgba(0,0,0,.7); }
-  .det-credits { color:var(--label3); font-size:calc(13px * var(--ts)); line-height:1.8; margin:8px 0 0; max-width:64ch; }
+  /* crew under the cast: a mono label column, the names in the secondary label colour */
+  .det-credits { color:var(--label2); font-size:calc(14px * var(--ts)); line-height:1.5; margin:14px 0 0; max-width:64ch; }
+  .det-credits:empty { display:none; }
+  .det-credits > div { display:flex; align-items:baseline; }
+  .det-credits > div + div { margin-top:6px; }
   .det-chips { display:flex; flex-wrap:wrap; margin-top:6px; }
   .det-chips span { background:transparent; border:1px solid rgba(255,255,255,.22); border-radius:var(--r-pill);
     padding:6px 14px; margin:0 8px 8px 0; font-size:calc(13px * var(--ts)); font-weight:500; color:var(--label); }
@@ -1353,7 +1367,8 @@
   html.tv .det-chips span { font-weight:500; }
   html.tv .ep-date { font-size:calc(15px * var(--ts)); }
   html.tv .det-eps { max-width:1600px; }
-  .det-credits b { color:var(--label2); font-weight:500; margin-right:6px; }
+  .det-credits b { flex:0 0 auto; width:96px; color:var(--label3); font-family:var(--mono); font-size:calc(11px * var(--ts));
+    font-weight:500; letter-spacing:.14em; text-transform:uppercase; }
   .det-rule { display:none; }
   /* TV and phones (.det-facts.on): status · runtime · country under the actions, hairline-separated */
   .det-facts { display:none; align-items:center; flex-wrap:wrap; margin:22px 0 2px; color:var(--label2); font-size:calc(17px * var(--ts)); }
@@ -1418,9 +1433,9 @@
   .ptv-col { flex:1 1 320px; min-width:0; }
   #pqr { background:#fff; padding:14px; border-radius:var(--r-tile); display:inline-block; }
   #pqr svg { width:170px; height:170px; display:block; }
-  .pdanger { color:#FF5A5F; }
-  .btn.pdanger-btn { background:#FF5A5F; color:#fff; }
-  .btn.pdanger-btn:hover { background:#e8484d; }
+  .pdanger { color:var(--danger); }
+  .btn.pdanger-btn { background:var(--danger); color:#fff; }
+  .btn.pdanger-btn:hover { background:#e0372d; }
   .btn:disabled { opacity:.55; cursor:default; transform:none; }
   #pqr:empty { display:none; }
   html.tv .pav { width:64px; height:64px; font-size:calc(26px * var(--ts)); }
@@ -1452,7 +1467,8 @@
   html.tv .det-logo { max-width:520px; max-height:180px; }
   html.tv .det-kicker { font-size:calc(15px * var(--ts)); }
   html.tv .det-desc { font-size:calc(19px * var(--ts)); }
-  html.tv .det-credits { font-size:calc(16px * var(--ts)); }
+  html.tv .det-credits { font-size:calc(17px * var(--ts)); margin-top:18px; }
+  html.tv .det-credits b { width:130px; font-size:calc(14px * var(--ts)); }
   html.tv .up-day { font-size:calc(14px * var(--ts)); }
   html.tv .up-poster { width:60px; height:90px; }
   html.tv .up-tag { font-size:calc(16px * var(--ts)); }
@@ -1582,7 +1598,11 @@
   html.tv .s-src { flex:0 0 auto; width:56px; height:56px; border-radius:50%; box-shadow:inset 0 0 0 2px var(--accent);
     color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:calc(22px * var(--ts)); font-weight:700;
     letter-spacing:-.02em; margin-left:22px; }
-  html.tv .stream.focusable:focus .s-src { background:var(--accent); color:#fff; }
+  html.tv .stream.focusable:focus .s-src { background:var(--accent); color:var(--on-accent); }
+  /* one focus language across the room: rows (streams, episodes, add-ons, friends, recommendations) wear the cards' white ring */
+  html.tv .stream.focusable:focus, html.tv .addon.focusable:focus, html.tv .fr-card.focusable:focus {
+    box-shadow:0 0 0 3px #fff, 0 14px 32px rgba(0,0,0,.5); }
+  html.tv .rec-row.focusable:focus { box-shadow:0 0 0 3px #fff; }
   html.tv .stream-name { font-size:calc(21px * var(--ts)); }
   html.tv .stream-sub { font-size:calc(16px * var(--ts)); }
   html.tv .sbadges img { height:22px; margin-right:10px; }
@@ -1662,7 +1682,7 @@
   html.tv .pi-k { font-size:calc(16px * var(--ts)); }
   html.tv .pi-v { font-size:calc(16.5px * var(--ts)); }
   html.tv .pi-row { padding:6px 0; }
-  html.tv #status { font-size:calc(18px * var(--ts)); padding:14px 24px 14px 42px; }
+  html.tv #status { font-size:calc(18px * var(--ts)); padding:14px 24px 14px 42px; border-radius:26px; max-width:1100px; }
   html.tv #status::before { left:20px; width:9px; height:9px; margin-top:-4.5px; }
   html.tv #updBanner { padding:15px 26px; font-size:calc(18px * var(--ts)); }
 
@@ -1747,7 +1767,7 @@
   html:not(.tv) .hrow .card.cw.cwp { flex-basis:var(--cardw); }   /* outranks the phone block's 280px art width */
   /* add-on names under rows, cast and genres on title pages, the clock, stream facts and badges */
   html.nosub .row-from { display:none; }   /* the "from <add-on>" eyebrow only — .row-sub also carries the Library counts */
-  html.nocast #detCastRow, html.nocast #detCastLbl { display:none; }
+  html.nocast #detCastRow, html.nocast #detCastLbl, html.nocast #detCredits { display:none; }
   html.nogenres #detGenres { display:none; }
   html.noclock #puiClock { display:none; }
   html.nofacts .s-spec { display:none; }
@@ -2028,7 +2048,6 @@
       <div class="det-name" id="detName" style="display:none"></div>
       <div class="det-kicker" id="detMeta"></div>
       <p class="det-desc" id="detDesc"></p>
-      <div class="det-credits" id="detCredits"></div>
       <div class="row">
         <button id="detPlay" class="focusable btn"><span class="btn-ic"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span id="detPlayLbl">Play</span></button>
         <button id="detEpisodes" class="focusable btn ghost" style="display:none">Episodes</button>
@@ -2041,6 +2060,7 @@
       <div class="det-chips" id="detGenres"></div>
       <div class="det-castlbl" id="detCastLbl" style="display:none">CAST</div>
       <div class="det-chips cast" id="detCastRow"></div>
+      <div class="det-credits" id="detCredits"></div>
       <div class="det-seasons" id="detSeasonRow" style="display:none"></div>
       <div id="detEpList" class="streams eplist det-eps"></div>
     </div>
@@ -2605,15 +2625,17 @@
     // must not sit behind a boot screen waiting for catalogues it won't show.
     if (name !== 'home'){ try { bootReady(); } catch(e){} }
     if (name === 'library'){ try { renderLibraryTab(); } catch(e){} }
-    if (name === 'search'){ try { searchIdle(); } catch(e){} }
+    // back to a Discover grid that is still there keeps it, and its place in it
+    if (name === 'search' && !(back && $id('discover') && disc && disc.opts)){ try { searchIdle(); } catch(e){} }
     // the rows list is built from live manifests: an add-on added since is in it; the console's
     // summaries (add-ons on/off, the about line) are recomputed too
     if (name === 'settings'){ try { settingsRender(); renderRowManager(); supportRender(); supportLoad(false); } catch(e){} }
     try { cancelLift(); } catch(e){}      // a row picked up on a remote is put down on leaving
     // back from playback: the episode list's ticks, bars and "up next" are stale
-    if (name === 'episodes' && epView){ try { epView.refresh(); } catch(e){} }
+    if (name === 'episodes' && epView){ try { if (back && epView.redraw) epView.redraw(); else epView.refresh(); } catch(e){} }
     // coming back to a title after watching: the Resume label must be current
-    if (name === 'detail' && detCur){ try { syncDetButtons(); if (detEp) detEp.refresh(); } catch(e){} }
+    // (back keeps the season being browsed; the rows are repainted around it and the remote finds its row again)
+    if (name === 'detail' && detCur){ try { syncDetButtons(); if (detEp){ if (back && detEp.redraw) detEp.redraw(); else detEp.refresh(); } } catch(e){} }
     // the profile page is built fresh every time: its state lives on the server
     if (name === 'profile'){ try { profileRender(); } catch(e){} }
     video.style.display = (name==='player') ? 'block' : 'none';
@@ -2639,16 +2661,55 @@
   var enterDown = false;
   document.addEventListener('keydown', function(e){ if (e.keyCode === 13) enterDown = true; }, true);
   document.addEventListener('keyup', function(e){ if (e.keyCode === 13) enterDown = false; }, true);
+  // Back returns the remote to what it left. Every focus inside a view is noted (so a sheet's action or a card's
+  // hold does not lose it); a view that rebuilt its cards or rows on the way back is searched for the same one by key.
+  var viewFocus = {};
+  function isShown(el){ return !!(el && (el.offsetWidth || el.offsetHeight || el.getClientRects().length)); }
+  function focusKeyOf(el){
+    if (!el || !el.getAttribute) return '';
+    if (el.__epId) return 'ep:' + el.__epId;
+    return el.getAttribute('data-key') || (el.id ? '#' + el.id : '');
+  }
+  document.addEventListener('focusin', function(e){
+    var t = e.target; if (!t || !t.closest || t.hasAttribute('data-back')) return;
+    var v = t.closest('.view'); if (v) viewFocus[v.id] = { el: t, key: focusKeyOf(t) };
+  }, true);
+  function viewFocusTake(v){
+    var m = viewFocus[v.id]; if (!m) return null;
+    if (m.el && v.contains(m.el) && isShown(m.el)) return m.el;
+    if (!m.key) return null;
+    var all = v.querySelectorAll('.focusable');
+    for (var i = 0; i < all.length; i++) if (isShown(all[i]) && focusKeyOf(all[i]) === m.key) return all[i];
+    return null;
+  }
+  /** The view's first control a remote should land on: shown, not the topbar's Back, not a text field (on a TV
+      focusing one throws the keyboard up) — those only when there is nothing else. */
+  function firstFocusable(v){
+    var c = v.querySelectorAll('.focusable:not([data-back]):not(input)');
+    for (var i = 0; i < c.length; i++) if (isShown(c[i])) return c[i];
+    c = v.querySelectorAll('.focusable');
+    for (var j = 0; j < c.length; j++) if (isShown(c[j])) return c[j];
+    return null;
+  }
   function focusFirst(preserveScroll){
     if (!IS_TV && !kbUsed) return;
     var ae = document.activeElement;
     if (ae && ae.tagName === 'INPUT' && ae.offsetParent !== null) return; // never yank focus from a field being typed in
     var v = document.querySelector('.view.active'); if(!v) return;
+    // back: the card, row or button that was lit when this view was left
+    if (preserveScroll){
+      var t = viewFocusTake(v);
+      if (t){
+        try { t.focus({ preventScroll: true }); } catch(e){ t.focus(); }
+        try { t.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch(e2){}
+        return;
+      }
+    }
     // the view's own code may already have placed the focus (a stream list lands
     // on the row picked last time) — leave that alone
     if (ae && ae !== document.body && v.contains(ae) && !ae.hasAttribute('data-back')) return;
     // content first: the topbar's Back button is only the landing spot when there is nothing else
-    var f = v.querySelector('.focusable:not([data-back]):not(input)') || v.querySelector('.focusable'); if (!f) return;
+    var f = firstFocusable(v); if (!f) return;
     try { f.focus(preserveScroll ? { preventScroll: true } : undefined); } catch(e){ f.focus(); }
   }
   function focusables(){
@@ -2705,8 +2766,8 @@
     var list = focusables(); if(!list.length) return;
     var cur = document.activeElement;
     if (list.indexOf(cur) < 0){
-      // nothing lit yet: start in the page itself, not on the rail
-      var v = document.querySelector('.view.active'), f = v && v.querySelector('.focusable');
+      // nothing lit yet: start in the page itself, not on the rail — and not in a text field
+      var v = document.querySelector('.view.active'), f = v && document.body.className.indexOf('playing') === -1 ? firstFocusable(v) : null;
       (f && list.indexOf(f) >= 0 ? f : list[0]).focus(); return;
     }
     var best = pickNearest(list, cur, dx, dy);
@@ -2729,7 +2790,12 @@
   }
   function goBack(){
     stopPairing(); pfTvStop();
-    if (player && video.style.display==='block'){
+    var was = null;
+    // leaving the player — with or without an engine yet: a start still on its way (the relay lookup, the key read,
+    // a probe, the engine's own load) is abandoned here, or it builds a player behind the page it left
+    if (video.style.display==='block'){
+      was = curPlay;
+      playSeq++;
       stopPlayer(); sleepClear();     // the sleep timer was for this sitting only
       // the resume point has moved; the streams page underneath says so
       if (lastStreamsReq) renderStreamResume(lastStreamsReq.type, lastStreamsReq.id);
@@ -2737,7 +2803,15 @@
       // (they can pick another stream and everyone follows)
       if (party && !party.isHost) endParty('Left the party.');
     }
-    if (viewStack.length > 1){ viewStack.pop(); show(viewStack[viewStack.length-1], false); }
+    if (viewStack.length > 1){
+      viewStack.pop();
+      var top = viewStack[viewStack.length-1];
+      // after an episode hop the list underneath is the FIRST episode's: back lands on the streams of the one just watched
+      if (top === 'streams' && was && was.id && lastStreamsReq && lastStreamsReq.id !== was.id){
+        openStreams(was.type, was.id, ctx.streamTitle || was.name); return;
+      }
+      show(top, false);
+    }
     else if (viewStack[0] !== 'home'){ setTab('home'); }
     else show('home', false);
   }
@@ -2878,9 +2952,22 @@
         if (scrubState.on){ scrubCancel(); puiShow(); }    // a pending jump is its own layer; the controls stay
         else if (upnextState.open){ dismissUpNext(); }
         else if (puiState.menu){ closePuiMenu(true); }
-        else if (pui.className !== 'idle'){ puiIdle(); }
+        // while a stream is still starting there is nothing to peel: Back means "not this one"
+        else if (pui.className !== 'idle' && !playStarting){ puiIdle(); }
         else { goBack(); }
         e.preventDefault(); return;
+      }
+      // the remote's own transport keys (LG and any HDMI-CEC remote): webOS hands them to the app alone, and its
+      // Chromium predates the browser answering them itself. TV only — a desktop's media keys reach the page's
+      // media session, and answering them here as well would press them twice.
+      if (IS_TV){
+        var mk = e.key || '';
+        if (k===415 || mk==='MediaPlay'){ if (video.paused) togglePlay(); else puiShow(); e.preventDefault(); return; }
+        if (k===19 || mk==='MediaPause'){ if (!video.paused) togglePlay(); else puiShow(); e.preventDefault(); return; }
+        if (k===179 || k===10252 || mk==='MediaPlayPause'){ togglePlay(); e.preventDefault(); return; }
+        if (k===412 || mk==='MediaRewind'){ seekBy(-seekStepSecs()); puiShow(); e.preventDefault(); return; }
+        if (k===417 || mk==='MediaFastForward'){ seekBy(seekStepSecs()); puiShow(); e.preventDefault(); return; }
+        if (k===413 || mk==='MediaStop'){ goBack(); e.preventDefault(); return; }
       }
       if (k===70 && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey){
         toggleFullscreen(); e.preventDefault(); return;
@@ -3088,6 +3175,7 @@
     syncNoteAddonsDiff(prev, a);
     cloudPushSoon('addons');
     manifestCache = {};                        // a changed add-on list invalidates cached manifests
+    discInvalidate();                          // …and Discover's pickers
     try { buildHomeRows(true); } catch(e){}   // any add-on change reshapes Home
   }
   function mirrorKv(key, json){ try { idbSave(key, json); } catch(e){} db8Save(key, json); }
@@ -4092,6 +4180,7 @@
     // Settings › Wide cards everywhere: the backdrop (or the poster) in a 16:9 frame instead of the poster
     var wide = pr.landscapeRows === true && !!(meta.background || meta.poster);
     var card=document.createElement('button'); card.className='card focusable shape-'+(wide ? 'landscape' : (meta.posterShape||'poster'));
+    card.setAttribute('data-key', 'c:' + (meta.type || '') + ':' + meta.id);   // found again when its row is rebuilt
     var rate = (meta.imdbRating && pr.ratings !== false) ? '<span class="card-rate">★ '+esc(String(meta.imdbRating))+'</span>' : '';
     var art = wide ? (meta.background || meta.poster) : meta.poster;
     var thumb = art
@@ -4246,7 +4335,21 @@
       var b = document.createElement('button');
       b.className = 'sheet-act focusable' + (a.bad ? ' bad' : '');
       b.innerHTML = (SHEET_ICONS[a.icon] || '') + '<span>' + esc(a.label) + '</span>';
-      b.onclick = function(){ closeSheet(false); a.fn(); };
+      b.onclick = function(){
+        var prev = sheetState.prev, host = prev && prev.parentNode, idx = host ? [].indexOf.call(host.children, prev) : -1, pkey = focusKeyOf(prev);
+        closeSheet(false); a.fn();
+        // a choice leaves the remote where it was: on the control that opened the sheet, or on what now stands in its
+        // place when the choice rebuilt it (a Discover pill, a Settings row) — never on the page's body, where the next
+        // arrow would start over from the top
+        if (IS_TV || kbUsed) setTimeout(function(){
+          var ae = document.activeElement;
+          if (ae && ae !== document.body && !(ae.closest && ae.closest('.sheet'))) return;     // the action placed it
+          var t = (prev && document.body.contains(prev) && isShown(prev)) ? prev : null;
+          if (!t && pkey){ var v = document.querySelector('.view.active'), all = v ? v.querySelectorAll('.focusable') : []; for (var i = 0; i < all.length && !t; i++) if (isShown(all[i]) && focusKeyOf(all[i]) === pkey) t = all[i]; }
+          if (!t && host && document.body.contains(host) && idx >= 0) t = host.children[idx];
+          if (t && isShown(t) && t.classList.contains('focusable')){ try { t.focus({ preventScroll: true }); } catch(e){ t.focus(); } }
+        }, 0);
+      };
       acts.appendChild(b);
     });
     scrim.onclick = function(){ closeSheet(true); };
@@ -4371,6 +4474,7 @@
     var card = document.createElement('button');
     var asPoster = getPrefs().cwStyle === 'poster';   // Settings › Continue Watching cards
     card.className = asPoster ? 'card cw cwp focusable shape-poster' : 'card cw focusable shape-landscape';
+    card.setAttribute('data-key', 'cw:' + (r.type || '') + ':' + (r.type === 'series' ? seriesIdOf(r.id) : r.id));
     var pct = r.dur > 0 ? Math.max(0, Math.min(100, (r.pos / r.dur) * 100)) : 0;
     var art = asPoster ? (r.poster || r.back) : (r.back || r.poster);
     var thumb = art
@@ -4534,7 +4638,7 @@
         '<div class="hf-meta">'+esc(metaLine)+'</div>' +
         (meta.description ? '<p class="hf-desc">'+esc(meta.description)+'</p>' : '') +
         '<div class="row" style="margin-top:4px">' +
-          '<button id="hfOpen" class="focusable btn"><span class="btn-ic"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span>Details</button>' +
+          '<button id="hfOpen" class="focusable btn">Details</button>' +
           '<button id="hfList" class="focusable btn ghost">'+(inLibrary(meta.type, meta.id) ? '✓ In My List' : '+ My List')+'</button>' +
         '</div>' +
       '</div>' +
@@ -4938,6 +5042,8 @@
         discChoose(cur, g || null);
       });
     }));
+    // each pill keeps a name, so a pick that rebuilds the row hands the remote back to the same pill
+    ['dp:type', 'dp:cat', 'dp:genre'].forEach(function(k, i){ if (pills.children[i]) pills.children[i].setAttribute('data-key', k); });
     head.appendChild(pills);
     var src = document.createElement('div'); src.className = 'disc-src';
     src.textContent = (cur.a.name || 'Add-on') + ' • ' + typeLabel(cur.c.type);
@@ -4967,8 +5073,13 @@
       }
       discHead(); discLoad(false);
     };
-    if (disc.opts) go(); else discOptions().then(function(o){ disc.opts = o; go(); });
+    // an empty answer (every manifest failed) is not kept: the next visit asks again
+    var gen = disc.optGen || 0;
+    if (disc.opts) go(); else discOptions().then(function(o){ if (gen !== (disc.optGen || 0)) return; disc.opts = o.length ? o : null; go(); });
   }
+  /** The add-on list changed (added, removed, switched off, synced in): Discover's catalogue list is asked for
+      again on its next showing, and an answer already on its way for the old list is dropped. */
+  function discInvalidate(){ if (!disc) return; disc.opts = null; disc.optGen = (disc.optGen || 0) + 1; }
   async function discLoad(more){
     var list = document.getElementById('discGrid'), status = document.getElementById('discStatus');
     if (!list || !disc.cur) return;
@@ -5045,6 +5156,7 @@
   function libCard(r){
     var card = document.createElement('button');
     card.className = 'card focusable shape-' + (r.shape || 'poster');
+    card.setAttribute('data-key', 'l:' + (r.type || '') + ':' + r.id);
     var thumb = r.poster
       ? posterImg(r.poster, r.name)
       : '<span class="thumb-ph">' + phFor(r.name) + '</span>';
@@ -5908,7 +6020,12 @@
     var cast = meta.cast || [];
     $id('detCastLbl').style.display = cast.length ? '' : 'none';
     $id('detCastRow').innerHTML = cast.slice(0, 8).map(function(x){ return '<span>' + esc(x) + '</span>'; }).join('');
-    $id('detCredits').innerHTML = '';
+    // Director · Writers from the catalogue (it sends them; the page used to drop them) — three names at most each
+    function crew(v){ return (Array.isArray(v) ? v : (v ? String(v).split(/\s*,\s*/) : [])).filter(function(x){ return x && typeof x === 'string'; }); }
+    var dir = crew(meta.director), wri = crew(meta.writer), cr = [];
+    if (dir.length) cr.push('<div><b>' + (dir.length > 1 ? 'Directors' : 'Director') + '</b><span>' + esc(dir.slice(0, 3).join(', ')) + '</span></div>');
+    if (wri.length) cr.push('<div><b>' + (wri.length > 1 ? 'Writers' : 'Writer') + '</b><span>' + esc(wri.slice(0, 3).join(', ')) + '</span></div>');
+    $id('detCredits').innerHTML = cr.join('');
   }
   /** Series pages carry their seasons + episodes inline — one scroll from the
       art to every episode, like the phone app. The separate episodes view
@@ -6063,6 +6180,9 @@
   function openDetail(meta, type){
     type = type || meta.type || 'movie';
     ctx.item = meta;                       // stream/poster identity keys off this
+    // every way in (My List, a friend's card, View details) starts clean: a series page builds its own chain again
+    // below, and a film must not inherit the last show's — its name on the pause board, its Next ›, its Up next
+    ctx.seriesEpisodes = null; ctx.epIndex = -1; ctx.seriesName = ''; ctx.seriesPoster = ''; ctx.seriesBack = '';
     detCur = { meta: meta, type: type, addon: ctx.addon || null };
     try { detRateRender(); detRecWire(); } catch(e){}
     var seq = ++detSeq;
@@ -6430,7 +6550,7 @@
   function clearPlayIdentity(){
     ctx.playType = ''; ctx.playId = ''; ctx.playTitle = '';
     ctx.playAddonUrl = ''; ctx.playPoster = ''; ctx.playBack = ''; ctx.playShape = 'poster';
-    ctx.seriesEpisodes = null; ctx.epIndex = -1;
+    ctx.seriesEpisodes = null; ctx.epIndex = -1; ctx.seriesName = '';
     ctx.playSig = null; ctx.playRow = '';   // no stream row behind this: the source line stays empty
   }
   /** The episode being played, found by its id in the series chain (null for a film). */
@@ -6756,9 +6876,9 @@
     } catch(e){ return null; }
   }
   function initShaka(){
-    if (!window.shaka){ setStatus('Shaka failed to load.','err'); return false; }
+    if (!window.shaka){ setStatus('The player could not start. Restart the app and try again.','err'); return false; }
     shaka.polyfill.installAll();
-    if (!shaka.Player.isBrowserSupported()){ setStatus('This device is not supported by Shaka Player.','err'); return false; }
+    if (!shaka.Player.isBrowserSupported()){ setStatus('This device cannot play video in this app.','err'); return false; }
     return true;
   }
   async function stopPlayer(){
@@ -6767,6 +6887,7 @@
     // toast right after (goBack → endParty's "Left the party.") isn't wiped by
     // a deferred clear.
     clearStatus();
+    playStarting = false;
     try { socialPublishSoon(); } catch(e){}   // friends see the freshly-watched title
     try { flushProgress(true); } catch(e){}
     curPlay = null;
@@ -6791,6 +6912,7 @@
     try { video.playbackRate = 1; } catch(e){}
   }
   var playSeq = 0, didRetry = false;
+  var playStarting = false;              // between a play being asked for and its first picture (or its failure)
   // On a playback error, let Shaka retry the failed segments IN PLACE once
   // (retryStreaming — no reload, no jump to the live edge); if it errors again,
   // just show the error. Deliberately does NOT reload/loop — an aggressive
@@ -7814,6 +7936,7 @@
     }
     await stopPlayer();
     if (seq !== playSeq) return;
+    playStarting = true;                 // (after the teardown, which clears it)
     // promote the staged selection: from here on this is what progress is written against
     curPlay = ctx.playId ? {
       type: ctx.playType, id: ctx.playId, name: ctx.playTitle || title || '',
@@ -7872,7 +7995,7 @@
     player.getNetworkingEngine().registerResponseFilter(function(type, response){
       if (response && relayIsOwn(response.uri)) response.uri = relayOrig(response.uri);
     });
-    if (!clearKeys && /\.mpd(\?|#|$)/i.test(rawUrl)){ setStatus('Fetching DRM key…','info'); clearKeys = await resolveLaurlKeys(rawUrl); }
+    if (!clearKeys && /\.mpd(\?|#|$)/i.test(rawUrl)){ setStatus('Opening the stream…','info'); clearKeys = await resolveLaurlKeys(rawUrl); }
     if (seq !== playSeq) return;
     if (clearKeys){
       player.getNetworkingEngine().registerResponseFilter(function(type, response){
@@ -7951,7 +8074,7 @@
       else if (startAt) await player.load(relayLoadUrl(cleanUrl(rawUrl), mimeType), startAt, mimeType || undefined);
       else await player.load(relayLoadUrl(cleanUrl(rawUrl), mimeType), null, mimeType || undefined);
       if (seq !== playSeq) return;
-      loaded = true;
+      loaded = true; playStarting = false;
       // the safety net: a file that looked ordinary but Chromium cannot voice restarts through the shell
       if (tcLater) tcCheckProbe(tcc).then(function(){ tcDecide(tcc, seq); });
       setStatus(swapName ? ('Switched to ' + swapName + '.') : startAt ? (mpvKeptPlace() ? 'This source can only play from the beginning — your place is kept.' : 'Resumed from ' + fmtT(startAt) + '.') : (fresh ? 'Starting from the beginning.' : 'Playing.'), 'ok');
@@ -7981,6 +8104,9 @@
     }
     catch(err){
       if (seq !== playSeq) return;
+      playStarting = false;
+      // the engine torn down under its own load (a teardown nobody reported): an abandoned start, not a failure to show
+      if (!loaded && err && (err.code === 7000 || err.code === 7001 || err.code === 7003)) return;
       // Play through your PC: the sharing computer failed the load — the same thing again, direct (the relay is dropped for a while)
       if (!loaded && ctx.viaRelay && relayErrOwn(err)){ relayDrop(); return playUrl(rawUrl, clearKeys, title, subtitles, mimeType); }
       // the full-format player could not open it: once through the app's own engine (a format it refused), unless the
@@ -8385,8 +8511,12 @@
   function langName(code){
     if (!code || code === 'und') return 'Unknown';
     var c = LANG_ALIAS[String(code).toLowerCase()] || code;
-    try { var dn = new Intl.DisplayNames(['en'], { type:'language' }); return dn.of(c) || code; }
-    catch(e){ return code; }
+    try { var dn = new Intl.DisplayNames(['en'], { type:'language' }), nm = dn.of(c); if (nm && nm !== c) return nm; } catch(e){}
+    // no names in this browser (webOS has no Intl at all), or a name sent where a code belongs ("german"): the
+    // settings' own list, so "eng" and "en" are one English, listed where the preferred language says
+    var k = subKey(code);
+    if (k) for (var i = 1; i < PREF_LANGS.length; i++) if (PREF_LANGS[i][1] === k) return PREF_LANGS[i][0];
+    return code;
   }
   /** A track's language as a name, or '' when the file does not say — a track is never called "Unknown". */
   function knownLang(code){ var n = langName(code || ''); return n === 'Unknown' ? '' : (n || ''); }
@@ -8771,13 +8901,16 @@
     if (pui) pui.classList.remove('pb-on');
   }
   function pauseBoardRender(){
-    var series = ctx.seriesName || '', ep = null;
-    if (ctx.seriesEpisodes && ctx.epIndex != null) ep = ctx.seriesEpisodes[ctx.epIndex] || null;
-    var title = series || (ctx.item && ctx.item.name) || (lastPlay && lastPlay.title) || $id('puiTitle').textContent || '';
+    // only what is PLAYING speaks here: the episode by its id in the chain, the title page's item only when it is this
+    // play's own (a pasted link or a party's stream must not wear the last title browsed)
+    var ep = playingEpisode(), series = ep ? (ctx.seriesName || '') : '';
+    var it = ctx.item, own = (it && curPlay && (it.id === curPlay.id || it.id === seriesIdOf(curPlay.id))) ? it : null;
+    var title = series || (own && own.name) || (curPlay && curPlay.name) || (lastPlay && lastPlay.title) || $id('puiTitle').textContent || '';
     var sub = '';
     if (ep) sub = epTag(ep) + (ep.name ? ' · ' + ep.name : '');
-    else if (ctx.item && ctx.item.year) sub = String(ctx.item.year) + (ctx.item.genres && ctx.item.genres.length ? ' · ' + ctx.item.genres.slice(0,3).join(', ') : '');
-    var desc = (ep && (ep.overview || ep.description)) || (ctx.item && ctx.item.description) || '';
+    else if (curPlay && curPlay.type === 'series') sub = epKickFromId(curPlay.id) || '';
+    else if (own && own.year) sub = String(own.year) + (own.genres && own.genres.length ? ' · ' + own.genres.slice(0,3).join(', ') : '');
+    var desc = (ep && (ep.overview || ep.description)) || (own && own.description) || '';
     $id('pbKick').innerHTML = (sleepState.fired ? 'Sleep timer · ' : '') + (video.ended ? 'Finished' : (puiIsLive() ? '<b>Live</b> · Paused' : 'Paused'));
     $id('pbTitle').textContent = title;
     $id('pbSub').textContent = sub;
@@ -9547,7 +9680,10 @@
   function nextEpisode(){
     var list = ctx.seriesEpisodes;
     if (!list || !list.length) return null;
+    if (party && !party.isHost) return null;     // a party viewer follows the host's next episode, never picks one
     var i = (ctx.epIndex == null) ? -1 : ctx.epIndex;
+    // anchored to what is PLAYING: a chain left from another title (a pasted link, a film) offers nothing
+    if (curPlay){ var cur = playingEpisode(); i = cur ? list.indexOf(cur) : -1; }
     if (i < 0 || i + 1 >= list.length) return null;
     // Settings › Show episodes not out yet: by default an unaired next episode is nothing to offer
     if (getPrefs().cwUnaired !== true && epUnaired(list[i+1])) return null;
@@ -9648,8 +9784,10 @@
     if (!res){
       var a = pickSource();
       if (a){
+        var my = playSeq;
         setStatus('Loading ' + epTag(v) + '…','info');
         res = await resolveEpisodeStreams(a, type, v.id);
+        if (my !== playSeq) return;            // left the player (or something else started) while the add-on answered
         if (!res.pick) res = null;
       }
     }
@@ -9661,6 +9799,11 @@
       ctx.playSig = sig;                       // feeds the source line under the title
       playStream(res.pick);
       return;
+    }
+    // no source chose itself: this episode's list takes the player's place — the one playing stops, it does not go on under the list
+    if (video.style.display === 'block'){
+      playSeq++; stopPlayer();
+      if (viewStack[viewStack.length-1] === 'player') viewStack.pop();
     }
     openStreams(type, v.id, label);
   }
@@ -9951,6 +10094,10 @@
       ctx.playTitle = st.name || st.title || '';
       ctx.playAddonUrl = st.addonUrl || ''; ctx.playPoster = st.poster || '';
       ctx.playShape = 'poster';
+      // the host's title, not whatever this viewer last browsed: no chain, no source line, the pause board names it
+      ctx.seriesEpisodes = null; ctx.epIndex = -1; ctx.seriesName = '';
+      ctx.playSig = null; ctx.playRow = '';
+      ctx.item = { id: st.id, type: st.type, name: st.name || st.title || '', poster: st.poster || '' };
     } else {
       clearPlayIdentity();
     }
@@ -10520,6 +10667,7 @@
       try { LS.setItem('addons', json); } catch(e){}
       mirrorAddons(json);
       manifestCache = {};
+      discInvalidate();
       try { renderAddons(); } catch(e){}
       try { buildHomeRows(true); } catch(e){}
     }
@@ -11294,11 +11442,22 @@
   function controlsHideKey(){ var v = getPrefs().controlsHide; return (v === '2' || v === '6') ? v : '3.5'; }
   function controlsHideMs(){ return Number(controlsHideKey()) * 1000; }
   function pickWaitSecs(){ var n = Number(getPrefs().pickWait); return (n === 3 || n === 10) ? n : 6; }
+  /** Text on an accent fill: black when the colour is light enough that white would wash out (WCAG relative
+      luminance over 0.3 — White, Ice, Mint, Emerald, Amber, Gold, Lime, Peach), white for the rest. */
+  function onAccent(hex){
+    var m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '')); if (!m) return '#fff';
+    var n = parseInt(m[1], 16), c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(function(v){
+      v = v / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) > 0.3 ? '#000' : '#fff';
+  }
   /** Everything a preference changes without a rebuild: tokens and flags on <html>, the console's mode, the skip labels. */
   function applyPrefs(){
     var pr = getPrefs(), root = document.documentElement, st = root.style, cl = root.classList;
     // a supporter colour left by a profile that signed out falls back to red; the choice itself is kept for its return
-    st.setProperty('--accent', accentRank(pr.accent) > supRank() ? '#E50914' : (pr.accent || '#E50914'));
+    var accNow = accentRank(pr.accent) > supRank() ? '#E50914' : (pr.accent || '#E50914');
+    st.setProperty('--accent', accNow);
+    st.setProperty('--on-accent', onAccent(accNow));
     st.setProperty('--fzoom', pr.zoom || '1.04');
     var sf = SURFACES[pr.surface] || null, tk = ['--bg','--l1','--l2','--l3','--fill'];
     for (var i = 0; i < tk.length; i++){ if (sf) st.setProperty(tk[i], sf[tk[i]]); else st.removeProperty(tk[i]); }
@@ -11398,6 +11557,7 @@
   /** Settings › Advanced › Clear cached artwork and add-on lists. */
   function clearCaches(){
     manifestCache = {}; metaFullCache = {}; homeSig = null; rowMgr.items = null;
+    discInvalidate();
     try { shadowCache.clear(); } catch(e){}
     try { renderRowManager(); } catch(e2){}
     try { buildHomeRows(true); } catch(e3){}
@@ -11478,7 +11638,7 @@
         anyB.className = 'swatch any' + (own ? ' on' : ''); anyB.title = 'Any colour';
         var inp = document.createElement('input'); inp.type = 'color'; inp.value = own ? pr.accent : '#E50914'; inp.setAttribute('aria-label', 'Any colour');
         // live while dragging, stored on close — storing re-renders the swatches, which would kill the picker mid-drag
-        inp.oninput = function(){ if (/^#[0-9a-f]{6}$/i.test(inp.value)) document.documentElement.style.setProperty('--accent', inp.value); };
+        inp.oninput = function(){ if (/^#[0-9a-f]{6}$/i.test(inp.value)){ document.documentElement.style.setProperty('--accent', inp.value); document.documentElement.style.setProperty('--on-accent', onAccent(inp.value)); } };
         inp.onchange = function(){ if (/^#[0-9a-f]{6}$/i.test(inp.value)) setPref('accent', inp.value.toUpperCase()); };
         anyB.appendChild(inp); acc.appendChild(anyB);
       }
