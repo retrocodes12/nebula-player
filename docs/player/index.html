@@ -2508,7 +2508,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.21.1';
+  var PLAYER_VERSION = '2026.09.22.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -7964,7 +7964,8 @@
       // ask the subtitle add-ons what they have for this title (candidates only —
       // nothing is downloaded until one is picked)
       if (curPlay && curPlay.type && curPlay.id) loadAddonSubs(curPlay.type, curPlay.id, seq);
-      // add-on-provided subtitle files become selectable text tracks
+      // add-on-provided subtitle files become selectable text tracks (subAuto waits for them before it looks)
+      var streamSubs = [];
       (subtitles||[]).forEach(function(sub){
         if (!sub || !sub.url || !player.addTextTrackAsync) return;
         var mime = /\.srt(\?|#|$)/i.test(sub.url) ? 'text/srt' : 'text/vtt';
@@ -7972,10 +7973,11 @@
         // the panel names each track's supplier: these came with the stream, from its add-on
         if (ctx.playSig && ctx.playSig.addonName) subState.trackSrc[subLabel] = ctx.playSig.addonName;
         try {
-          player.addTextTrackAsync(sub.url, sub.lang || 'und', 'subtitles', mime, '', subLabel)
-            .then(function(){ puiRefreshButtons(); if (puiState.menu === 'subs') subPanelRender(true); }).catch(function(){});
+          streamSubs.push(player.addTextTrackAsync(sub.url, sub.lang || 'und', 'subtitles', mime, '', subLabel)
+            .then(function(){ puiRefreshButtons(); if (puiState.menu === 'subs') subPanelRender(true); }).catch(function(){}));
         } catch(e){}
       });
+      subState.streamReady = Promise.all(streamSubs);
     }
     catch(err){
       if (seq !== playSeq) return;
@@ -8062,10 +8064,39 @@
   // downloaded — a popular film lists ~100 of them. The panel shows one language's tracks at a time, so nothing
   // is gained by hiding any: the caps only guard against a runaway add-on (four per language cut real choices, 09-11).
   var SUB_PER_LANG = 40, SUB_MAX = 400;
-  var subState = { seq:0, loading:false, asked:0, list:[], loaded:{}, urls:[], trackSrc:{} };
+  // hand = a count of the viewer's own subtitle choices this play (an autoload download that finds it moved stands down)
+  var subState = { seq:0, loading:false, asked:0, list:[], loaded:{}, urls:[], trackSrc:{}, hand:0, streamReady:null };
   function resetSubs(){
     subState.urls.forEach(function(u){ try { URL.revokeObjectURL(u); } catch(e){} });
-    subState = { seq:0, loading:false, asked:0, list:[], loaded:{}, urls:[], trackSrc:{} };
+    subState = { seq:0, loading:false, asked:0, list:[], loaded:{}, urls:[], trackSrc:{}, hand:0, streamReady:null };
+  }
+  // the viewer's last subtitle choice and the title it was made on ({id, url} — url = the add-on file picked, '' = Off or a
+  // stream track): the autoload never overrides it on that title, and a picked file comes back after a source swap
+  var subHand = null;
+  function subHandNote(url){ subState.hand++; subHand = { id: curPlay ? curPlay.id : '', url: url || '' }; }
+  // a subtitle language as one comparable key: add-ons say "eng", "en", "en-US", "fre", "pob", "scc" or "English", the
+  // settings say "en" (as Android's subLangKey; webOS's Chrome 68 has no Intl.DisplayNames, so the browser names nothing)
+  var SUB_ISO3 = { eng:'en', spa:'es', spn:'es', spl:'es', ea:'es', fre:'fr', fra:'fr', ger:'de', deu:'de', ita:'it', por:'pt', pob:'pt', pb:'pt',
+    dut:'nl', nld:'nl', swe:'sv', dan:'da', nor:'no', nob:'no', nno:'no', nb:'no', nn:'no', fin:'fi', ice:'is', isl:'is', pol:'pl', cze:'cs',
+    ces:'cs', slo:'sk', slk:'sk', hun:'hu', rum:'ro', ron:'ro', bul:'bg', gre:'el', ell:'el', hrv:'hr', scr:'hr', srp:'sr', scc:'sr', slv:'sl',
+    est:'et', lav:'lv', lit:'lt', rus:'ru', ukr:'uk', tur:'tr', ara:'ar', heb:'he', iw:'he', per:'fa', fas:'fa', hin:'hi', tam:'ta', tel:'te',
+    mal:'ml', kan:'kn', ben:'bn', mar:'mr', guj:'gu', pan:'pa', urd:'ur', chi:'zh', zho:'zh', zht:'zh', zhs:'zh', zhe:'zh', ze:'zh', jpn:'ja',
+    kor:'ko', tha:'th', vie:'vi', ind:'id', 'in':'id', may:'ms', msa:'ms', fil:'tl', tgl:'tl', swa:'sw' };
+  function subKey(code){
+    var c = String(code || '').replace(/^\s+|\s+$/g, '').toLowerCase().replace(/_/g, '-');
+    if (!c || c === 'und') return '';
+    if (SUB_ISO3[c]) return SUB_ISO3[c];
+    var base = c.split('-')[0];
+    if (SUB_ISO3[base]) return SUB_ISO3[base];
+    if (base.length === 2) return base;
+    // a name rather than a code ("English", "Portuguese (Brazil)"): the longest settings name it starts with, so
+    // "Malayalam" is not read as Malay
+    var best = '', bl = 0;
+    for (var i = 1; i < PREF_LANGS.length; i++){
+      var n = PREF_LANGS[i][0].toLowerCase();
+      if (c.indexOf(n) === 0 && n.length > bl){ best = PREF_LANGS[i][1]; bl = n.length; }
+    }
+    return best || base;
   }
   /** Group by language, user's languages first, numbered within each language. */
   /** Language ranks: the device's own languages first ('en-US' names itself "American
@@ -8135,6 +8166,56 @@
     subState.list = rankSubs(out);
     // if the panel is up saying “Searching…”, fill it in place (focus stays put)
     if (puiState.menu === 'subs') subPanelRender(true);
+    subAuto(seq);
+  }
+  /** Settings › Subtitles when a video starts, for the add-ons' subtitles too (Android 1.78.0): subStartApply only ever
+      reached the stream's own tracks, so a preferred language offered by an add-on never came on by itself. Once every
+      add-on has answered, the languages are walked in order — one the stream already shows ends it (a forced-only track,
+      signs and foreign lines, is not subtitles in it), then the stream's own track in it, then the first add-on file in
+      it (the next, when one will not load). Always, with nothing preferred and no text in the stream: the first file.
+      Once per play, and never over the viewer's own choice on this title. */
+  async function subAuto(seq){
+    try { await subState.streamReady; } catch(e){}
+    if (!player || seq !== playSeq) return;
+    var h0 = subState.hand;
+    if (h0) return;
+    // a file picked by hand on this title comes back on its next source (a swap after a stall); Off or a stream track: nothing
+    if (subHand && curPlay && subHand.id === curPlay.id){
+      var again = null;
+      if (subHand.url) subState.list.forEach(function(c){ if (!again && c.url === subHand.url) again = c; });
+      if (again) await pickAddonSub(again, h0);
+      return;
+    }
+    var mode = getPrefs().subStart;
+    if (mode !== 'pref' && mode !== 'always') return;
+    var tracks = [], visible = false;
+    try { tracks = player.getTextTracks() || []; } catch(e2){}
+    try { visible = player.isTextTrackVisible(); } catch(e3){}
+    var langs = [];
+    [prefLang('subLang'), getPrefs().subLang2 || ''].forEach(function(l){ var k = subKey(l); if (k && langs.indexOf(k) === -1) langs.push(k); });
+    function full(t){ return !t.forced; }
+    function tryFiles(cs){
+      var i = 0;
+      function next(){
+        if (i >= cs.length || !player || seq !== playSeq || subState.hand !== h0) return Promise.resolve(false);
+        return pickAddonSub(cs[i++], h0).then(function(ok){ return ok || next(); });
+      }
+      return next();
+    }
+    for (var li = 0; li < langs.length; li++){
+      var k = langs[li];
+      if (visible && tracks.some(function(t){ return t.active && full(t) && subKey(t.language) === k; })) return;
+      var own = tracks.filter(function(t){ return full(t) && subKey(t.language) === k; })[0];
+      if (own){
+        try { player.selectTextTrack(own); player.setTextTrackVisibility(true); } catch(e4){}
+        puiRefreshButtons(); if (puiState.menu === 'subs') subPanelRender(true);
+        return;
+      }
+      var files = subState.list.filter(function(c){ return !subState.loaded[c.url] && subKey(c.lang) === k; }).slice(0, 3);
+      if (files.length && await tryFiles(files)) return;
+      if (!player || seq !== playSeq || subState.hand !== h0) return;
+    }
+    if (mode === 'always' && !tracks.length) await tryFiles(subState.list.filter(function(c){ return !subState.loaded[c.url]; }).slice(0, 3));
   }
   /** Fetched here rather than handed to Shaka as a URL: add-on subtitle links carry
       no file extension (the format has to be sniffed) and some are still CP1252. */
@@ -8160,15 +8241,19 @@
     subState.urls.push(u);
     return { url:u, mime:mime };
   }
-  async function pickAddonSub(c){
-    if (!player) return;
-    setStatus('Loading subtitles…', 'info');
+  /** [autoAt]: the autoload's pick, made when the viewer's choice count stood at that number — quiet, and it stands
+      down if they choose meanwhile. Resolves true when the file is showing. */
+  async function pickAddonSub(c, autoAt){
+    if (!player) return false;
+    var auto = autoAt != null;
+    if (!auto){ subHandNote(c.url); setStatus('Loading subtitles…', 'info'); }
     var seq = playSeq;
+    function stale(){ return !player || seq !== playSeq || (auto && subState.hand !== autoAt); }
     try {
       var blob = await fetchSubBlob(c.url);
-      if (!player || seq !== playSeq) return;
+      if (stale()) return false;
       var track = await player.addTextTrackAsync(blob.url, c.lang, 'subtitles', blob.mime, '', c.label);
-      if (!player || seq !== playSeq) return;
+      if (stale()) return false;
       subState.loaded[c.url] = true;
       subState.trackSrc[c.label] = c.addon || 'Add-on';   // the card's badge once it is a track
       if (!track){
@@ -8176,11 +8261,13 @@
       }
       if (track) player.selectTextTrack(track);
       player.setTextTrackVisibility(true);
-      setStatus('Subtitles: ' + c.label, 'ok');
+      if (!auto) setStatus('Subtitles: ' + c.label, 'ok');
       puiRefreshButtons();
       if (puiState.menu === 'subs') subPanelRender(true);   // the panel stays up; the card is now a track
+      return true;
     } catch(e){
-      setStatus('Couldn’t load that subtitle file.', 'err');
+      if (!auto) setStatus('Couldn’t load that subtitle file.', 'err');
+      return false;
     }
   }
 
@@ -9048,6 +9135,7 @@
     var was = keep ? spLocate(document.activeElement) : null;
     hostL.innerHTML = '';
     spRow(hostL, spBtn('sp-opt' + (!m.visible ? ' on' : ''), '<span class="sp-lbl">Off</span>' + SP_CHECK, function(){
+      subHandNote('');
       try { player.setTextTrackVisibility(false); } catch(e){}
       setStatus('Subtitles off.', 'ok'); subPanelRender(true);
     }));
@@ -9065,6 +9153,7 @@
         var from = subState.trackSrc[tr.label || ''] || 'Built in';
         spRow(hostT, spBtn('sp-card' + (m.visible && tr.active ? ' on' : ''),
           '<span class="sp-badge">' + esc(from) + '</span><span class="sp-lbl">' + esc(label) + '</span>' + SP_CHECK, function(){
+            subHandNote('');
             try { player.selectTextTrack(tr); player.setTextTrackVisibility(true); } catch(e){}
             setStatus('Subtitles: ' + label, 'ok'); subPanelRender(true);
           }));
