@@ -378,10 +378,10 @@
   .addon-del svg { width:13px; height:13px; }
   /* Quiet, but never invisible: it used to be opacity:0 and revealed on hover,
      which on a touch screen left a live destructive control you couldn't see. */
-  .addon-del:hover { background:var(--accent); color:var(--on-accent); }
+  .addon-del:hover { background:var(--danger); color:#fff; }
   .addon:hover .addon-del, .addon:focus-within .addon-del, .addon.focusable:focus .addon-del { color:var(--label2); }
-  html.tv .addon-del.focusable:focus { background:var(--accent); color:var(--on-accent); }
-  .addon-del.focusable:focus-visible { background:var(--accent); color:var(--on-accent); }
+  html.tv .addon-del.focusable:focus { background:var(--danger); color:#fff; }
+  .addon-del.focusable:focus-visible { background:var(--danger); color:#fff; }
   /* Drag to rank. touch-action:none is load-bearing — without it a drag down
      the list scrolls the page instead. */
   .addon-grip { flex:0 0 auto; width:34px; height:38px; border:0; border-radius:9px; padding:0;
@@ -1077,7 +1077,6 @@
     background:currentColor; opacity:.75;
     -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / contain no-repeat;
     mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / contain no-repeat; }
-  html.tv .qopt { padding-right:46px; }
   html.tv .qopt.on::after { width:20px; height:20px; margin-top:-10px; right:16px; }
   .qnote { color:rgba(235,235,245,.6); font-size:calc(12.5px * var(--ts)); line-height:1.45; padding:7px 12px 9px;
     white-space:normal; max-width:250px; }
@@ -1448,7 +1447,7 @@
   #pqr svg { width:170px; height:170px; display:block; }
   .pdanger { color:var(--danger); }
   .btn.pdanger-btn { background:var(--danger); color:#fff; }
-  .btn.pdanger-btn:hover { background:#e0372d; }
+  .btn.pdanger-btn:hover { background:var(--danger); opacity:.88; }
   .btn:disabled { opacity:.55; cursor:default; transform:none; }
   #pqr:empty { display:none; }
   html.tv .pav { width:64px; height:64px; font-size:calc(26px * var(--ts)); }
@@ -1656,7 +1655,7 @@
   html.tv .pui-clock { font-size:calc(16px * var(--ts)); }
   html.tv .pui-shade-bot { height:380px; }
   html.tv .qmenu { min-width:300px; bottom:150px; right:56px; }
-  html.tv .qopt { font-size:calc(19px * var(--ts)); padding:12px 16px; }
+  html.tv .qopt { font-size:calc(19px * var(--ts)); padding:12px 46px 12px 16px; }   /* 46: room for the drawn check */
   html.tv .qtitle { font-size:calc(15px * var(--ts)); }
   html.tv .qmenu.wide { min-width:392px; }
   html.tv #upnext { width:470px; right:56px; bottom:196px; padding:26px; }
@@ -2685,6 +2684,7 @@
   }
   document.addEventListener('focusin', function(e){
     var t = e.target; if (!t || !t.closest || t.hasAttribute('data-back')) return;
+    if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') return;     // never a landing spot: on a TV it throws the keyboard up
     var v = t.closest('.view'); if (v) viewFocus[v.id] = { el: t, key: focusKeyOf(t) };
   }, true);
   function viewFocusTake(v){
@@ -2821,7 +2821,7 @@
       var top = viewStack[viewStack.length-1];
       // after an episode hop the list underneath is the FIRST episode's: back lands on the streams of the one just watched
       if (top === 'streams' && was && was.id && lastStreamsReq && lastStreamsReq.id !== was.id){
-        openStreams(was.type, was.id, ctx.streamTitle || was.name); return;
+        openStreams(was.type, was.id, ctx.streamTitle || was.name, false, true); return;
       }
       show(top, false);
     }
@@ -4510,8 +4510,8 @@
     function resume(fresh){
       var a = addonByUrl(r.addonUrl);
       if (a) ctx.addon = a;
-      ctx.item = { id: r.id, type: r.type, name: r.name, poster: r.poster, posterShape: r.shape };
-      ctx.seriesEpisodes = null; ctx.epIndex = -1; ctx.seriesName = '';
+      ctx.item = { id: r.id, type: r.type, name: r.name, poster: r.poster, posterShape: r.shape, background: r.back || '' };
+      ctx.seriesEpisodes = null; ctx.epIndex = -1; ctx.seriesName = ''; ctx.seriesId = ''; ctx.seriesPoster = ''; ctx.seriesBack = '';
       openStreams(r.type, r.id, r.name, fresh === true);
       if (r.type === 'series') hydrateSeriesChain(r.type, r.id);
     }
@@ -5087,8 +5087,14 @@
       discHead(); discLoad(false);
     };
     // an empty answer (every manifest failed) is not kept: the next visit asks again
-    var gen = disc.optGen || 0;
-    if (disc.opts) go(); else discOptions().then(function(o){ if (gen !== (disc.optGen || 0)) return; disc.opts = o.length ? o : null; go(); });
+    function load(){
+      var gen = disc.optGen || 0;
+      discOptions().then(function(o){
+        if (gen !== (disc.optGen || 0)){ if (document.body.contains(box)) load(); return; }   // the add-ons changed meanwhile: ask again
+        disc.opts = o.length ? o : null; go();
+      });
+    }
+    if (disc.opts) go(); else load();
   }
   /** The add-on list changed (added, removed, switched off, synced in): Discover's catalogue list is asked for
       again on its next showing, and an answer already on its way for the old list is dropped. */
@@ -5296,6 +5302,17 @@
     if (!row.children.length) return;
     wrap.appendChild(head); wrap.appendChild(row);
   }
+  /** After an ask is answered the Friends page is rebuilt (its lists arrive a moment later): the remote goes to the
+      next ask, or to Add friend — never left on the page body, where the next press starts over from the top. */
+  function frRefocus(){
+    if (!IS_TV && !kbUsed) return;
+    var n = 0;
+    (function tryIt(){
+      var t = document.querySelector('#frBody .fr-ask .btn') || (document.querySelector('#frBody .fr-cards') ? $id('frAdd') : null);
+      if (t && isShown(t)){ try { t.focus({ preventScroll: true }); } catch(e){ t.focus(); } return; }
+      if (++n < 25) setTimeout(tryIt, 120); else if ($id('frAdd')) $id('frAdd').focus();
+    })();
+  }
   function renderFriends(wrap){
     wrap.innerHTML = '';
     if (!socialOn()){
@@ -5373,11 +5390,11 @@
             var no = document.createElement('button'); no.className = 'btn ghost focusable'; no.textContent = 'Dismiss';
             yes.onclick = function(){
               cloudApi('POST', '/v1/social/friend', friendRef(f)).then(function(){
-                setStatus('You and ' + friendLabel(f) + ' are now friends.', 'ok'); renderLibraryTab();
+                setStatus('You and ' + friendLabel(f) + ' are now friends.', 'ok'); renderLibraryTab(); frRefocus();
               }).catch(function(){ setStatus('Could not reach the server.', 'err'); });
             };
             no.onclick = function(){
-              cloudApi('POST', '/v1/social/ask_dismiss', friendRef(f)).then(function(){ renderLibraryTab(); })
+              cloudApi('POST', '/v1/social/ask_dismiss', friendRef(f)).then(function(){ renderLibraryTab(); frRefocus(); })
                 .catch(function(){ setStatus('Could not reach the server.', 'err'); });
             };
             row.appendChild(av); row.appendChild(col); row.appendChild(yes); row.appendChild(no);
@@ -5586,6 +5603,9 @@
       var a = addonByUrl(s.addonUrl);
       if (a) ctx.addon = a;
       ctx.seriesEpisodes = null; ctx.epIndex = -1; ctx.seriesName = s.name || '';
+      ctx.seriesId = ''; ctx.seriesPoster = ''; ctx.seriesBack = '';
+      // this show is the title now — not whatever page was open last (its art went onto the streams hero and the record)
+      ctx.item = { id: seriesIdOf(v.id), type: 'series', name: s.name || '', poster: s.poster || '', background: s.background || s.back || '' };
       ctx.streamTitle = epLabel(s.name, v);
       openStreams('series', v.id, ctx.streamTitle);
       hydrateSeriesChain('series', v.id);
@@ -6107,6 +6127,7 @@
     var bySeason = grouped.bySeason, seasons = grouped.seasons, flat = grouped.flat;
     ctx.seriesType = type;
     ctx.seriesEpisodes = flat; ctx.seriesName = meta.name || ''; ctx.seriesPoster = meta.poster || ''; ctx.seriesBack = meta.background || '';
+    ctx.seriesId = meta.id || '';
     var pool = surprisePool(flat);
     if (pool.length >= 2){
       sh.style.display = '';
@@ -6230,7 +6251,7 @@
     ctx.item = meta;                       // stream/poster identity keys off this
     // every way in (My List, a friend's card, View details) starts clean: a series page builds its own chain again
     // below, and a film must not inherit the last show's — its name on the pause board, its Next ›, its Up next
-    ctx.seriesEpisodes = null; ctx.epIndex = -1; ctx.seriesName = ''; ctx.seriesPoster = ''; ctx.seriesBack = '';
+    ctx.seriesEpisodes = null; ctx.epIndex = -1; ctx.seriesName = ''; ctx.seriesPoster = ''; ctx.seriesBack = ''; ctx.seriesId = '';
     detCur = { meta: meta, type: type, addon: ctx.addon || null };
     try { detRateRender(); detRecWire(); } catch(e){}
     var seq = ++detSeq;
@@ -6389,6 +6410,7 @@
     ctx.seriesEpisodes = flat;
     ctx.seriesName = meta.name || '';
     ctx.seriesPoster = meta.poster || ''; ctx.seriesBack = meta.background || '';
+    ctx.seriesId = meta.id || '';
     var row = document.getElementById('seasonRow');
     row.innerHTML = '';
     var upIdx = -1, curSeason = null;
@@ -6470,6 +6492,7 @@
     ctx.seriesName = (res.meta && res.meta.name) || ctx.seriesName || '';
     ctx.seriesPoster = (res.meta && res.meta.poster) || ctx.seriesPoster || '';
     ctx.seriesBack = (res.meta && res.meta.background) || ctx.seriesBack || '';
+    ctx.seriesId = seriesId;
     ctx.epIndex = -1;
     for (var i=0;i<grouped.flat.length;i++){
       if (grouped.flat[i].id === episodeId){ ctx.epIndex = i; break; }
@@ -6589,8 +6612,11 @@
   function setPlayIdentity(type, id, title){
     ctx.playType = type || ''; ctx.playId = id || ''; ctx.playTitle = title || '';
     ctx.playAddonUrl = (ctx.addon && ctx.addon.url) || '';
-    ctx.playPoster = (ctx.item && ctx.item.poster) || ctx.seriesPoster || '';
-    ctx.playBack = (ctx.item && ctx.item.background) || ctx.seriesBack || '';
+    // the chain's art stands in only for an episode of that chain's own show — never for a film resumed after a
+    // series page was browsed (it wrote the show's backdrop into the film's record, and synced it)
+    var ownChain = !!ctx.seriesId && seriesIdOf(ctx.playId) === ctx.seriesId;
+    ctx.playPoster = (ctx.item && ctx.item.poster) || (ownChain ? ctx.seriesPoster : '') || '';
+    ctx.playBack = (ctx.item && ctx.item.background) || (ownChain ? ctx.seriesBack : '') || '';
     ctx.playShape = (ctx.item && ctx.item.posterShape) || 'poster';
   }
   /** For playback with no catalogue identity (a pasted URL, a party stream):
@@ -6598,7 +6624,7 @@
   function clearPlayIdentity(){
     ctx.playType = ''; ctx.playId = ''; ctx.playTitle = '';
     ctx.playAddonUrl = ''; ctx.playPoster = ''; ctx.playBack = ''; ctx.playShape = 'poster';
-    ctx.seriesEpisodes = null; ctx.epIndex = -1; ctx.seriesName = '';
+    ctx.seriesEpisodes = null; ctx.epIndex = -1; ctx.seriesName = ''; ctx.seriesId = '';
     ctx.playSig = null; ctx.playRow = '';   // no stream row behind this: the source line stays empty
   }
   /** The episode being played, found by its id in the series chain (null for a film). */
@@ -6761,7 +6787,7 @@
         { icon:'restart', label:'Start over', fn: function(){ ctx.startOver = true; ctx.resumeChosen = true; go(); } }
       ] });
   }
-  function openStreams(type, id, titleText, fresh){
+  function openStreams(type, id, titleText, fresh, noAuto){
     var seq = ++openSeq, openedAt = Date.now(), pr = getPrefs();
     lastStreamsReq = { type: type, id: id, title: titleText };
     setPlayIdentity(type, id, titleText);
@@ -6784,7 +6810,8 @@
     act.forEach(function(a){ if (!origin || a.url !== origin.url) order.push(a); });
     // the player choosing for you (Settings › Streams): the twin of the last pick, or the first row, once every
     // add-on has answered or the wait runs out — never once the remote or the pointer has moved on the list
-    var apMode = (pr.autoPick === 'same' || pr.autoPick === 'first') ? pr.autoPick : '', apTimer = null, apDone = false;
+    // (never on the way BACK to a list: Back is the viewer choosing, and the pick would replay what they just left)
+    var apMode = (!noAuto && (pr.autoPick === 'same' || pr.autoPick === 'first')) ? pr.autoPick : '', apTimer = null, apDone = false;
     function autoPickNow(){
       if (apDone || seq !== openSeq) return;
       apDone = true; clearTimeout(apTimer);
@@ -7021,7 +7048,7 @@
   // (a playlist is a candidate too, but only a refusal brings the shell in: the engine plays playlists itself, live
   // included, and the app steps in when the engine could not fetch one — a host with no CORS, or one wanting the add-on's headers)
   function tcCandidate(url, keys){
-    return IS_DESKTOP && !!(window.nebulaDesktop && window.nebulaDesktop.transcode) && !keys &&
+    return IS_DESKTOP && !!(window.nebulaDesktop && (window.nebulaDesktop.transcodeNow ? window.nebulaDesktop.transcodeNow() : window.nebulaDesktop.transcode)) && !keys &&
       /^https?:\/\//i.test(url) && !/\.mpd(\?|#|$)/i.test(url);
   }
   /** The codec string the element must accept to copy this HEVC stream through: Main 10 (10-bit, most HDR) is profile 2,
@@ -10143,8 +10170,10 @@
       ctx.playAddonUrl = st.addonUrl || ''; ctx.playPoster = st.poster || '';
       ctx.playShape = 'poster';
       // the host's title, not whatever this viewer last browsed: no chain, no source line, the pause board names it
-      ctx.seriesEpisodes = null; ctx.epIndex = -1; ctx.seriesName = '';
+      ctx.seriesEpisodes = null; ctx.epIndex = -1; ctx.seriesName = ''; ctx.seriesId = '';
+      ctx.seriesPoster = ''; ctx.seriesBack = '';
       ctx.playSig = null; ctx.playRow = '';
+      ctx.playBack = '';                    // not the backdrop of whatever this viewer played last
       ctx.item = { id: st.id, type: st.type, name: st.name || st.title || '', poster: st.poster || '' };
     } else {
       clearPlayIdentity();
@@ -11097,7 +11126,7 @@
   };
   function pfIcon(plat){
     if (plat === 'webos' || plat === 'tv' || plat === 'androidtv') return PF_ICONS.tv;
-    if (plat === 'windows' || plat === 'mac' || plat === 'linux') return PF_ICONS.pc;
+    if (plat === 'windows' || plat === 'mac' || plat === 'macos' || plat === 'linux') return PF_ICONS.pc;
     if (plat === 'android' || plat === 'ios') return PF_ICONS.phone;
     return PF_ICONS.web;
   }
@@ -11490,8 +11519,9 @@
   function controlsHideKey(){ var v = getPrefs().controlsHide; return (v === '2' || v === '6') ? v : '3.5'; }
   function controlsHideMs(){ return Number(controlsHideKey()) * 1000; }
   function pickWaitSecs(){ var n = Number(getPrefs().pickWait); return (n === 3 || n === 10) ? n : 6; }
-  /** Text on an accent fill: black when the colour is light enough that white would wash out (WCAG relative
-      luminance over 0.3 — White, Ice, Mint, Emerald, Amber, Gold, Lime, Peach), white for the rest. */
+  /** Text on an accent fill: white, as Apple sets it on its own tints, until the accent is so light that white falls
+      under 3:1 — the floor for the bold labels that sit on accent fills (WCAG relative luminance over 0.3, e.g. White,
+      Ice, Mint, Emerald, Amber, Gold, Lime) — then black. */
   function onAccent(hex){
     var m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '')); if (!m) return '#fff';
     var n = parseInt(m[1], 16), c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(function(v){

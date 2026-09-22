@@ -53,12 +53,14 @@ const MAX_KEYS_PER_GROUP = 12;
 const MAX_VALUE_BYTES = 300 * 1024;
 const MAX_GROUP_KV_BYTES = 1536 * 1024;        // every key of one group together (a heavy real one is ~300 KB)
 const IDLE_DROP_MS = 15 * 60_000;              // a group nobody asked for in this long leaves memory (its file stays)
+const MAX_IN_MEMORY = Number(process.env.MAX_IN_MEMORY || 1500);   // …and never more than this many at once
 const MAX_BODY_BYTES = 320 * 1024;
 const LINK_TTL_MS = 15 * 60_000;
 const EVICT_AFTER_MS = 400 * 24 * 3600_000;   // groups idle over ~13 months
 const PROXY_MAX_BYTES = 8 * 1024 * 1024;
 const PROXY_TIMEOUT_MS = 20_000;
-const PROXY_MAX_CONCURRENT = 20;
+const PROXY_MAX_CONCURRENT = 40;
+const PROXY_MAX_PER_IP = 10;                   // one address's requests in flight: Home asks for every catalogue at once
 
 fs.mkdirSync(GROUPS_DIR, { recursive: true });
 
@@ -89,12 +91,22 @@ let groupCount = fs.readdirSync(GROUPS_DIR).filter((n) => n.endsWith('.json')).l
 function gPath(gid) { return path.join(GROUPS_DIR, gid + '.json'); }
 function loadGroup(gid) {
   if (!/^[0-9a-f]{16}$/.test(gid)) return null;
-  if (groups.has(gid)){ lastUse.set(gid, Date.now()); return groups.get(gid); }
+  if (groups.has(gid)){ lastUse.delete(gid); lastUse.set(gid, Date.now()); return groups.get(gid); }   // (re-inserted: the map runs oldest first)
   try {
     const g = JSON.parse(fs.readFileSync(gPath(gid), 'utf8'));
     groups.set(gid, g); lastUse.set(gid, Date.now());
+    if (groups.size > MAX_IN_MEMORY) trimMemory();
     return g;
   } catch (e) { return null; }
+}
+/** Past MAX_IN_MEMORY, drop the least recently used groups — never one used in the last minute (a request may still be
+    reading its body with the object in hand) nor one with a write pending. The files stay; the next request reloads. */
+function trimMemory() {
+  const recent = Date.now() - 60_000;
+  for (const [gid, t] of lastUse) {
+    if (groups.size <= MAX_IN_MEMORY * 0.9) break;
+    if (t < recent && !dirty.has(gid)) { groups.delete(gid); lastUse.delete(gid); }
+  }
 }
 // Memory holds the groups in use, never the whole store: one left alone for IDLE_DROP_MS is dropped (never while a
 // write for it is pending — that write reads the object from the map), and the next request loads it again.
@@ -134,10 +146,13 @@ function newGroup() {
 function deleteGroup(gid) {
   const g = loadGroup(gid);
   if (g && g.social) {
-    for (const fid of g.social.friends) {
+    // friends and asks are one-sided until both have added: every trace on the other side goes — their friend
+    // lists (a mutual friend, or an ask this group made) and their asks (an ask this group made of them)
+    for (const fid of g.social.friends.concat(g.social.asks || [])) {
       const other = loadGroup(fid);
       if (other && other.social) {
         other.social.friends = other.social.friends.filter((f) => f !== gid);
+        other.social.asks = (other.social.asks || []).filter((f) => f !== gid);
         persistSoon(fid);
       }
     }
@@ -279,7 +294,7 @@ async function handleProxy(req, res, target, ip) {
   let u = await proxyTargetOk(target);
   if (!u) return json(res, 400, { error: 'url not allowed' });
   if (proxyActive >= PROXY_MAX_CONCURRENT) return json(res, 503, { error: 'busy' });
-  if ((proxyByIp.get(ip) || 0) >= 4) return json(res, 429, { error: 'rate limited' });
+  if ((proxyByIp.get(ip) || 0) >= PROXY_MAX_PER_IP) return json(res, 429, { error: 'rate limited' });
   proxyByIp.set(ip, (proxyByIp.get(ip) || 0) + 1);
   proxyActive++;
   const ctrl = new AbortController();
@@ -505,8 +520,9 @@ async function handleReleases(req, res, ip) {
 const SOCIAL_CODES_PATH = path.join(DATA_DIR, 'social-codes.json');
 const MAX_FRIENDS = 50;
 const MAX_INBOX = 40;
-const MAX_ASKS = 50;
-const SOCIAL_BURST = Number(process.env.SOCIAL_BURST || 40);   // env-tunable so the test file isn't rationed          // people who added you and wait for you to add them back (oldest dropped)
+const MAX_ASKS = 50;           // people who added you and wait for you to add them back (oldest dropped)
+const SOCIAL_BURST = Number(process.env.SOCIAL_BURST || 40);     // env-tunable so the test file isn't rationed
+const SFRIEND_BURST = Number(process.env.SFRIEND_BURST || 10);   // an add puts your name in someone's asks: kept tight
 const MAX_PROFILE_BYTES = 24 * 1024;
 let socialCodes = {};            // CODE -> gid
 try { socialCodes = JSON.parse(fs.readFileSync(SOCIAL_CODES_PATH, 'utf8')); } catch (e) {}
@@ -615,7 +631,7 @@ function handleSocial(p, req, res, ip) {
   }
   if (p === '/v1/social/friend' && req.method === 'POST') {
     readBody(req, (body) => {
-      if (!allow('sfriend', ip, 4, Math.max(20, SOCIAL_BURST / 2))) return json(res, 429, { error: 'rate limited' });
+      if (!allow('sfriend', ip, 2, SFRIEND_BURST)) return json(res, 429, { error: 'rate limited' });
       const gid = socialTarget(body);
       if (!gid || gid === a.gid) return json(res, 404, { error: 'not found' });
       const other = loadGroup(gid);
@@ -658,10 +674,11 @@ function handleSocial(p, req, res, ip) {
     return true;
   }
   if (p === '/v1/social/friends' && req.method === 'GET') {
-    const out = [];
+    const out = [], alive = [];
     for (const gid of s.friends) {
       const other = loadGroup(gid);
-      if (!other || !other.social) continue;                   // evicted or disabled
+      if (!other || !other.social) continue;                   // evicted or disabled: pruned below (it counted toward the cap)
+      alive.push(gid);
       const card = socialCard(gid, other);
       if (mutualWith(gid, other, a.gid)) {
         card.profile = other.social.profile || '';
@@ -669,6 +686,7 @@ function handleSocial(p, req, res, ip) {
       } else { card.profile = ''; card.at = 0; card.pending = true; }   // asked, not yet added back: nothing of theirs
       out.push(card);
     }
+    if (alive.length !== s.friends.length) { s.friends = alive; persistSoon(a.gid); }
     json(res, 200, { friends: out });
     return true;
   }
@@ -714,7 +732,7 @@ function handleSocial(p, req, res, ip) {
     return true;
   }
   if (p === '/v1/social/disable' && req.method === 'POST') {
-    for (const gid of s.friends) {
+    for (const gid of s.friends.concat(s.asks || [])) {
       const other = loadGroup(gid);
       if (other && other.social) {
         other.social.friends = other.social.friends.filter((f) => f !== a.gid);
@@ -877,4 +895,4 @@ if (require.main === module) {
   }
   server.listen(PORT, '127.0.0.1', () => console.log('nebula-cloud on 127.0.0.1:' + PORT));
 }
-module.exports = { server, privateIp, proxyTargetOk, flushAll };
+module.exports = { server, privateIp, proxyTargetOk, flushAll, evict, loadGroup, groupsInMemory: () => groups.size };

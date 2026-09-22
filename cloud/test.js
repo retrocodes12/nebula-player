@@ -2,16 +2,17 @@
 // proxy's target validation. Uses a throwaway data dir and an ephemeral port.
 'use strict';
 
-process.env.GROUP_BURST = '48';           // one more profile since the sports-key test (09-20)
+process.env.GROUP_BURST = '60';           // one more profile since the sports-key test (09-20)
 process.env.SIGNIN_BURST = '100';       // the per-IP limiter would ration the suite; the per-handle one is tested
 process.env.SUPPORT_CONFIG_CHECK_MS = '0';
 process.env.SOCIAL_BURST = '200';        // friends are mutual since 09-23: two adds per friendship
+process.env.SFRIEND_BURST = '100';
 process.env.DATA_DIR = require('fs').mkdtempSync(
   require('path').join(require('os').tmpdir(), 'nebula-cloud-test-'));
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert');
-const { server, privateIp, proxyTargetOk, flushAll } = require('./server.js');
+const { server, privateIp, proxyTargetOk, flushAll, evict, loadGroup } = require('./server.js');
 
 let base;
 before(async () => {
@@ -1067,4 +1068,61 @@ test('flushAll writes the handle index at once — a restart right after a creat
   const fs = require('fs'), path = require('path');
   const idx = JSON.parse(fs.readFileSync(path.join(process.env.DATA_DIR, 'handles.json'), 'utf8'));
   assert.equal(idx.flush_me, r.body.gid);
+});
+
+// ---------- 2026-09-23 audit ----------
+test('the rescue proxy never hands a host page back as a page on our origin', async () => {
+  const dnsP = require('dns').promises, realLookup = dnsP.lookup, realFetch = global.fetch;
+  dnsP.lookup = async (h, o) => (h === 'evil.example' ? [{ address: '93.184.216.34', family: 4 }] : realLookup(h, o));
+  global.fetch = async (u, o) => {
+    const s = String(u);
+    if (s.startsWith('https://evil.example/x/')) return new Response('<script>steal()</script>', { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    if (s.startsWith('https://evil.example/ok/')) return new Response('{"id":"a"}', { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+    return realFetch(u, o);
+  };
+  try {
+    const r = await realFetch(base + '/p?u=' + encodeURIComponent('https://evil.example/x/manifest.json'));
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get('content-type'), 'application/octet-stream');
+    assert.equal(r.headers.get('x-content-type-options'), 'nosniff');
+    assert.match(r.headers.get('content-security-policy') || '', /sandbox/);
+    assert.equal(r.headers.get('content-disposition'), 'attachment');
+    const j = await realFetch(base + '/p?u=' + encodeURIComponent('https://evil.example/ok/manifest.json'));
+    assert.match(j.headers.get('content-type'), /^application\/json/);
+    assert.equal((await j.json()).id, 'a');
+  } finally { dnsP.lookup = realLookup; global.fetch = realFetch; }
+});
+
+test('one group\'s keys together are capped', async () => {
+  const g = (await api('POST', '/v1/group')).body, t = g.gid + '.' + g.secret;
+  const big = 'x'.repeat(290 * 1024);
+  for (let i = 0; i < 5; i++) assert.equal((await api('PUT', '/v1/kv/cap' + i, { v: big }, t)).status, 200);
+  assert.equal((await api('PUT', '/v1/kv/cap5', { v: big }, t)).status, 507);
+  assert.equal((await api('PUT', '/v1/kv/cap0', { v: 'small now' }, t)).status, 200);   // a key made smaller always fits
+  assert.equal((await api('PUT', '/v1/kv/cap5', { v: big }, t)).status, 200);           // …and frees room
+});
+
+test('eviction takes idle groups but never a supporter', async () => {
+  const a = (await api('POST', '/v1/group')).body, b = (await api('POST', '/v1/group')).body;
+  const old = Date.now() - 500 * 24 * 3600_000;
+  const ga = loadGroup(a.gid), gb = loadGroup(b.gid);
+  ga.touched = ga.created = old;
+  gb.touched = gb.created = old; gb.supporter = { tier: 'supporter', since: old };
+  flushAll();
+  evict();
+  assert.equal((await api('GET', '/v1/kv', undefined, a.gid + '.' + a.secret)).status, 401);
+  assert.equal((await api('GET', '/v1/kv', undefined, b.gid + '.' + b.secret)).status, 200);
+});
+
+test('a deleted profile takes its asks and one-sided links with it', async () => {
+  const x = await mkProfile('del_x', 'X', 'password1');
+  const y = await mkProfile('del_y', 'Y', 'password1');
+  const z = await mkProfile('del_z', 'Z', 'password1');
+  for (const p of [x, y, z]) await api('POST', '/v1/social/enable', {}, tok(p));
+  await api('POST', '/v1/social/friend', { handle: 'del_y' }, tok(x));   // x asked y
+  await api('POST', '/v1/social/friend', { handle: 'del_x' }, tok(z));   // z asked x
+  assert.equal((await api('GET', '/v1/social/asks', undefined, tok(y))).body.asks.length, 1);
+  assert.equal((await api('DELETE', '/v1/profile', { password: 'password1' }, tok(x))).status, 200);
+  assert.equal((await api('GET', '/v1/social/asks', undefined, tok(y))).body.asks.length, 0);
+  assert.equal((await api('GET', '/v1/social/me', undefined, tok(z))).body.friends, 0);   // z's pending ask to x is gone too
 });
