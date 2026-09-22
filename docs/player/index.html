@@ -533,8 +533,12 @@
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
     transition:background .18s var(--ease), transform .2s var(--ease); }
   .stream > * + * { margin-left:14px; }
-  .stream-play { width:40px; height:40px; flex:0 0 auto; border-radius:var(--r-pill); background:var(--accent);
-    color:var(--on-accent); display:flex; align-items:center; justify-content:center; }
+  /* a row with no resolution to show: a quiet tile where the plate would be, the accent only when the row is lit */
+  .stream-play { width:40px; height:40px; flex:0 0 auto; border-radius:var(--r-pill); background:var(--fill);
+    color:var(--label); display:flex; align-items:center; justify-content:center; }
+  .stream:hover .stream-play { background:var(--accent); color:var(--on-accent); }
+  html.tv .stream.focusable:focus .stream-play { background:var(--accent); color:var(--on-accent); }
+  .stream.focusable:focus-visible .stream-play { background:var(--accent); color:var(--on-accent); }
   .stream-play svg { width:15px; height:15px; }
   /* the resolution is what you actually choose by — it leads the row as a
      plate instead of a decorative play button, and lights up on focus */
@@ -1604,8 +1608,8 @@
   html.tv .stream { padding:20px 24px; }
   /* stream rows are bigger rounded cards, the add-on's initial in an accent ring at the right */
   html.tv #streamList .stream { border-radius:16px; padding:22px 26px; }
-  html.tv .s-src { flex:0 0 auto; width:56px; height:56px; border-radius:50%; box-shadow:inset 0 0 0 2px var(--accent);
-    color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:calc(22px * var(--ts)); font-weight:700;
+  html.tv .s-src { flex:0 0 auto; width:56px; height:56px; border-radius:50%; box-shadow:inset 0 0 0 2px rgba(255,255,255,.16);
+    color:var(--label2); display:flex; align-items:center; justify-content:center; font-size:calc(22px * var(--ts)); font-weight:700;
     letter-spacing:-.02em; margin-left:22px; }
   html.tv .stream.focusable:focus .s-src { background:var(--accent); color:var(--on-accent); }
   /* one focus language across the room: rows (streams, episodes, add-ons, friends, recommendations) wear the cards' white ring */
