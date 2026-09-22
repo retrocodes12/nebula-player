@@ -699,6 +699,15 @@
   .fr-card.focusable:focus-visible { background:var(--l2); transform:scale(1.04);
     box-shadow:0 10px 26px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
   .fr-card.on { box-shadow:inset 0 0 0 2px var(--accent); }
+  .fr-card.pending .fr-av { opacity:.55; }
+  .fr-ask { display:flex; align-items:center; padding:12px 14px; border-radius:14px; background:var(--l1); margin:0 0 8px;
+    box-shadow:inset 0 0 0 1px var(--sep); max-width:640px; }
+  .fr-ask > * + * { margin-left:12px; }
+  .fr-ask-t { flex:1; min-width:0; }
+  .fr-ask .fr-sub { display:block; }
+  .fr-ask .btn { padding:8px 16px; font-size:calc(14px * var(--ts)); }
+  html.tv .fr-ask { padding:16px 20px; max-width:900px; }
+  html.tv .fr-ask .btn { padding:11px 22px; font-size:calc(17px * var(--ts)); }
   .fr-av { width:40px; height:40px; border-radius:var(--r-pill); background:var(--accent); color:var(--on-accent);
     display:flex; align-items:center; justify-content:center; font-weight:700; font-size:calc(17px * var(--ts));
     margin-right:11px; flex:0 0 auto; }
@@ -5288,7 +5297,7 @@
     if (!socialOn()){
       var p = document.createElement('div'); p.className = 'fr-quiet';
       p.innerHTML = '<p><b>Friends</b>Rate what you watch, see what your friends are watching and trade recommendations. ' +
-        'Turning it on shares your ratings, recent watches and My List with the friends you add by @handle, and no one else.</p>' +
+        'Turning it on shares your ratings, recent watches and My List with your friends — people you add by @handle who add you back — and no one else.</p>' +
         '<button class="btn ghost focusable" id="frOn">' + (profile ? 'Turn on Friends' : 'Sign in to use Friends') + '</button>';
       wrap.appendChild(p);
       $id('frOn').onclick = socialEnable;
@@ -5320,7 +5329,9 @@
       if (ref.handle !== undefined && !/^[a-z0-9_]{3,20}$/.test(ref.handle)){ setStatus('Enter a friend’s @handle.', 'err'); return; }
       cloudApi('POST', '/v1/social/friend', ref).then(function(r){
         $id('frHandleIn').value = '';
-        setStatus('You and ' + friendLabel(r) + ' are now friends.', 'ok');
+        // friends are mutual: an add is an ask until they add you back, and nothing is shared before that
+        setStatus(r && r.pending ? 'Asked ' + friendLabel(r) + '. Once they add you back, you see each other’s watching.'
+          : 'You and ' + friendLabel(r) + ' are now friends.', 'ok');
         renderLibraryTab();
       }).catch(function(e){
         setStatus(e.status === 409 ? 'They have a profile, but Friends is off on their side.'
@@ -5335,9 +5346,40 @@
     var sk = document.createElement('div'); sk.className = 'empty'; sk.textContent = 'Loading friends…';
     body.appendChild(sk);
     socialPublishSoon();
-    Promise.all([cloudApi('GET', '/v1/social/friends'), cloudApi('GET', '/v1/social/inbox')])
+    Promise.all([cloudApi('GET', '/v1/social/friends'), cloudApi('GET', '/v1/social/inbox'),
+                 cloudApi('GET', '/v1/social/asks').catch(function(){ return null; })])
       .then(function(rs){
         body.innerHTML = '';
+        // people who added you: adding them back is the yes, Dismiss clears the ask (they are not told)
+        var asks = (rs[2] && rs[2].asks) || [];
+        if (asks.length){
+          var ah = document.createElement('div'); ah.className = 'rowhead';
+          ah.innerHTML = '<span class="row-title">Want to be friends</span>';
+          body.appendChild(ah);
+          asks.slice(0, 20).forEach(function(f){
+            var row = document.createElement('div'); row.className = 'fr-ask';
+            var av = document.createElement('span'); av.className = 'fr-av';
+            av.textContent = (f.name || f.handle || '?').slice(0, 1).toUpperCase();
+            if (f.avatar && /^#[0-9a-f]{6}$/i.test(f.avatar)){ av.style.background = f.avatar; av.style.color = onAccent(f.avatar); }
+            var col = document.createElement('span'); col.className = 'fr-ask-t';
+            var nm = document.createElement('span'); nm.className = 'fr-name'; nm.textContent = friendLabel(f);
+            var sb = document.createElement('span'); sb.className = 'fr-sub'; sb.textContent = f.handle ? '@' + f.handle + ' added you' : 'Added you';
+            col.appendChild(nm); col.appendChild(sb);
+            var yes = document.createElement('button'); yes.className = 'btn focusable'; yes.textContent = 'Add back';
+            var no = document.createElement('button'); no.className = 'btn ghost focusable'; no.textContent = 'Dismiss';
+            yes.onclick = function(){
+              cloudApi('POST', '/v1/social/friend', friendRef(f)).then(function(){
+                setStatus('You and ' + friendLabel(f) + ' are now friends.', 'ok'); renderLibraryTab();
+              }).catch(function(){ setStatus('Could not reach the server.', 'err'); });
+            };
+            no.onclick = function(){
+              cloudApi('POST', '/v1/social/ask_dismiss', friendRef(f)).then(function(){ renderLibraryTab(); })
+                .catch(function(){ setStatus('Could not reach the server.', 'err'); });
+            };
+            row.appendChild(av); row.appendChild(col); row.appendChild(yes); row.appendChild(no);
+            body.appendChild(row);
+          });
+        }
         var inbox = (rs[1] && rs[1].inbox) || [];
         if (inbox.length){
           var ih = document.createElement('div'); ih.className = 'rowhead';
@@ -5385,13 +5427,14 @@
           c.className = 'fr-card focusable' + (socialOpenCode === key ? ' on' : '');
           var av = document.createElement('span'); av.className = 'fr-av';
           av.textContent = (f.name || f.handle || '?').slice(0, 1).toUpperCase();
-          if (f.avatar){ av.style.background = f.avatar; if (f.avatar === '#F2F2F7') av.style.color = '#000'; }
+          if (f.avatar){ av.style.background = f.avatar; if (/^#[0-9a-f]{6}$/i.test(f.avatar)) av.style.color = onAccent(f.avatar); }
           var col = document.createElement('span');
           var nm = document.createElement('span'); nm.className = 'fr-name'; nm.innerHTML = esc(friendLabel(f)) + (f.sup ? supMark(f.mark) : '');
           if (f.tier === 'founder') av.classList.add('founder');
           var sb = document.createElement('span'); sb.className = 'fr-sub';
           sb.textContent = (f.handle && f.name ? '@' + f.handle + ' · ' : '') +
-            (prof && prof.ratings ? prof.ratings.length : 0) + ' rated';
+            (f.pending ? 'Waiting for them to add you back' : (prof && prof.ratings ? prof.ratings.length : 0) + ' rated');
+          if (f.pending) c.className += ' pending';
           sb.style.display = 'block';
           col.appendChild(nm); col.appendChild(sb);
           c.appendChild(av); c.appendChild(col);
@@ -5401,6 +5444,7 @@
             [].slice.call(cards.children).forEach(function(k){ k.className = k.className.replace(' on',''); });
             if (socialOpenCode !== key) return;
             c.className += ' on';
+            if (f.pending){ var e5 = document.createElement('div'); e5.className='empty'; e5.textContent = 'They have not added you back yet — once they do, you see each other’s watching here.'; detail.appendChild(e5); return; }
             if (!prof){ var e3 = document.createElement('div'); e3.className='empty'; e3.textContent = 'Nothing shared yet.'; detail.appendChild(e3); return; }
             friendRow(detail, (f.name || 'They') + ' watched recently',
               (prof.recent||[]).map(function(r){ return r && r.type === 'series'
@@ -5443,7 +5487,7 @@
     b.onclick = function(){
       var m = detCur.meta, type = detCur.type;
       cloudApi('GET', '/v1/social/friends').then(function(r){
-        var fr = (r.friends || []);
+        var fr = (r.friends || []).filter(function(f){ return !f.pending; });   // only a friendship both sides made carries one
         if (!fr.length){ setStatus('Add a friend first — Library › Friends.', 'info'); return; }
         openSheet({
           title: m.name || '', sub: 'Recommend to…', poster: m.poster || '', shape: m.posterShape || 'poster',

@@ -37,7 +37,7 @@
 <body>
 <header>
   <div class="wrap">
-    <div class="brand"><span class="dia">◆</span> Nebula &nbsp;·&nbsp; <a href="/">← nebula home</a></div>
+    <div class="brand"><span class="dia">◆</span> Nebula &nbsp;·&nbsp; <a href="./">← nebula home</a></div>
   </div>
 </header>
 
@@ -81,8 +81,10 @@
     same way until they add a profile. Data that goes unused is deleted automatically after about 13
     months, and deleting the profile removes all of it at once.</li>
     <li><b>Friends — only if you turn it on.</b> Friends shares your display name, your recent titles,
-    your ratings and your list with people you add by handle, and no one else. Turning Friends off deletes
-    what was shared from the server immediately.</li>
+    your ratings and your list with your friends, and no one else. A friendship needs both sides: adding
+    someone by handle only asks them, they see your display name and handle in their list of asks, and
+    nothing you watch is shared with them — or theirs with you — until they add you back. Removing a friend
+    ends it for both of you, and turning Friends off deletes what was shared from the server immediately.</li>
     <li><b>Supporting Nebula — only if you choose to.</b> Payments happen at a payment service
     (Pocketsflow), not with us; we never see card or bank details. When a payment completes, the service
     tells our server the order number and which tier was bought, and — if you opened the support page from
@@ -96,12 +98,19 @@
     <li><b>Watch party — only if you start or join one.</b> The relay passes the stream link and playback
     positions between party members while the party is open. Rooms disappear when everyone leaves, or
     after 12 hours at most. Nothing about a party is stored.</li>
+    <li><b>Share with your TV (the Windows and Linux apps) — only if you switch it on.</b> So that your TV
+    can find this computer, the app stores in your profile the computer's name (as the computer calls itself),
+    its addresses on your home network, the port it listens on and a random key the TV must present. Your
+    TV reads them from your profile; switching sharing off replaces them with a note that it is off.</li>
+    <li><b>Add an add-on from your phone.</b> The TV's pairing page shows a QR code; the add-on link you
+    type on the phone is scrambled and passed to the TV through ntfy.sh, a public message relay, which keeps
+    messages for a few hours. Nothing else about you is sent.</li>
     <li><b>Compatibility fetches.</b> When an add-on blocks browser requests, the app may fetch it
     through our server instead. The requested URL passes through, is size- and rate-limited, and is not
     stored beyond the ordinary logs above.</li>
     <li><b>Skip intro.</b> When a series episode starts, the app asks our server where that episode's
-    recap, opening titles and closing credits fall. The request carries the episode's public id (its IMDb
-    number, season and episode) and nothing about you; our server answers from a cache or looks it up in
+    recap, opening titles and closing credits fall. The request carries the episode's public catalogue id
+    (its season and episode number) and nothing about you; our server answers from a cache or looks it up in
     IntroDB (<a href="https://introdb.app" style="color:inherit">introdb.app</a>), a community-run
     database, which then sees only that episode id and our server's address. Set Skip intros to Off in
     Settings and nothing is asked.</li>
@@ -144,7 +153,8 @@
   <h2>What never happens</h2>
   <ul>
     <li>No email, no phone number, no real name — a profile is a handle and a password, and even that
-    is optional. We could not identify you if we wanted to.</li>
+    is optional. We do not try to learn who you are, and nothing we keep is tied to a real name unless you
+    typed one in yourself (a display name, or what your computer calls itself when you share it with your TV).</li>
     <li>No analytics, tracking pixels or fingerprinting, in the apps or on this site.</li>
     <li>No advertising, and no selling or sharing of any data with anyone.</li>
   </ul>

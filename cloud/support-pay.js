@@ -24,6 +24,7 @@
 const crypto = require('crypto');
 
 const PENDING_TTL_MS = 14 * 24 * 3600_000;      // a checkout nobody finished
+const MAX_WAITING = 2000;                        // …and at most this many of them are kept (the oldest go first)
 const ORDER_TTL_MS = 400 * 24 * 3600_000;       // a paid order: the thanks link keeps showing the key
 const MAX_WEBHOOK_BYTES = 256 * 1024;
 const SESSION_TIMEOUT_MS = 10_000;
@@ -73,6 +74,12 @@ module.exports = function attach(deps) {
     const url = body && typeof body.url === 'string' && /^(https:\/\/|http:\/\/127\.0\.0\.1[:/])/.test(body.url) ? body.url : null;
     if (!r.ok || !url) throw new Error('checkout session ' + r.status + ' ' + JSON.stringify(body || '').slice(0, 200));
     store.pending[sid] = { tier, gid: gid || null, handle: handle || null, via: via || null, at: Date.now(), state: 'waiting', session: body.id || null };
+    // opened-and-abandoned checkouts are capped: a script opening thousands must not grow the store without end
+    const waiting = Object.keys(store.pending).filter((k) => store.pending[k].state === 'waiting');
+    if (waiting.length > MAX_WAITING) {
+      waiting.sort((x, y) => (store.pending[x].at || 0) - (store.pending[y].at || 0));
+      for (const k of waiting.slice(0, waiting.length - MAX_WAITING)) delete store.pending[k];
+    }
     persistStore();
     return { url, sid };
   }

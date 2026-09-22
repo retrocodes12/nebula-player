@@ -17,8 +17,8 @@
 <style>
   @font-face { font-family:'Geist'; src:url('player/fonts/geist.woff2') format('woff2'); font-weight:100 900; font-display:swap; }
   :root {
-    --dark:#07080b; --dark2:#0b0c10; --dark3:#14151a; --ink:#f6f7f9; --ink66:rgba(246,247,249,.66); --ink45:rgba(246,247,249,.45);
-    --light:#ffffff; --text:#090a0e; --gray:#5b6070; --gray2:#8a90a0; --hair:#e6e8ec; --hair2:#d6d9df; --accent:#E50914;
+    --dark:#07080b; --dark2:#0b0c10; --dark3:#14151a; --ink:#f6f7f9; --ink66:rgba(246,247,249,.66); --ink45:rgba(246,247,249,.56);
+    --light:#ffffff; --text:#090a0e; --gray:#5b6070; --gray2:#6b7180; --hair:#e6e8ec; --hair2:#d6d9df; --accent:#E50914;
     --font:'Geist', system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
   * { box-sizing:border-box; }
@@ -34,6 +34,9 @@
   h3 { font-size:1.5rem; letter-spacing:-.02em; line-height:1.15; }
   .wrap { max-width:1248px; margin:0 auto; padding:0 24px; }
   .sub { color:var(--gray); font-size:15px; line-height:1.65; max-width:36em; margin-top:16px; }
+  .nw { white-space:nowrap; }
+  .sub, .lede, p { text-wrap:pretty; }
+  .stat b, .panel .ver, .rel .card b, .rel .card span { font-variant-numeric:tabular-nums; }
   .eyebrow { font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--gray2); }
   :focus-visible { outline:2px solid var(--text); outline-offset:3px; border-radius:6px; }
   .dark :focus-visible { outline-color:var(--ink); }
@@ -65,6 +68,8 @@
   .pillnav a.gh:hover { color:var(--ink); }
   .pillnav .navcta { height:36px; padding:0 16px; font-size:14px; }
   @media (max-width:640px){ .pillnav a.item.hide, .pillnav a.gh { display:none; } .pillnav .logo { padding-right:6px; } }
+  /* a 360 px phone: "Home" is the page you are on, and the pill has to fit the width with its rounded ends */
+  @media (max-width:420px){ .pillnav a.item.on { display:none; } .pillnav a.item { padding:0 10px; } .pillnav .navcta { padding:0 12px; } }
 
   /* hero */
   .hero { background:var(--dark); color:var(--ink); position:relative; padding:150px 0 0; overflow:hidden; }
@@ -264,7 +269,7 @@
     </nav>
   </div>
   <div class="wrap">
-    <h1>Plays your add-ons on every screen you own.</h1>
+    <h1>Plays your <span class="nw">add-ons</span> on every screen you own.</h1>
     <p class="lede">Nebula is a free player for the TV, the desktop and the phone. Add a source and it turns into a library, with artwork, episode lists, subtitles and your place kept across screens. There is no account to make and no email to give.</p>
     <div class="cta">
       <a class="btn solid" id="smartdl" href="#screens"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg><span id="smartlabel">Get Nebula</span></a>
@@ -395,7 +400,7 @@
     <div class="panel" id="panel-web" role="tabpanel">
       <div>
         <h3>Nebula in the browser</h3>
-        <p>Nothing to install. It is the same player, and it works best in Chrome or Edge, which carry the decryption module. Your add-ons stay in the browser, or in your profile if you make one.</p>
+        <p>Nothing to install. It is the same player, and it works best in Chrome or Edge, which can play every stream Nebula can. Your add-ons stay in the browser, or in your profile if you make one.</p>
       </div>
       <div class="right">
         <div class="row"><a class="dl" href="./player/"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Open the web player</a></div>
@@ -571,7 +576,7 @@
     <p class="lede">Install takes a minute. Sign in with a profile on one screen and the others pick up where you left off.</p>
     <div class="cta">
       <a class="btn solid" href="#screens"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg>Get Nebula</a>
-      <a class="btn ghost" href="/privacy.html">How your data is handled</a>
+      <a class="btn ghost" href="privacy.html">How your data is handled</a>
     </div>
   </div>
 </section>
@@ -592,7 +597,7 @@
         <p class="small">© 2026 Nebula<br>Free to use. Built in the open.</p>
         <p class="small" id="supWall" hidden></p>
       </div>
-      <ul><li><a href="#screens">Download</a></li><li><a href="./player/">Web player</a></li><li><a href="/privacy.html">Privacy</a></li><li id="supLi" hidden><a href="/support">Support Nebula</a></li></ul>
+      <ul><li><a href="#screens">Download</a></li><li><a href="./player/">Web player</a></li><li><a href="privacy.html">Privacy</a></li><li id="supLi" hidden><a href="support.html">Support Nebula</a></li></ul>
       <ul><li><a href="https://github.com/retrocodes12/nebula-player">nebula-player</a></li><li><a href="https://github.com/retrocodes12/nebula-android">nebula-android</a></li><li><a href="https://github.com/retrocodes12/nebula-desktop">nebula-desktop</a></li><li><a href="https://github.com/retrocodes12/nebula-mac">nebula-mac</a></li></ul>
       <ul><li><a href="https://github.com/retrocodes12/nebula-player/security/policy">Security</a></li><li><a href="https://github.com/retrocodes12/nebula-player/releases">Releases</a></li><li><a href="https://github.com/retrocodes12">GitHub</a></li></ul>
     </div>
@@ -607,6 +612,8 @@
   var os = /Windows/i.test(ua) ? "windows" : /Android/i.test(ua) ? "android" : /Web0S|webOS|NetCast/i.test(ua) ? "webos"
     : /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) ? "ios"
     : /Macintosh|Mac OS X/i.test(ua) ? "mac"
+    : /CrOS/i.test(ua) ? null                                     // a Chromebook cannot run the Linux packages: the web player
+    : /SMART-TV|SmartTV|Tizen/i.test(ua) ? "webos"                 // another TV's browser: the TV tab explains the options
     : /Linux|X11/i.test(ua) ? "linux" : null;
 
   // tabs

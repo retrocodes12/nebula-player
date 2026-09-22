@@ -51,6 +51,8 @@ const MAX_GROUPS = 5000;
 const GROUP_BURST = Number(process.env.GROUP_BURST || 6);   // per-IP burst for creating identities (group, profile, friends-on); env-tunable so the test file isn't rationed
 const MAX_KEYS_PER_GROUP = 12;
 const MAX_VALUE_BYTES = 300 * 1024;
+const MAX_GROUP_KV_BYTES = 1536 * 1024;        // every key of one group together (a heavy real one is ~300 KB)
+const IDLE_DROP_MS = 15 * 60_000;              // a group nobody asked for in this long leaves memory (its file stays)
 const MAX_BODY_BYTES = 320 * 1024;
 const LINK_TTL_MS = 15 * 60_000;
 const EVICT_AFTER_MS = 400 * 24 * 3600_000;   // groups idle over ~13 months
@@ -79,20 +81,27 @@ setInterval(() => { // drop buckets idle >10 min so the map can't grow forever
 }, 300_000).unref();
 
 // ---------- group store (lazy-loaded JSON files, debounced writes) ----------
-const groups = new Map();       // gid -> {secret, created, touched, kv:{key:{v,rev,at}}}
+const groups = new Map();       // gid -> {secret, created, touched, kv:{key:{v,rev,at}}} — the groups in use, not all of them
 const dirty = new Map();        // gid -> timer
+const lastUse = new Map();      // gid -> when a request last loaded it (the idle drop below reads this)
 let groupCount = fs.readdirSync(GROUPS_DIR).filter((n) => n.endsWith('.json')).length;
 
 function gPath(gid) { return path.join(GROUPS_DIR, gid + '.json'); }
 function loadGroup(gid) {
   if (!/^[0-9a-f]{16}$/.test(gid)) return null;
-  if (groups.has(gid)) return groups.get(gid);
+  if (groups.has(gid)){ lastUse.set(gid, Date.now()); return groups.get(gid); }
   try {
     const g = JSON.parse(fs.readFileSync(gPath(gid), 'utf8'));
-    groups.set(gid, g);
+    groups.set(gid, g); lastUse.set(gid, Date.now());
     return g;
   } catch (e) { return null; }
 }
+// Memory holds the groups in use, never the whole store: one left alone for IDLE_DROP_MS is dropped (never while a
+// write for it is pending — that write reads the object from the map), and the next request loads it again.
+setInterval(() => {
+  const cut = Date.now() - IDLE_DROP_MS;
+  for (const [gid, t] of lastUse) if (t < cut && !dirty.has(gid)) { groups.delete(gid); lastUse.delete(gid); }
+}, 300_000).unref();
 function persistSoon(gid) {
   if (dirty.has(gid)) return;
   dirty.set(gid, setTimeout(() => {
@@ -115,8 +124,9 @@ function newGroup() {
   const gid = crypto.randomBytes(8).toString('hex');
   const secret = crypto.randomBytes(16).toString('hex');
   const g = { secret, created: Date.now(), touched: Date.now(), kv: {} };
-  groups.set(gid, g);
+  groups.set(gid, g); lastUse.set(gid, Date.now());
   groupCount++;
+  if (groupCount === Math.floor(MAX_GROUPS * 0.8)) console.error('groups: 80% of the cap (' + groupCount + '/' + MAX_GROUPS + ')');
   persistSoon(gid);
   return { gid, g };
 }
@@ -137,16 +147,20 @@ function deleteGroup(gid) {
   support.drop(gid);
   if (dirty.has(gid)) { clearTimeout(dirty.get(gid)); dirty.delete(gid); }
   try { fs.unlinkSync(gPath(gid)); } catch (e) {}
-  if (g) { groups.delete(gid); groupCount--; }
+  if (g) { groups.delete(gid); lastUse.delete(gid); groupCount--; }
 }
 function evict() {
   const cut = Date.now() - EVICT_AFTER_MS;
   let names;
   try { names = fs.readdirSync(GROUPS_DIR); } catch (e) { return; }
   for (const n of names) {
-    const gid = n.replace(/\.json$/, '');
+    if (!n.endsWith('.json')) continue;
+    const gid = n.slice(0, -5), had = groups.has(gid);
     const g = loadGroup(gid);
-    if (g && (g.touched || g.created || 0) < cut) deleteGroup(gid);
+    if (!g) continue;
+    // a supporter paid for something that "never expires" (the wall, the Founders list, their key): kept however idle
+    if (!g.supporter && (g.touched || g.created || 0) < cut) deleteGroup(gid);
+    else if (!had && !dirty.has(gid)) { groups.delete(gid); lastUse.delete(gid); }   // only looked at: not kept in memory
   }
 }
 
@@ -216,7 +230,16 @@ function clientIp(req) {
   // the LAST X-Forwarded-For entry is the one nginx (the only thing that reaches this loopback port)
   // appended or set; the first is whatever the client chose to send, and every per-IP bucket keys off this
   const xff = (req.headers['x-forwarded-for'] || '').split(',').map((s) => s.trim()).filter(Boolean);
-  return (xff.length ? xff[xff.length - 1] : '') || req.socket.remoteAddress || '?';
+  const ip = (xff.length ? xff[xff.length - 1] : '') || req.socket.remoteAddress || '?';
+  // one IPv6 subscriber holds a whole /64: bucketed per address, every limit here was per-address and meaningless
+  if (ip.indexOf(':') !== -1 && !/^::ffff:/i.test(ip)) return ipv6Prefix64(ip);
+  return ip;
+}
+function ipv6Prefix64(ip) {
+  const [head, tail] = ip.split('::');
+  const h = head ? head.split(':') : [], t = tail != null ? (tail ? tail.split(':') : []) : null;
+  const full = t ? h.concat(new Array(Math.max(0, 8 - h.length - t.length)).fill('0'), t) : h;
+  return full.slice(0, 4).map((x) => (x || '0').toLowerCase()).join(':') + '::/64';
 }
 /** A name that is safe as a plain-object key: never one Object.prototype already owns (`constructor`
     reads a function back, `__proto__` rewrites the store's prototype for every lookup after it). */
@@ -250,11 +273,14 @@ async function proxyTargetOk(raw, opts) {
   return u;
 }
 let proxyActive = 0;
+const proxyByIp = new Map();     // ip -> requests in flight: one address pointing at its own slow host must not hold every slot
 async function handleProxy(req, res, target, ip) {
   if (!allow('proxy', ip, 60, 30)) return json(res, 429, { error: 'rate limited' });
   let u = await proxyTargetOk(target);
   if (!u) return json(res, 400, { error: 'url not allowed' });
   if (proxyActive >= PROXY_MAX_CONCURRENT) return json(res, 503, { error: 'busy' });
+  if ((proxyByIp.get(ip) || 0) >= 4) return json(res, 429, { error: 'rate limited' });
+  proxyByIp.set(ip, (proxyByIp.get(ip) || 0) + 1);
   proxyActive++;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), PROXY_TIMEOUT_MS);
@@ -278,9 +304,16 @@ async function handleProxy(req, res, target, ip) {
       u = await proxyTargetOk(next.href, { skipPathCheck: true });
       if (!u) return json(res, 400, { error: 'redirect target not allowed' });
     }
-    const ct = r.headers.get('content-type') || 'application/octet-stream';
+    // The host's own type is NEVER passed on: this answers on the player's origin, so a host saying text/html
+    // would run its script there (and read the sign-in). Both callers read the body as JSON or as bytes, so
+    // JSON and plain subtitle text keep their type and everything else is an inert download.
+    const upType = String(r.headers.get('content-type') || '').toLowerCase();
+    const ct = /^(application\/json|text\/plain|text\/vtt|application\/x-subrip)\b/.test(upType) ? upType : 'application/octet-stream';
     res.writeHead(r.status, {
       'Content-Type': ct,
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'none'; sandbox",
+      'Content-Disposition': 'attachment',
       'Access-Control-Allow-Origin': '*',
       'Cache-Control': 'public, max-age=60',
     });
@@ -306,6 +339,8 @@ async function handleProxy(req, res, target, ip) {
   } finally {
     clearTimeout(timer);
     proxyActive--;
+    const left = (proxyByIp.get(ip) || 1) - 1;
+    if (left > 0) proxyByIp.set(ip, left); else proxyByIp.delete(ip);
   }
 }
 
@@ -470,6 +505,8 @@ async function handleReleases(req, res, ip) {
 const SOCIAL_CODES_PATH = path.join(DATA_DIR, 'social-codes.json');
 const MAX_FRIENDS = 50;
 const MAX_INBOX = 40;
+const MAX_ASKS = 50;
+const SOCIAL_BURST = Number(process.env.SOCIAL_BURST || 40);   // env-tunable so the test file isn't rationed          // people who added you and wait for you to add them back (oldest dropped)
 const MAX_PROFILE_BYTES = 24 * 1024;
 let socialCodes = {};            // CODE -> gid
 try { socialCodes = JSON.parse(fs.readFileSync(SOCIAL_CODES_PATH, 'utf8')); } catch (e) {}
@@ -506,6 +543,18 @@ function cleanItem(v) {
   return { type, id, name, poster };
 }
 function socialOf(a) { return a.g.social && (a.g.social.code || a.g.social.on) ? a.g.social : null; }
+// Friends are MUTUAL: adding someone is an ask, and neither side sees the other's watching, ratings or list until
+// both have added each other. (Before 2026-09-23 an add wrote both lists at once — anyone could read anyone.)
+function mutualWith(gid, other, me) { return !!(other && other.social && other.social.friends.includes(me)); }
+function asksOf(a, s) {
+  const out = [];
+  for (const gid of (s.asks || [])) {
+    const other = loadGroup(gid);
+    if (!other || !other.social || s.friends.includes(gid) || !other.social.friends.includes(a.gid)) continue;
+    out.push(socialCard(gid, other));
+  }
+  return out;
+}
 /** What friends see of a group: the profile's name/handle/avatar when it has one. */
 function socialCard(gid, g) {
   const s = g.social, p = g.profile;
@@ -520,7 +569,7 @@ function socialTarget(body) {
   return code ? socialCodes[code] || null : null;
 }
 function handleSocial(p, req, res, ip) {
-  if (!allow('social', ip, 60, 40)) { json(res, 429, { error: 'rate limited' }); return true; }
+  if (!allow('social', ip, 60, SOCIAL_BURST)) { json(res, 429, { error: 'rate limited' }); return true; }
   const a = auth(req);
   if (!a) { json(res, 401, { error: 'unauthorized' }); return true; }
   const s = socialOf(a);
@@ -528,7 +577,7 @@ function handleSocial(p, req, res, ip) {
   if (p === '/v1/social/me' && req.method === 'GET') {
     if (!s) { json(res, 200, { on: false }); return true; }
     const card = socialCard(a.gid, a.g);
-    json(res, 200, { on: true, code: card.code, handle: card.handle, name: card.name, friends: s.friends.length, inbox: s.inbox.length });
+    json(res, 200, { on: true, code: card.code, handle: card.handle, name: card.name, friends: s.friends.length, inbox: s.inbox.length, asks: asksOf(a, s).length });
     return true;
   }
   if (p === '/v1/social/enable' && req.method === 'POST') {
@@ -566,20 +615,27 @@ function handleSocial(p, req, res, ip) {
   }
   if (p === '/v1/social/friend' && req.method === 'POST') {
     readBody(req, (body) => {
-      if (!allow('sfriend', ip, 2, 10)) return json(res, 429, { error: 'rate limited' });
+      if (!allow('sfriend', ip, 4, Math.max(20, SOCIAL_BURST / 2))) return json(res, 429, { error: 'rate limited' });
       const gid = socialTarget(body);
       if (!gid || gid === a.gid) return json(res, 404, { error: 'not found' });
       const other = loadGroup(gid);
       if (!other) { if (body.code) { delete socialCodes[String(body.code).toUpperCase()]; persistSocialCodes(); } return json(res, 404, { error: 'not found' }); }
       // a real person who has not turned Friends on is a different answer from "nobody"
       if (!other.social) return json(res, 409, { error: 'friends off' });
-      if (s.friends.length >= MAX_FRIENDS || other.social.friends.length >= MAX_FRIENDS) {
-        return json(res, 507, { error: 'friend list full' });
+      if (!s.friends.includes(gid)) {
+        if (s.friends.length >= MAX_FRIENDS) return json(res, 507, { error: 'friend list full' });
+        s.friends.push(gid);
       }
-      if (!s.friends.includes(gid)) s.friends.push(gid);
-      if (!other.social.friends.includes(a.gid)) other.social.friends.push(a.gid);
-      persistSoon(a.gid); persistSoon(gid);
-      return json(res, 200, socialCard(gid, other));
+      s.asks = (s.asks || []).filter((x) => x !== gid);                  // adding back IS the yes
+      const mutual = mutualWith(gid, other, a.gid);
+      if (!mutual) {                                                     // an ask: it waits on their side
+        const asks = other.social.asks || (other.social.asks = []);
+        if (!asks.includes(a.gid)) { asks.push(a.gid); while (asks.length > MAX_ASKS) asks.shift(); persistSoon(gid); }
+      }
+      persistSoon(a.gid);
+      const card = socialCard(gid, other);
+      if (!mutual) card.pending = true;
+      return json(res, 200, card);
     });
     return true;
   }
@@ -588,9 +644,11 @@ function handleSocial(p, req, res, ip) {
       const gid = socialTarget(body);
       if (gid) {
         s.friends = s.friends.filter((f) => f !== gid);
+        s.asks = (s.asks || []).filter((f) => f !== gid);
         const other = loadGroup(gid);
         if (other && other.social) {
           other.social.friends = other.social.friends.filter((f) => f !== a.gid);
+          other.social.asks = (other.social.asks || []).filter((f) => f !== a.gid);
           persistSoon(gid);
         }
         persistSoon(a.gid);
@@ -605,11 +663,25 @@ function handleSocial(p, req, res, ip) {
       const other = loadGroup(gid);
       if (!other || !other.social) continue;                   // evicted or disabled
       const card = socialCard(gid, other);
-      card.profile = other.social.profile || '';
-      card.at = other.social.at || 0;
+      if (mutualWith(gid, other, a.gid)) {
+        card.profile = other.social.profile || '';
+        card.at = other.social.at || 0;
+      } else { card.profile = ''; card.at = 0; card.pending = true; }   // asked, not yet added back: nothing of theirs
       out.push(card);
     }
     json(res, 200, { friends: out });
+    return true;
+  }
+  if (p === '/v1/social/asks' && req.method === 'GET') {
+    json(res, 200, { asks: asksOf(a, s) });
+    return true;
+  }
+  if (p === '/v1/social/ask_dismiss' && req.method === 'POST') {
+    readBody(req, (body) => {
+      const gid = socialTarget(body);
+      if (gid) { s.asks = (s.asks || []).filter((f) => f !== gid); persistSoon(a.gid); }
+      return json(res, 200, { ok: true });
+    });
     return true;
   }
   if (p === '/v1/social/recommend' && req.method === 'POST') {
@@ -619,10 +691,10 @@ function handleSocial(p, req, res, ip) {
       const note = String((body && body.note) || '').slice(0, 200);
       const gid = socialTarget(body);
       if (!item) return json(res, 400, { error: 'bad item' });
-      // recommendations only travel along an existing friendship
+      // recommendations only travel along a friendship both sides made
       if (!gid || !s.friends.includes(gid)) return json(res, 404, { error: 'not a friend' });
       const other = loadGroup(gid);
-      if (!other || !other.social) return json(res, 404, { error: 'not a friend' });
+      if (!other || !other.social || !mutualWith(gid, other, a.gid)) return json(res, 404, { error: 'not a friend' });
       const me = socialCard(a.gid, a.g);
       other.social.inbox.push({ f: me.name || 'A friend', c: me.code, h: me.handle, i: item, n: note, at: Date.now() });
       while (other.social.inbox.length > MAX_INBOX) other.social.inbox.shift();
@@ -646,6 +718,7 @@ function handleSocial(p, req, res, ip) {
       const other = loadGroup(gid);
       if (other && other.social) {
         other.social.friends = other.social.friends.filter((f) => f !== a.gid);
+        other.social.asks = (other.social.asks || []).filter((f) => f !== a.gid);
         persistSoon(gid);
       }
     }
@@ -767,6 +840,9 @@ const server = http.createServer((req, res) => {
       if (!a.g.kv[key] && Object.keys(a.g.kv).length >= MAX_KEYS_PER_GROUP) {
         return json(res, 507, { error: 'too many keys' });
       }
+      let total = Buffer.byteLength(body.v);
+      for (const k of Object.keys(a.g.kv)) if (k !== key) total += Buffer.byteLength(a.g.kv[k].v || '');
+      if (total > MAX_GROUP_KV_BYTES) return json(res, 507, { error: 'too large' });
       const rev = (a.g.kv[key] ? a.g.kv[key].rev : 0) + 1;
       a.g.kv[key] = { v: body.v, rev, at: Date.now() };
       persistSoon(a.gid);

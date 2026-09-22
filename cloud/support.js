@@ -302,7 +302,7 @@ module.exports = function attach(core) {
       return pay.webhook(req, res, c.pay, c.sports);
     }
     if (p === '/v1/support/checkout' && m === 'POST') {
-      if (!allow('scheckout', ip, 6, 10)) return json(res, 429, { error: 'rate limited' });
+      if (!allow('scheckout', ip, 3, 10)) return json(res, 429, { error: 'rate limited' });   // each one costs a call on our payment key
       const c = config();
       if (!c.pay) return json(res, 503, { error: 'checkout not configured' });
       const b = (await body(req)) || {};

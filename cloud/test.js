@@ -5,6 +5,7 @@
 process.env.GROUP_BURST = '48';           // one more profile since the sports-key test (09-20)
 process.env.SIGNIN_BURST = '100';       // the per-IP limiter would ration the suite; the per-handle one is tested
 process.env.SUPPORT_CONFIG_CHECK_MS = '0';
+process.env.SOCIAL_BURST = '200';        // friends are mutual since 09-23: two adds per friendship
 process.env.DATA_DIR = require('fs').mkdtempSync(
   require('path').join(require('os').tmpdir(), 'nebula-cloud-test-'));
 
@@ -336,18 +337,37 @@ test('friends: enable → befriend → profile → recommend → disable', async
   // no auth, no entry
   assert.equal((await api('GET', '/v1/social/me')).status, 401);
 
-  // B befriends A by code — the edge is mutual
+  // B adds A by code — an ASK: nothing is shared until A adds B back
   const fr = await api('POST', '/v1/social/friend', { code: ea.body.code }, tb);
   assert.equal(fr.status, 200);
   assert.equal(fr.body.name, 'Asha');
-  assert.equal((await api('GET', '/v1/social/me', undefined, ta)).body.friends, 1);
+  assert.equal(fr.body.pending, true);
+  assert.equal((await api('GET', '/v1/social/me', undefined, ta)).body.friends, 0);
+  assert.equal((await api('GET', '/v1/social/me', undefined, ta)).body.asks, 1);
   assert.equal((await api('GET', '/v1/social/me', undefined, tb)).body.friends, 1);
   // your own code is not a friend you can make
   assert.equal((await api('POST', '/v1/social/friend', { code: eb.body.code }, tb)).status, 404);
 
-  // A publishes a profile; B reads it through the friendship
+  // A publishes a profile; B cannot read it while the ask waits, nor recommend to A
   const doc = JSON.stringify({ ratings: [{ id: 'tt1', name: 'Dune', rating: 5 }] });
   assert.equal((await api('PUT', '/v1/social/profile', { v: doc, name: 'Asha' }, ta)).status, 200);
+  const pend = (await api('GET', '/v1/social/friends', undefined, tb)).body.friends;
+  assert.equal(pend.length, 1);
+  assert.equal(pend[0].pending, true);
+  assert.equal(pend[0].profile, '');
+  assert.equal((await api('POST', '/v1/social/recommend',
+    { code: ea.body.code, item: { type: 'movie', id: 'tt2', name: 'x' } }, tb)).status, 404);
+  // A sees who asked, and adding B back is the yes
+  const asks = (await api('GET', '/v1/social/asks', undefined, ta)).body.asks;
+  assert.equal(asks.length, 1);
+  assert.equal(asks[0].name, 'Ben');
+  const back = await api('POST', '/v1/social/friend', { code: eb.body.code }, ta);
+  assert.equal(back.status, 200);
+  assert.equal(back.body.pending, undefined);
+  assert.equal((await api('GET', '/v1/social/me', undefined, ta)).body.asks, 0);
+  assert.equal((await api('GET', '/v1/social/asks', undefined, ta)).body.asks.length, 0);
+
+  // now B reads A's profile through the friendship
   const fl = await api('GET', '/v1/social/friends', undefined, tb);
   assert.equal(fl.body.friends.length, 1);
   assert.equal(fl.body.friends[0].name, 'Asha');
@@ -547,6 +567,12 @@ test('friends by handle: no code minted, friends-off is its own answer, cards ca
   assert.equal(fr.body.handle, 'fr_asha');
   assert.equal(fr.body.name, 'Asha');
   assert.equal(fr.body.avatar, '#636366');
+  assert.equal(fr.body.pending, true);
+  // a dismissed ask leaves A's list; B's add still waits (A can add B back later)
+  assert.equal((await api('GET', '/v1/social/asks', undefined, tok(a))).body.asks[0].handle, 'fr_ben');
+  assert.equal((await api('POST', '/v1/social/ask_dismiss', { handle: 'fr_ben' }, tok(a))).status, 200);
+  assert.equal((await api('GET', '/v1/social/asks', undefined, tok(a))).body.asks.length, 0);
+  assert.equal((await api('POST', '/v1/social/friend', { handle: 'fr_ben' }, tok(a))).status, 200);
   // the profile name is the social name — a rename shows up for friends
   await api('PUT', '/v1/profile', { name: 'Asha K', avatar: '#30D158' }, tok(a));
   const fl = (await api('GET', '/v1/social/friends', undefined, tok(b))).body.friends;
@@ -665,6 +691,7 @@ test('support: codes are issued by the admin, redeemed once by a profile, and sh
   assert.equal((await api('POST', '/v1/social/enable', undefined, tok(a))).status, 200);
   assert.equal((await api('POST', '/v1/social/enable', undefined, tok(b))).status, 200);
   assert.equal((await api('POST', '/v1/social/friend', { handle: 'sup_ada' }, tok(b))).status, 200);
+  assert.equal((await api('POST', '/v1/social/friend', { handle: 'sup_bob' }, tok(a))).status, 200);
   const fr = (await api('GET', '/v1/social/friends', undefined, tok(b))).body.friends;
   assert.equal(fr.length, 1);
   assert.equal(fr[0].sup, true);
