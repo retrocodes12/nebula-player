@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.21.1",
+  "version": "2026.09.22.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Fifty-one subtitle and audio languages instead of seventeen — most of Europe, the Middle East and South-East Asia are named now — and the language settings open a list you scroll instead of a ‹ › stepper you hold."
+  "notes": "Subtitles from your add-ons now come on by themselves in your preferred language (Settings, Subtitles when a video starts) when the stream has none of its own, trying the next file if one will not load; a subtitle you pick by hand comes back when you switch source."
 }
