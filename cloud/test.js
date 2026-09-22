@@ -227,7 +227,7 @@ test('releases: one feed, shaped, cached, stale through outages, a bad repo is n
     }
     if (repo === 'nebula-android') {
       return res.end(JSON.stringify([
-        { tag_name: 'v1.54.0', draft: false, prerelease: false, published_at: ago(3), assets: [
+        { tag_name: 'v1.54.0', draft: false, prerelease: false, published_at: ago(3), body: 'Android TV: the remote.\r\nStreams load at once.', assets: [
           { name: 'Nebula.apk', browser_download_url: dl + 'v1.54.0/Nebula.apk', size: 9000000 },
           { name: 'Nebula-1.54.0.apk', browser_download_url: dl + 'v1.54.0/Nebula-1.54.0.apk', size: 9000000 },
         ] },
@@ -270,6 +270,8 @@ test('releases: one feed, shaped, cached, stale through outages, a bad repo is n
     assert.equal(b1.android.version, '1.54.0');
     assert.equal(b1.android.tag, 'v1.54.0');
     assert.equal(b1.android.recent, 1);
+    assert.equal(b1.android.notes, 'Android TV: the remote.\nStreams load at once.', 'the release text rides along, line endings tidied');
+    assert.equal(b1.player.notes, '', 'a release with no text carries an empty string');
     assert.equal(b1.android.assets.find((a) => a.name === 'Nebula.apk').url, 'https://github.com/retrocodes12/nebula-android/releases/download/v1.54.0/Nebula.apk');
     assert.equal(b1.desktop, null, 'a repo GitHub 404s is null, not an error');
     assert.equal(hits.length, 8);

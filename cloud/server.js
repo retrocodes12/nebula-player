@@ -22,8 +22,9 @@
 //   /v1/support/*                          → support.js (supporter codes, the wall, the support link)
 //   GET  /v1/skip?id=tt…:S:E               → {intro, recap, outro} timestamps (cached, no auth)
 //   GET  /v1/releases                      → {player, android, desktop, apple} latest GitHub releases, each
-//                                            {version, tag, published_at, assets:[{name,url,size}], recent} or null
-//                                            (recent = that repo's releases in the last 30 days, for the landing stat);
+//                                            {version, tag, published_at, notes, assets:[{name,url,size}], recent} or null
+//                                            (recent = that repo's releases in the last 30 days, for the landing stat;
+//                                            notes = the release's own text, ≤4000 chars, for the apps' release notes);
 //                                            one GitHub call per repo per 10 min, last good copy kept
 //                                            through outages, max-age=300, no auth (landing + update checks)
 //   GET  /p?u=<url>                        → CORS/mixed-content rescue proxy
@@ -404,7 +405,10 @@ function releaseShape(list, spec) {
       if (!a || typeof a !== 'object' || !/^https:\/\//.test(String(a.browser_download_url || ''))) continue;
       assets.push({ name: String(a.name || '').slice(0, 120), url: String(a.browser_download_url).slice(0, 400), size: Number(a.size) || 0 });
     }
-    return { version: tag.replace(/^player-v|^v/, ''), tag, published_at: String(r.published_at || ''), assets, recent };
+    // the release's own notes, so an app's update card can show them (Android's "Release notes" sheet): plain
+    // text as GitHub keeps it, line endings tidied, capped — a feed read by every update check stays small
+    const notes = String(r.body || '').replace(/\r\n?/g, '\n').trim().slice(0, 4000);
+    return { version: tag.replace(/^player-v|^v/, ''), tag, published_at: String(r.published_at || ''), notes, assets, recent };
   }
   return null;
 }
