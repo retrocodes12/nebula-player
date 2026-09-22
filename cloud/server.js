@@ -53,7 +53,8 @@ const MAX_KEYS_PER_GROUP = 12;
 const MAX_VALUE_BYTES = 300 * 1024;
 const MAX_GROUP_KV_BYTES = 1536 * 1024;        // every key of one group together (a heavy real one is ~300 KB)
 const IDLE_DROP_MS = 15 * 60_000;              // a group nobody asked for in this long leaves memory (its file stays)
-const MAX_IN_MEMORY = Number(process.env.MAX_IN_MEMORY || 1500);   // …and never more than this many at once
+const MAX_IN_MEMORY = Number(process.env.MAX_IN_MEMORY || 1500);   // …and past this many, the least recently used go (a soft
+                                                                   // cap: groups touched in the last minute are never dropped)
 const MAX_BODY_BYTES = 320 * 1024;
 const LINK_TTL_MS = 15 * 60_000;
 const EVICT_AFTER_MS = 400 * 24 * 3600_000;   // groups idle over ~13 months
@@ -99,7 +100,7 @@ function loadGroup(gid) {
     return g;
   } catch (e) { return null; }
 }
-/** Past MAX_IN_MEMORY, drop the least recently used groups — never one used in the last minute (a request may still be
+/** Past MAX_IN_MEMORY (a soft cap), drop the least recently used groups — never one used in the last minute (a request may still be
     reading its body with the object in hand) nor one with a write pending. The files stay; the next request reloads. */
 function trimMemory() {
   const recent = Date.now() - 60_000;
@@ -677,7 +678,9 @@ function handleSocial(p, req, res, ip) {
     const out = [], alive = [];
     for (const gid of s.friends) {
       const other = loadGroup(gid);
-      if (!other || !other.social) continue;                   // evicted or disabled: pruned below (it counted toward the cap)
+      // pruned below only when it is really gone — its file deleted, or Friends off — never on a read that failed once
+      if (!other) { if (fs.existsSync(gPath(gid))) alive.push(gid); continue; }
+      if (!other.social) continue;
       alive.push(gid);
       const card = socialCard(gid, other);
       if (mutualWith(gid, other, a.gid)) {

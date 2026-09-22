@@ -613,7 +613,7 @@
     : /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) ? "ios"
     : /Macintosh|Mac OS X/i.test(ua) ? "mac"
     : /CrOS/i.test(ua) ? null                                     // a Chromebook cannot run the Linux packages: the web player
-    : /SMART-TV|SmartTV|Tizen/i.test(ua) ? null                    // another TV's browser (Samsung): the web player, which lays itself out for a TV
+    : /SMART-TV|SmartTV|Tizen|VIDAA|HbbTV|Viera|BRAVIA|PhilipsTV|Roku|AFTB|AFTS|AFTM/i.test(ua) ? null   // another TV's browser: the web player, which lays itself out for a TV
     : /Linux|X11/i.test(ua) ? "linux" : null;
 
   // tabs

@@ -124,9 +124,10 @@
     tryOpen();
     armFallback(1600);
   } else {
-    // No stream context — just offer the app.
+    // No stream context — just offer the app (with nothing to open, "Open in Nebula Player" would do nothing: it goes)
     document.getElementById('fbSub').textContent =
       'Get the Nebula Player — free, for your TV, computer and phone.';
+    document.getElementById('retry').style.display = 'none';
     showFallback();
   }
 })();

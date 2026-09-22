@@ -550,8 +550,8 @@
   .stream:hover .s-plate { background:var(--fill2); }
   html.tv .stream.focusable:focus .s-plate { background:var(--accent); color:var(--on-accent); }
   .stream.focusable:focus-visible .s-plate { background:var(--accent); color:var(--on-accent); }
-  html.tv .stream.focusable:focus .s-plate i { color:var(--on-accent); opacity:.82; }
-  .stream.focusable:focus-visible .s-plate i { color:var(--on-accent); opacity:.82; }
+  html.tv .stream.focusable:focus .s-plate i { color:var(--on-accent); opacity:1; }
+  .stream.focusable:focus-visible .s-plate i { color:var(--on-accent); opacity:1; }
   .s-main { flex:1 1 auto; min-width:0; }
   .s-spec { flex:0 0 auto; text-align:right; font-family:var(--mono); font-size:calc(12px * var(--ts));
     color:var(--label2); line-height:1.55; white-space:nowrap; }
@@ -993,7 +993,7 @@
   .pui-btn .pv:empty { display:none; }
   .pui-btn:hover { background:rgba(110,110,120,.55); }
   /* an armed sleep timer reads like the lit Info button: white pill, dark text */
-  .pui-btn.on, .pui-btn.on:hover { background:rgba(255,255,255,.92); color:#000; }
+  .pui-btn.on, .pui-btn.on:hover, .pui-bar .pui-btn.on { background:rgba(255,255,255,.92); color:#000; }
   .pui-btn.on .pv { color:rgba(0,0,0,.62); }
   html.tv .pui-btn.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
   .pui-btn.focusable:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
@@ -2570,7 +2570,7 @@
   // TV mode: 10-foot sizing on webOS (PalmSystem/ServiceBridge only exist there);
   // ?tv=1 forces it anywhere for previewing.
   var IS_TV = !!(window.PalmSystem || window.WebOSServiceBridge || window.PalmServiceBridge ||
-    /web0s|webos|smarttv|smart-tv|netcast/i.test(navigator.userAgent || '') ||
+    /web0s|webos|smarttv|smart-tv|netcast|tizen|vidaa|hbbtv/i.test(navigator.userAgent || '') ||
     /[?&#]tv=1/.test(location.href));
   if (IS_TV) document.documentElement.className += ' tv';
   // TV SoCs are weak GPUs: the lite profile keeps the design but drops the
@@ -2954,13 +2954,13 @@
     // the shortcuts sheet takes every key while it is up; ? summons it anywhere but inside a field
     if (kbhOpen){
       if (k === 9 || (k >= 37 && k <= 40)) return;
-      if (k === 27 || k === 8 || k === 13 || k === 461 || e.key === '?' || e.key === 'GoBack') kbhHide();
+      if (k === 27 || k === 8 || k === 13 || k === 461 || k === 10009 || e.key === '?' || e.key === 'GoBack') kbhHide();
       e.preventDefault(); return;
     }
     if (e.key === '?' && !inInput && !mod){ kbhShow(); e.preventDefault(); return; }
     // While playing, the quality overlay owns D-pad/keys (so it's reachable on TV).
     if (video.style.display==='block'){
-      var isBack = (k===461 || k===8 || e.key==='GoBack' || e.key==='BrowserBack');
+      var isBack = (k===461 || k===10009 || k===8 || e.key==='GoBack' || e.key==='BrowserBack');   // 10009: a Samsung remote's Back
       if (isBack){
         if (scrubState.on){ scrubCancel(); puiShow(); }    // a pending jump is its own layer; the controls stay
         else if (upnextState.open){ dismissUpNext(); }
@@ -3163,7 +3163,7 @@
     else if (k===39){ if(!inInput){ rowMove(1); e.preventDefault(); } }
     else if (k===38){ moveFocus2D(0,-1); e.preventDefault(); }
     else if (k===40){ moveFocus2D(0,1); e.preventDefault(); }
-    else if (k===461 || e.key==='GoBack' || e.key==='BrowserBack' || (k===8 && !inInput)){ goBack(); e.preventDefault(); }
+    else if (k===461 || k===10009 || e.key==='GoBack' || e.key==='BrowserBack' || (k===8 && !inInput)){ goBack(); e.preventDefault(); }
     else if (k===13 && inInput){
       var v = document.querySelector('.view.active');
       if (v.id==='view-addons' && document.activeElement.id==='addonUrl') addAddon();
@@ -3660,6 +3660,23 @@
   }
 
   function baseOf(manifestUrl){ return manifestUrl.replace(/\/manifest\.json.*$/,''); }
+  // The rescue proxy answers ten requests in flight per address: Home asks for every catalogue at once, so requests that
+  // need it queue here, six at a time, and a 429 is tried once more after a short wait (a dropped one was a Home row
+  // that silently vanished).
+  var pxBusy = 0, pxQueue = [];
+  function pxSlot(){ return new Promise(function(ok){ if (pxBusy < 6){ pxBusy++; ok(); } else pxQueue.push(ok); }); }
+  function pxDone(){ var next = pxQueue.shift(); if (next) next(); else pxBusy--; }
+  async function proxyGet(url, opts){
+    await pxSlot();
+    try {
+      var r = await fetch(CLOUD_BASE + '/p?u=' + encodeURIComponent(url), opts);
+      if (r.status === 429){
+        await new Promise(function(ok){ setTimeout(ok, 400 + Math.random() * 900); });
+        r = await fetch(CLOUD_BASE + '/p?u=' + encodeURIComponent(url), opts);
+      }
+      return r;
+    } finally { pxDone(); }
+  }
   function canProxy(u){ return /^https?:\/\//i.test(u||'') && String(u).indexOf(CLOUD_BASE) !== 0; }
   async function getJson(url){
     try {
@@ -3672,7 +3689,7 @@
       // server-side and hands it back with the right headers. An HTTP error
       // means the server answered; a proxy retry would only repeat it.
       if (err instanceof TypeError && canProxy(url)){
-        var pr = await fetch(CLOUD_BASE + '/p?u=' + encodeURIComponent(url), { headers: { 'Accept':'application/json' } });
+        var pr = await proxyGet(url, { headers: { 'Accept':'application/json' } });
         if (!pr.ok) throw new Error('HTTP '+pr.status);
         return pr.json();
       }
@@ -4373,7 +4390,7 @@
     sheetState.keys = function(e){
       var k = e.keyCode, list = [].slice.call(el.querySelectorAll('.sheet-act'));
       var at = list.indexOf(document.activeElement);
-      if (k === 461 || k === 27 || k === 8 || e.key === 'GoBack' || e.key === 'BrowserBack'){
+      if (k === 461 || k === 10009 || k === 27 || k === 8 || e.key === 'GoBack' || e.key === 'BrowserBack'){
         closeSheet(true); e.preventDefault(); e.stopPropagation(); return;
       }
       if (k === 38 || k === 40){
@@ -5309,8 +5326,10 @@
     var n = 0;
     (function tryIt(){
       var t = document.querySelector('#frBody .fr-ask .btn') || (document.querySelector('#frBody .fr-cards') ? $id('frAdd') : null);
-      if (t && isShown(t)){ try { t.focus({ preventScroll: true }); } catch(e){ t.focus(); } return; }
-      if (++n < 25) setTimeout(tryIt, 120); else if ($id('frAdd')) $id('frAdd').focus();
+      var ae = document.activeElement;
+      if (ae && ae !== document.body && isShown(ae)) return;       // the viewer is already somewhere (typing a handle…)
+      if (t && isShown(t)){ try { t.focus({ preventScroll: true }); } catch(e){ t.focus(); } try { t.scrollIntoView({ block: 'nearest' }); } catch(e2){} return; }
+      if (++n < 25) setTimeout(tryIt, 120);
     })();
   }
   function renderFriends(wrap){
@@ -5605,7 +5624,7 @@
       ctx.seriesEpisodes = null; ctx.epIndex = -1; ctx.seriesName = s.name || '';
       ctx.seriesId = ''; ctx.seriesPoster = ''; ctx.seriesBack = '';
       // this show is the title now — not whatever page was open last (its art went onto the streams hero and the record)
-      ctx.item = { id: seriesIdOf(v.id), type: 'series', name: s.name || '', poster: s.poster || '', background: s.background || s.back || '' };
+      ctx.item = { id: seriesIdOf(v.id), type: 'series', name: s.name || '', poster: s.poster || '', background: row.back || s.background || s.back || '' };
       ctx.streamTitle = epLabel(s.name, v);
       openStreams('series', v.id, ctx.streamTitle);
       hydrateSeriesChain('series', v.id);
@@ -5623,7 +5642,7 @@
           if (!v || !v.released || !v.id) return;
           var t = Date.parse(v.released);
           if (isNaN(t) || t < floor || t > horizon) return;
-          rows.push({ series: s, v: v, t: t });
+          rows.push({ series: s, v: v, t: t, back: (meta && meta.background) || '' });
         });
       }).catch(function(){});
     }
@@ -6269,6 +6288,9 @@
     }, 60);
     fetchFullMeta(type, meta.id).then(function(full){
       if (seq !== detSeq) return;
+      // left for something else before the details came (a Continue watching card, a party): they are this page's,
+      // not the title now in ctx — adopting them wrote this page's art and series into another show's record
+      if (ctx.item !== meta) return;
       if (!full){ detSkeletonClear(); return; }
       // enhance in place: the full meta wins wherever it actually has something
       var merged = {};
@@ -6789,6 +6811,9 @@
   }
   function openStreams(type, id, titleText, fresh, noAuto){
     var seq = ++openSeq, openedAt = Date.now(), pr = getPrefs();
+    // the title this list plays under is the one it was opened for — a film resumed from Continue watching wore the
+    // previous play's title on the player and in the party
+    if (titleText) ctx.streamTitle = titleText;
     lastStreamsReq = { type: type, id: id, title: titleText };
     setPlayIdentity(type, id, titleText);
     renderStreamsHero(type, id, titleText);
@@ -8208,6 +8233,12 @@
       if (!loaded && !tc && mpvRescueTry(seq, code)) return;
       // Chromium would not take a plain file the shell could convert: the shell looks at it before anything is said
       if (!loaded && tcc && tcRefused(seq, code)) return;
+      // …and a play that began before the shell had answered whether it has FFmpeg (a slow first check) gets that
+      // chance once, now that the answer is in, instead of the error
+      if (!loaded && !tcc && !tc && ctx.tcLateFor !== rawUrl && tcCandidate(rawUrl, clearKeys)){
+        ctx.tcLateFor = rawUrl;
+        return playUrl(rawUrl, clearKeys, title, subtitles, mimeType);
+      }
       setStatus(tc ? tcConvertLine(String(code) + extra) : playErrorLine(code, extra),'err'); $id('puiSpin').style.display='none';
     }
   }
@@ -8425,7 +8456,7 @@
     try { r = await fetch(url); }
     catch(err){
       if (!(err instanceof TypeError) || !canProxy(url)) throw err;
-      r = await fetch(CLOUD_BASE + '/p?u=' + encodeURIComponent(url));
+      r = await proxyGet(url);
     }
     if (!r.ok) throw new Error('HTTP ' + r.status);
     var buf = await r.arrayBuffer();
@@ -11520,8 +11551,9 @@
   function controlsHideMs(){ return Number(controlsHideKey()) * 1000; }
   function pickWaitSecs(){ var n = Number(getPrefs().pickWait); return (n === 3 || n === 10) ? n : 6; }
   /** Text on an accent fill: white, as Apple sets it on its own tints, until the accent is so light that white falls
-      under 3:1 — the floor for the bold labels that sit on accent fills (WCAG relative luminance over 0.3, e.g. White,
-      Ice, Mint, Emerald, Amber, Gold, Lime) — then black. */
+      under 3:1 (relative luminance over 0.3: White, Ice, Mint, Emerald, Amber, Gold, Lime…) — then black. 3:1 is WCAG's
+      floor for LARGE text; the labels on accent fills are 15–19 px bold, so on the darker accents (Cobalt, Violet, Rose,
+      3.5–3.7:1) this follows Apple's convention rather than strict AA for small text. */
   function onAccent(hex){
     var m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '')); if (!m) return '#fff';
     var n = parseInt(m[1], 16), c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(function(v){
