@@ -195,7 +195,8 @@
   .seeall:hover { color:var(--label); }
   html.tv .seeall.focusable:focus { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
   .seeall.focusable:focus-visible { color:var(--label); box-shadow:0 0 0 4px rgba(255,255,255,.35); }
-  .hrow { display:flex; overflow-x:auto; padding:10px 12px 18px; margin:0 -12px; scrollbar-width:none; }
+  /* flex-start, like .grid: a stretched row centred every one-line <button> card half a label line below a two-line one */
+  .hrow { display:flex; align-items:flex-start; overflow-x:auto; padding:10px 12px 18px; margin:0 -12px; scrollbar-width:none; }
   .hrow::-webkit-scrollbar { display:none; }
   .hrow .card { flex:0 0 var(--cardw); margin-right:16px; }
   .hrow .card.shape-landscape { flex-basis:calc(var(--cardw) * 1.773); }
@@ -212,7 +213,8 @@
   #searchResults .grid { margin-bottom:26px; }
   .search-idle { margin-top:6vh; max-width:560px; }
   .search-idle p { color:var(--label2); font-size:calc(15px * var(--ts)); line-height:1.55; margin:8px 0 16px; max-width:44ch; }
-  .search-idle .chips { flex-wrap:wrap; padding:0; }
+  /* a scrolling row clips a focus ring at its padding edge: 4 px of room left and top, handed back by the margin so the chips stay put */
+  .search-idle .chips { flex-wrap:wrap; padding:4px 0 0 4px; margin:-4px 0 0 -4px; }
   .search-idle .chip { margin:0 8px 8px 0; }
   /* Search › Discover: three pills over a poster grid, the source under the pills */
   .disc-title { font-size:calc(26px * var(--ts)); font-weight:700; letter-spacing:-.03em; margin:30px 0 12px; }
@@ -336,7 +338,11 @@
     padding:11px 22px; border-radius:var(--r-pill); border:0; background:#fff; color:#000; cursor:pointer;
     transition:transform .18s var(--ease), background .18s var(--ease); }
   .btn:hover { transform:scale(1.03); }
-  html.tv .btn.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.45); }
+  html.tv .btn.focusable:focus { box-shadow:0 0 0 3px #fff; }
+  html.tv .btn.focusable:focus-visible { box-shadow:0 0 0 3px #fff; }
+  /* a white pill cannot wear a white ring (it only grew 3 px): the same ring, a hairline of page between them */
+  html.tv .btn.focusable:not(.ghost):focus { box-shadow:0 0 0 3px var(--bg), 0 0 0 6px #fff; }
+  html.tv .btn.focusable:not(.ghost):focus-visible { box-shadow:0 0 0 3px var(--bg), 0 0 0 6px #fff; }
   .btn.focusable:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.45); }
   /* secondary actions are outlined, not a second grey blob */
   .btn.ghost { background:transparent; color:var(--label); border:1px solid rgba(255,255,255,.28); padding:10px 21px; }
@@ -1333,7 +1339,8 @@
     letter-spacing:.06em; text-transform:none; color:var(--label); padding:2px 8px; margin-left:14px;
     border:1px solid rgba(255,255,255,.3); border-radius:6px; text-shadow:none; }
   html.tv .det-imdb { font-size:calc(15px * var(--ts)); padding:3px 10px; }
-  .det-seasons { display:flex; overflow-x:auto; margin:24px 0 2px; padding:4px 0 8px; scrollbar-width:none; }
+  /* 4 px of room on the left (handed back by the margin): the first chip's ring is not cut by the scrolling row */
+  .det-seasons { display:flex; overflow-x:auto; margin:24px 0 2px -4px; padding:4px 0 8px 4px; scrollbar-width:none; }
   .det-seasons::-webkit-scrollbar { display:none; }
   .det-seasons .chip { flex:0 0 auto; margin-right:8px; }
   .det-eps { margin-top:10px; padding-bottom:40px; max-width:960px; }
@@ -1365,13 +1372,17 @@
   #streamResume .chip:hover, #streamResume .chip.focusable:focus-visible { background:var(--fill); color:var(--label); }
   html.tv #streamResume .chip.focusable:focus { box-shadow:0 0 0 3px rgba(255,255,255,.5); color:var(--label); }
   /* quiet outlined filters — only the active one carries fill */
-  #streamFilters { display:flex; overflow-x:auto; margin:0 0 18px; padding:2px 0 6px; scrollbar-width:none; }
+  /* 6 px of room left and top for the ring (the selected chip's gapped one), handed back by the margin so nothing moves */
+  #streamFilters { display:flex; overflow-x:auto; margin:-4px 0 18px -6px; padding:6px 0 6px 6px; scrollbar-width:none; }
   #streamFilters::-webkit-scrollbar { display:none; }
   #streamFilters .chip { flex:0 0 auto; margin-right:7px; white-space:nowrap; background:transparent;
     box-shadow:inset 0 0 0 1px var(--sep); color:var(--label2); font-size:calc(13px * var(--ts)); padding:7px 15px; }
   #streamFilters .chip:hover { background:var(--fill); color:var(--label); }
   #streamFilters .chip.on { background:var(--label); color:#000; font-weight:600; box-shadow:none; }
-  html.tv #streamFilters .chip.focusable:focus { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
+  html.tv #streamFilters .chip.focusable:focus { box-shadow:0 0 0 3px #fff; }
+  html.tv #streamFilters .chip.focusable:focus-visible { box-shadow:0 0 0 3px #fff; }
+  html.tv #streamFilters .chip.on.focusable:focus { box-shadow:0 0 0 3px var(--bg), 0 0 0 6px #fff; }
+  html.tv #streamFilters .chip.on.focusable:focus-visible { box-shadow:0 0 0 3px var(--bg), 0 0 0 6px #fff; }
   #streamFilters .chip.focusable:focus-visible { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
   html.tv #streamsHero { height:400px; }
   html.tv .sh-title { font-size:calc(46px * var(--ts)); }
@@ -1571,18 +1582,20 @@
   html.tv .navitem svg { display:block; width:30px; height:30px; margin-right:16px; flex:0 0 auto; }
   html.tv .navitem.on { color:var(--label); background:transparent; }
   html.tv #rail.open .navitem.on { background:rgba(255,255,255,.10); }
-  html.tv .navitem.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); background:rgba(255,255,255,.16); color:#fff; }
+  html.tv .navitem.focusable:focus { box-shadow:0 0 0 3px #fff; background:rgba(255,255,255,.16); color:#fff; }
+  html.tv .navitem.focusable:focus-visible { box-shadow:0 0 0 3px #fff; background:rgba(255,255,255,.16); color:#fff; }
   html.tv .view { top:0; left:var(--railw); }
   html.tv #view-player { left:0; }
   /* home hero is full-bleed: from the rail edge to the right edge and from the top,
      dissolving into the page at the bottom and on the left — no frame, no side column */
   html.tv #heroRow { display:contents; }
-  html.tv #homeHero { margin:-26px calc(-1 * var(--pad)) 4px; height:56vh; min-height:480px; max-height:700px;
+  /* 44vh: row 1 under it is whole on a 1080p first screen, labels and years too (56vh cut its posters at the bottom edge) */
+  html.tv #homeHero { margin:-26px calc(-1 * var(--pad)) 4px; height:44vh; min-height:440px; max-height:500px;
     border-radius:0; border:0; box-shadow:none; }
   html.tv #heroSide { display:none; }
   html.tv .hf-art::after { background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 42%, rgba(0,0,0,.58) 76%, var(--bg) 100%); }
   html.tv .hf-art::before { background:linear-gradient(90deg, var(--bg) 0%, rgba(0,0,0,.78) 24%, rgba(0,0,0,.28) 52%, rgba(0,0,0,0) 72%); }
-  html.tv .hf-info { left:var(--pad); right:auto; bottom:44px; max-width:840px; }
+  html.tv .hf-info { left:var(--pad); right:auto; bottom:28px; max-width:840px; }
   html.tv .hf-facts { font-family:var(--mono); font-weight:500; letter-spacing:.14em; }
   html.tv .hf-dots { right:var(--pad); bottom:52px; }
   html.tv .page-title { font-size:calc(52px * var(--ts)); }
@@ -2798,19 +2811,51 @@
       var v = document.querySelector('.view.active'), f = v && document.body.className.indexOf('playing') === -1 ? firstFocusable(v) : null;
       (f && list.indexOf(f) >= 0 ? f : list[0]).focus(); return;
     }
-    var best = pickNearest(list, cur, dx, dy);
+    var browsing = document.body.className.indexOf('playing') === -1;
+    var best = (IS_TV && browsing) ? tvBrowseStep(list, cur, dx, dy) : pickNearest(list, cur, dx, dy);
+    // a season row is entered on the season on screen, never on whichever chip happened to sit nearest
+    if (best && dy && best.parentNode && (best.parentNode.id === 'detSeasonRow' || best.parentNode.id === 'seasonRow') && !best.parentNode.contains(cur)){
+      var son = best.parentNode.querySelector('.chip.on');
+      if (son && isShown(son)) best = son;
+    }
     if (best){ best.focus(); best.scrollIntoView({block:'nearest', inline:'nearest'}); }
+  }
+  /** A TV's browse screens: the rail down the left is a column of its own. Up and Down never leave the page for it (a rail
+      icon a few pixels below and far to the side outscored the card right under the one lit); Left reaches it only when
+      nothing on the page lies to the left on the same line, and lands on the tab on screen, not the nearest icon; inside it
+      Up and Down stay in it (no wrap) and Right goes back to what was lit on the page. */
+  function tvBrowseStep(list, cur, dx, dy){
+    var rail = document.getElementById('rail'), railList = [], page = [];
+    list.forEach(function(el){ (rail && rail.contains(el) ? railList : page).push(el); });
+    if (rail && rail.contains(cur)){
+      if (dy){ var ri = railList.indexOf(cur) + (dy > 0 ? 1 : -1); return (ri >= 0 && ri < railList.length) ? railList[ri] : null; }
+      if (dx > 0){ var v = document.querySelector('.view.active'); return v ? (viewFocusTake(v) || firstFocusable(v)) : null; }
+      return null;
+    }
+    if (dx < 0){
+      var cr = cur.getBoundingClientRect();
+      var line = page.filter(function(el){ var r = el.getBoundingClientRect(); return r.bottom > cr.top + 4 && r.top < cr.bottom - 4; });
+      var side = pickNearest(line, cur, dx, 0); if (side) return side;
+      var on = rail && rail.querySelector('.navitem.on');
+      return (on && railList.indexOf(on) >= 0) ? on : (railList[0] || null);
+    }
+    return pickNearest(page, cur, dx, dy);
   }
   /** The element of `list` nearest to `cur` in direction (dx, dy), or null. */
   function pickNearest(list, cur, dx, dy){
     var cr = cur.getBoundingClientRect(), cx = cr.left+cr.width/2, cy = cr.top+cr.height/2;
+    // Up and Down line up LEFT edges on the browse screens, not centres: a wide control over a row of small ones (the search
+    // field over the results, an episode row under the season chips, a link over a left-aligned panel) lands on the first
+    // of them, where the eye reads from — centres picked the third result. Equal-width rows and grids behave as before; the
+    // player keeps centres (its toolbar is centred under the full-width scrubber).
+    var byLeft = dy !== 0 && document.body.className.indexOf('playing') === -1;
     var best=null, bestScore=Infinity;
     list.forEach(function(el){ if(el===cur) return;
       var r=el.getBoundingClientRect(), ex=r.left+r.width/2, ey=r.top+r.height/2, ddx=ex-cx, ddy=ey-cy;
       if (dx>0 && ddx<8) return; if (dx<0 && ddx>-8) return;
       if (dy>0 && ddy<8) return; if (dy<0 && ddy>-8) return;
       var primary = dx!==0 ? Math.abs(ddx) : Math.abs(ddy);
-      var cross = dx!==0 ? Math.abs(ddy) : Math.abs(ddx);
+      var cross = dx!==0 ? Math.abs(ddy) : (byLeft ? Math.abs(r.left - cr.left) : Math.abs(ddx));
       var score = primary + cross*2.2;
       if (score < bestScore){ bestScore=score; best=el; }
     });
@@ -4890,6 +4935,9 @@
     });
   }
   var searchSeq = 0;
+  // OK (Enter) in the field on a TV: the first result that arrives takes the remote — the field lets go and the TV's
+  // keyboard goes down with it. Any other key in the field first (still typing) calls that off.
+  var searchJump = false;
   function runGlobalSearch(){
     var seq = ++searchSeq;
     var input = document.getElementById('globalSearch');
@@ -4897,7 +4945,7 @@
     document.getElementById('globalSearchClear').style.display = q ? '' : 'none';
     var wrap = document.getElementById('searchResults');
     wrap.innerHTML = '';
-    if (!q){ searchIdle(); return; }
+    if (!q){ searchJump = false; searchIdle(); return; }
     var addons = activeAddons();
     if (!addons.length){ wrap.innerHTML='<div class="empty">Add an add-on first — then one search covers everything it has.</div>'; return; }
     setStatus('Searching…','info');
@@ -4939,8 +4987,11 @@
               g.appendChild(cardEl(meta, a, m, c));
             });
             // a recent-search chip that was pressed is gone with the idle box, so the
-            // first result takes the remote's focus; a field being typed in keeps it
-            if (shown && document.activeElement === document.body && (IS_TV || kbUsed)){
+            // first result takes the remote's focus; a field being typed in keeps it —
+            // unless OK was pressed in it on a TV (searchJump): then the first result takes it
+            var ae = document.activeElement;
+            if (shown && (IS_TV || kbUsed) && (ae === document.body || (searchJump && ae === input))){
+              searchJump = false;
               var fc = g.querySelector('.focusable'); if (fc) fc.focus();
             }
             if (shown) countEl.textContent = count + ' result' + (count>1?'s':'');
@@ -6886,7 +6937,10 @@
       return;
     }
 
-    var pending = order.length, total = 0, sections = 0, failures = 0;
+    // why a list can come back empty: `answered` add-ons that say they stream this answered (with nothing), `lost` could not
+    // be asked at all (a manifest that did not load, or a streaming add-on's request that failed). A catalog-only origin is
+    // still asked, but its refusal is no one's outage — a fresh install (catalogs + subtitles only) is not "offline".
+    var pending = order.length, total = 0, sections = 0, answered = 0, lost = 0;
     function removeLoading(){
       var el = document.getElementById('streamsLoading');
       if (el && el.parentNode) el.parentNode.removeChild(el);
@@ -6897,13 +6951,26 @@
       if (pending) return;
       removeLoading();
       if (!total){
-        var req = lastStreamsReq, allDown = failures === order.length;
+        var req = lastStreamsReq, live = /^(tv|channel|events?)$/.test(type);
+        var retry = function(){ if (req) openStreams(req.type, req.id, req.title, ctx.startOver); };
         list.innerHTML = '';
-        list.appendChild(esBlock('signal',
-          allDown ? 'Could not reach your add-ons' : 'No streams right now',
-          allDown ? 'Check the connection and try again.' : 'No add-on has a stream for this yet — the event may be offline, or it may turn up later.',
-          'Try again', function(){ if (req) openStreams(req.type, req.id, req.title, ctx.startOver); }, 'streamsRetry'));
+        if (!answered && lost)
+          list.appendChild(esBlock('signal', 'Could not reach your add-ons', 'Check the connection and try again.', 'Try again', retry, 'streamsRetry'));
+        else if (!answered)          // nothing here streams this at all: the usual first-run answer is another add-on
+          list.appendChild(esBlock('addons', 'No streaming add-on yet', 'None of your add-ons plays this. Add a streaming add-on.',
+            'Add-ons', function(){ setTab('addons'); }, 'streamsAddons'));
+        else if (live)
+          list.appendChild(esBlock('signal', 'No streams right now', 'No add-on has a stream for this yet — the event may be offline, or it may turn up later.',
+            'Try again', retry, 'streamsRetry'));
+        else
+          list.appendChild(esBlock('signal', 'No streams for this yet', 'None of your add-ons has a stream for this. Try again in a moment.',
+            'Try again', retry, 'streamsRetry'));
         setStatus('No streams.','info');
+        // the remote lands on the way out, not on the topbar's Back — only if it has not moved since the list opened
+        // (focusFirst ran while the skeletons stood, when Back was the only thing there)
+        var eb = list.querySelector('.es .btn'), eae = document.activeElement;
+        if (eb && (IS_TV || kbUsed) && lastKeyAt <= openedAt && $id('view-streams').classList.contains('active') &&
+            (!eae || eae === document.body || eae.hasAttribute('data-back') || !isShown(eae))){ try { eb.focus(); } catch(e){} }
       } else {
         var summary = total + ' stream' + (total > 1 ? 's' : '') + (sections > 1 ? ' · ' + sections + ' sources' : '');
         var cnt = $id('shCount');
@@ -6917,11 +6984,12 @@
       var box = document.createElement('div'); box.className='streamsec'; list.appendChild(box);
       // an add-on that will be asked shows skeleton rows until it answers
       // (named to avoid shadowing the outer `pending` counter that done() uses)
-      var boxPending = false;
+      var boxPending = false, known = false, declares = false;
       getManifest(a.url).then(function(m){
+        known = true; declares = canStream(m, type, id);
         // the origin add-on is always asked; others only when their manifest
         // says they serve streams for this item's type/id
-        if (!(origin && a.url === origin.url) && !canStream(m, type, id)) return;
+        if (!(origin && a.url === origin.url) && !declares) return;
         if (seq !== openSeq) return;
         boxPending = true;
         removeLoading();                       // this add-on's own rows stand in now
@@ -6930,6 +6998,7 @@
         box.innerHTML = canStream(m, type, id) ? streamSkeletons(3) : '';
         var u = a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json';
         return getJson(u).then(function(d){
+          if (declares) answered++;
           if (seq !== openSeq) return;
           var streams = streamsForList((d.streams||[]).filter(function(s){ return s.url; }));
           box.innerHTML = '';
@@ -6964,7 +7033,7 @@
           }
         });
       }).catch(function(){
-        failures++;
+        if (!known || declares) lost++;
         if (boxPending){ box.innerHTML = ''; boxPending = false; }   // never leave it shimmering
       }).then(done);
     });
@@ -8670,6 +8739,14 @@
   }
   /** "9:41 pm" — the wall clock, written the way the pause board writes its ending time. */
   function fmtClock(d){ var hh = d.getHours(), mm = d.getMinutes(); return (hh % 12 || 12) + ':' + (mm < 10 ? '0' : '') + mm + (hh < 12 ? ' am' : ' pm'); }
+  /** "Ends 9:41 pm" — when what is playing ends at the current speed, from now; '' live or with no length. The clock line
+      and the pause board both read it, on the same tick. */
+  function endsAtLabel(){
+    if (puiIsLive()) return '';
+    var r = puiRange(); if (!(r.end > r.start)) return '';
+    var left = Math.max(0, r.end - video.currentTime);
+    return 'Ends ' + fmtClock(new Date(Date.now() + left * 1000 / (video.playbackRate || 1)));
+  }
   function puiRange(){
     try { var r = player.seekRange(); if (r && isFinite(r.start) && isFinite(r.end) && r.end > r.start) return r; } catch(e){}
     var d = video.duration; return { start:0, end:(isFinite(d)&&d>0)?d:0 };
@@ -8927,8 +9004,12 @@
       var gone = t - r.start, left = span - gone;
       $id('puiTimeL').textContent = fmtT(gone);
       $id('puiTimeR').textContent = (span > 0 || !mp) ? (puiState.total ? fmtT(span) : '−' + fmtT(left)) : '';   // (a length mpv cannot know: none)
-      // when this ends at the current speed — the TV-box line beside the clock
-      if (span > 0) clock += ' · Ends ' + fmtClock(new Date(now.getTime() + left * 1000 / (video.playbackRate || 1)));
+      // when this ends at the current speed — the TV-box line beside the clock, and the pause board's pill from the same
+      // helper on the same tick, so the two never disagree (the board used to keep the minute it was drawn in)
+      var ends = span > 0 ? endsAtLabel() : '';
+      if (ends) clock += ' · ' + ends;
+      var pbEnds = pui.className.indexOf('pb-on') !== -1 ? $id('pbEnds') : null;
+      if (pbEnds && ends) pbEnds.textContent = ends;
     }
     $id('puiClock').textContent = clock;
     // keep the resume point roughly current (~5s), and offer the next episode
@@ -9066,8 +9147,8 @@
     } else if (r.end > r.start){
       var remain = r.end - t, mins = Math.round(remain / 60);
       chip(mins < 1 ? 'Under a minute left' : (mins + ' min left'));
-      var h = new Date(Date.now() + remain * 1000 / (video.playbackRate || 1)), hh = h.getHours(), mm = h.getMinutes();   // at this speed, like the clock line
-      chip('Ends ' + (hh % 12 || 12) + ':' + (mm < 10 ? '0' : '') + mm + (hh < 12 ? ' am' : ' pm'));
+      chip(endsAtLabel());                              // at this speed, like the clock line — puiTick keeps it current
+      meta.lastChild.id = 'pbEnds';
     }
     var nx = nextEpisode();
     if (nx) chip('Up next · ' + epTag(nx.ep) + (nx.ep.name ? ' · ' + nx.ep.name : ''), 'next');
@@ -12069,7 +12150,10 @@
     var i = document.getElementById('globalSearch'), c = document.getElementById('globalSearchClear');
     if (!i || !c) return;
     var searchDeb = null;
-    i.addEventListener('keydown', function(e){ if (e.key==='Enter' || e.keyCode===13){ e.preventDefault(); clearTimeout(searchDeb); noteRecent(i.value); runGlobalSearch(); } });
+    i.addEventListener('keydown', function(e){
+      if (e.key==='Enter' || e.keyCode===13){ e.preventDefault(); clearTimeout(searchDeb); noteRecent(i.value); searchJump = IS_TV; runGlobalSearch(); }
+      else searchJump = false;               // still typing: nothing jumps out from under the next letter
+    });
     // a result opened straight from the as-you-type list counts as a search worth keeping
     var results = document.getElementById('searchResults');
     function fromCard(e){
@@ -12083,6 +12167,7 @@
     }
     i.addEventListener('input', function(){
       clearTimeout(searchDeb);
+      searchJump = false;                      // a TV's on-screen keyboard may type without a keydown the field can see
       var q = i.value.trim();
       c.style.display = q ? '' : 'none';
       if (!q){ runGlobalSearch(); return; }          // cleared — empty the results now
