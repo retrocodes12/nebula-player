@@ -204,6 +204,7 @@ function json(res, status, obj, cacheSecs) {
     res.writeHead(status, {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
+      'Access-Control-Expose-Headers': 'Retry-After',   // a page on another origin (webOS, the desktop app, Pages) reads it too
       'Cache-Control': cacheSecs ? 'public, max-age=' + cacheSecs : 'no-store',
     });
     res.end(JSON.stringify(obj));

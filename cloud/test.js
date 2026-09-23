@@ -1126,3 +1126,14 @@ test('a deleted profile takes its asks and one-sided links with it', async () =>
   assert.equal((await api('GET', '/v1/social/asks', undefined, tok(y))).body.asks.length, 0);
   assert.equal((await api('GET', '/v1/social/me', undefined, tok(z))).body.friends, 0);   // z's pending ask to x is gone too
 });
+
+test('the proxy\'s own refusals say when to come back, readable from another origin', async () => {
+  let r = null;
+  for (let i = 0; i < 200; i++) {                  // the rescue bucket (burst 60) runs dry within this
+    r = await fetch(base + '/p?u=' + encodeURIComponent('https://x.invalid/manifest.json'), { headers: { 'X-Forwarded-For': '203.0.113.77' } });
+    if (r.status === 429) break;
+  }
+  assert.equal(r.status, 429);
+  assert.equal(r.headers.get('retry-after'), '2');
+  assert.match(r.headers.get('access-control-expose-headers') || '', /Retry-After/i);
+});

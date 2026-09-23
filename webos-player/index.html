@@ -3678,9 +3678,11 @@
       var r, waited = 0;
       for (var tries = 0; tries < 4; tries++){
         r = await fetch(CLOUD_BASE + '/p?u=' + encodeURIComponent(url), opts);
-        if ((r.status !== 429 && r.status !== 503) || waited > 6000) break;
-        // the server says when (Retry-After, seconds); a little jitter so a page's queue does not come back as one burst
-        var ra = Number(r.headers.get('Retry-After')) || 1, w = ra * 1000 + Math.random() * 600;
+        // only the proxy's OWN refusal is retried — it carries Retry-After; an add-on's own 429/503 passed through does
+        // not, and retrying a dead add-on four times held a slot for seconds and cost four tokens
+        var ra = (r.status === 429 || r.status === 503) ? Number(r.headers.get('Retry-After')) : 0;
+        if (!ra || tries === 3 || waited > 6000) break;
+        var w = ra * 1000 + Math.random() * 600;      // a little jitter so a page's queue does not come back as one burst
         waited += w;
         await new Promise(function(ok){ setTimeout(ok, w); });
       }
@@ -3954,7 +3956,7 @@
       } else if (liftIdx !== null && (k === 38 || k === 40)){
         e.preventDefault(); e.stopPropagation();
         liftStep(k === 38 ? -1 : 1);
-      } else if (liftIdx !== null && (k === 461 || k === 10009 || k === 27 || k === 8 || e.key === 'GoBack')){
+      } else if (liftIdx !== null && (k === 461 || k === 10009 || k === 27 || k === 8 || e.key === 'GoBack' || e.key === 'BrowserBack')){
         e.preventDefault(); e.stopPropagation();
         dropLift();
       }
@@ -8164,7 +8166,12 @@
       tcc = tcCheckStart(seq, cleanUrl(rawUrl), function(info){
         // the restart through the shell, from wherever playback had got to
         try { flushProgress(true); } catch(e){}
-        ctx.tcForce = info; ctx.startOver = false;
+        ctx.tcForce = info;
+        // from wherever playback got to — or, when nothing played yet (refused at load), as it was asked: from the
+        // beginning after Start over, at a source switch's second after a switch
+        var atNow = video.currentTime || 0;
+        ctx.startOver = fresh && atNow < 1;
+        if (atNow < 1 && swapAt){ ctx.swapAt = swapAt; ctx.swapName = swapName; }
         setStatus(info.why === 'host' ? 'Fetching the stream through the app…'
           : 'Converting the ' + (info.why === 'video' ? 'video' : (info.why === 'file' ? 'file' : 'audio')) + ' for this device…', 'info');
         playUrl(rawUrl, clearKeys, title, subtitles, mimeType);
@@ -8226,7 +8233,7 @@
       // the engine torn down under its own load (a teardown nobody reported): an abandoned start, not a failure to show
       if (!loaded && err && (err.code === 7000 || err.code === 7001 || err.code === 7003)) return;
       // Play through your PC: the sharing computer failed the load — the same thing again, direct (the relay is dropped for a while)
-      if (!loaded && ctx.viaRelay && relayErrOwn(err)){ relayDrop(); return playUrl(rawUrl, clearKeys, title, subtitles, mimeType); }
+      if (!loaded && ctx.viaRelay && relayErrOwn(err)){ relayDrop(); ctx.startOver = fresh; ctx.swapAt = swapAt; ctx.swapName = swapName; return playUrl(rawUrl, clearKeys, title, subtitles, mimeType); }
       // the full-format player could not open it: once through the app's own engine (a format it refused), unless the
       // host itself said no — then the sentence
       if (useMpv){
@@ -8241,7 +8248,7 @@
         }
         // once through the app's own engine, whatever mpv met — a host can answer the browser's requests and not mpv's (its
         // connection does not look like the browser's) — and that engine has the last word
-        if (!loaded){ setStatus('Trying the built-in player…', 'info'); ctx.forceBuiltin = true; return playUrl(rawUrl, clearKeys, title, subtitles, mimeType); }
+        if (!loaded){ setStatus('Trying the built-in player…', 'info'); ctx.forceBuiltin = true; ctx.startOver = fresh; ctx.swapAt = swapAt; ctx.swapName = swapName; return playUrl(rawUrl, clearKeys, title, subtitles, mimeType); }
         setStatus(why, 'err'); $id('puiSpin').style.display = 'none';
         return;
       }
