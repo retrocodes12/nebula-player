@@ -30,10 +30,14 @@ echo "player syntax OK"
 echo "cloud tests OK"
 
 # 4. ship
-scp -q cloud/server.js cloud/profile.js cloud/support.js cloud/support-pay.js cloud/support-admin.js cloud/test.js "$VPS":~/apps/nebula-cloud/
+# every module: a list by name missed a new one (universe.js, 2026-09-23) and the server crash-looped on require
+scp -q cloud/*.js "$VPS":~/apps/nebula-cloud/
 scp -q -r docs/* "$VPS":/var/www/nebula-play/
 ssh -o BatchMode=yes "$VPS" 'set -e
-  cd ~/apps/nebula-cloud && node --test test.js > /dev/null 2>&1 && echo "cloud tests OK on VPS"
+  # a failing test stops the reload (a bare `a && b` never trips set -e, so this used to reload regardless)
+  cd ~/apps/nebula-cloud
+  node --test test.js > /dev/null 2>&1 || { echo "cloud tests FAILED on the VPS - NOT reloading"; exit 1; }
+  echo "cloud tests OK on VPS"
   pm2 reload nebula-cloud --update-env > /dev/null 2>&1 && echo "nebula-cloud reloaded"
   # party.json on the VPS always points at the VPS relay, whatever docs/ says
   printf "{\n  \"server\": \"wss://play.rifflehq.in/party/ws\"\n}\n" > /var/www/nebula-play/party.json'
@@ -44,7 +48,7 @@ ssh -o BatchMode=yes "$VPS" bash -s < scripts/mirror-ipk.sh
 
 # 5. verify the live surface
 curl -sf https://play.rifflehq.in/player/ -o /dev/null && echo "live: /player/ 200"
-curl -sf https://play.rifflehq.in/cloud/healthz && echo
+sleep 2; curl -sf https://play.rifflehq.in/cloud/healthz || { echo; echo "CLOUD IS DOWN - check pm2 logs nebula-cloud"; exit 1; }; echo
 curl -sf https://play.rifflehq.in/party/healthz && echo
 VER_HTML=$(curl -s https://play.rifflehq.in/player/ | grep -o "PLAYER_VERSION = '[^']*'" | head -1)
 VER_JSON=$(curl -s https://play.rifflehq.in/player-version.json | grep -o '"version": "[^"]*"')
