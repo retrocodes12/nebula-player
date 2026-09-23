@@ -1,15 +1,15 @@
 {
   "id": "com.nebula.player",
-  "version": "1.83.0",
+  "version": "1.83.1",
   "type": "web",
   "title": "Nebula",
   "appDescription": "Nebula — add-on browser + player for webOS. An Apple TV-style player (glass controls, thick rounded scrubber, remaining time), a pause board that shows what is playing and what is next, a playback-info HUD, subtitle timing nudges, a picture-quality policy, a live-edge button, a sleep timer (by minutes or when the episode ends), Start over for anything in progress, Surprise me on series pages, a featured hero board, a Home you arrange yourself (pick the rows and their order), recent searches, a full keyboard shortcut set with a ? sheet on computers, full-bleed title pages with logo art and cast, My List with an upcoming-episode calendar, resume and Continue Watching, next-episode autoplay that keeps your source and quality (the next stream is chosen before this one ends), a Nebula Profile that carries your add-ons, progress and My List to every device (sign the TV in with a code from your phone — no email), friends by @handle, subtitle appearance controls, and search across every catalogue. Opens full on first run. Plays and decrypts every format.",
   "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
   "sourceUrl": "https://github.com/retrocodes12/nebula-player",
   "rootRequired": false,
-  "ipkUrl": "https://play.rifflehq.in/ipk/com.nebula.player_1.83.0_all.ipk",
+  "ipkUrl": "https://play.rifflehq.in/ipk/com.nebula.player_1.83.1_all.ipk",
   "ipkHash": {
-    "sha256": "ddc71ab77af5a8253df5cccada9366d0a678c0cbbe011af8474be26c91dbb5f9"
+    "sha256": "6dadb4615653fbd308e73e5ce136df52c990854937cc18c7de99284e09f3f63e"
   },
-  "ipkSize": 955132
+  "ipkSize": 955310
 }

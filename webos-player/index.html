@@ -644,6 +644,15 @@
   html.tv .cw-sub { font-size:calc(16px * var(--ts)); }
   html.tv .cw-left { font-size:calc(15px * var(--ts)); padding:7px 13px; top:14px; right:14px; }
   html.tv .card.cw .prog { height:4px; }
+  /* the resume track sits under the title, inset from the rounded corners: along the very edge the corner clipped the
+     first few percent away, so an episode a few minutes in showed its time left and no bar at all (09-23, Android
+     screenshot — the same card here) */
+  .card.cw .cw-txt { bottom:25px; }
+  .card.cw .prog { left:14px; right:14px; bottom:14px; border-radius:2px; background:rgba(255,255,255,.28); }
+  .card.cw .prog i { border-radius:2px; }
+  html.tv .card.cw .cw-txt { bottom:32px; }
+  html.tv .card.cw .prog { left:18px; right:18px; bottom:18px; }
+  .prog i { min-width:4px; }
   .cwgrid { grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); }
   @media (min-width:1500px){ .cwgrid { grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); } }
 
@@ -2540,7 +2549,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.23.1';
+  var PLAYER_VERSION = '2026.09.23.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
