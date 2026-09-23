@@ -21,6 +21,7 @@
 //   /v1/social/*                           → friends, below
 //   /v1/support/*                          → support.js (supporter codes, the wall, the support link)
 //   GET  /v1/skip?id=tt…:S:E               → {intro, recap, outro} timestamps (cached, no auth)
+//   GET  /v1/universe?id=tt…               → universe.js: the titles it follows / is followed by / spun off (cached a week, no auth)
 //   GET  /v1/releases                      → {player, android, desktop, apple} latest GitHub releases, each
 //                                            {version, tag, published_at, notes, assets:[{name,url,size}], recent} or null
 //                                            (recent = that repo's releases in the last 30 days, for the landing stat;
@@ -760,6 +761,7 @@ const profile = require('./profile.js')({
   DATA_DIR, loadGroup, persistSoon, allow, json, readBody, auth, newGroup, deleteGroup, CODE_ALPHABET, GROUP_BURST,
 });
 const support = require('./support.js')({ DATA_DIR, loadGroup, persistSoon, allow, json, readBody, auth, CODE_ALPHABET, profile });
+const universe = require('./universe.js')({ DATA_DIR, allow });
 evict();
 setInterval(evict, 24 * 3600_000).unref();
 
@@ -795,6 +797,8 @@ const server = http.createServer((req, res) => {
   if (p === '/v1/skip' && req.method === 'GET') {
     return void handleSkip(req, res, u.searchParams.get('id') || '', ip);
   }
+
+  if (universe.handle(p, req, res, ip, u)) return;
 
   if (p === '/v1/releases' && req.method === 'GET') {
     return void handleReleases(req, res, ip);
@@ -881,6 +885,7 @@ const server = http.createServer((req, res) => {
 // persist before going down.
 function flushAll() {
   support.flush();
+  universe.flush();                                  // a week of answers survives the restart
   profile.flush();                                   // the handle index: a restart right after a create must keep it
   if (socialCodesTimer) { clearTimeout(socialCodesTimer); writeSocialCodes(); }
   for (const [gid, timer] of dirty) {

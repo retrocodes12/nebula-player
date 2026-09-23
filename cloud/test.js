@@ -200,6 +200,87 @@ test('skip segments: shaped, cached, misses and failures handled, ids validated'
   }
 });
 
+test('universe: one trimmed upstream call per title, kept, and a refusal stops the asking', async () => {
+  const fs = require('fs'), path = require('path');
+  const hits = [];
+  let refuse = false;
+  const node = (rel, id, name, type, year, img, end) => ({ node: {
+    category: { id: rel },
+    associatedTitle: { id, titleText: { text: name }, releaseYear: year ? { year, endYear: end || null } : null,
+      titleType: { id: type }, primaryImage: img ? { url: 'https://m.media-amazon.com/images/M/' + img + '._V1_.jpg' } : null },
+  } });
+  const stub = require('http').createServer((req, res) => {
+    let b = '';
+    req.on('data', (c) => { b += c; }).on('end', () => {
+      const q = JSON.parse(b);
+      hits.push({ id: q.variables.id, client: req.headers['x-imdb-client-name'], query: q.query });
+      if (refuse) { res.writeHead(403); return res.end('<html>403</html>'); }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      const edges = q.variables.id === 'tt0000002' ? [] : [
+        node('spin_off', 'tt0000101', 'The Show', 'tvSeries', 2013, 'A1', 2020),
+        node('followed_by', 'tt0000102', 'Part Three', 'movie', 2019, 'A2'),
+        node('followed_by', 'tt0000103', 'Part Two', 'movie', 2015, 'A3'),
+        node('spin_off', 'tt0000104', 'The Game', 'videoGame', 2013, 'A4'),
+        node('spin_off', 'tt0000105', 'One Episode', 'tvEpisode', 2014, 'A5'),
+        node('followed_by', 'tt0000106', 'Untitled Sequel', 'movie', null, null),
+        node('spin_off_from', 'tt0000103', 'Part Two', 'movie', 2015, 'A3'),
+        node('follows', 'tt0000107', 'The Origin', 'movie', 2008, null),
+      ];
+      res.end(JSON.stringify({ data: { title: { connections: { edges } } } }));
+    });
+  });
+  await new Promise((ok) => stub.listen(0, '127.0.0.1', ok));
+  process.env.UNIVERSE_UPSTREAM = 'http://127.0.0.1:' + stub.address().port + '/';
+  const get = (id) => fetch(base + '/cloud/v1/universe?id=' + encodeURIComponent(id), { headers: { 'X-Forwarded-For': '203.0.113.77' } });
+  try {
+    // three callers at once share ONE upstream call
+    const rs = await Promise.all([get('tt0000001'), get('tt0000001'), get('tt0000001')]);
+    for (const r of rs) assert.equal(r.status, 200);
+    assert.equal(hits.length, 1);
+    assert.equal(hits[0].client, 'imdb-web-next');
+    assert.match(hits[0].query, /spin_off_from/);
+    assert.doesNotMatch(hits[0].query, /version_of/);
+    assert.match(rs[0].headers.get('cache-control'), /max-age=259200/);
+    const b = await rs[0].json();
+    // unplayable kinds, placeholders and a duplicate are dropped; story order, then year
+    assert.deepEqual(b.items.map((x) => x.rel + ' ' + x.name), [
+      'follows The Origin', 'followed_by Part Two', 'followed_by Part Three', 'spin_off The Show',
+    ]);
+    assert.deepEqual(b.items[3], { rel: 'spin_off', id: 'tt0000101', name: 'The Show', year: 2013, end: 2020, type: 'series',
+      poster: 'https://m.media-amazon.com/images/M/A1._V1_QL75_UX300_.jpg' });
+    assert.equal(b.items[0].poster, null);
+    // answered from memory afterwards
+    assert.equal((await get('tt0000001')).status, 200);
+    assert.equal(hits.length, 1);
+    // a title with no connections is an empty list, kept too
+    assert.deepEqual(await (await get('tt0000002')).json(), { id: 'tt0000002', items: [] });
+    await get('tt0000002');
+    assert.equal(hits.length, 2);
+    // only IMDb title ids
+    for (const bad of ['', 'tt1', 'nm0000001', 'kitsu:1', 'tt0000001:1:1', '../x']) {
+      assert.equal((await get(bad)).status, 400, bad);
+    }
+    assert.equal(hits.length, 2, 'bad ids never reach the upstream');
+    // kept answers are written to disk on flush (a restart does not ask again)
+    flushAll();
+    const saved = JSON.parse(fs.readFileSync(path.join(process.env.DATA_DIR, 'universe.json'), 'utf8'));
+    assert.ok(saved.tt0000001 && saved.tt0000002);
+    // a refusal: that miss is a 502, and the next miss does not ask at all for a while
+    refuse = true;
+    assert.equal((await get('tt0000003')).status, 502);
+    assert.equal(hits.length, 3);
+    const cooled = await get('tt0000004');
+    assert.equal(cooled.status, 503);
+    assert.ok(Number(cooled.headers.get('retry-after')) > 0);
+    assert.equal(hits.length, 3, 'nothing asked while cooling down');
+    // …while what is kept still answers
+    assert.equal((await get('tt0000001')).status, 200);
+  } finally {
+    delete process.env.UNIVERSE_UPSTREAM;
+    stub.close();
+  }
+});
+
 test('releases: one feed, shaped, cached, stale through outages, a bad repo is null', async () => {
   // a stand-in for api.github.com: four repos, each switchable to a failure
   const hits = [];

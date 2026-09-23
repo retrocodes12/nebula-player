@@ -1344,6 +1344,13 @@
   .det-seasons::-webkit-scrollbar { display:none; }
   .det-seasons .chip { flex:0 0 auto; margin-right:8px; }
   .det-eps { margin-top:10px; padding-bottom:40px; max-width:960px; }
+  /* Universe: what the title follows, what follows it, spin-offs, remakes — a card row with a mono eyebrow */
+  .det-universe { position:relative; z-index:2; margin:-20px 0 0; padding-bottom:40px; }   /* beside .det-body, not in it: the row runs past its reading width */
+  .det-universe:empty { display:none; }
+  .card-rel { padding:9px 2px 0; font-family:var(--mono); font-size:calc(10px * var(--ts)); font-weight:500; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--label3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .card-rel + .card-label { padding-top:3px; }
+  html.tv .card-rel { font-size:calc(13px * var(--ts)); }
   /* the art runs to every edge and dissolves into the page — no card seam,
      with the back button floating on it instead of pushing it down */
   #view-streams.hero .topbar { position:absolute; top:0; left:0; right:0; z-index:6; padding-top:20px; }
@@ -1741,6 +1748,7 @@
     html:not(.tv) .view.cols { padding-bottom:0; }
     html:not(.tv) .scroller { padding-bottom:calc(var(--navb) + 24px); }
     html:not(.tv) .det-eps { padding-bottom:12px; }
+    html:not(.tv) .det-universe { margin-top:8px; padding-bottom:12px; }
     /* the hero: centred title art, one meta line, one white pill, the dots under it */
     html:not(.tv) #homeHero { height:62vh; min-height:420px; max-height:680px; margin-bottom:8px; }
     html:not(.tv) .hf-art img { object-position:center 30%; }
@@ -2098,6 +2106,7 @@
       <div class="det-seasons" id="detSeasonRow" style="display:none"></div>
       <div id="detEpList" class="streams eplist det-eps"></div>
     </div>
+    <div id="detUniverse" class="det-universe"></div>
   </div>
 
   <!-- ADD-ONS: manage sources -->
@@ -2877,8 +2886,15 @@
       if (party && !party.isHost) endParty('Left the party.');
     }
     if (viewStack.length > 1){
-      viewStack.pop();
+      var popped = viewStack.pop();
       var top = viewStack[viewStack.length-1];
+      // a title page opened from another's Universe row: Back redraws the one it was opened from
+      if (popped === 'detail' && top === 'detail' && detTrail.length){
+        var prev = detTrail.pop();
+        ctx.addon = prev.addon; uniReturnKey = prev.leftKey;
+        openDetail(prev.meta, prev.type);
+        return;
+      }
       // after an episode hop the list underneath is the FIRST episode's: back lands on the streams of the one just watched
       if (top === 'streams' && was && was.id && lastStreamsReq && lastStreamsReq.id !== was.id){
         openStreams(was.type, was.id, ctx.streamTitle || was.name, false, true); return;
@@ -2890,7 +2906,7 @@
   }
   function setTab(t){
     stopPairing(); pfTvStop();
-    viewStack = [t];
+    viewStack = [t]; detTrail = [];
     show(t, false);
     if (t === 'home') buildHomeRows(false);
   }
@@ -6352,6 +6368,7 @@
     renderDetailSeries(meta, type);
     syncDetButtons();
     detSkeleton(meta);
+    detUniverse(meta);
     show('detail');
     // land focus on Play, not the back button — one OK press should start it
     setTimeout(function(){
@@ -6381,7 +6398,75 @@
       renderDetailArt(merged);
       renderDetailSeries(merged, type);
       syncDetButtons();
+      detUniverse(merged);
     });
+  }
+
+  // ---------- Universe: what a title follows, what follows it, its spin-offs and remakes ----------
+  // The cloud looks the connections up (a week at a time) and answers ~2 KB; this page keeps each answer for
+  // the session and the browser keeps it three days (Cache-Control), so a title asks the server rarely.
+  var UNI_REL = { follows:'Follows', followed_by:'Followed by', spin_off_from:'Spin-off from', spin_off:'Spin-off',
+    remake_of:'Remake of', remade_as:'Remade as' };
+  var uniCache = {}, uniCached = 0, uniFor = '';
+  // Title pages opened FROM a Universe row, one per extra 'detail' in viewStack (show() never stacks a view on
+  // itself, so the card pushes it): goBack pops one and redraws it. A tab change starts both over.
+  var detTrail = [], uniReturnKey = '';
+  /** The title's own tt… id (a series episode id gives its show's), or the one its details carry. */
+  function uniId(meta){
+    var m = /^(tt\d{5,10})(?::|$)/.exec(String((meta && meta.id) || ''));
+    if (m) return m[1];
+    var alt = String((meta && (meta.imdb_id || meta.imdbId)) || '');
+    return /^tt\d{5,10}$/.test(alt) ? alt : '';
+  }
+  function detUniverse(meta){
+    var id = uniId(meta), box = $id('detUniverse');
+    if (id && id === uniFor) return;                  // drawn already, or on its way
+    uniFor = id; box.innerHTML = '';
+    if (!id) return;
+    var got = uniCache[id] ? Promise.resolve(uniCache[id]) :
+      fetch(CLOUD_BASE + '/v1/universe?id=' + encodeURIComponent(id))
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(j){
+          var items = (j && j.items) || null;
+          if (items){ if (++uniCached > 300){ uniCache = {}; uniCached = 1; } uniCache[id] = items; }
+          return items;
+        });
+    got.then(function(items){
+      if (uniFor !== id) return;
+      if (!items){ uniFor = ''; return; }             // failed: the next visit asks again
+      uniRender(box, items);
+    }).catch(function(){ if (uniFor === id) uniFor = ''; });
+  }
+  function uniRender(box, items){
+    var row = document.createElement('div'); row.className = 'hrow';
+    items.forEach(function(x){
+      if (!x || !/^tt\d{5,10}$/.test(x.id || '')) return;
+      var type = x.type === 'series' ? 'series' : 'movie';
+      var yr = x.year ? String(x.year) + (type === 'series' && x.end && x.end !== x.year ? '\u2013' + x.end : '') : '';
+      var card = cardEl({ id: x.id, type: type, name: String(x.name || ''), poster: String(x.poster || ''), releaseInfo: yr, posterShape: 'poster' });
+      var rel = document.createElement('div'); rel.className = 'card-rel'; rel.textContent = UNI_REL[x.rel] || '';
+      card.insertBefore(rel, card.querySelector('.card-label'));
+      var open = card.onclick;
+      card.onclick = function(){
+        if (detCur && detCur.meta && $id('view-detail').classList.contains('active')){
+          detTrail.push({ meta: detCur.meta, type: detCur.type, addon: detCur.addon, leftKey: card.getAttribute('data-key') });
+          viewStack.push('detail');
+        }
+        open();
+      };
+      row.appendChild(card);
+    });
+    if (!row.children.length) return;
+    var head = document.createElement('div'); head.className = 'rowhead';
+    head.innerHTML = '<span class="row-title">Universe</span>';
+    box.innerHTML = '';
+    box.appendChild(head); box.appendChild(row);
+    // back from a title opened here: the remote lands on its card again (after openDetail's own landing on Play)
+    var key = uniReturnKey; uniReturnKey = '';
+    if (key && (IS_TV || kbUsed)) setTimeout(function(){
+      var c = row.querySelector('[data-key="' + key + '"]');
+      if (c && $id('view-detail').classList.contains('active')) c.focus();
+    }, 120);
   }
 
   /** Placeholders for the description, facts and genres a catalogue card did not carry; the
