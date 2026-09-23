@@ -1,6 +1,6 @@
 {
   "id": "com.nebula.player",
-  "version": "1.82.0",
+  "version": "1.83.0",
   "vendor": "Nebula",
   "type": "web",
   "main": "index.html",

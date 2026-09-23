@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.22.1",
+  "version": "2026.09.23.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Subtitles from your add-ons now come on by themselves in your preferred language (Settings, Subtitles when a video starts) when the stream has none of its own, trying the next file if one will not load; a subtitle you pick by hand comes back when you switch source."
+  "notes": "A full audit pass: Back stops a stream that is still starting, a film never borrows the last series' name or art, the TV returns to the card you left and answers its Play, Pause and Rewind keys, subtitle languages read as names, title pages list the director and writers, and friends are now mutual."
 }
