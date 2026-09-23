@@ -291,11 +291,13 @@ async function proxyTargetOk(raw, opts) {
 let proxyActive = 0;
 const proxyByIp = new Map();     // ip -> requests in flight: one address pointing at its own slow host must not hold every slot
 async function handleProxy(req, res, target, ip) {
-  if (!allow('proxy', ip, 60, 30)) return json(res, 429, { error: 'rate limited' });
+  // a page asks for every catalogue at once: the bucket fits one Home, and every refusal says when to come back
+  // (Retry-After — the player waits that long instead of dropping the row)
+  if (!allow('proxy', ip, 120, 60)) { res.setHeader('Retry-After', '2'); return json(res, 429, { error: 'rate limited' }); }
   let u = await proxyTargetOk(target);
   if (!u) return json(res, 400, { error: 'url not allowed' });
-  if (proxyActive >= PROXY_MAX_CONCURRENT) return json(res, 503, { error: 'busy' });
-  if ((proxyByIp.get(ip) || 0) >= PROXY_MAX_PER_IP) return json(res, 429, { error: 'rate limited' });
+  if (proxyActive >= PROXY_MAX_CONCURRENT) { res.setHeader('Retry-After', '1'); return json(res, 503, { error: 'busy' }); }
+  if ((proxyByIp.get(ip) || 0) >= PROXY_MAX_PER_IP) { res.setHeader('Retry-After', '1'); return json(res, 429, { error: 'rate limited' }); }
   proxyByIp.set(ip, (proxyByIp.get(ip) || 0) + 1);
   proxyActive++;
   const ctrl = new AbortController();

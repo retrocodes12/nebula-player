@@ -993,7 +993,7 @@
   .pui-btn .pv:empty { display:none; }
   .pui-btn:hover { background:rgba(110,110,120,.55); }
   /* an armed sleep timer reads like the lit Info button: white pill, dark text */
-  .pui-btn.on, .pui-btn.on:hover, .pui-bar .pui-btn.on { background:rgba(255,255,255,.92); color:#000; }
+  .pui-btn.on, .pui-btn.on:hover, .pui-bar .pui-btn.on, .pui-bar .pui-btn.on:hover { background:rgba(255,255,255,.92); color:#000; }
   .pui-btn.on .pv { color:rgba(0,0,0,.62); }
   html.tv .pui-btn.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
   .pui-btn.focusable:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
@@ -2570,7 +2570,7 @@
   // TV mode: 10-foot sizing on webOS (PalmSystem/ServiceBridge only exist there);
   // ?tv=1 forces it anywhere for previewing.
   var IS_TV = !!(window.PalmSystem || window.WebOSServiceBridge || window.PalmServiceBridge ||
-    /web0s|webos|smarttv|smart-tv|netcast|tizen|vidaa|hbbtv/i.test(navigator.userAgent || '') ||
+    /web0s|webos|smarttv|smart-tv|netcast|tizen|vidaa|hbbtv|viera|philipstv|nettv|bravia/i.test(navigator.userAgent || '') ||
     /[?&#]tv=1/.test(location.href));
   if (IS_TV) document.documentElement.className += ' tv';
   // TV SoCs are weak GPUs: the lite profile keeps the design but drops the
@@ -2647,7 +2647,13 @@
     if (name === 'episodes' && epView){ try { if (back && epView.redraw) epView.redraw(); else epView.refresh(); } catch(e){} }
     // coming back to a title after watching: the Resume label must be current
     // (back keeps the season being browsed; the rows are repainted around it and the remote finds its row again)
-    if (name === 'detail' && detCur){ try { syncDetButtons(); if (detEp){ if (back && detEp.redraw) detEp.redraw(); else detEp.refresh(); } } catch(e){} }
+    if (name === 'detail' && detCur){
+      try {
+        // back on a title page: it is the title again (its details may have come while another title was current)
+        if (back && ctx.item !== detCur.meta){ ctx.item = detCur.meta; if (detCur.late){ detCur.late = false; renderDetailSeries(detCur.meta, detCur.type); } }
+        syncDetButtons(); if (detEp){ if (back && detEp.redraw) detEp.redraw(); else detEp.refresh(); }
+      } catch(e){}
+    }
     // the profile page is built fresh every time: its state lives on the server
     if (name === 'profile'){ try { profileRender(); } catch(e){} }
     video.style.display = (name==='player') ? 'block' : 'none';
@@ -3669,10 +3675,14 @@
   async function proxyGet(url, opts){
     await pxSlot();
     try {
-      var r = await fetch(CLOUD_BASE + '/p?u=' + encodeURIComponent(url), opts);
-      if (r.status === 429){
-        await new Promise(function(ok){ setTimeout(ok, 400 + Math.random() * 900); });
+      var r, waited = 0;
+      for (var tries = 0; tries < 4; tries++){
         r = await fetch(CLOUD_BASE + '/p?u=' + encodeURIComponent(url), opts);
+        if ((r.status !== 429 && r.status !== 503) || waited > 6000) break;
+        // the server says when (Retry-After, seconds); a little jitter so a page's queue does not come back as one burst
+        var ra = Number(r.headers.get('Retry-After')) || 1, w = ra * 1000 + Math.random() * 600;
+        waited += w;
+        await new Promise(function(ok){ setTimeout(ok, w); });
       }
       return r;
     } finally { pxDone(); }
@@ -3944,7 +3954,7 @@
       } else if (liftIdx !== null && (k === 38 || k === 40)){
         e.preventDefault(); e.stopPropagation();
         liftStep(k === 38 ? -1 : 1);
-      } else if (liftIdx !== null && (k === 461 || k === 27 || k === 8 || e.key === 'GoBack')){
+      } else if (liftIdx !== null && (k === 461 || k === 10009 || k === 27 || k === 8 || e.key === 'GoBack')){
         e.preventDefault(); e.stopPropagation();
         dropLift();
       }
@@ -6289,8 +6299,16 @@
     fetchFullMeta(type, meta.id).then(function(full){
       if (seq !== detSeq) return;
       // left for something else before the details came (a Continue watching card, a party): they are this page's,
-      // not the title now in ctx — adopting them wrote this page's art and series into another show's record
-      if (ctx.item !== meta) return;
+      // not the title now in ctx — adopting them wrote this page's art and series into another show's record. The page
+      // itself is still drawn (its skeleton cleared); its series and ctx.item are taken up when it is shown again.
+      if (ctx.item !== meta){
+        var mergedLate = {};
+        Object.keys(meta).forEach(function(k){ mergedLate[k] = meta[k]; });
+        Object.keys(full || {}).forEach(function(k){ if (full[k] != null && full[k] !== '') mergedLate[k] = full[k]; });
+        if (full){ detCur.meta = mergedLate; detCur.late = true; renderDetailFacts(mergedLate); renderDetailArt(mergedLate); }
+        detSkeletonClear();
+        return;
+      }
       if (!full){ detSkeletonClear(); return; }
       // enhance in place: the full meta wins wherever it actually has something
       var merged = {};
@@ -8237,6 +8255,7 @@
       // chance once, now that the answer is in, instead of the error
       if (!loaded && !tcc && !tc && ctx.tcLateFor !== rawUrl && tcCandidate(rawUrl, clearKeys)){
         ctx.tcLateFor = rawUrl;
+        ctx.startOver = fresh; ctx.swapAt = swapAt; ctx.swapName = swapName;   // this attempt consumed them: hand them on
         return playUrl(rawUrl, clearKeys, title, subtitles, mimeType);
       }
       setStatus(tc ? tcConvertLine(String(code) + extra) : playErrorLine(code, extra),'err'); $id('puiSpin').style.display='none';
@@ -8617,7 +8636,7 @@
   function langName(code){
     if (!code || code === 'und') return 'Unknown';
     var c = LANG_ALIAS[String(code).toLowerCase()] || code;
-    try { var dn = new Intl.DisplayNames(['en'], { type:'language' }), nm = dn.of(c); if (nm && nm !== c) return nm; } catch(e){}
+    try { var dn = new Intl.DisplayNames(['en'], { type:'language' }), nm = dn.of(c); if (nm && String(nm).toLowerCase() !== String(c).toLowerCase()) return nm; } catch(e){}
     // no names in this browser (webOS has no Intl at all), or a name sent where a code belongs ("german"): the
     // settings' own list, so "eng" and "en" are one English, listed where the preferred language says
     var k = subKey(code);

@@ -609,11 +609,12 @@
   var ua = navigator.userAgent;
   // Android and webOS both say "Linux" in their user agent, so they are read first
   // an iPad says it is a Mac; only one of the two has a touch screen
-  var os = /Windows/i.test(ua) ? "windows" : /Android/i.test(ua) ? "android" : /Web0S|webOS|NetCast/i.test(ua) ? "webos"
+  // an Xbox says "Windows" too, and cannot run the installer: the web player (Fire TV says Android — the APK is right)
+  var os = /Xbox/i.test(ua) ? null : /Windows/i.test(ua) ? "windows" : /Android/i.test(ua) ? "android" : /Web0S|webOS|NetCast/i.test(ua) ? "webos"
     : /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) ? "ios"
     : /Macintosh|Mac OS X/i.test(ua) ? "mac"
     : /CrOS/i.test(ua) ? null                                     // a Chromebook cannot run the Linux packages: the web player
-    : /SMART-TV|SmartTV|Tizen|VIDAA|HbbTV|Viera|BRAVIA|PhilipsTV|Roku|AFTB|AFTS|AFTM/i.test(ua) ? null   // another TV's browser: the web player, which lays itself out for a TV
+    : /SMART-TV|SmartTV|Tizen|VIDAA|HbbTV|Viera|BRAVIA|PhilipsTV|NETTV|Roku/i.test(ua) ? null   // another TV's browser: the web player, which lays itself out for a TV
     : /Linux|X11/i.test(ua) ? "linux" : null;
 
   // tabs
