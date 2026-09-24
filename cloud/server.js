@@ -39,6 +39,8 @@
 'use strict';
 
 const http = require('http');
+const https = require('https');
+const zlib = require('zlib');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -48,8 +50,12 @@ const PORT = Number(process.env.PORT || 3342);
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const GROUPS_DIR = path.join(DATA_DIR, 'groups');
 
-const MAX_GROUPS = 5000;
+const MAX_GROUPS = Number(process.env.MAX_GROUPS || 5000);   // env: raise it without a code change if the store ever fills
 const GROUP_BURST = Number(process.env.GROUP_BURST || 6);   // per-IP burst for creating identities (group, profile, friends-on); env-tunable so the test file isn't rationed
+// …and every address together: without it, enough addresses could fill MAX_GROUPS in minutes and lock out every new
+// sign-up until the 400-day eviction; with it a fill takes hours of sustained effort (a real day brings a handful)
+const GROUP_ALL_PER_MIN = 10, GROUP_ALL_BURST = Number(process.env.GROUP_ALL_BURST || 300);
+const EMPTY_GROUP_MS = 7 * 24 * 3600_000;      // a group that never held anything (no data, profile, friends, devices) goes after a week
 const MAX_KEYS_PER_GROUP = 12;
 const MAX_VALUE_BYTES = 300 * 1024;
 const MAX_GROUP_KV_BYTES = 1536 * 1024;        // every key of one group together (a heavy real one is ~300 KB)
@@ -91,12 +97,22 @@ const lastUse = new Map();      // gid -> when a request last loaded it (the idl
 let groupCount = fs.readdirSync(GROUPS_DIR).filter((n) => n.endsWith('.json')).length;
 
 function gPath(gid) { return path.join(GROUPS_DIR, gid + '.json'); }
+function sha256hex(s) { return crypto.createHash('sha256').update(s).digest('hex'); }
+/** Equal-length strings compared in constant time. */
+function sameHex(a, b) {
+  const x = Buffer.from(String(a || '')), y = Buffer.from(String(b || ''));
+  return x.length > 0 && x.length === y.length && crypto.timingSafeEqual(x, y);
+}
 function loadGroup(gid) {
   if (!/^[0-9a-f]{16}$/.test(gid)) return null;
   if (groups.has(gid)){ lastUse.delete(gid); lastUse.set(gid, Date.now()); return groups.get(gid); }   // (re-inserted: the map runs oldest first)
   try {
     const g = JSON.parse(fs.readFileSync(gPath(gid), 'utf8'));
     groups.set(gid, g); lastUse.set(gid, Date.now());
+    // the master secret is kept as its hash, like the device tokens (2026-09-24): a file written before then carries
+    // it in the clear and is rewritten on first load. `secret: ''` stays so an older build reading the file refuses
+    // the master secret instead of throwing on a missing field.
+    if (typeof g.secret === 'string' && g.secret) { g.secretHash = sha256hex(g.secret); g.secret = ''; persistSoon(gid); }
     if (groups.size > MAX_IN_MEMORY) trimMemory();
     return g;
   } catch (e) { return null; }
@@ -133,16 +149,23 @@ function touch(g, gid) { // eviction clock; written at most once a day per group
   const now = Date.now();
   if (now - (g.touched || 0) > 24 * 3600_000) { g.touched = now; persistSoon(gid); }
 }
+/** A new group: {gid, g, secret} (the secret is shown once, only its hash is kept), null when the store is full,
+    false when groups are being made faster than any real crowd makes them (the caller answers 429). */
 function newGroup() {
   if (groupCount >= MAX_GROUPS) return null;
+  if (!allow('group_all', '*', GROUP_ALL_PER_MIN, GROUP_ALL_BURST)) return false;
   const gid = crypto.randomBytes(8).toString('hex');
   const secret = crypto.randomBytes(16).toString('hex');
-  const g = { secret, created: Date.now(), touched: Date.now(), kv: {} };
+  const g = { secret: '', secretHash: sha256hex(secret), created: Date.now(), touched: Date.now(), kv: {} };
   groups.set(gid, g); lastUse.set(gid, Date.now());
   groupCount++;
   if (groupCount === Math.floor(MAX_GROUPS * 0.8)) console.error('groups: 80% of the cap (' + groupCount + '/' + MAX_GROUPS + ')');
   persistSoon(gid);
-  return { gid, g };
+  return { gid, g, secret };
+}
+/** Never held anything: no synced data, profile, friends, devices or supporter record. */
+function emptyGroup(g) {
+  return !Object.keys(g.kv || {}).length && !g.profile && !g.social && !g.supporter && !Object.keys(g.devices || {}).length;
 }
 /** Remove a group and every trace of it: friendships, its friend code, its handle, the file. */
 function deleteGroup(gid) {
@@ -167,7 +190,7 @@ function deleteGroup(gid) {
   if (g) { groups.delete(gid); lastUse.delete(gid); groupCount--; }
 }
 function evict() {
-  const cut = Date.now() - EVICT_AFTER_MS;
+  const now = Date.now(), cut = now - EVICT_AFTER_MS;
   let names;
   try { names = fs.readdirSync(GROUPS_DIR); } catch (e) { return; }
   for (const n of names) {
@@ -177,6 +200,9 @@ function evict() {
     if (!g) continue;
     // a supporter paid for something that "never expires" (the wall, the Founders list, their key): kept however idle
     if (!g.supporter && (g.touched || g.created || 0) < cut) deleteGroup(gid);
+    // a real install pushes its add-ons within a minute of making its group: one still empty after a week was never
+    // used — or was made only to fill the store — and goes, whoever still knocks on it
+    else if (emptyGroup(g) && now - (g.created || 0) > EMPTY_GROUP_MS) deleteGroup(gid);
     else if (!had && !dirty.has(gid)) { groups.delete(gid); lastUse.delete(gid); }   // only looked at: not kept in memory
   }
 }
@@ -196,6 +222,9 @@ setInterval(() => {
   const now = Date.now();
   for (const [c, l] of links) if (l.until < now) links.delete(c);
 }, 60_000).unref();
+/** A password change or recovery voids the group's pending codes: one minted with the old credential must not
+    hand the new one out afterwards. */
+function dropLinks(gid) { for (const [c, l] of links) if (l.gid === gid) links.delete(c); }
 
 // ---------- helpers ----------
 function json(res, status, obj, cacheSecs) {
@@ -230,15 +259,14 @@ function auth(req) {
   if (!m) return null;
   const g = loadGroup(m[1]);
   if (!g) return null;
+  // the master secret or a per-device token: only hashes are stored, so a copy of the data dir signs nobody in;
   // constant-time compare so the secret can't be felt out byte by byte
-  const a = Buffer.from(g.secret), b = Buffer.from(m[2]);
-  if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
+  const h = sha256hex(m[2]);
+  if (sameHex(g.secretHash, h)) {
     touch(g, m[1]);
     return { gid: m[1], g, dev: null };
   }
-  // otherwise a per-device token (profile.js mints them; only its hash is stored)
-  const h = crypto.createHash('sha256').update(m[2]).digest('hex');
-  const d = g.devices && g.devices[h];
+  const d = g.devices && Object.prototype.hasOwnProperty.call(g.devices, h) ? g.devices[h] : null;
   if (!d) return null;
   if (Date.now() - (d.seen || 0) > 24 * 3600_000) { d.seen = Date.now(); persistSoon(m[1]); }
   touch(g, m[1]);
@@ -290,6 +318,41 @@ async function proxyTargetOk(raw, opts) {
   if (!addrs.length || addrs.some((a) => privateIp(a.address))) return null;
   return u;
 }
+/** The lookup the proxy CONNECTS with (Node's `lookup` option): the address checked is the address used. The check in
+    proxyTargetOk above is only the early, cheap refusal — a name can answer a public address to it and 127.0.0.1 (or
+    the cloud metadata service) to a second lookup a moment later (DNS rebinding); this one leaves no second lookup. */
+function proxyLookup(host, opts, cb) {
+  if (typeof opts === 'function') { cb = opts; opts = {}; }
+  opts = opts || {};
+  dns.lookup(host, { all: true }).then((addrs) => {
+    if (!addrs.length || addrs.some((a) => privateIp(a.address))) {
+      const e = new Error('address not allowed: ' + host); e.code = 'EADDRNOTALLOWED';
+      return cb(e);
+    }
+    if (opts.all) return cb(null, addrs);
+    const a = (opts.family && addrs.find((x) => x.family === opts.family)) || addrs[0];
+    cb(null, a.address, a.family);
+  }, (e) => cb(e));
+}
+/** One GET, no redirects followed, connected through proxyLookup. Resolves the response (an IncomingMessage). Swappable
+    so the tests can answer without a network. */
+const proxyTransport = {
+  get(u, headers, signal) {
+    return new Promise((ok, no) => {
+      const mod = u.protocol === 'https:' ? https : http;
+      const rq = mod.get(u, { headers, signal, lookup: proxyLookup, agent: false }, ok);
+      rq.on('error', no);
+    });
+  },
+};
+/** The body as plain bytes: we asked for compression, so undo whatever of it the host applied. */
+function proxyBody(r) {
+  const enc = String(r.headers['content-encoding'] || '').toLowerCase().trim();
+  if (enc === 'gzip' || enc === 'x-gzip') return r.pipe(zlib.createGunzip());
+  if (enc === 'deflate') return r.pipe(zlib.createInflate());
+  if (enc === 'br') return r.pipe(zlib.createBrotliDecompress());
+  return r;
+}
 let proxyActive = 0;
 const proxyByIp = new Map();     // ip -> requests in flight: one address pointing at its own slow host must not hold every slot
 async function handleProxy(req, res, target, ip) {
@@ -309,13 +372,11 @@ async function handleProxy(req, res, target, ip) {
     // validation — a follow-mode fetch would happily land on 169.254.x.x.
     let r;
     for (let hop = 0; ; hop++) {
-      r = await fetch(u, {
-        signal: ctrl.signal,
-        redirect: 'manual',
-        headers: { Accept: req.headers.accept || '*/*', 'User-Agent': 'NebulaCloud/1.0' },
-      });
-      if (![301, 302, 303, 307, 308].includes(r.status)) break;
-      const loc = r.headers.get('location');
+      r = await proxyTransport.get(u, { Accept: req.headers.accept || '*/*', 'Accept-Encoding': 'gzip, deflate, br',
+        'User-Agent': 'NebulaCloud/1.0' }, ctrl.signal);
+      if (![301, 302, 303, 307, 308].includes(r.statusCode)) break;
+      r.resume();                                          // a redirect's own body is never read
+      const loc = r.headers.location;
       if (!loc || hop >= 3) return json(res, 502, { error: 'bad redirect' });
       let next;
       try { next = new URL(loc, u); } catch (e) { return json(res, 502, { error: 'bad redirect' }); }
@@ -327,9 +388,9 @@ async function handleProxy(req, res, target, ip) {
     // The host's own type is NEVER passed on: this answers on the player's origin, so a host saying text/html
     // would run its script there (and read the sign-in). Both callers read the body as JSON or as bytes, so
     // JSON and plain subtitle text keep their type and everything else is an inert download.
-    const upType = String(r.headers.get('content-type') || '').toLowerCase();
+    const upType = String(r.headers['content-type'] || '').toLowerCase();
     const ct = /^(application\/json|text\/plain|text\/vtt|application\/x-subrip)\b/.test(upType) ? upType : 'application/octet-stream';
-    res.writeHead(r.status, {
+    res.writeHead(r.statusCode, {
       'Content-Type': ct,
       'X-Content-Type-Options': 'nosniff',
       'Content-Security-Policy': "default-src 'none'; sandbox",
@@ -337,14 +398,11 @@ async function handleProxy(req, res, target, ip) {
       'Access-Control-Allow-Origin': '*',
       'Cache-Control': 'public, max-age=60',
     });
-    const reader = r.body ? r.body.getReader() : null;
     let sent = 0;
-    while (reader) {
+    for await (const value of proxyBody(r)) {
       // a client that hung up mid-stream never drains: waiting on 'drain' alone parked this
       // handler for good, and twenty such hang-ups left the proxy answering "busy" until a restart
       if (res.destroyed) { ctrl.abort(); break; }
-      const { done, value } = await reader.read();
-      if (done) break;
       sent += value.length;
       if (sent > PROXY_MAX_BYTES) { ctrl.abort(); break; }
       if (!res.write(value)) await new Promise((ok) => {
@@ -758,7 +816,7 @@ function handleSocial(p, req, res, ip) {
 
 // ---------- profiles (handle + password + devices + TV sign-in) ----------
 const profile = require('./profile.js')({
-  DATA_DIR, loadGroup, persistSoon, allow, json, readBody, auth, newGroup, deleteGroup, CODE_ALPHABET, GROUP_BURST,
+  DATA_DIR, loadGroup, persistSoon, allow, json, readBody, auth, newGroup, deleteGroup, dropLinks, sha256hex, CODE_ALPHABET, GROUP_BURST,
 });
 const support = require('./support.js')({ DATA_DIR, loadGroup, persistSoon, allow, json, readBody, auth, CODE_ALPHABET, profile });
 const universe = require('./universe.js')({ DATA_DIR, allow });
@@ -807,8 +865,9 @@ const server = http.createServer((req, res) => {
   if (p === '/v1/group' && req.method === 'POST') {
     if (!allow('group', ip, 0.1, GROUP_BURST)) return json(res, 429, { error: 'rate limited' });
     const made = newGroup();
+    if (made === false) { res.setHeader('Retry-After', '60'); return json(res, 429, { error: 'rate limited' }); }
     if (!made) return json(res, 507, { error: 'full' });
-    return json(res, 200, { gid: made.gid, secret: made.g.secret });
+    return json(res, 200, { gid: made.gid, secret: made.secret });
   }
 
   if (profile.handle(p, req, res, ip)) return;
@@ -836,7 +895,9 @@ const server = http.createServer((req, res) => {
       if (!l || l.until < Date.now()) return json(res, 404, { error: 'code not found or expired' });
       const g = loadGroup(l.gid);
       if (!g) { links.delete(code); return json(res, 404, { error: 'code not found or expired' }); }
-      return json(res, 200, { gid: l.gid, secret: g.secret });
+      // the joining device gets a token of its own (listed, removable, revoked by a password change) — the master
+      // secret is only kept hashed now. It rides in the `secret` field, which is where installs this old keep it.
+      return json(res, 200, { gid: l.gid, secret: profile.mintFor(g, l.gid, body && body.device) });
     });
   }
 
@@ -906,4 +967,4 @@ if (require.main === module) {
   }
   server.listen(PORT, '127.0.0.1', () => console.log('nebula-cloud on 127.0.0.1:' + PORT));
 }
-module.exports = { server, privateIp, proxyTargetOk, flushAll, evict, loadGroup, groupsInMemory: () => groups.size };
+module.exports = { server, privateIp, proxyTargetOk, proxyLookup, proxyTransport, flushAll, evict, loadGroup, groupsInMemory: () => groups.size };

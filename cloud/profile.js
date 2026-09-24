@@ -42,7 +42,7 @@ const SIGNIN_BURST = Number(process.env.SIGNIN_BURST || 10);
 const DUMMY_HASH = { salt: '0'.repeat(32), hash: '0'.repeat(64) };   // burns the same scrypt time as a real check
 
 module.exports = function attach(core) {
-  const { DATA_DIR, loadGroup, persistSoon, allow, json, readBody, auth, newGroup, deleteGroup,
+  const { DATA_DIR, loadGroup, persistSoon, allow, json, readBody, auth, newGroup, deleteGroup, dropLinks, sha256hex,
     CODE_ALPHABET, GROUP_BURST } = core;
   const HANDLES_PATH = path.join(DATA_DIR, 'handles.json');
 
@@ -118,8 +118,9 @@ module.exports = function attach(core) {
   function pub(g) { const p = g.profile; return p ? { handle: p.handle, name: p.name, avatar: p.avatar, sup: !!g.supporter, tier: g.supporter ? (g.supporter.tier || 'supporter') : null, mark: supMark(g) } : null; }
 
   // ---------- devices ----------
-  // The token itself only ever lives on the device; the store keeps its hash,
-  // so a leaked data dir cannot impersonate anyone.
+  // The token itself only ever lives on the device; the store keeps its hash (and,
+  // since 2026-09-24, only the hash of the master secret too), so a leaked data dir
+  // cannot impersonate anyone.
   function tokenHash(t) { return crypto.createHash('sha256').update(t).digest('hex'); }
   function mintDevice(g, gid, dev) {
     const token = crypto.randomBytes(16).toString('hex');
@@ -139,9 +140,12 @@ module.exports = function attach(core) {
       return { id: h.slice(0, 8), name: d.name, plat: d.plat, at: d.at, seen: d.seen, me: h === me };
     }).sort((a, b) => (b.me ? 1 : 0) - (a.me ? 1 : 0) || (b.seen || 0) - (a.seen || 0));
   }
-  /** New master secret, every device but `keep` gone — what a password change means. */
+  /** New master secret, every device but `keep` gone — what a password change means. Nobody is told the new secret
+      (every signed-in device holds a token), and a legacy link code minted with the old one dies with it. */
   function revokeOthers(g, gid, keep) {
-    g.secret = crypto.randomBytes(16).toString('hex');
+    g.secret = '';
+    g.secretHash = sha256hex(crypto.randomBytes(16).toString('hex'));
+    if (dropLinks) dropLinks(gid);
     const d = g.devices || {};
     Object.keys(d).forEach((h) => { if (h !== keep) delete d[h]; });
     persistSoon(gid);
@@ -177,6 +181,9 @@ module.exports = function attach(core) {
       const a = auth(req);
       if (!a) return json(res, 401, { error: 'unauthorized' });
       const b = await body(req);
+      // a caller already on a device token gets that same token back: the exchange is for the master secret, and
+      // must not let one token breed others that outlive its removal from the device list
+      if (a.dev) return json(res, 200, { token: /\.([0-9a-f]{32})$/.exec(req.headers.authorization)[1], profile: pub(a.g) });
       return json(res, 200, { token: mintDevice(a.g, a.gid, cleanDevice(b && b.device)), profile: pub(a.g) });
     }
 
@@ -202,6 +209,7 @@ module.exports = function attach(core) {
           gid = a.gid; g = a.g;
         } else {
           const made = newGroup();
+          if (made === false) return json(res, 429, { error: 'rate limited' });
           if (!made) return json(res, 507, { error: 'full' });
           gid = made.gid; g = made.g;
         }
@@ -353,5 +361,8 @@ module.exports = function attach(core) {
     return true;
   }
 
-  return { handle, pub, lookupHandle, dropHandle, cleanHandle, deviceList, flush };
+  /** A device token for a raw device description (the legacy /v1/join hands one out instead of the master secret). */
+  function mintFor(g, gid, rawDev) { return mintDevice(g, gid, cleanDevice(rawDev || { name: 'Linked device' })); }
+
+  return { handle, pub, lookupHandle, dropHandle, cleanHandle, deviceList, flush, mintFor };
 };

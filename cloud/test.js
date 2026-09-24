@@ -12,7 +12,7 @@ process.env.DATA_DIR = require('fs').mkdtempSync(
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert');
-const { server, privateIp, proxyTargetOk, flushAll, evict, loadGroup } = require('./server.js');
+const { server, privateIp, proxyTargetOk, proxyLookup, proxyTransport, flushAll, evict, loadGroup } = require('./server.js');
 
 let base;
 before(async () => {
@@ -68,7 +68,10 @@ test('group create → link → join → kv round-trip', async () => {
   const join = await api('POST', '/v1/join', { code: link.body.code });
   assert.equal(join.status, 200);
   assert.equal(join.body.gid, g.body.gid);
-  assert.equal(join.body.secret, g.body.secret);
+  // the joiner gets a token of its own, never the master secret (kept hashed since 2026-09-24)
+  assert.match(join.body.secret, /^[0-9a-f]{32}$/);
+  assert.notEqual(join.body.secret, g.body.secret);
+  assert.equal((await api('GET', '/v1/kv/progress', undefined, g.body.gid + '.' + join.body.secret)).body.v, '{"a":1}');
 
   const put2 = await api('PUT', '/v1/kv/progress', { v: '{"a":2}' }, token);
   assert.equal(put2.body.rev, 2);
@@ -1152,14 +1155,21 @@ test('flushAll writes the handle index at once — a restart right after a creat
 });
 
 // ---------- 2026-09-23 audit ----------
+/** A canned upstream answer shaped like the IncomingMessage proxyTransport.get resolves. */
+function fakeUpstream(status, headers, body) {
+  const r = require('stream').Readable.from([Buffer.isBuffer(body) ? body : Buffer.from(body)]);
+  r.statusCode = status; r.headers = headers;
+  return r;
+}
 test('the rescue proxy never hands a host page back as a page on our origin', async () => {
-  const dnsP = require('dns').promises, realLookup = dnsP.lookup, realFetch = global.fetch;
+  const dnsP = require('dns').promises, realLookup = dnsP.lookup, realGet = proxyTransport.get, realFetch = global.fetch;
   dnsP.lookup = async (h, o) => (h === 'evil.example' ? [{ address: '93.184.216.34', family: 4 }] : realLookup(h, o));
-  global.fetch = async (u, o) => {
+  proxyTransport.get = async (u) => {
     const s = String(u);
-    if (s.startsWith('https://evil.example/x/')) return new Response('<script>steal()</script>', { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
-    if (s.startsWith('https://evil.example/ok/')) return new Response('{"id":"a"}', { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
-    return realFetch(u, o);
+    if (s.startsWith('https://evil.example/x/')) return fakeUpstream(200, { 'content-type': 'text/html; charset=utf-8' }, '<script>steal()</script>');
+    if (s.startsWith('https://evil.example/ok/')) return fakeUpstream(200, { 'content-type': 'application/json; charset=utf-8' }, '{"id":"a"}');
+    if (s.startsWith('https://evil.example/gz/')) return fakeUpstream(200, { 'content-type': 'application/json', 'content-encoding': 'gzip' }, require('zlib').gzipSync('{"id":"z"}'));
+    return realGet(u);
   };
   try {
     const r = await realFetch(base + '/p?u=' + encodeURIComponent('https://evil.example/x/manifest.json'));
@@ -1171,7 +1181,9 @@ test('the rescue proxy never hands a host page back as a page on our origin', as
     const j = await realFetch(base + '/p?u=' + encodeURIComponent('https://evil.example/ok/manifest.json'));
     assert.match(j.headers.get('content-type'), /^application\/json/);
     assert.equal((await j.json()).id, 'a');
-  } finally { dnsP.lookup = realLookup; global.fetch = realFetch; }
+    const z = await realFetch(base + '/p?u=' + encodeURIComponent('https://evil.example/gz/manifest.json'));
+    assert.equal((await z.json()).id, 'z');                       // a host's compression is undone, never passed on raw
+  } finally { dnsP.lookup = realLookup; proxyTransport.get = realGet; }
 });
 
 test('one group\'s keys together are capped', async () => {
@@ -1217,4 +1229,85 @@ test('the proxy\'s own refusals say when to come back, readable from another ori
   assert.equal(r.status, 429);
   assert.equal(r.headers.get('retry-after'), '2');
   assert.match(r.headers.get('access-control-expose-headers') || '', /Retry-After/i);
+});
+
+// ---------- 2026-09-24 security audit ----------
+test('the proxy connects only to the address it checked: a name that rebinds to loopback is refused at connect time', async () => {
+  const dnsP = require('dns').promises, realLookup = dnsP.lookup;
+  let calls = 0;
+  // public to the first lookup (the early check), then the loopback / the cloud metadata service
+  dnsP.lookup = async (h, o) => {
+    if (h !== 'rebind.example') return realLookup(h, o);
+    calls++;
+    return calls === 1 ? [{ address: '93.184.216.34', family: 4 }] : [{ address: calls % 2 ? '127.0.0.1' : '169.254.169.254', family: 4 }];
+  };
+  try {
+    assert.ok(await proxyTargetOk('http://rebind.example/manifest.json'));             // the early check is fooled…
+    for (const all of [false, true]) {                                                // …the connect-time lookup is not
+      const err = await new Promise((ok) => proxyLookup('rebind.example', { all }, (e) => ok(e)));
+      assert.ok(err && err.code === 'EADDRNOTALLOWED', 'lookup all=' + all + ' must refuse');
+    }
+    // end to end: the early check passes, the connection is refused — the request never reaches a socket
+    calls = 0;
+    const r = await fetch(base + '/p?u=' + encodeURIComponent('http://rebind.example/manifest.json'), { headers: { 'X-Forwarded-For': '203.0.113.90' } });
+    assert.equal(r.status, 502);
+    assert.equal(calls, 2);
+    // a mixed answer (one public, one private) is refused whole
+    dnsP.lookup = async () => [{ address: '93.184.216.34', family: 4 }, { address: '::ffff:10.0.0.1', family: 6 }];
+    assert.ok(await new Promise((ok) => proxyLookup('mixed.example', {}, (e) => ok(e))));
+    dnsP.lookup = async () => [{ address: '93.184.216.34', family: 4 }];
+    const got = await new Promise((ok) => proxyLookup('fine.example', {}, (e, a, f) => ok([e, a, f])));
+    assert.deepEqual(got, [null, '93.184.216.34', 4]);
+  } finally { dnsP.lookup = realLookup; }
+});
+
+test('the master secret is kept only as a hash, and a file from before is rewritten on load', async () => {
+  const fs = require('fs'), path = require('path');
+  const g = (await api('POST', '/v1/group')).body;
+  flushAll();
+  const file = path.join(process.env.DATA_DIR, 'groups', g.gid + '.json');
+  const onDisk = fs.readFileSync(file, 'utf8');
+  assert.equal(onDisk.indexOf(g.secret), -1, 'the secret must not be on disk');
+  assert.equal(JSON.parse(onDisk).secret, '');
+  assert.equal((await api('GET', '/v1/kv', undefined, g.gid + '.' + g.secret)).status, 200);
+  // a group written by the old code: secret in the clear, not in memory
+  const gid = 'abcdef0123456789', secret = 'c'.repeat(32);
+  fs.writeFileSync(path.join(process.env.DATA_DIR, 'groups', gid + '.json'), JSON.stringify({ secret, created: Date.now(), touched: Date.now(), kv: { a: { v: '1', rev: 1, at: 1 } } }));
+  assert.equal((await api('GET', '/v1/kv/a', undefined, gid + '.' + secret)).body.v, '1');
+  assert.equal((await api('GET', '/v1/kv/a', undefined, gid + '.' + 'd'.repeat(32))).status, 401);
+  flushAll();
+  assert.equal(fs.readFileSync(path.join(process.env.DATA_DIR, 'groups', gid + '.json'), 'utf8').indexOf(secret), -1);
+});
+
+test('a password change voids a legacy link code minted with the old credential', async () => {
+  const g = (await api('POST', '/v1/group')).body;
+  const legacy = g.gid + '.' + g.secret;
+  const link = await api('POST', '/v1/link', { gid: g.gid, secret: g.secret }, undefined, '203.0.113.91');
+  assert.equal(link.status, 200);
+  const p = await api('POST', '/v1/profile', { handle: 'linkvoid', password: 'password1', device: DEV }, legacy);
+  assert.equal(p.status, 200);
+  assert.equal((await api('POST', '/v1/profile/password', { current: 'password1', next: 'password2' }, tok(p.body))).status, 200);
+  assert.equal((await api('POST', '/v1/join', { code: link.body.code }, undefined, '203.0.113.91')).status, 404);
+  assert.equal((await api('GET', '/v1/kv', undefined, legacy)).status, 401);            // the old secret is gone too
+});
+
+test('the legacy exchange never breeds a second token from a token', async () => {
+  const a = await mkProfile('nobreed', 'N', 'password1');
+  const before = (await api('GET', '/v1/profile/me', undefined, tok(a))).body.devices.length;
+  const ex = await api('POST', '/v1/device', { device: DEV }, tok(a));
+  assert.equal(ex.status, 200);
+  assert.equal(ex.body.token, a.token);
+  assert.equal((await api('GET', '/v1/profile/me', undefined, tok(a))).body.devices.length, before);
+});
+
+test('a group that never held anything goes after a week; one with data stays', async () => {
+  const empty = (await api('POST', '/v1/group')).body, used = (await api('POST', '/v1/group')).body;
+  await api('PUT', '/v1/kv/addons', { v: '[]' }, used.gid + '.' + used.secret);
+  const old = Date.now() - 8 * 24 * 3600_000;
+  loadGroup(empty.gid).created = old;
+  loadGroup(used.gid).created = old;
+  flushAll();
+  evict();
+  assert.equal((await api('GET', '/v1/kv', undefined, empty.gid + '.' + empty.secret)).status, 401);
+  assert.equal((await api('GET', '/v1/kv', undefined, used.gid + '.' + used.secret)).status, 200);
 });
