@@ -2571,7 +2571,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.23.4';
+  var PLAYER_VERSION = '2026.09.24.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -8279,7 +8279,7 @@
       // a licence call is a POST the relay would refuse, and a key is nobody else's business (Android does the same
       // by leaving its DRM reader direct).
       if (ctx.viaRelay && relayLive === ctx.viaRelay && (type === RT.MANIFEST || type === RT.SEGMENT) && request.uris && request.uris.length){
-        request.uris = request.uris.map(function(u){ return /^https?:\/\//i.test(u) ? relayUrl(u) : u; });
+        request.uris = request.uris.map(function(u){ return /^https?:\/\//i.test(u) && relayWorth(u) ? relayUrl(u) : u; });
       }
     });
     // …and the engine is told the ORIGINAL address it fetched, so a manifest's relative addresses still resolve
@@ -9806,9 +9806,16 @@
   /** Did this error come from the relay? A plain file plays straight from it, so any error there is its own. */
   function relayErrOwn(d){ if (!ctx.viaRelay) return false; if (ctx.relaySrc) return true; return relayIsOwn(d && d.data && d.data[0]); }
   /** The address the engine loads: through the sharing computer when this is a plain file (src= playback has no request filter). */
+  /** A source on this network — a private, link-local or carrier-NAT address — the TV fetches itself: the sharing computer
+      refuses to reach into the LAN for anyone (relay.js privateTarget), and the TV is on that LAN anyway. */
+  function relayWorth(u){
+    var m = /^https?:\/\/(?:[^\/?#@]*@)?(\[[^\]]*\]|[^\/?#:]+)/i.exec(u || ''), h = m ? m[1] : '';
+    return !!h && h.charAt(0) !== '[' && !relayLanHost(h) && !/^0\./.test(h) && !/^169\.254\./.test(h) &&
+      !/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(h);
+  }
   function relayLoadUrl(u, mime){
     ctx.relaySrc = false;
-    if (!ctx.viaRelay || !/^https?:\/\//i.test(u)) return u;
+    if (!ctx.viaRelay || !/^https?:\/\//i.test(u) || !relayWorth(u)) return u;
     if ((mime && !/dash|mpegurl|mpd|m3u8/i.test(mime)) || /\.(mp4|m4v|webm|mkv|mov|ts|avi|mp3|aac|ogg|flac|wav)(\?|#|$)/i.test(u)){ ctx.relaySrc = true; return relayUrl(u); }
     return u;
   }

@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.23.4",
+  "version": "2026.09.24.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Title pages have a Universe row: what a film or show follows, what follows it, its spin-offs and what it spun off from, and its remakes, each card labelled with how it is connected. Open one to see its page; Back brings you to the title you came from."
+  "notes": "A security update. Add-ons, watch parties and synced settings can only point the player at web addresses, invite links and TV sign-in codes now wait for you to confirm, and a TV plays through a shared computer only on your own network."
 }
