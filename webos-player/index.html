@@ -3700,6 +3700,7 @@
   function mergeRatings(remote){
     var local = getRatings(), changed = false, localNewer = false;
     Object.keys(remote).forEach(function(k){
+      if (!safeKey(k)) return;
       var r = remote[k], l = local[k];
       if (r && (!l || (r.at||0) > (l.at||0))){ local[k] = r; changed = true; }
     });
@@ -3735,6 +3736,8 @@
       });
   }
 
+  /** A key from synced data that is safe to assign on a plain object (`__proto__` would swap the store's prototype). */
+  function safeKey(k){ return k !== '__proto__' && k !== 'constructor' && k !== 'prototype'; }
   function baseOf(manifestUrl){ return manifestUrl.replace(/\/manifest\.json.*$/,''); }
   // The rescue proxy answers ten requests in flight per address: Home asks for every catalogue at once, so requests that
   // need it queue here, six at a time, and a 429 is tried once more after a short wait (a dropped one was a Home row
@@ -5555,7 +5558,7 @@
           c.className = 'fr-card focusable' + (socialOpenCode === key ? ' on' : '');
           var av = document.createElement('span'); av.className = 'fr-av';
           av.textContent = (f.name || f.handle || '?').slice(0, 1).toUpperCase();
-          if (f.avatar){ av.style.background = f.avatar; if (/^#[0-9a-f]{6}$/i.test(f.avatar)) av.style.color = onAccent(f.avatar); }
+          if (f.avatar && /^#[0-9a-f]{6}$/i.test(f.avatar)){ av.style.background = f.avatar; av.style.color = onAccent(f.avatar); }   // a colour, or nothing: it is another person's data
           var col = document.createElement('span');
           var nm = document.createElement('span'); nm.className = 'fr-name'; nm.innerHTML = esc(friendLabel(f)) + (f.sup ? supMark(f.mark) : '');
           if (f.tier === 'founder') av.classList.add('founder');
@@ -8203,6 +8206,11 @@
     return 'Failed to load (' + code + ')' + detail;
   }
   async function playUrl(rawUrl, clearKeys, title, subtitles, mimeType){
+    // only a web address, a file this device picked (blob:) or the desktop's handle for one (local:N) is ever played: an
+    // add-on's or a watch party's stream address is not trusted to name anything else (file: on the webOS app, say)
+    if (!/^(https?:\/\/|blob:)/i.test(String(rawUrl || '')) && !/^local:\d+$/.test(String(rawUrl || ''))){
+      setStatus('This stream address cannot be played here.', 'err'); return;
+    }
     if (!initShaka()) return;
     var seq = ++playSeq;
     didRetry = false;
@@ -9735,7 +9743,13 @@
   function relayWanted(){ return IS_TV && !IS_DESKTOP && location.protocol !== 'https:' && relayMode() !== 'off'; }
   function relayLoadDoc(){ try { relayDoc = JSON.parse(LS.getItem('relay_v1') || 'null'); } catch(e){ relayDoc = null; } if (relayDoc && typeof relayDoc !== 'object') relayDoc = null; }
   function relaySaveDoc(){ try { if (relayDoc) LS.setItem('relay_v1', JSON.stringify(relayDoc)); else LS.removeItem('relay_v1'); } catch(e){} }
-  function relayUsable(d){ return !!(d && !d.off && d.token && d.port && d.hosts && d.hosts.length); }
+  /** A sharing computer is on this TV's own network: only a private LAN address is ever probed or played through. The list
+      comes from the cloud, and a profile someone else has got into must not be able to route this TV's streams to them. */
+  function relayLanHost(h){ return /^(10(\.\d{1,3}){3}|192\.168(\.\d{1,3}){2}|172\.(1[6-9]|2\d|3[01])(\.\d{1,3}){2})$/.test(String(h || '')); }
+  function relayUsable(d){
+    var port = d && Number(d.port);
+    return !!(d && !d.off && d.token && port > 0 && port < 65536 && Math.floor(port) === port && d.hosts && d.hosts.length && d.hosts.filter(relayLanHost).length);
+  }
   /** The cloud's word on the sharing computer, at most once a minute (a signed-out TV keeps the last copy it saw). */
   function relayPull(force){
     if (!cloudLinked()) return Promise.resolve(relayDoc);
@@ -9756,7 +9770,7 @@
   /** Ask every published address at once whether it is sharing (a PC lists its virtual adapters too); the first to answer is the relay. */
   function relayProbe(d){
     if (!relayUsable(d)) return Promise.resolve(null);
-    var hosts = d.hosts.slice(0, 6);
+    var hosts = d.hosts.filter(relayLanHost).slice(0, 6);
     return new Promise(function(done){
       var left = hosts.length, settled = false;
       function finish(v){ if (!settled){ settled = true; done(v); } }
@@ -10887,6 +10901,7 @@
   function mergeProgress(remote){
     var local = getProgress(), changed = false, localNewer = false;
     Object.keys(remote).forEach(function(k){
+      if (!safeKey(k)) return;
       var r = remote[k], l = local[k];
       if (r && (!l || (r.at||0) > (l.at||0))){ local[k] = r; changed = true; }
     });
@@ -10909,6 +10924,7 @@
   function mergeLibrary(remote){
     var local = getLibrary(), changed = false, localNewer = false;
     Object.keys(remote).forEach(function(k){
+      if (!safeKey(k)) return;
       var r = remote[k], l = local[k];
       if (r && (!l || (r.at||0) > (l.at||0))){ local[k] = r; changed = true; }
     });
@@ -10932,6 +10948,7 @@
     var rl = remote.list || {}, rr = remote.removed || {};
     var have = {}; arr.forEach(function(a){ have[a.url] = 1; });
     Object.keys(rl).forEach(function(u){
+      if (!/^https?:\/\//i.test(u) || !rl[u] || typeof rl[u] !== 'object') return;   // an add-on is a web address, nothing else
       if (have[u]){
         if ((s.at[u]||0) > (rl[u].at||0)) localNewer = true;
         else if ((rl[u].at||0) > (s.at[u]||0)){ s.at[u] = rl[u].at; saveAddonsSync(); }
@@ -10940,7 +10957,9 @@
       // adopt unless WE removed it more recently than they added it — a device
       // that never removed it has no standing to reject it, whatever its stamp
       if (!s.removed[u] || (rl[u].at||0) > s.removed[u]){
-        arr.push({ url: u, name: rl[u].name||'Add-on', base: rl[u].base||baseOf(u), logo: rl[u].logo||'' });
+        // the address the requests go to is worked out here, as for an add-on added on this device: a synced `base` of its
+        // own could make a trusted-looking add-on send every request somewhere else
+        arr.push({ url: u, name: rl[u].name||'Add-on', base: baseOf(u), logo: rl[u].logo||'' });
         s.at[u] = rl[u].at || Date.now(); delete s.removed[u];
         changed = true;
       } else localNewer = true;          // our removal outdates their add
@@ -11046,7 +11065,7 @@
   var AVATARS = ['#636366','#E50914','#0A84FF','#30D158','#BF5AF2','#FF9F0A','#FF375F','#F2F2F7'];
   var pfDevices = [], pfMode = null, pfTv = null, pfTvTimer = null, pfRecovery = null, pfPendingLink = null;
   function profileSave(){ try { if (profile) LS.setItem('profile_v1', JSON.stringify(profile)); else LS.removeItem('profile_v1'); } catch(e){} }
-  function avStyle(av){ return 'background:' + (av || '#636366') + ';color:' + (av === '#F2F2F7' ? '#000' : '#fff'); }
+  function avStyle(av){ av = /^#[0-9a-f]{6}$/i.test(String(av || '')) ? av : '#636366'; return 'background:' + av + ';color:' + (av.toUpperCase() === '#F2F2F7' ? '#000' : '#fff'); }
   function avLetter(name){ return ((name || '?').replace(/^@/, '').slice(0, 1) || '?').toUpperCase(); }
   function deviceInfo(){
     var ua = navigator.userAgent || '';
@@ -11163,7 +11182,7 @@
     crown: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.5 11h-15z"/>'
   };
   function supMark(kind){
-    var k = SUP_MARKS[kind] ? kind : 'star';
+    var k = Object.prototype.hasOwnProperty.call(SUP_MARKS, kind) ? kind : 'star';
     return '<span class="sup-star" role="img" aria-label="Supporter"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + SUP_MARKS[k] + '</svg></span>';
   }
   var SUP_STAR = supMark('star');
@@ -11673,7 +11692,9 @@
       };
       try { $id('pfDelPw').focus(); } catch(e){}
     };
-    if (pfPendingLink){ try { $id('pfLinkGo').focus(); } catch(e){} }
+    // a code that arrived in a link is filled in but never focused: one stray Enter would approve it, and approving signs
+    // whatever device showed that code in as this person — so it says so, and waits for a deliberate press
+    if (pfPendingLink) setStatus('A TV code is filled in below. Approve it only if that code is on a screen in front of you.', 'info', 8000);
   }
   function pfDevicesRender(){
     if (!$id('pfDevList')) return;
@@ -12293,12 +12314,17 @@
 
   renderAddons();
   initPersistentAddons();
-  // invite links: play.rifflehq.in/?party=CODE joins straight away
+  // invite links: play.rifflehq.in/?party=CODE asks, then joins — the host picks what plays on this device from then on and
+  // the room sees this device's name, so a link someone sent is one tap, never nothing at all
   (function(){
     var m = /[?&]party=([A-Za-z0-9]{4,8})/.exec(location.search || '');
     if (!m) return;
     try { history.replaceState(null, '', location.pathname + location.hash); } catch(e){}
-    setTimeout(function(){ joinParty(m[1]); }, 600);
+    var code = m[1].toUpperCase();
+    setTimeout(function(){
+      openSheet({ title: 'Join watch party ' + code + '?', sub: 'The host picks what plays, and the party sees your name.',
+        actions: [ { icon: 'play', label: 'Join the party', fn: function(){ joinParty(code); } } ] });
+    }, 600);
   })();
   initPersistentProgress();
   initPersistentSubStyle();
