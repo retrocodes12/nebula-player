@@ -6763,7 +6763,7 @@
     var row = document.createElement('button'); row.className = 'stream focusable' + (upNext ? ' ep-next' : '');
     row.__epId = v.id;
     var e = epNum(v);
-    var ph = '<div class="ep-thumb-ph">' + (e != null ? e : '•') + '</div>';
+    var ph = '<div class="ep-thumb-ph">' + (e != null ? esc(String(e)) : '•') + '</div>';   // the add-on's value: escaped like every field beside it
     var thumb = v.thumbnail
       ? '<img class="ep-thumb" loading="lazy" src="' + esc(v.thumbnail) + '" onerror="this.remove()">'
       : ph;
