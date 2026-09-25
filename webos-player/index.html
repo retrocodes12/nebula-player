@@ -7915,7 +7915,7 @@
     clearTimeout(mp.rcTimer); clearTimeout(mp.rcRetry);
     mp.reconnecting = false; mp.subs = []; mp.cut = false;
     mpvSubStyle();
-    mpvApi.set('sub-delay', String(subOffset || 0));
+    mpvApi.set('sub-delay', String(subOffset || 0)); mpvApi.set('sub-speed', subScale.toFixed(6));
     if (mp.st.vol >= 0) mpvApi.set('volume', String(Math.round(mp.st.vol)));
     mpvApi.set('mute', mp.st.mute ? 'yes' : 'no');
     // and what was asked for while it reopened: a pause (held, so an older state cannot undo it), a speed, a seek
@@ -8017,7 +8017,7 @@
       })]);
     } finally { clearTimeout(timer); if (session.wait) session.wait = null; }
     if (seq !== playSeq || mp !== session) return;
-    mpvApi.set('sub-delay', String(subOffset || 0));
+    mpvApi.set('sub-delay', String(subOffset || 0)); mpvApi.set('sub-speed', subScale.toFixed(6));
     mpvMedia(true);
   }
   function mpvStop(){
@@ -9088,7 +9088,8 @@
     var lag = (live && t >= r.start - 1) ? r.end - t : 0;
     $id('puiGoLive').style.display = (live && lag > 12) ? '' : 'none';
     if (pinfoOn) pinfoRender();
-    if (subOffset) applySubOffset();
+    if (subOffset || subScale !== 1) applySubOffset();
+    if (ss) ssPaint();
     var now = new Date(), clock = fmtClock(now);
     if (live){
       $id('puiTimeL').textContent = lag > 12 ? '−'+fmtT(lag)+' behind live' : 'At the live edge';
@@ -9311,7 +9312,7 @@
     if (video.playbackRate !== 1) row('Speed', video.playbackRate + '×');
     if (lastPlay && lastPlay.keys) row('Encryption', 'Decrypted on device');
     if (ctx.viaRelay) row('Via', ctx.viaRelay.name + ' on your network');
-    if (subOffset) row('Subtitle timing', (subOffset > 0 ? '+' : '−') + Math.abs(subOffset).toFixed(1) + ' s');
+    if (subOffset || subScale !== 1) row('Subtitle timing', (subOffset > 0 ? '+' : (subOffset < 0 ? '−' : '')) + Math.abs(subOffset).toFixed(1) + ' s' + (subScale !== 1 ? ' · speed matched' : '') + (subSynced ? ' · set automatically' : ''));
     var html = '';
     out.forEach(function(r){
       html += '<div class="pi-row"><span class="pi-k">' + r[0] + '</span><span class="pi-v' + (r[2] ? ' warn' : '') + '">' + esc(r[1]) + '</span></div>';
@@ -9323,7 +9324,7 @@
   // Nudge every cue of the visible track by a few hundred ms without touching
   // the source: cues remember their original start/end on first shift so the
   // offset is absolute, not cumulative, and a new track picks it up on the next tick.
-  var subOffset = 0;
+  var subOffset = 0, subScale = 1, subSynced = false;   // shown time = the file's time × subScale + subOffset
   function applySubOffset(){
     var tracks = video.textTracks; if (!tracks) return;
     for (var i = 0; i < tracks.length; i++){
@@ -9333,26 +9334,342 @@
       for (var j = 0; j < cues.length; j++){
         var c = cues[j];
         if (c.__n0 == null){ c.__n0 = c.startTime; c.__n1 = c.endTime; }
-        var s0 = c.__n0 + subOffset, e0 = c.__n1 + subOffset;
+        var s0 = c.__n0 * subScale + subOffset, e0 = c.__n1 * subScale + subOffset;
         if (s0 < 0){ e0 -= s0; s0 = 0; }
         if (Math.abs(c.startTime - s0) > 0.001){ try { c.startTime = s0; c.endTime = e0; } catch(e){} }
       }
     }
   }
-  function setSubOffset(v){
+  /** [scale]: the film-speed stretch, when an automatic sync found one; left alone otherwise. [auto]: set by the sync. */
+  function setSubOffset(v, scale, auto){
     subOffset = Math.round(v * 10) / 10;
     if (Math.abs(subOffset) < 0.05) subOffset = 0;
+    if (scale != null) subScale = scale;
+    subSynced = !!auto;
     applySubOffset();
-    if (mp) mpvApi.set('sub-delay', String(subOffset));
+    if (mp){ mpvApi.set('sub-delay', String(subOffset)); mpvApi.set('sub-speed', subScale.toFixed(6)); }
     // the readout and the "Back in sync" mark live in the panel's Style column
     Array.prototype.forEach.call(pui.querySelectorAll('.qtime'), function(t){ t.innerHTML = subOffsetHtml(); });
-    Array.prototype.forEach.call(pui.querySelectorAll('[data-sync]'), function(b){ b.classList.toggle('on', !subOffset); });
+    Array.prototype.forEach.call(pui.querySelectorAll('[data-sync]'), function(b){ b.classList.toggle('on', !subOffset && subScale === 1); });
   }
   function subOffsetHtml(){
-    if (!subOffset) return '<b>0.0 s</b><small>In sync</small>';
-    return '<b>' + (subOffset > 0 ? '+' : '−') + Math.abs(subOffset).toFixed(1) + ' s</b><small>Subtitles ' + (subOffset > 0 ? 'later' : 'earlier') + '</small>';
+    var how = subSynced ? ' · set automatically' : '';
+    if (subScale !== 1) how = ' · speed matched' + how;
+    if (!subOffset) return '<b>0.0 s</b><small>' + (subScale !== 1 || subSynced ? 'In sync' + how : 'In sync') + '</small>';
+    return '<b>' + (subOffset > 0 ? '+' : '−') + Math.abs(subOffset).toFixed(1) + ' s</b><small>Subtitles ' + (subOffset > 0 ? 'later' : 'earlier') + how + '</small>';
   }
-  function subOffsetReset(){ subOffset = 0; }
+  function subOffsetReset(){ subOffset = 0; subScale = 1; subSynced = false; ssStop(); }
+
+  // ---- automatic subtitle timing ----
+  // "Sync automatically" finds where the showing subtitle file belongs by matching its lines against speech. A film's
+  // dialogue sits in its centre channel (5.1) or in what both sides share (stereo): that signal's energy in the voice
+  // band, every 10 ms, with the scene's own loudness taken out (a loud scene is not talk — only speech starting and
+  // stopping is left), is compared with the file's lines at every offset within a minute and at the 23.976 ↔ 25 fps
+  // stretch. An answer is kept only once three tries 30 s apart agree. Tuned 2026-09-25 on seven films in four languages
+  // (5.1 and stereo): 0 wrong offsets in 360 trials, ~1 % wrong with the stretch, 2–3 minutes of speech on average.
+  // Two ways to hear: the browser listens to the playing video (a streaming engine's sound, or a file on this site), or
+  // the desktop shell's FFmpeg reads the same file ahead of the playhead (/speech) — seconds, and any engine.
+  var SS_HZ = 100, SS_STEP = 30, SS_MIN = 60, SS_MAX = 360, SS_AGREE = 3, SS_Z = 4, SS_RATIO = 1.3, SS_LAG = 0;
+  var ss = null;                                  // the sync in progress
+  function ssVadNew(sr){
+    // voice band: RBJ biquads, high-pass 300 Hz then low-pass 3000 Hz, Q 0.707
+    function bq(hp, f0){
+      var w = 2 * Math.PI * f0 / sr, c = Math.cos(w), a = Math.sin(w) / (2 * 0.7071), a0 = 1 + a;
+      var b0 = hp ? (1 + c) / 2 : (1 - c) / 2, b1 = hp ? -(1 + c) : 1 - c;
+      return { b0: b0 / a0, b1: b1 / a0, b2: b0 / a0, a1: (-2 * c) / a0, a2: (1 - a) / a0, x1: 0, x2: 0, y1: 0, y2: 0 };
+    }
+    return { hop: sr / SS_HZ, hp: bq(true, 300), lp: bq(false, 3000), acc: 0, n: 0 };
+  }
+  /** Mono samples in; out(energy in dB, index of the frame's last sample) once per finished 10 ms frame. */
+  function ssVadPush(st, x, out){
+    var hp = st.hp, lp = st.lp, hop = st.hop;
+    for (var i = 0; i < x.length; i++){
+      var v = x[i];
+      var y = hp.b0 * v + hp.b1 * hp.x1 + hp.b2 * hp.x2 - hp.a1 * hp.y1 - hp.a2 * hp.y2;
+      hp.x2 = hp.x1; hp.x1 = v; hp.y2 = hp.y1; hp.y1 = y;
+      var z = lp.b0 * y + lp.b1 * lp.x1 + lp.b2 * lp.x2 - lp.a1 * lp.y1 - lp.a2 * lp.y2;
+      lp.x2 = lp.x1; lp.x1 = y; lp.y2 = lp.y1; lp.y1 = z;
+      st.acc += z * z; st.n++;
+      if (st.n >= hop){ out(10 * Math.log(st.acc / st.n + 1e-12) / Math.LN10, i); st.acc = 0; st.n = 0; }
+    }
+  }
+  /** A line someone says: not empty, not only [door slams], (music) or ♪ notes. */
+  function ssSpoken(body){
+    var t = String(body || '').replace(/<[^>]*>/g, '').replace(/\{[^}]*\}/g, '')
+      .replace(/\[[^\]]*\]/g, '').replace(/\([^)]*\)/g, '').replace(/[♪♫#*\-\s]/g, '');
+    return t.length > 0;
+  }
+  /** SRT or WebVTT text → [[start, end], …] in seconds, spoken lines only. */
+  function ssParseCues(text){
+    var out = [], blocks = String(text || '').replace(/\r/g, '').split(/\n\s*\n/);
+    var re = /(\d+:)?(\d{1,2}):(\d{2})[,.](\d{1,3})\s*-->\s*(\d+:)?(\d{1,2}):(\d{2})[,.](\d{1,3})/;
+    function sec(h, m, s, ms){ return (h ? parseInt(h, 10) : 0) * 3600 + parseInt(m, 10) * 60 + parseInt(s, 10) + parseInt((ms + '00').slice(0, 3), 10) / 1000; }
+    for (var i = 0; i < blocks.length; i++){
+      var lines = blocks[i].split('\n'), k = -1, m = null;
+      for (var j = 0; j < lines.length; j++){ m = re.exec(lines[j]); if (m){ k = j; break; } }
+      if (k < 0 || !ssSpoken(lines.slice(k + 1).join(' '))) continue;
+      var a = sec(m[1], m[2], m[3], m[4]), b = sec(m[5], m[6], m[7], m[8]);
+      if (b > a) out.push([a, b]);
+    }
+    out.sort(function(x, y){ return x[0] - y[0]; });
+    return out;
+  }
+  /**
+   * speech {t0, vals}: energies at SS_HZ from media second t0, NaN where nothing was heard. cues: [[start, end]] in the
+   * file's own times. → {off, scale, z, ratio} (shown = file time × scale + off), or null when there is too little to go on.
+   */
+  function ssSolve(speech, cues){
+    var vals = speech.vals, n = vals.length, t0 = speech.t0, i;
+    var heard = [];
+    for (i = 0; i < n; i++) if (vals[i] === vals[i]) heard.push(vals[i]);
+    if (heard.length < SS_HZ * 20) return null;
+    heard.sort(function(a, b){ return a - b; });
+    var lo = heard[Math.floor(heard.length * 0.10)], hi = heard[Math.floor(heard.length * 0.97)];
+    if (!(hi - lo > 6)) return null;                // flat: silence, or a sound this device was not allowed to hear
+    // 0..1 between the quiet and loud ends, then the local level (2 s) taken out
+    var v = new Float64Array(n), W = SS_HZ, Q = new Float64Array(n + 1), H = new Float64Array(n + 1), P = new Float64Array(n + 1);
+    for (i = 0; i < n; i++){
+      var ok = vals[i] === vals[i];
+      if (ok){ var q = (vals[i] - lo) / (hi - lo); v[i] = q < 0 ? 0 : (q > 1 ? 1 : q); }
+      Q[i + 1] = Q[i] + (ok ? v[i] : 0); H[i + 1] = H[i] + (ok ? 1 : 0);
+    }
+    for (i = 0; i < n; i++){
+      var d = 0;
+      if (vals[i] === vals[i]){
+        var l = i - W < 0 ? 0 : i - W, r = i + W + 1 > n ? n : i + W + 1, hh = H[r] - H[l];
+        d = v[i] - (hh ? (Q[r] - Q[l]) / hh : 0);
+      }
+      P[i + 1] = P[i] + d;                          // prefix sums: a line's score is two lookups
+    }
+    var tEnd = t0 + n / SS_HZ, range = 60, m = range * SS_HZ, step = 1 / SS_HZ, best = null, one = null;
+    [1, 25 / 23.976, 23.976 / 25].forEach(function(sc){
+      var sel = [], k, c;
+      for (c = 0; c < cues.length; c++){
+        var a = cues[c][0] * sc, b = cues[c][1] * sc;   // a speed mismatch pivots on the film's start: both begin together
+        if (b + range > t0 && a - range < tEnd) sel.push([a, b]);
+      }
+      if (sel.length < 8) return;
+      var scores = new Float64Array(2 * m + 1);
+      for (k = -m; k <= m; k++){
+        var sh = k * step, s = 0;
+        for (c = 0; c < sel.length; c++){
+          var ia = Math.round((sel[c][0] + sh - t0) * SS_HZ), ib = Math.round((sel[c][1] + sh - t0) * SS_HZ);
+          if (ib <= 0 || ia >= n) continue;
+          s += P[ib > n ? n : ib] - P[ia < 0 ? 0 : ia];
+        }
+        scores[k + m] = s;
+      }
+      // the peak, how far it stands above the whole search, and the best rival more than 1.5 s away
+      var bk = 0, bs = -1e18, mu = 0, sd = 0, rival = -1e18, gap = 1.5 * SS_HZ;
+      for (k = 0; k <= 2 * m; k++){ mu += scores[k]; if (scores[k] > bs){ bs = scores[k]; bk = k; } }
+      mu /= scores.length;
+      for (k = 0; k <= 2 * m; k++) sd += (scores[k] - mu) * (scores[k] - mu);
+      sd = Math.sqrt(sd / scores.length) || 1e-9;
+      for (k = 0; k <= 2 * m; k++) if (Math.abs(k - bk) > gap && scores[k] > rival) rival = scores[k];
+      var res = { off: (bk - m) * step, scale: sc, z: (bs - mu) / sd, ratio: (bs - mu) / ((rival - mu) || 1e-9), score: bs };
+      if (!best || res.score > best.score) best = res;
+      if (sc === 1) one = res;
+    });
+    // a stretch has to clearly beat none: every extra speed tried is another chance of a coincidence
+    if (best && one && best !== one && !(best.score > one.score * 1.15 && best.z > one.z)) best = one;
+    return best;
+  }
+  /** The showing subtitle file as [[start, end]] in its own times, with a key that changes when another is picked. */
+  function ssTrackCues(){
+    var i;
+    if (mp){
+      if (!mp.show || mp.pick == null) return null;
+      for (i = 0; i < mp.subs.length; i++) if (String(mp.subs[i].id) === String(mp.pick)) return { key: 'mpv:' + mp.pick, cues: ssParseCues(mp.subs[i].text) };
+      return { key: 'mpv:' + mp.pick, cues: null };  // a track inside the file: its lines stay inside the full-format player
+    }
+    var tracks = video.textTracks; if (!tracks) return null;
+    for (i = 0; i < tracks.length; i++){
+      var tr = tracks[i]; if (tr.mode !== 'showing') continue;
+      var out = [], cs = tr.cues || [];
+      for (var j = 0; j < cs.length; j++){
+        var c = cs[j], a = c.__n0 != null ? c.__n0 : c.startTime, b = c.__n1 != null ? c.__n1 : c.endTime;
+        if (b > a && ssSpoken(c.text)) out.push([a, b]);
+      }
+      out.sort(function(x, y){ return x[0] - y[0]; });
+      return { key: 'tt:' + i + ':' + (tr.label || '') + ':' + (tr.language || ''), cues: out };
+    }
+    return null;
+  }
+  /** A plain file the desktop shell's FFmpeg can read beside the player (any engine), or ''. */
+  function ssReadable(){
+    if (!IS_DESKTOP || !window.nebulaDesktop || !(nebulaDesktop.transcodeNow ? nebulaDesktop.transcodeNow() : nebulaDesktop.transcode)) return '';
+    var u = mp ? mp.url : (tc ? tc.src : (lastPlay && lastPlay.url));
+    if (!/^https?:\/\//i.test(u || '') || /\.(mpd|m3u8?)(\?|#|$)/i.test(u)) return '';
+    return u;
+  }
+  /** Why the browser cannot hear this play, or '' when it can. */
+  function ssDeaf(){
+    if (mp) return 'The full-format player keeps its sound to itself.';
+    if (video.muted || video.volume === 0) return 'Turn the sound on first — the sync listens for voices.';
+    var u = lastPlay && lastPlay.url, mse = false;
+    try { mse = !!tc || (player && player.getLoadMode && player.getLoadMode() === shaka.Player.LoadMode.MEDIA_SOURCE); } catch(e){}
+    // a file played straight from another site is sound the page may play but not listen to
+    if (!mse && /^https?:\/\//i.test(u || '') && u.indexOf(location.origin + '/') !== 0) return 'This stream does not let the player listen to it here.';
+    return '';
+  }
+  function ssLabel(){
+    if (!ss) return 'Sync automatically';
+    var got = Math.floor(ss.heard / SS_HZ);
+    return (ss.kind === 'read' ? 'Reading ahead… ' : 'Listening… ') + got + ' s';
+  }
+  function ssPaint(){
+    Array.prototype.forEach.call(pui.querySelectorAll('[data-autosync] .sp-lbl'), function(l){ l.textContent = ssLabel(); });
+    Array.prototype.forEach.call(pui.querySelectorAll('[data-autosync]'), function(b){ b.classList.toggle('sel', !!ss); });
+  }
+  function ssStop(){
+    if (!ss) return;
+    var s = ss; ss = null;
+    clearTimeout(s.timer);
+    if (s.ctl){ try { s.ctl.abort(); } catch(e){} }
+    if (s.kind === 'listen' && ssAud){ try { ssAud.src.disconnect(ssAud.proc); } catch(e){} }
+    video.removeEventListener('seeking', ssOnSeek);
+    ssPaint();
+  }
+  function ssFinish(msg, kind){ ssStop(); if (msg) setStatus(msg, kind || 'info'); }
+  /** The panel's button: start, or stop one that is running. */
+  function ssToggle(){
+    if (ss){ ssFinish('Stopped syncing — the timing is as it was.'); return; }
+    if (!player || !document.body.classList.contains('playing')){ setStatus('Start the video first.', 'info'); return; }
+    var live = false; try { live = !!player.isLive(); } catch(e){}
+    if (live){ setStatus('Live streams cannot be synced.', 'info'); return; }
+    var tcue = ssTrackCues();
+    if (!tcue){ setStatus('Turn subtitles on first, then sync them.', 'info'); return; }
+    if (!tcue.cues){ setStatus('These subtitles come inside the video and already follow it.', 'info'); return; }
+    if (tcue.cues.length < 8){ setStatus('This subtitle file has too few lines to sync.', 'info'); return; }
+    var src = ssReadable(), why = src ? '' : ssDeaf();
+    if (why){ setStatus(why, 'info'); return; }
+    ss = { seq: playSeq, key: tcue.key, kind: src ? 'read' : 'listen', base: -1, vals: [], heard: 0, next: SS_MIN * SS_HZ, run: [], loud: -200,
+      vad: null, surround: false, buf: null, lastT: -1, startedAt: Date.now(), timer: null, ctl: null, busy: false };
+    if (src) ssRead(ss, src);
+    else if (!ssListen(ss)) return;
+    setStatus(ss.kind === 'read' ? 'Syncing subtitles — reading the sound ahead of you…' : 'Syncing subtitles — keep watching, this listens for a minute or two.', 'info');
+    ssPaint();
+  }
+  /** One energy frame at media second t. */
+  function ssNote(s, t, e){
+    var idx = Math.round(t * SS_HZ);
+    if (s.base < 0) s.base = idx;
+    var k = idx - s.base;
+    if (k < 0 || k > SS_HZ * 1200) return;        // before the start, or a jump far ahead: ignored (a seek restarts)
+    while (s.vals.length < k) s.vals.push(NaN);
+    if (k >= s.vals.length || s.vals[k] !== s.vals[k]){ s.heard++; if (e > s.loud) s.loud = e; }
+    s.vals[k] = e;
+    if (s.heard >= s.next && !s.busy){
+      s.next = s.heard + SS_STEP * SS_HZ; s.busy = true;
+      setTimeout(function(){ s.busy = false; ssTry(s); }, 0);   // out of the audio callback
+    }
+  }
+  function ssTry(s){
+    if (ss !== s) return;
+    if (s.seq !== playSeq){ ssStop(); return; }
+    if (s.loud < -90){ ssFinish(s.kind === 'read' ? 'Could not hear anything in this file.' : 'Could not hear this stream — it may not allow it here.', 'err'); return; }
+    var tcue = ssTrackCues();
+    if (!tcue || tcue.key !== s.key || !tcue.cues){ ssFinish('The subtitles changed, so the sync stopped. Start it again for these.'); return; }
+    var r = ssSolve({ t0: s.base / SS_HZ, vals: s.vals }, tcue.cues);
+    var pass = !!(r && r.z >= SS_Z && r.ratio >= SS_RATIO);
+    if (!pass) s.run = [];
+    else {
+      var last = s.run[s.run.length - 1];
+      if (last && (Math.abs(last.off - r.off) >= 0.25 || last.scale !== r.scale)) s.run = [];
+      s.run.push(r);
+    }
+    if (s.run.length >= SS_AGREE){
+      ssStop();
+      setSubOffset(r.off, r.scale, true);
+      var said = !subOffset ? 'they were already in time' : (Math.abs(subOffset).toFixed(1) + ' s ' + (subOffset > 0 ? 'later' : 'earlier'));
+      setStatus('Subtitles synced — ' + said + (r.scale !== 1 ? ', speed matched' : '') + '.', 'ok');
+      return;
+    }
+    if (s.heard >= SS_MAX * SS_HZ || (s.kind === 'read' && s.ended)){
+      ssFinish('Could not match these subtitles to the voices — they may be for another version of the video. The timing is as it was.', 'err');
+      return;
+    }
+    ssPaint();
+  }
+  // -- the browser listens: the video's sound through the audio graph. An element handed to the graph stays there for good,
+  // so the graph is made on the first sync and kept; the listener is only connected while a sync runs.
+  var ssAud = null;
+  function ssListen(s){
+    if (!ssAud){
+      var AC = window.AudioContext || window.webkitAudioContext;
+      try {
+        var ac = new AC(), src = ac.createMediaElementSource(video), proc = ac.createScriptProcessor(4096, 6, 1);
+        proc.channelCountMode = 'explicit'; proc.channelInterpretation = 'discrete';   // stereo stays in 0/1, a 5.1 centre in 2
+        src.connect(ac.destination); proc.connect(ac.destination);
+        proc.onaudioprocess = ssOnAudio;
+        ssAud = { ac: ac, src: src, proc: proc };
+      } catch(e){ ss = null; setStatus('This device cannot listen to the video.', 'err'); return false; }
+    }
+    try { if (ssAud.ac.state === 'suspended') ssAud.ac.resume(); } catch(e){}
+    try { ssAud.src.connect(ssAud.proc); } catch(e){}
+    video.addEventListener('seeking', ssOnSeek);
+    return true;
+  }
+  function ssOnSeek(){
+    var s = ss; if (!s || s.kind !== 'listen'){ video.removeEventListener('seeking', ssOnSeek); return; }
+    // the timing is the same all through the film, but a jump leaves the heard stretch in two: start collecting again
+    if (Math.abs(video.currentTime - s.lastT) > 5){ s.base = -1; s.vals = []; s.heard = 0; s.next = SS_MIN * SS_HZ; s.run = []; }
+    s.vad = null;
+  }
+  function ssOnAudio(e){
+    var o = e.outputBuffer.getChannelData(0); if (o.fill) o.fill(0);
+    var s = ss; if (!s || s.kind !== 'listen') return;
+    if (video.paused || video.seeking || video.ended || video.readyState < 3){ s.vad = null; return; }
+    var ib = e.inputBuffer, n = ib.length, nc = ib.numberOfChannels, sr = ib.sampleRate, i, k;
+    var c0 = ib.getChannelData(0), c1 = nc > 1 ? ib.getChannelData(1) : null;
+    for (k = 2; k < nc && !s.surround; k++){       // any sound past the front pair: a 5.1 source, whose voices are its centre
+      var dk = ib.getChannelData(k);
+      for (i = 0; i < n; i += 8) if (dk[i] !== 0){ s.surround = true; s.vad = null; break; }
+    }
+    var x = (s.buf && s.buf.length === n) ? s.buf : (s.buf = new Float32Array(n));
+    if (s.surround) x.set(ib.getChannelData(2));
+    else for (i = 0; i < n; i++) x[i] = c1 ? (c0[i] + c1[i]) * 0.5 : c0[i];
+    if (!s.vad) s.vad = ssVadNew(sr);
+    var rate = video.playbackRate || 1, tEnd = video.currentTime - SS_LAG;
+    s.lastT = video.currentTime;
+    ssVadPush(s.vad, x, function(en, j){ ssNote(s, tEnd - (n - 1 - j + s.vad.hop) / sr * rate, en); });   // at the frame's start: whole 10 ms, never a rounding tie
+  }
+  // -- the desktop shell reads ahead: FFmpeg decodes the same file from the playhead and sends the voices as 16 kHz mono
+  function ssNativeAudio(){
+    try { var at = video.audioTracks; if (at) for (var i = 0; i < at.length; i++) if (at[i].enabled) return i; } catch(e){}
+    return 0;
+  }
+  async function ssRead(s, u){
+    var t = Math.max(0, Math.floor(video.currentTime || 0));
+    var a = mp ? Math.max(0, (Number(mp.aid) || 1) - 1) : (tc ? tc.a : ssNativeAudio());
+    var h = tc ? tc.h : (ctx.playHeaders || null);
+    s.ctl = new AbortController();
+    var stuck = function(){ if (ss === s) ssFinish('Could not read the sound of this file.', 'err'); };
+    s.timer = setTimeout(stuck, 30000);
+    try {
+      var r = await fetch(location.origin + '/speech?src=' + encodeURIComponent(u) + '&t=' + t + '&len=' + SS_MAX + '&a=' + a + tcHdrs(h), { signal: s.ctl.signal });
+      if (!r.ok || !r.body) throw new Error('speech ' + r.status);
+      var rd = r.body.getReader(), vad = ssVadNew(16000), got = 0, carry = null;
+      for (;;){
+        var chunk = await rd.read();
+        if (ss !== s) return;
+        if (chunk.done) break;
+        clearTimeout(s.timer); s.timer = setTimeout(stuck, 30000);
+        var b = chunk.value;
+        if (carry){ var j2 = new Uint8Array(b.length + 1); j2[0] = carry; j2.set(b, 1); b = j2; carry = null; }
+        if (b.length & 1){ carry = b[b.length - 1]; b = b.subarray(0, b.length - 1); }
+        var dv = new DataView(b.buffer, b.byteOffset, b.length), cnt = b.length >> 1, x = new Float32Array(cnt);
+        for (var i = 0; i < cnt; i++) x[i] = dv.getInt16(i * 2, true) / 32768;
+        var from = got; got += cnt;
+        ssVadPush(vad, x, function(en, j){ ssNote(s, t + (from + j + 1 - vad.hop) / 16000, en); });
+      }
+      if (ss !== s) return;
+      s.ended = true; clearTimeout(s.timer);
+      if (!s.busy) ssTry(s);
+    } catch(e){
+      if (ss === s && !(s.ctl && s.ctl.signal.aborted)) ssFinish('Could not read the sound of this file.', 'err');
+    }
+  }
 
   // ---- shared menu (quality / subtitles / audio / speed) ----
   /** A name for a native audio track: the file's own title ("Hindi 5.1") with the language in front when it
@@ -9632,10 +9949,15 @@
       steps.appendChild(spBtn('sp-step', esc(st[1]), function(){ setSubOffset(subOffset + st[0]); }));
     });
     host.appendChild(steps);
-    var sync = spBtn('sp-opt' + (!subOffset ? ' on' : ''), '<span class="sp-lbl">Back in sync</span>' + SP_CHECK, function(){ setSubOffset(0); });
+    if (!IS_WEBOS){                                 // the TV's sound path is unproven for listening (§15): hidden there
+      var auto = spBtn('sp-opt' + (ss ? ' sel' : ''), '<span class="sp-lbl">' + esc(ssLabel()) + '</span>', ssToggle);
+      auto.setAttribute('data-autosync', '1');
+      spRow(host, auto);
+    }
+    var sync = spBtn('sp-opt' + (!subOffset && subScale === 1 ? ' on' : ''), '<span class="sp-lbl">Back in sync</span>' + SP_CHECK, function(){ ssStop(); setSubOffset(0, 1); });
     sync.setAttribute('data-sync', '1');
     spRow(host, sync);
-    spNote(host, 'If the words arrive before the voices, nudge them later.');
+    spNote(host, IS_WEBOS ? 'If the words arrive before the voices, nudge them later.' : 'If the words arrive before the voices, nudge them later — or let the player match them to the voices.');
     var k2 = document.createElement('div'); k2.className = 'sp-sub'; k2.textContent = 'Appearance'; host.appendChild(k2);
     SUB_ORDER.forEach(function(k){ subSetRow(k, host); });
     subRefreshRows();
