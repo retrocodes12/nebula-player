@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.25.1",
+  "version": "2026.09.25.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "New, experimental: Sync automatically, in the Subtitles panel's Timing section. It matches an add-on subtitle file to the voices and fixes its timing, including files made for a different frame rate. It listens while you watch (a few minutes); the desktop app reads ahead and finishes in seconds. Not on TVs yet."
+  "notes": "Subtitles inside a video file now show up on TVs and in the browser (Built in, in the Subtitles panel). The experimental Sync automatically no longer jumps far off, and keeps following the voices after its first answer — for subtitle files cut from another broadcast, which drift at each ad break."
 }
