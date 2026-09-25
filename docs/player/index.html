@@ -9637,6 +9637,11 @@
   // Two ways to hear: the browser listens to the playing video (a streaming engine's sound, or a file on this site), or
   // the desktop shell's FFmpeg reads the same file ahead of the playhead (/speech) — seconds, and any engine.
   var SS_HZ = 100, SS_STEP = 30, SS_MIN = 60, SS_MAX = 360, SS_AGREE = 3, SS_Z = 4, SS_RATIO = 1.3, SS_LAG = 0;
+  // ±20 s: an add-on file is seconds off, rarely more — every second searched past that is one more chance of a coincidence
+  // (the Mentalist's wrong answers sat 41–57 s away). Following (after the first answer, while listening): the last 5
+  // minutes, around the timing now, at its speed; a looser bar, since only a small move near the last answer is possible —
+  // a file cut from another broadcast steps a few seconds at each ad break (the Mentalist: +1 → +3 → +6.5 → +10 → +13 s)
+  var SS_RANGE = 20, SS_FOLLOW_W = 300, SS_FZ = 3.5, SS_FTOL = 0.6;
   var ss = null;                                  // the sync in progress
   function ssVadNew(sr){
     // voice band: RBJ biquads, high-pass 300 Hz then low-pass 3000 Hz, Q 0.707
@@ -9685,7 +9690,7 @@
    * speech {t0, vals}: energies at SS_HZ from media second t0, NaN where nothing was heard. cues: [[start, end]] in the
    * file's own times. → {off, scale, z, ratio} (shown = file time × scale + off), or null when there is too little to go on.
    */
-  function ssSolve(speech, cues){
+  function ssSolve(speech, cues, fol){
     var vals = speech.vals, n = vals.length, t0 = speech.t0, i;
     var heard = [];
     for (i = 0; i < n; i++) if (vals[i] === vals[i]) heard.push(vals[i]);
@@ -9708,16 +9713,21 @@
       }
       P[i + 1] = P[i] + d;                          // prefix sums: a line's score is two lookups
     }
-    var tEnd = t0 + n / SS_HZ, range = 60, m = range * SS_HZ, step = 1 / SS_HZ, best = null, one = null;
-    [1, 25 / 23.976, 23.976 / 25].forEach(function(sc){
+    var tEnd = t0 + n / SS_HZ, range = SS_RANGE, m = range * SS_HZ, step = 1 / SS_HZ, best = null, one = null, base = fol ? fol.around : 0;
+    (fol ? [fol.scale] : [1, 25 / 23.976, 23.976 / 25]).forEach(function(sc){
       var sel = [], k, c;
       for (c = 0; c < cues.length; c++){
-        var a = cues[c][0] * sc, b = cues[c][1] * sc;   // a speed mismatch pivots on the film's start: both begin together
+        var a = cues[c][0] * sc + base, b = cues[c][1] * sc + base;   // a speed mismatch pivots on the film's start: both begin together
         if (b + range > t0 && a - range < tEnd) sel.push([a, b]);
       }
       if (sel.length < 8) return;
+      // a film-speed mismatch starts in step with the film, so its offset is small: a stretch with a big offset is only a
+      // plain shift in disguise near the start, and one more chance of a coincidence — the Founder's Mentalist S4E2 on his
+      // phone (09-25): −53.5 s at 25/23.976 twice, one agreeing try short of being applied
+      var mk = (sc === 1 || fol) ? m : Math.min(m, 10 * SS_HZ), lo0 = m - mk, hi0 = m + mk;
       var scores = new Float64Array(2 * m + 1);
       for (k = -m; k <= m; k++){
+        if (k < -mk || k > mk){ scores[k + m] = -1e18; continue; }
         var sh = k * step, s = 0;
         for (c = 0; c < sel.length; c++){
           var ia = Math.round((sel[c][0] + sh - t0) * SS_HZ), ib = Math.round((sel[c][1] + sh - t0) * SS_HZ);
@@ -9728,12 +9738,12 @@
       }
       // the peak, how far it stands above the whole search, and the best rival more than 1.5 s away
       var bk = 0, bs = -1e18, mu = 0, sd = 0, rival = -1e18, gap = 1.5 * SS_HZ;
-      for (k = 0; k <= 2 * m; k++){ mu += scores[k]; if (scores[k] > bs){ bs = scores[k]; bk = k; } }
-      mu /= scores.length;
-      for (k = 0; k <= 2 * m; k++) sd += (scores[k] - mu) * (scores[k] - mu);
-      sd = Math.sqrt(sd / scores.length) || 1e-9;
-      for (k = 0; k <= 2 * m; k++) if (Math.abs(k - bk) > gap && scores[k] > rival) rival = scores[k];
-      var res = { off: (bk - m) * step, scale: sc, z: (bs - mu) / sd, ratio: (bs - mu) / ((rival - mu) || 1e-9), score: bs };
+      for (k = lo0; k <= hi0; k++){ mu += scores[k]; if (scores[k] > bs){ bs = scores[k]; bk = k; } }
+      mu /= (hi0 - lo0 + 1);
+      for (k = lo0; k <= hi0; k++) sd += (scores[k] - mu) * (scores[k] - mu);
+      sd = Math.sqrt(sd / (hi0 - lo0 + 1)) || 1e-9;
+      for (k = lo0; k <= hi0; k++) if (Math.abs(k - bk) > gap && scores[k] > rival) rival = scores[k];
+      var res = { off: base + (bk - m) * step, scale: sc, z: (bs - mu) / sd, ratio: (bs - mu) / ((rival - mu) || 1e-9), score: bs };
       if (!best || res.score > best.score) best = res;
       if (sc === 1) one = res;
     });
@@ -9781,6 +9791,7 @@
   }
   function ssLabel(){
     if (!ss) return 'Sync automatically';
+    if (ss.phase === 'follow') return 'Following the voices';
     var got = Math.floor(ss.heard / SS_HZ);
     return (ss.kind === 'read' ? 'Reading ahead… ' : 'Listening… ') + got + ' s';
   }
@@ -9800,7 +9811,7 @@
   function ssFinish(msg, kind){ ssStop(); if (msg) setStatus(msg, kind || 'info'); }
   /** The panel's button: start, or stop one that is running. */
   function ssToggle(){
-    if (ss){ ssFinish('Stopped syncing — the timing is as it was.'); return; }
+    if (ss){ ssFinish(ss.phase === 'follow' ? 'Stopped following — the timing stays as it is.' : 'Stopped syncing — the timing is as it was.'); return; }
     if (!player || !document.body.classList.contains('playing')){ setStatus('Start the video first.', 'info'); return; }
     var live = false; try { live = !!player.isLive(); } catch(e){}
     if (live){ setStatus('Live streams cannot be synced.', 'info'); return; }
@@ -9810,7 +9821,7 @@
     if (tcue.cues.length < 8){ setStatus('This subtitle file has too few lines to sync.', 'info'); return; }
     var src = ssReadable(), why = src ? '' : ssDeaf();
     if (why){ setStatus(why, 'info'); return; }
-    ss = { seq: playSeq, key: tcue.key, kind: src ? 'read' : 'listen', base: -1, vals: [], heard: 0, next: SS_MIN * SS_HZ, run: [], loud: -200,
+    ss = { seq: playSeq, key: tcue.key, kind: src ? 'read' : 'listen', phase: 'find', base: -1, vals: [], heard: 0, next: SS_MIN * SS_HZ, run: [], loud: -200,
       vad: null, surround: false, buf: null, lastT: -1, startedAt: Date.now(), timer: null, ctl: null, busy: false };
     if (src) ssRead(ss, src);
     else if (!ssListen(ss)) return;
@@ -9822,7 +9833,11 @@
     var idx = Math.round(t * SS_HZ);
     if (s.base < 0) s.base = idx;
     var k = idx - s.base;
-    if (k < 0 || k > SS_HZ * 1200) return;        // before the start, or a jump far ahead: ignored (a seek restarts)
+    if (k < 0) return;                             // before the start (a seek restarts the collection)
+    if (k >= SS_HZ * 1200){                       // following a whole film: keep the last 10 minutes
+      var cut = SS_HZ * 600; s.vals = s.vals.slice(cut); s.base += cut; k -= cut;
+      if (k >= SS_HZ * 1200) return;
+    }
     while (s.vals.length < k) s.vals.push(NaN);
     if (k >= s.vals.length || s.vals[k] !== s.vals[k]){ s.heard++; if (e > s.loud) s.loud = e; }
     s.vals[k] = e;
@@ -9837,21 +9852,34 @@
     if (s.loud < -90){ ssFinish(s.kind === 'read' ? 'Could not hear anything in this file.' : 'Could not hear this stream — it may not allow it here.', 'err'); return; }
     var tcue = ssTrackCues();
     if (!tcue || tcue.key !== s.key || !tcue.cues){ ssFinish('The subtitles changed, so the sync stopped. Start it again for these.'); return; }
-    var r = ssSolve({ t0: s.base / SS_HZ, vals: s.vals }, tcue.cues);
-    var pass = !!(r && r.z >= SS_Z && r.ratio >= SS_RATIO);
+    var fol = s.phase === 'follow', from = fol ? Math.max(0, s.vals.length - SS_FOLLOW_W * SS_HZ) : 0;
+    var r = ssSolve({ t0: (s.base + from) / SS_HZ, vals: from ? s.vals.slice(from) : s.vals }, tcue.cues, fol ? { around: subOffset, scale: subScale } : null);
+    var pass = !!(r && r.z >= (fol ? SS_FZ : SS_Z) && r.ratio >= SS_RATIO), tol = fol ? SS_FTOL : 0.25;
     if (!pass) s.run = [];
     else {
       var last = s.run[s.run.length - 1];
-      if (last && (Math.abs(last.off - r.off) >= 0.25 || last.scale !== r.scale)) s.run = [];
+      if (last && (Math.abs(last.off - r.off) >= tol || last.scale !== r.scale)) s.run = [];
       s.run.push(r);
     }
+    if (s.run.length >= SS_AGREE && fol){
+      s.run = [];
+      if (Math.abs(r.off - subOffset) >= 0.3){
+        setSubOffset(r.off, r.scale, true);
+        setStatus('Subtitle timing followed the voices: ' + (subOffset > 0 ? '+' : '−') + Math.abs(subOffset).toFixed(1) + ' s.', 'ok');
+      }
+      ssPaint();
+      return;
+    }
     if (s.run.length >= SS_AGREE){
-      ssStop();
       setSubOffset(r.off, r.scale, true);
       var said = !subOffset ? 'they were already in time' : (Math.abs(subOffset).toFixed(1) + ' s ' + (subOffset > 0 ? 'later' : 'earlier'));
+      // listening goes on for the rest of the play: a file cut from another broadcast drifts a few seconds at each break
+      if (s.kind === 'listen'){ s.phase = 'follow'; s.run = []; setStatus('Subtitles synced — ' + said + (r.scale !== 1 ? ', speed matched' : '') + '. Following the voices from here.', 'ok'); ssPaint(); return; }
+      ssStop();
       setStatus('Subtitles synced — ' + said + (r.scale !== 1 ? ', speed matched' : '') + '.', 'ok');
       return;
     }
+    if (fol){ ssPaint(); return; }
     if (s.heard >= SS_MAX * SS_HZ || (s.kind === 'read' && s.ended)){
       ssFinish('Could not match these subtitles to the voices — they may be for another version of the video. The timing is as it was.', 'err');
       return;

@@ -108,6 +108,14 @@
     <li><b>Compatibility fetches.</b> When an add-on blocks browser requests, the app may fetch it
     through our server instead. The requested URL passes through, is size- and rate-limited, and is not
     stored beyond the ordinary logs above.</li>
+    <li><b>Subtitles inside a video file.</b> A TV's or a browser's player cannot list the subtitle tracks
+    inside a file, so the app reads them itself: small pieces of the file (its index, then a few kilobytes per
+    line). When the file's host will not let the app read them directly, our server fetches those pieces for
+    it — the file's address passes through, only byte ranges are read (never the whole file), and nothing is
+    kept beyond the ordinary logs above.</li>
+    <li><b>Sync automatically (experimental).</b> Matching subtitles to the voices happens on your device:
+    the app listens to the sound of what is playing (the desktop app reads the file's sound ahead with its
+    own tools) and nothing of that sound, or of what it finds, is sent anywhere.</li>
     <li><b>Skip intro.</b> When a series episode starts, the app asks our server where that episode's
     recap, opening titles and closing credits fall. The request carries the episode's public catalogue id
     (the show's id with the season and episode number) and nothing about you; our server answers from a cache or looks it up in
