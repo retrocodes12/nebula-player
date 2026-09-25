@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.24.1",
+  "version": "2026.09.25.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "A security update. Add-ons, watch parties and synced settings can only point the player at web addresses, invite links and TV sign-in codes now wait for you to confirm, and a TV plays through a shared computer only on your own network."
+  "notes": "New, experimental: Sync automatically, in the Subtitles panel's Timing section. It matches an add-on subtitle file to the voices and fixes its timing, including files made for a different frame rate. It listens while you watch (a few minutes); the desktop app reads ahead and finishes in seconds. Not on TVs yet."
 }

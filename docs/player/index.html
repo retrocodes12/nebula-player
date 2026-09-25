@@ -1246,6 +1246,9 @@
     border-radius:var(--r-pill); margin-bottom:7px; }
   html.tv .sp-card.focusable:focus .sp-badge { color:rgba(0,0,0,.7); background:rgba(0,0,0,.10); }
   .sp-card.focusable:focus-visible .sp-badge { color:rgba(0,0,0,.7); background:rgba(0,0,0,.10); }
+  .sp-opt .sp-badge.sp-exp { margin:0 0 0 10px; flex:0 0 auto; }
+  html.tv .sp-opt.focusable:focus .sp-exp { color:rgba(0,0,0,.7); background:rgba(0,0,0,.10); }
+  .sp-opt.focusable:focus-visible .sp-exp { color:rgba(0,0,0,.7); background:rgba(0,0,0,.10); }
   .sp-card .sp-lbl { display:block; font-size:calc(14.5px * var(--ts)); font-weight:500; line-height:1.3; white-space:normal; }
   .sp-card .sp-chk { position:absolute; right:14px; top:50%; margin:-9px 0 0; }
   .sp-card.on .sp-chk { display:block; }
@@ -2571,7 +2574,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.24.1';
+  var PLAYER_VERSION = '2026.09.25.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -9950,14 +9953,14 @@
     });
     host.appendChild(steps);
     if (!IS_WEBOS){                                 // the TV's sound path is unproven for listening (§15): hidden there
-      var auto = spBtn('sp-opt' + (ss ? ' sel' : ''), '<span class="sp-lbl">' + esc(ssLabel()) + '</span>', ssToggle);
+      var auto = spBtn('sp-opt' + (ss ? ' sel' : ''), '<span class="sp-lbl">' + esc(ssLabel()) + '</span><span class="sp-badge sp-exp">Experimental</span>', ssToggle);
       auto.setAttribute('data-autosync', '1');
       spRow(host, auto);
     }
     var sync = spBtn('sp-opt' + (!subOffset && subScale === 1 ? ' on' : ''), '<span class="sp-lbl">Back in sync</span>' + SP_CHECK, function(){ ssStop(); setSubOffset(0, 1); });
     sync.setAttribute('data-sync', '1');
     spRow(host, sync);
-    spNote(host, IS_WEBOS ? 'If the words arrive before the voices, nudge them later.' : 'If the words arrive before the voices, nudge them later — or let the player match them to the voices.');
+    spNote(host, IS_WEBOS ? 'If the words arrive before the voices, nudge them later.' : 'If the words arrive before the voices, nudge them later — or let the player match them to the voices (experimental: it can take a few minutes, and may not find the timing).');
     var k2 = document.createElement('div'); k2.className = 'sp-sub'; k2.textContent = 'Appearance'; host.appendChild(k2);
     SUB_ORDER.forEach(function(k){ subSetRow(k, host); });
     subRefreshRows();
