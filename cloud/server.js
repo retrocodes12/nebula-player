@@ -21,6 +21,7 @@
 //   /v1/social/*                           → friends, below
 //   /v1/support/*                          → support.js (supporter codes, the wall, the support link)
 //   GET  /v1/skip?id=tt…:S:E               → {intro, recap, outro} timestamps (cached, no auth)
+//   GET  /v1/ranges?u=&r=a-b,…          → ranges.js: small byte ranges of a video file (its built-in subtitles), length-prefixed
 //   GET  /v1/universe?id=tt…               → universe.js: the titles it follows / is followed by / spun off (cached a week, no auth)
 //   GET  /v1/releases                      → {player, android, desktop, apple} latest GitHub releases, each
 //                                            {version, tag, published_at, notes, assets:[{name,url,size}], recent} or null
@@ -820,6 +821,7 @@ const profile = require('./profile.js')({
 });
 const support = require('./support.js')({ DATA_DIR, loadGroup, persistSoon, allow, json, readBody, auth, CODE_ALPHABET, profile });
 const universe = require('./universe.js')({ DATA_DIR, allow });
+const ranges = require('./ranges.js')({ allow, json, proxyTargetOk, proxyTransport, proxyBody });
 evict();
 setInterval(evict, 24 * 3600_000).unref();
 
@@ -857,6 +859,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (universe.handle(p, req, res, ip, u)) return;
+  if (ranges.handle(p, req, res, ip, u)) return;
 
   if (p === '/v1/releases' && req.method === 'GET') {
     return void handleReleases(req, res, ip);

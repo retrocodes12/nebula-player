@@ -1311,3 +1311,36 @@ test('a group that never held anything goes after a week; one with data stays', 
   assert.equal((await api('GET', '/v1/kv', undefined, empty.gid + '.' + empty.secret)).status, 401);
   assert.equal((await api('GET', '/v1/kv', undefined, used.gid + '.' + used.secret)).status, 200);
 });
+
+// ---------- 2026-09-25: built-in subtitles ----------
+test('ranges: small pieces of a file in one answer, never the whole file, never a private host', async () => {
+  const dnsP = require('dns').promises, realLookup = dnsP.lookup, realGet = proxyTransport.get, realFetch = global.fetch;
+  const FILE = Buffer.from(Array.from({ length: 5000 }, (_, i) => i % 251));
+  dnsP.lookup = async (h, o) => (/\.example$/.test(h) ? [{ address: '93.184.216.34', family: 4 }] : h === 'inside.test' ? [{ address: '10.0.0.5', family: 4 }] : realLookup(h, o));
+  const seen = [];
+  proxyTransport.get = async (u, headers) => {
+    const s = String(u); seen.push(s + ' ' + (headers && headers.Range));
+    if (s.startsWith('https://cdn.example/moved')) return fakeUpstream(302, { location: 'https://cdn.example/film.mkv' }, '');
+    if (s.startsWith('https://cdn.example/whole')) return fakeUpstream(200, {}, FILE);            // ignores Range
+    const m = /bytes=(\d+)-(\d+)/.exec((headers && headers.Range) || '');
+    return fakeUpstream(206, { 'content-range': 'bytes ' + m[1] + '-' + m[2] + '/5000' }, FILE.subarray(+m[1], +m[2] + 1));
+  };
+  const ask = (u, r) => realFetch(base + '/v1/ranges?u=' + encodeURIComponent(u) + '&r=' + r, { headers: { 'x-forwarded-for': '198.51.100.77' } });
+  try {
+    const r = await ask('https://cdn.example/moved', '10-19,4000-4003,100-100');
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get('access-control-allow-origin'), '*');
+    const b = Buffer.from(await r.arrayBuffer()), parts = [];
+    for (let p = 0; p < b.length;) { const n = b.readUInt32BE(p); parts.push(b.subarray(p + 4, p + 4 + n)); p += 4 + n; }
+    assert.deepEqual(parts.map((x) => x.length), [10, 4, 1]);
+    assert.deepEqual([...parts[0]], [...FILE.subarray(10, 20)]);
+    assert.deepEqual([...parts[1]], [...FILE.subarray(4000, 4004)]);
+    assert.ok(seen.some((x) => x.startsWith('https://cdn.example/film.mkv bytes=4000-4003')));    // the redirect is followed once, checked
+    assert.equal((await ask('https://cdn.example/whole', '0-9')).status, 502);                     // a host that ignores Range: nothing read
+    assert.equal((await ask('https://inside.test/film.mkv', '0-9')).status, 400);                  // a private address: refused
+    assert.equal((await ask('https://cdn.example/film.mkv', '0-2000000,0-1')).status, 400);        // a piece over 1 MB among several
+    assert.equal((await ask('https://cdn.example/film.mkv', '9-3')).status, 400);
+    assert.equal((await ask('https://cdn.example/film.mkv', Array.from({ length: 65 }, (_, i) => i + '-' + i).join(','))).status, 400);
+    assert.equal((await ask('https://cdn.example/film.mkv', '0-4999')).status, 200);               // one piece may be the index (≤ 8 MB)
+  } finally { dnsP.lookup = realLookup; proxyTransport.get = realGet; }
+});
