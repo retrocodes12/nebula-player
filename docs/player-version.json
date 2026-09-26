@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.26.1",
+  "version": "2026.09.26.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Subtitles inside a video file are cleaned up: no more stray code or shapes printed as text, no line shown twice, and choosing a track twice (or another one) while it is still being read leaves exactly one on screen."
+  "notes": "Subtitles inside a video file come on far sooner: the player reads only the next minute or so of lines before showing them, reads the file where it really lives instead of asking the add-on each time, and starts reading as soon as you open Subtitles."
 }

@@ -2574,7 +2574,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.26.1';
+  var PLAYER_VERSION = '2026.09.26.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -8869,23 +8869,44 @@
     return out;
   }
   /** Reads [s, e) of a file: straight from the host (through the sharing computer when the TV plays through one), else
-      through the cloud's /v1/ranges — decided on the first read and kept. */
+      through the cloud's /v1/ranges — decided on the first read and kept. A host that redirects is followed once: every
+      later piece asks the address it redirected to (PenguPlay's hop to its file store cost ~0.8 s a piece, measured
+      from the Founder's network — most of the minute a built-in track took to come on). */
   function innerReader(url){
-    var rd = { via: 'direct', target: url };
-    if (ctx.viaRelay && relayLive === ctx.viaRelay && relayWorth(url)) rd.target = relayUrl(url);
-    async function one(s, e){
-      var ctl = new AbortController(), timer = setTimeout(function(){ ctl.abort(); }, 15000);
+    var rd = { via: 'direct', target: url, base: url };
+    if (ctx.viaRelay && relayLive === ctx.viaRelay && relayWorth(url)) rd.target = rd.base = relayUrl(url);
+    async function one(s, e, again){
+      var at = rd.target, ctl = new AbortController(), timer = setTimeout(function(){ ctl.abort(); }, 15000);
       try {
-        var r = await fetch(rd.target, { headers: { Range: 'bytes=' + s + '-' + (e - 1) }, signal: ctl.signal });
-        if (r.status !== 206){ ctl.abort(); return null; }       // a 200 is the whole film: never read it
-        return new Uint8Array(await r.arrayBuffer());
-      } catch(err){ return null; } finally { clearTimeout(timer); }
+        var r = await fetch(at, { headers: { Range: 'bytes=' + s + '-' + (e - 1) }, signal: ctl.signal });
+        if (r.status === 206){                                  // a 200 is the whole film: never read it
+          if (at === rd.base && r.url && r.url !== at && /^https?:\/\//i.test(r.url)) rd.target = r.url;
+          return new Uint8Array(await r.arrayBuffer());
+        }
+        ctl.abort();
+      } catch(err){} finally { clearTimeout(timer); }
+      // the address it redirected to can stop answering (a signed link runs out): the original once more, which redirects afresh
+      if (at !== rd.base && !again){ if (rd.target === at) rd.target = rd.base; return one(s, e, true); }
+      return null;
     }
-    async function cloud(list){
+    async function cloud(list, tries){
       var q = list.map(function(x){ return x[0] + '-' + (x[1] - 1); }).join(',');
-      var r = await fetch(CLOUD_BASE + '/v1/ranges?u=' + encodeURIComponent(url) + '&r=' + q);
-      if (!r.ok) throw new Error('ranges ' + r.status);
-      var b = new Uint8Array(await r.arrayBuffer()), out = [], p = 0;
+      var ctl = new AbortController(), timer = setTimeout(function(){ ctl.abort(); }, 30000), r = null, b = null;
+      try {
+        // never from the browser's cache: a retry of pieces that failed must reach the server (read pieces are kept per play anyway)
+        r = await fetch(CLOUD_BASE + '/v1/ranges?u=' + encodeURIComponent(url) + '&r=' + q, { signal: ctl.signal, cache: 'no-store' });
+        if (r.ok) b = new Uint8Array(await r.arrayBuffer());
+      } finally { clearTimeout(timer); }
+      if (!b){
+        // busy or rate limited: the server says when to come back — twice, then these pieces are given up
+        if ((r.status === 429 || r.status === 503) && (tries || 0) < 2){
+          var wait = Math.min(5, Math.max(1, parseInt(r.headers.get('Retry-After'), 10) || 2));
+          await new Promise(function(ok){ setTimeout(ok, wait * 1000); });
+          return cloud(list, (tries || 0) + 1);
+        }
+        throw new Error('ranges ' + r.status);
+      }
+      var out = [], p = 0;
       for (var i = 0; i < list.length && p + 4 <= b.length; i++){
         var n = b[p] * 16777216 + (b[p + 1] << 16) + (b[p + 2] << 8) + b[p + 3]; p += 4;
         out.push(n ? b.subarray(p, p + n) : null); p += n;
@@ -8941,16 +8962,21 @@
       });
       subState.inner = cands;
       subState.list = cands.concat(subState.list.filter(function(c){ return !c.mkv; }));
-      if (puiState.menu === 'subs') subPanelRender(true);
+      if (puiState.menu === 'subs'){ subPanelRender(true); innerWarm(); }
     }).catch(function(){});
   }
   /** Lines of a track at these index points → [{s, e, text}] in time order (durations missing → up to the next line,
       ≤ 5 s). [seen]: the lines this track already has — an ASS sign drawn in two layers is the same words twice, shown once. */
   async function innerLines(c, pts, seen){
     var t = c.mkv.t, sc = c.mkv.scale;
-    var bufs = await inner.rd.many(pts.map(mkvPiece)), out = [];
+    var blocks = await innerPieces(c, pts), out = [];
+    out.read = 0;                                         // pieces that held a block (a stretch of drawings reads as no lines)
+    out.failed = [];                                      // points whose piece could not be fetched
     pts.forEach(function(pt, i){
-      var b = mkvBlockAt(bufs[i], pt, t.num); if (!b) return;
+      var b = blocks[i];
+      if (b === false) out.failed.push(pt);
+      if (!b) return;
+      out.read++;
       var text = innerText(t.kind, b.text); if (!text) return;
       var s = b.t * sc, key = Math.round(s * 100) + '|' + text;
       if (seen[key]) return;
@@ -8971,19 +8997,62 @@
     var ms = Math.max(0, Math.round(s * 1000)), h = Math.floor(ms / 3600000), m = Math.floor(ms / 60000) % 60, x = Math.floor(ms / 1000) % 60, f = ms % 1000;
     return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (x < 10 ? '0' : '') + x + '.' + (f < 10 ? '00' : f < 100 ? '0' : '') + f;
   }
+  function innerKey(p){ return p.cluster + ':' + p.rel; }
+  /** The blocks at these index points, each piece read once per play — the panel's warm-up, a pick and the rest share it
+      (t.box: point → a promise of its block, null when it holds none, false when it could not be fetched — that one is
+      forgotten, so it is asked again). */
+  function innerPieces(c, pts){
+    var t = c.mkv.t, box = t.box || (t.box = {}), need = [];
+    pts.forEach(function(p){ if (!box[innerKey(p)]) need.push(p); });
+    if (need.length){
+      var all = inner.rd.many(need.map(mkvPiece));
+      need.forEach(function(p, i){
+        var k = innerKey(p);
+        box[k] = all.then(function(bufs){
+          if (!bufs[i]){ delete box[k]; return false; }
+          return mkvBlockAt(bufs[i], p, t.num);
+        }, function(){ delete box[k]; return false; });
+      });
+    }
+    return Promise.all(pts.map(function(p){ return box[innerKey(p)]; }));
+  }
+  /** The lines shown first: from just behind the playhead to 75 s ahead (≈ 25 of an episode's), nearest first, at most 36;
+      in a quiet stretch the 12 nearest ahead. It was every line from 20 s behind to 4 minutes ahead — ~100 pieces read
+      before anything showed, which took the Founder's TV a minute; the rest follows on the track anyway. */
+  function innerFirst(c){
+    var sc = c.mkv.scale, now = video.currentTime || 0, pts = c.mkv.t.points.slice();
+    function near(p){ var d = p.t * sc - now; return d >= -5 ? d : 600 - d; }
+    pts.sort(function(a, b){ return near(a) - near(b); });
+    var first = pts.filter(function(p){ var d = p.t * sc - now; return d > -5 && d < 75; }).slice(0, 36);
+    if (first.length < 10) first = pts.slice(0, 12);
+    return { first: first, all: pts };
+  }
   /** The lines around the playhead as a file the engine can take; the rest follows on the track (innerRest). */
   async function innerBlob(c, seen){
-    var sc = c.mkv.scale, now = video.currentTime || 0, pts = c.mkv.t.points.slice();
-    pts.sort(function(a, b){ return Math.abs(a.t * sc - now - 60) - Math.abs(b.t * sc - now - 60); });
-    var first = pts.filter(function(p){ var s = p.t * sc; return s > now - 20 && s < now + 240; });
-    if (first.length < 20) first = pts.slice(0, 40);
-    var lines = await innerLines(c, first, seen);
-    if (!lines.length) return null;
-    var taken = {}; first.forEach(function(p){ taken[p.cluster + ':' + p.rel] = 1; });
+    var f = innerFirst(c), lines = await innerLines(c, f.first, seen);
+    if (!lines.read) return null;                        // nothing could be read: the file did not answer
+    var taken = {}; f.first.forEach(function(p){ taken[innerKey(p)] = 1; });
+    lines.failed.forEach(function(p){ delete taken[innerKey(p)]; });   // pieces that could not be fetched: the rest asks again
     var text = 'WEBVTT\n\n' + lines.map(function(l){ return vttTime(l.s) + ' --> ' + vttTime(l.e) + '\n' + l.text; }).join('\n\n') + '\n';
     var u = URL.createObjectURL(new Blob([text], { type: 'text/vtt' }));
     subState.urls.push(u);
-    return { url: u, mime: 'text/vtt', rest: pts.filter(function(p){ return !taken[p.cluster + ':' + p.rel]; }) };
+    return { url: u, mime: 'text/vtt', rest: f.all.filter(function(p){ return !taken[innerKey(p)]; }) };
+  }
+  /** When the Subtitles panel opens: the first lines of the built-in tracks not showing yet, read ahead — the viewer's
+      languages first, one track at a time, three at most, none while a pick is on its way — so a pick shows at once. */
+  var innerWarming = false;
+  async function innerWarm(){
+    if (innerWarming || !player || !subState.inner || !subState.inner.length) return;
+    innerWarming = true;
+    var seq = playSeq, pref = langPrefMap(), rank = function(c){ var r = pref[langName(c.lang)]; return (r == null ? 99 : r) + (c.forced ? 100 : 0); };
+    try {
+      var cs = subState.inner.filter(function(c){ return !subState.loaded[c.url]; });
+      cs.sort(function(a, b){ return rank(a) - rank(b); });
+      for (var i = 0; i < cs.length && i < 3; i++){
+        if (seq !== playSeq || !player || Object.keys(subState.busy).length) break;
+        await innerPieces(cs[i], innerFirst(cs[i]).first);
+      }
+    } catch(e){} finally { innerWarming = false; }
   }
   /**
    * The rest of a built-in track, added to THAT track as it arrives (never one found by its label: an add-on's file can
@@ -8991,15 +9060,20 @@
    * so a seek gets its lines next; while the track is not showing it waits, and leaves the connection to the picture.
    */
   async function innerRest(c, rest, seq, tr, seen){
-    var left = rest.slice(), sc = c.mkv.scale;
+    var left = rest.slice(), sc = c.mkv.scale, tries = {};
     function near(p){ var d = p.t * sc - (video.currentTime || 0); return d >= -5 ? d : 600 - d; }
+    function pause(ms){ return new Promise(function(ok){ setTimeout(ok, ms); }); }
     while (left.length){
-      while (tr.mode === 'disabled' && seq === playSeq && player) await new Promise(function(ok){ setTimeout(ok, 2000); });
+      while (tr.mode === 'disabled' && seq === playSeq && player) await pause(2000);
       if (seq !== playSeq || !player) return;
       left.sort(function(a, b){ return near(a) - near(b); });
-      var lines = await innerLines(c, left.splice(0, 96), seen);
+      // small batches, so a seek's lines come next — but a whole cloud request each (48), which has a rate to keep
+      var lines = await innerLines(c, left.splice(0, inner.rd.via === 'cloud' ? 48 : 24), seen);
       if (seq !== playSeq || !player) return;
       lines.forEach(function(l){ try { tr.addCue(new VTTCue(l.s, l.e, l.text)); } catch(e){} });
+      // pieces that could not be fetched go back in line, twice at most; a batch that got nothing waits a moment first
+      var again = lines.failed.filter(function(p){ var k = innerKey(p); tries[k] = (tries[k] || 0) + 1; return tries[k] <= 2; });
+      if (again.length){ left = left.concat(again); if (!lines.read) await pause(2000); }
     }
   }
   /** The element's own track for a label, when it has one (a file the browser draws itself; not the streaming engine's). */
@@ -9023,6 +9097,20 @@
   async function pickAddonSub(c, autoAt){
     if (!player) return false;
     var auto = autoAt != null, reading = c.mkv ? 'Reading the subtitles inside the file…' : 'Loading subtitles…';
+    // already a track — a second press reaching the card the panel had just replaced (a pick is quick now): that track
+    // again, never a copy of it
+    var had = subState.loaded[c.url];
+    if (had){
+      if (auto) return false;
+      subHandNote(c.url);
+      try {
+        (player.getTextTracks() || []).forEach(function(t){ if (t.label === had) player.selectTextTrack(t); });
+        player.setTextTrackVisibility(true);
+      } catch(e0){}
+      puiRefreshButtons();
+      if (puiState.menu === 'subs') subPanelRender(true);
+      return true;
+    }
     // one trip per card: a second press while it reads (a TV takes seconds) added the same track twice, each half filled
     var run = subState.busy[c.url];
     if (run){
@@ -9045,7 +9133,7 @@
       var label = subFreeLabel(c.label);
       var track = await player.addTextTrackAsync(blob.url, c.lang, 'subtitles', blob.mime, '', label);
       if (gone()) return false;
-      subState.loaded[c.url] = true;
+      subState.loaded[c.url] = label;                 // the track it became (a press on a card the panel just replaced finds it)
       subState.trackSrc[label] = c.addon || 'Add-on';   // the card's badge once it is a track
       var nt = nativeTrackFor(label);
       if (stale()){
@@ -10375,6 +10463,7 @@
     puiMenuEl.classList.remove('open');
     spState.lang = null; spState.col = 0; spState.rows = [0, 0, 0];
     var m = subPanelRender(false);
+    innerWarm();                                     // the built-in tracks' first lines, while the viewer looks
     spStyleBuild();
     subPanelEl.classList.add('open'); document.body.classList.add('sp-on');   // on body: puiShow() rewrites #pui's className
     puiState.menu = 'subs'; puiState.opener = opener || null;

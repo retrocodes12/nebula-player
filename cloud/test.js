@@ -1344,3 +1344,45 @@ test('ranges: small pieces of a file in one answer, never the whole file, never 
     assert.equal((await ask('https://cdn.example/film.mkv', '0-4999')).status, 200);               // one piece may be the index (≤ 8 MB)
   } finally { dnsP.lookup = realLookup; proxyTransport.get = realGet; }
 });
+
+// ---------- 2026-09-26: the built-in subtitles, faster ----------
+test('ranges: where a file redirects is remembered, and asked again once the address it gave stops answering', async () => {
+  const dnsP = require('dns').promises, realLookup = dnsP.lookup, realGet = proxyTransport.get, realFetch = global.fetch;
+  const FILE = Buffer.from(Array.from({ length: 5000 }, (_, i) => i % 251));
+  dnsP.lookup = async (h, o) => (/\.example$/.test(h) ? [{ address: '93.184.216.34', family: 4 }] : realLookup(h, o));
+  let gen = 1, dead = 0; const hops = [], agents = [];
+  proxyTransport.get = async (u, headers, signal, agent) => {
+    const s = String(u);
+    if (s.startsWith('https://go.example/ep')) { hops.push(s); return fakeUpstream(307, { location: 'https://store.example/' + gen + '/ep.mkv' }, ''); }
+    // a store address that has run out still answers the redirect walk's one-byte probe, then refuses the pieces
+    if (/^https:\/\/store\.example\/(\d+)\//.test(s) && +RegExp.$1 <= dead) return /bytes=0-0/.test(headers.Range) ? fakeUpstream(206, {}, FILE.subarray(0, 1)) : fakeUpstream(416, {}, '');
+    if (/bytes=0-0/.test(headers.Range) === false) agents.push(!!agent);
+    const m = /bytes=(\d+)-(\d+)/.exec(headers.Range);
+    return fakeUpstream(206, { 'content-range': 'bytes ' + m[1] + '-' + m[2] + '/5000' }, FILE.subarray(+m[1], +m[2] + 1));
+  };
+  const ask = async (r) => {
+    const x = await realFetch(base + '/v1/ranges?u=' + encodeURIComponent('https://go.example/ep') + '&r=' + r, { headers: { 'x-forwarded-for': '198.51.100.78' } });
+    const b = Buffer.from(await x.arrayBuffer()), parts = [];
+    for (let p = 0; x.status === 200 && p < b.length;) { const n = b.readUInt32BE(p); parts.push(n); p += 4 + n; }
+    return { status: x.status, parts };
+  };
+  try {
+    assert.deepEqual(await ask('10-19,20-29'), { status: 200, parts: [10, 10] });
+    assert.deepEqual(await ask('30-39,40-49,50-59'), { status: 200, parts: [10, 10, 10] });
+    assert.equal(hops.length, 1);                                   // the second batch did not pay the redirect again
+    assert.ok(agents.length >= 5 && agents.every(Boolean));         // every piece rode a kept-alive connection
+    dead = 1; gen = 2;                                              // the signed address ran out; the host now signs another
+    assert.deepEqual(await ask('60-69,70-79'), { status: 200, parts: [10, 10] });
+    assert.equal(hops.length, 2);                                   // asked where it redirects now, once
+    // a FRESH address that fails is not walked again: only a remembered one can have run out
+    const before = hops.length;
+    dead = 2; gen = 2;                                              // it redirects to an address that fails at once
+    const fresh = await realFetch(base + '/v1/ranges?u=' + encodeURIComponent('https://go.example/ep?other=1') + '&r=0-9', { headers: { 'x-forwarded-for': '198.51.100.79' } });
+    assert.equal(fresh.status, 200);
+    assert.equal(hops.length, before + 1);                          // walked once, not again for pieces that failed
+    assert.equal(fresh.headers.get('cache-control'), 'no-store');   // an answer with holes is never kept by the browser
+    gen = 3;                                                        // a live address again: a whole answer may be kept
+    const whole = await realFetch(base + '/v1/ranges?u=' + encodeURIComponent('https://go.example/ep') + '&r=0-9', { headers: { 'x-forwarded-for': '198.51.100.80' } });
+    assert.match(whole.headers.get('cache-control'), /max-age=300/);
+  } finally { dnsP.lookup = realLookup; proxyTransport.get = realGet; }
+});

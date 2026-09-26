@@ -336,12 +336,13 @@ function proxyLookup(host, opts, cb) {
   }, (e) => cb(e));
 }
 /** One GET, no redirects followed, connected through proxyLookup. Resolves the response (an IncomingMessage). Swappable
-    so the tests can answer without a network. */
+    so the tests can answer without a network. [agent]: kept-alive connections for a run of pieces (/v1/ranges); its new
+    sockets connect through the same lookup, the options being the request's. Else a connection of its own. */
 const proxyTransport = {
-  get(u, headers, signal) {
+  get(u, headers, signal, agent) {
     return new Promise((ok, no) => {
       const mod = u.protocol === 'https:' ? https : http;
-      const rq = mod.get(u, { headers, signal, lookup: proxyLookup, agent: false }, ok);
+      const rq = mod.get(u, { headers, signal, lookup: proxyLookup, agent: agent || false }, ok);
       rq.on('error', no);
     });
   },
