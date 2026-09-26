@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.25.2",
+  "version": "2026.09.26.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Subtitles inside a video file now show up on TVs and in the browser (Built in, in the Subtitles panel). The experimental Sync automatically no longer jumps far off, and keeps following the voices after its first answer — for subtitle files cut from another broadcast, which drift at each ad break."
+  "notes": "Subtitles inside a video file are cleaned up: no more stray code or shapes printed as text, no line shown twice, and choosing a track twice (or another one) while it is still being read leaves exactly one on screen."
 }

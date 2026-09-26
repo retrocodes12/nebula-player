@@ -2574,7 +2574,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.25.2';
+  var PLAYER_VERSION = '2026.09.26.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -8497,16 +8497,17 @@
   // downloaded — a popular film lists ~100 of them. The panel shows one language's tracks at a time, so nothing
   // is gained by hiding any: the caps only guard against a runaway add-on (four per language cut real choices, 09-11).
   var SUB_PER_LANG = 40, SUB_MAX = 400;
-  // hand = a count of the viewer's own subtitle choices this play (an autoload download that finds it moved stands down)
-  var subState = { seq:0, loading:false, asked:0, list:[], loaded:{}, urls:[], trackSrc:{}, hand:0, streamReady:null, inner:[], innerReady:null };
+  // hand = a count of the viewer's own subtitle choices this play (an autoload download that finds it moved stands down);
+  // pick = the same count, which a file still on its way checks (the latest choice wins); busy = the cards on their way
+  var subState = { seq:0, loading:false, asked:0, list:[], loaded:{}, urls:[], trackSrc:{}, hand:0, pick:0, busy:{}, streamReady:null, inner:[], innerReady:null };
   function resetSubs(){
     subState.urls.forEach(function(u){ try { URL.revokeObjectURL(u); } catch(e){} });
-    subState = { seq:0, loading:false, asked:0, list:[], loaded:{}, urls:[], trackSrc:{}, hand:0, streamReady:null, inner:[], innerReady:null };
+    subState = { seq:0, loading:false, asked:0, list:[], loaded:{}, urls:[], trackSrc:{}, hand:0, pick:0, busy:{}, streamReady:null, inner:[], innerReady:null };
   }
   // the viewer's last subtitle choice and the title it was made on ({id, url} — url = the add-on file picked, '' = Off or a
   // stream track): the autoload never overrides it on that title, and a picked file comes back after a source swap
   var subHand = null;
-  function subHandNote(url){ subState.hand++; subHand = { id: curPlay ? curPlay.id : '', url: url || '' }; }
+  function subHandNote(url){ subState.hand++; subState.pick++; subHand = { id: curPlay ? curPlay.id : '', url: url || '' }; }
   // a subtitle language as one comparable key: add-ons say "eng", "en", "en-US", "fre", "pob", "scc" or "English", the
   // settings say "en" (as Android's subLangKey; webOS's Chrome 68 has no Intl.DisplayNames, so the browser names nothing)
   var SUB_ISO3 = { eng:'en', spa:'es', spn:'es', spl:'es', ea:'es', fre:'fr', fra:'fr', ger:'de', deu:'de', ita:'it', por:'pt', pob:'pt', pb:'pt',
@@ -8706,6 +8707,13 @@
   }
   function mkvUint(b, s, e){ var v = 0; for (var i = s; i < e; i++) v = v * 256 + b[i]; return v; }
   function mkvStr(b, s, e){ var t = ''; try { t = new TextDecoder('utf-8').decode(b.subarray(s, e)); } catch(x){} return t.replace(/\u0000+$/, ''); }
+  /** A line's bytes as text: UTF-8 as the format says, else CP1252 (a file muxed from an old text file) rather than �. */
+  function mkvText(b, s, e){
+    var sub = b.subarray(s, e), t = null;
+    try { t = new TextDecoder('utf-8', { fatal: true }).decode(sub); } catch(x){ t = null; }
+    if (t == null){ try { t = new TextDecoder('windows-1252').decode(sub); } catch(x2){ t = ''; } }
+    return t.replace(/^\uFEFF/, '').replace(/\u0000+$/, '');
+  }
   function mkvKids(b, s, e){
     var out = [], p = s;
     while (p < e){ var el = mkvEl(b, p); if (!el || el.end < 0 || el.end > e) break; out.push(el); p = el.end; }
@@ -8771,7 +8779,7 @@
     if (!subs.length || cuesAt < 0) return { scale: scale, tracks: [] };
     var c = await elAt(cuesAt, 8388608);
     if (!c || c.el.id !== MKV_ID.CUES) return { scale: scale, tracks: [] };
-    var byNum = {}; subs.forEach(function(t){ t.points = []; byNum[t.num] = t; });
+    var byNum = {}, listed = {}; subs.forEach(function(t){ t.points = []; byNum[t.num] = t; });
     mkvKids(c.buf, c.el.data, c.el.end).forEach(function(cp){
       if (cp.id !== MKV_ID.CUEPOINT) return;
       var time = 0;
@@ -8784,8 +8792,10 @@
           if (x.id === MKV_ID.CUETRACK) q.track = v; else if (x.id === MKV_ID.CUECLUSTER) q.cluster = v;
           else if (x.id === MKV_ID.CUEREL) q.rel = v; else if (x.id === MKV_ID.CUEDUR) q.dur = v;
         });
-        var t = byNum[q.track];
-        if (t && q.cluster >= 0 && q.rel >= 0) t.points.push({ t: time, cluster: segStart + q.cluster, rel: q.rel, dur: q.dur });
+        var t = byNum[q.track], at = q.track + ':' + q.cluster + ':' + q.rel;
+        if (!t || q.cluster < 0 || q.rel < 0 || listed[at]) return;   // a line the index names twice is read once
+        listed[at] = 1;
+        t.points.push({ t: time, cluster: segStart + q.cluster, rel: q.rel, dur: q.dur });
       });
     });
     // a track the index only partly covers (an FFmpeg-made file indexes video keyframes only) cannot be read this way
@@ -8807,17 +8817,56 @@
       } else blk = el;
       if (!blk) continue;
       var tn = mkvVint(buf, blk.data, false);
-      if (!tn || tn.v !== num) continue;
-      return { t: pt.t, dur: dur, text: mkvStr(buf, blk.data + tn.len + 3, blk.end) };   // track number, 16-bit time, flags
+      if (!tn || tn.v !== num || blk.data + tn.len + 3 > blk.end) continue;
+      if (buf[blk.data + tn.len + 2] & 0x06) continue;                 // laced: never a subtitle line, so not the block
+      var text = mkvText(buf, blk.data + tn.len + 3, blk.end);          // after the track number, 16-bit time, flags
+      // control bytes are not a line: video bytes that happened to parse at a wrong header length
+      if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/.test(text)) continue;
+      return { t: pt.t, dur: dur, text: text };
     }
     return null;
   }
-  /** A line as WebVTT cue text: ASS's fields and override tags gone, only <i> <b> <u> kept, the rest escaped. */
+  function vttEsc(x){ return x.replace(/&(?![a-z#0-9]+;)/gi, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  /**
+   * A line as WebVTT cue text. ASS: its fields, override tags and drawings go ({\p1}m 0 0 l 100 0 … is a shape, not
+   * words), \N breaks the line, \h is a hard space, \i \b \u become <i> <b> <u>. SRT/WebVTT: only <i> <b> <u> stay,
+   * other markup goes. Everything else is escaped, so "A < B" survives. Every line sits at the bottom, where the player
+   * lifts its subtitles clear of the controls (a line placed at the top was lifted off the screen).
+   */
   function innerText(kind, raw){
-    var t = String(raw || '').replace(/\r/g, '');
-    if (kind === 'ass'){ var f = t.split(','); t = f.length > 8 ? f.slice(8).join(',') : t; t = t.replace(/\\N/gi, '\n'); }
-    t = t.replace(/\{[^}]*\}/g, '').replace(/<(?!\/?[ibu]>)[^>]*>/gi, '').replace(/&(?![a-z#0-9]+;)/gi, '&amp;').replace(/<(?!\/?[ibu]>)/gi, '&lt;');
-    return t.replace(/\n{2,}/g, '\n').trim();
+    var t = String(raw || '').replace(/\r/g, ''), out = '';
+    if (kind === 'ass'){
+      var f = t.split(','); t = f.length > 8 ? f.slice(8).join(',') : t;
+      var draw = false, cur = { i: false, b: false, u: false };
+      var restyle = function(nx){
+        var s = (cur.u ? '</u>' : '') + (cur.b ? '</b>' : '') + (cur.i ? '</i>' : '') + (nx.i ? '<i>' : '') + (nx.b ? '<b>' : '') + (nx.u ? '<u>' : '');
+        cur = nx; return s;
+      };
+      (t.match(/\{[^}]*\}|[^{]+|\{/g) || []).forEach(function(part){
+        if (part.length > 1 && part.charAt(0) === '{' && part.charAt(part.length - 1) === '}'){
+          var nx = { i: cur.i, b: cur.b, u: cur.u }, re = /\\([pibu]|r)(\d*)/g, m;
+          while ((m = re.exec(part))){
+            var k = m[1], v = m[2] === '' ? -1 : parseInt(m[2], 10);
+            if (k === 'r'){ nx = { i: false, b: false, u: false }; continue; }
+            if (v < 0) continue;                                        // \pos \blur \bord \iclip …: not these
+            if (k === 'p') draw = v > 0;
+            else if (k === 'b') nx.b = v === 1 || v >= 600;
+            else nx[k] = v === 1;
+          }
+          if (nx.i !== cur.i || nx.b !== cur.b || nx.u !== cur.u) out += restyle(nx);
+          return;
+        }
+        if (!draw) out += vttEsc(part).replace(/\\N/g, '\n').replace(/\\n/g, ' ').replace(/\\h/g, '\u00A0');
+      });
+      out += restyle({ i: false, b: false, u: false });
+    } else {
+      t = t.replace(/\{[^}]*\}/g, '').replace(/<\/?(?![ibu]>)[a-z][^<>]*>/gi, '');
+      out = t.split(/(<\/?[ibu]>)/i).map(function(p, i){ return i % 2 ? p.toLowerCase() : vttEsc(p); }).join('');
+    }
+    out = out.replace(/[ \t]*\n[ \t]*/g, '\n').replace(/\n{2,}/g, '\n').replace(/^\s+|\s+$/g, '');
+    // nothing to read once the tags are gone (a shape, an empty sign): no line at all
+    if (!out.replace(/<\/?[ibu]>/g, '').replace(/[\s\u00A0]/g, '')) out = '';
+    return out;
   }
   /** Reads [s, e) of a file: straight from the host (through the sharing computer when the TV plays through one), else
       through the cloud's /v1/ranges — decided on the first read and kept. */
@@ -8895,75 +8944,136 @@
       if (puiState.menu === 'subs') subPanelRender(true);
     }).catch(function(){});
   }
-  /** Lines of a track at these index points → [{s, e, text}] in time order (durations missing → up to the next line, ≤ 5 s). */
-  async function innerLines(c, pts){
+  /** Lines of a track at these index points → [{s, e, text}] in time order (durations missing → up to the next line,
+      ≤ 5 s). [seen]: the lines this track already has — an ASS sign drawn in two layers is the same words twice, shown once. */
+  async function innerLines(c, pts, seen){
     var t = c.mkv.t, sc = c.mkv.scale;
     var bufs = await inner.rd.many(pts.map(mkvPiece)), out = [];
     pts.forEach(function(pt, i){
       var b = mkvBlockAt(bufs[i], pt, t.num); if (!b) return;
       var text = innerText(t.kind, b.text); if (!text) return;
-      out.push({ s: b.t * sc, e: b.dur ? (b.t + b.dur) * sc : 0, text: text });
+      var s = b.t * sc, key = Math.round(s * 100) + '|' + text;
+      if (seen[key]) return;
+      seen[key] = 1;
+      out.push({ s: s, e: b.dur ? (b.t + b.dur) * sc : 0, text: text });
     });
     out.sort(function(a, b){ return a.s - b.s; });
-    out.forEach(function(l, i){ if (!l.e) l.e = Math.min(l.s + 5, i + 1 < out.length ? out[i + 1].s : l.s + 5); });
+    out.forEach(function(l, i){
+      if (l.e > l.s) return;
+      var e = l.s + 5;
+      for (var j = i + 1; j < out.length; j++) if (out[j].s > l.s + 0.05){ e = Math.min(e, out[j].s); break; }
+      l.e = e;
+    });
     return out;
   }
-  function vttTime(s){ var h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (x < 10 ? '0' : '') + x.toFixed(3); }
+  // whole milliseconds, so 59.9996 s can never print as "00:00:60.000", which ends the file there
+  function vttTime(s){
+    var ms = Math.max(0, Math.round(s * 1000)), h = Math.floor(ms / 3600000), m = Math.floor(ms / 60000) % 60, x = Math.floor(ms / 1000) % 60, f = ms % 1000;
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (x < 10 ? '0' : '') + x + '.' + (f < 10 ? '00' : f < 100 ? '0' : '') + f;
+  }
   /** The lines around the playhead as a file the engine can take; the rest follows on the track (innerRest). */
-  async function innerBlob(c){
+  async function innerBlob(c, seen){
     var sc = c.mkv.scale, now = video.currentTime || 0, pts = c.mkv.t.points.slice();
     pts.sort(function(a, b){ return Math.abs(a.t * sc - now - 60) - Math.abs(b.t * sc - now - 60); });
     var first = pts.filter(function(p){ var s = p.t * sc; return s > now - 20 && s < now + 240; });
     if (first.length < 20) first = pts.slice(0, 40);
-    var lines = await innerLines(c, first);
+    var lines = await innerLines(c, first, seen);
     if (!lines.length) return null;
-    var taken = {}; first.forEach(function(p){ taken[p.t] = 1; });
+    var taken = {}; first.forEach(function(p){ taken[p.cluster + ':' + p.rel] = 1; });
     var text = 'WEBVTT\n\n' + lines.map(function(l){ return vttTime(l.s) + ' --> ' + vttTime(l.e) + '\n' + l.text; }).join('\n\n') + '\n';
     var u = URL.createObjectURL(new Blob([text], { type: 'text/vtt' }));
     subState.urls.push(u);
-    return { url: u, mime: 'text/vtt', rest: pts.filter(function(p){ return !taken[p.t]; }) };
+    return { url: u, mime: 'text/vtt', rest: pts.filter(function(p){ return !taken[p.cluster + ':' + p.rel]; }) };
   }
-  /** The rest of a built-in track, nearest first, added to the showing track as it arrives. */
-  async function innerRest(c, rest, seq){
-    for (var i = 0; i < rest.length; i += 96){
+  /**
+   * The rest of a built-in track, added to THAT track as it arrives (never one found by its label: an add-on's file can
+   * wear the same name, and got these lines on top of its own). Each batch is the lines nearest the playhead, ahead first,
+   * so a seek gets its lines next; while the track is not showing it waits, and leaves the connection to the picture.
+   */
+  async function innerRest(c, rest, seq, tr, seen){
+    var left = rest.slice(), sc = c.mkv.scale;
+    function near(p){ var d = p.t * sc - (video.currentTime || 0); return d >= -5 ? d : 600 - d; }
+    while (left.length){
+      while (tr.mode === 'disabled' && seq === playSeq && player) await new Promise(function(ok){ setTimeout(ok, 2000); });
       if (seq !== playSeq || !player) return;
-      var lines = await innerLines(c, rest.slice(i, i + 96));
-      var tr = null;
-      for (var k = 0; k < video.textTracks.length; k++) if (video.textTracks[k].label === c.label) tr = video.textTracks[k];
-      if (!tr) return;
+      left.sort(function(a, b){ return near(a) - near(b); });
+      var lines = await innerLines(c, left.splice(0, 96), seen);
+      if (seq !== playSeq || !player) return;
       lines.forEach(function(l){ try { tr.addCue(new VTTCue(l.s, l.e, l.text)); } catch(e){} });
     }
+  }
+  /** The element's own track for a label, when it has one (a file the browser draws itself; not the streaming engine's). */
+  function nativeTrackFor(label){
+    var tr = null;
+    for (var k = 0; k < video.textTracks.length; k++) if (video.textTracks[k].label === label) tr = video.textTracks[k];
+    return tr;
+  }
+  /** A label no track has yet: two tracks called "English" (the stream's file and the one inside it) wore each other's
+      badge in the panel and could be mistaken for each other. The next free number, as the panel numbers files. */
+  function subFreeLabel(label){
+    var used = {};
+    try { (player.getTextTracks() || []).forEach(function(t){ used[t.label || ''] = 1; }); } catch(e){}
+    for (var k = 0; k < video.textTracks.length; k++) used[video.textTracks[k].label] = 1;
+    if (!used[label]) return label;
+    var base = String(label).replace(/ \d+$/, '');
+    for (var n = 2; ; n++) if (!used[base + ' ' + n]) return base + ' ' + n;
   }
   /** [autoAt]: the autoload's pick, made when the viewer's choice count stood at that number — quiet, and it stands
       down if they choose meanwhile. Resolves true when the file is showing. */
   async function pickAddonSub(c, autoAt){
     if (!player) return false;
-    var auto = autoAt != null;
-    if (!auto){ subHandNote(c.url); setStatus('Loading subtitles…', 'info'); }
-    var seq = playSeq;
-    function stale(){ return !player || seq !== playSeq || (auto && subState.hand !== autoAt); }
+    var auto = autoAt != null, reading = c.mkv ? 'Reading the subtitles inside the file…' : 'Loading subtitles…';
+    // one trip per card: a second press while it reads (a TV takes seconds) added the same track twice, each half filled
+    var run = subState.busy[c.url];
+    if (run){
+      if (!auto && run.auto){ subHandNote(c.url); run.auto = false; run.serial = subState.pick; }   // the autoload's trip is now theirs
+      if (!auto) setStatus(reading, 'info');
+      return false;
+    }
+    if (!auto) subHandNote(c.url);
+    run = subState.busy[c.url] = { auto: auto, serial: subState.pick };
+    var seq = playSeq, own = subState;
+    function gone(){ return !player || seq !== playSeq; }
+    // any later choice (another card, a track, Off — subHandNote counts them all) outranks this one
+    function stale(){ return gone() || run.serial !== subState.pick || (run.auto && subState.hand !== autoAt); }
     try {
-      if (c.mkv && !auto) setStatus('Reading the subtitles inside the file…', 'info');
-      var blob = c.mkv ? await innerBlob(c) : await fetchSubBlob(c.url);
+      if (!auto) setStatus(reading, 'info');
+      var seen = {};
+      var blob = c.mkv ? await innerBlob(c, seen) : await fetchSubBlob(c.url);
       if (!blob) throw new Error('empty');
       if (stale()) return false;
-      var track = await player.addTextTrackAsync(blob.url, c.lang, 'subtitles', blob.mime, '', c.label);
-      if (stale()) return false;
+      var label = subFreeLabel(c.label);
+      var track = await player.addTextTrackAsync(blob.url, c.lang, 'subtitles', blob.mime, '', label);
+      if (gone()) return false;
       subState.loaded[c.url] = true;
-      subState.trackSrc[c.label] = c.addon || 'Add-on';   // the card's badge once it is a track
+      subState.trackSrc[label] = c.addon || 'Add-on';   // the card's badge once it is a track
+      var nt = nativeTrackFor(label);
+      if (stale()){
+        // outranked while it was being added: it stays in the list, but it must not come up showing beside the choice
+        // that replaced it — two tracks showing is every line twice
+        if (nt){ try { nt.mode = 'disabled'; } catch(e1){} if (blob.rest && blob.rest.length) innerRest(c, blob.rest, seq, nt, seen); }
+        if (puiState.menu === 'subs') subPanelRender(true);
+        return false;
+      }
       if (!track){
-        (player.getTextTracks() || []).forEach(function(t){ if (t.label === c.label) track = t; });
+        (player.getTextTracks() || []).forEach(function(t){ if (t.label === label) track = t; });
       }
       if (track) player.selectTextTrack(track);
       player.setTextTrackVisibility(true);
-      if (blob.rest && blob.rest.length) innerRest(c, blob.rest, seq);   // the rest of the file's lines, nearest first
-      if (!auto) setStatus('Subtitles: ' + c.label, 'ok');
+      if (nt){
+        for (var k = 0; k < video.textTracks.length; k++){ var o = video.textTracks[k]; if (o !== nt && o.mode === 'showing') o.mode = 'disabled'; }
+        if (nt.mode === 'disabled') nt.mode = 'showing';
+        if (blob.rest && blob.rest.length) innerRest(c, blob.rest, seq, nt, seen);   // the rest of the file's lines, nearest first
+      }
+      if (!auto) setStatus('Subtitles: ' + label, 'ok');
       puiRefreshButtons();
       if (puiState.menu === 'subs') subPanelRender(true);   // the panel stays up; the card is now a track
       return true;
     } catch(e){
-      if (!auto) setStatus('Couldn’t load that subtitle file.', 'err');
+      if (!auto && !stale()) setStatus('Couldn’t load that subtitle file.', 'err');
       return false;
+    } finally {
+      if (own.busy[c.url] === run) delete own.busy[c.url];
     }
   }
 
