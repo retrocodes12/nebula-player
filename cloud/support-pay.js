@@ -18,6 +18,9 @@
 // over loopback (`sports` block: {url, token}); the success page shows it with
 // a one-tap install. A backend that was down when the webhook came is asked
 // again on every claim poll — minting is idempotent by order id over there.
+//
+// Every paid order also gets ONE receipt e-mail with the key and the code
+// (support-mail.js, 2026-09-27) — the thank-you page was the only copy before.
 
 'use strict';
 
@@ -32,7 +35,8 @@ const MINT_TIMEOUT_MS = 8_000;
 const MINT_RETRY_MS = 5_000;                    // claim polls are 2 s apart; do not hammer a dead backend
 
 module.exports = function attach(deps) {
-  const { store, persistStore, json, mintCode, cleanTier, TIERS, grantGid, noteSportsKey } = deps;
+  const { store, persistStore, json, mintCode, cleanTier, TIERS, grantGid, noteSportsKey, codeUsedBy, config } = deps;
+  const mail = require('./support-mail.js')({ store, persistStore, TIERS, ensureSportsKey, codeUsedBy, config });
 
   function sweep() {
     const now = Date.now();
@@ -163,7 +167,7 @@ module.exports = function attach(deps) {
     if (sig && same(sig, crypto.createHmac('sha256', secret).update(raw).digest('hex'))) return true;
     return same(req.headers['x-webhook-secret'], secret);
   }
-  /** The buyer's address, wherever the service put it — kept only to label the sports key over there (masked). */
+  /** The buyer's address, wherever the service put it — for the one receipt e-mail, and (masked) the sports key's label. */
   function emailOf(b, order) {
     for (const v of [b.email, order.email, order.customerEmail, b.customer && b.customer.email, order.customer && order.customer.email, b.buyer && b.buyer.email]) {
       const s = String(v || '').trim().toLowerCase();
@@ -206,6 +210,8 @@ module.exports = function attach(deps) {
     rec.tier = tier;
     rec.order = orderId;
     rec.email = emailOf(b, order);
+    rec.paidAt = Date.now();
+    rec.mailWant = true;                             // the sweep sends it if the try below does not
     if (gid && grantGid(gid, tier, 'order ' + orderId)) {
       rec.state = 'granted';
     } else {
@@ -217,10 +223,11 @@ module.exports = function attach(deps) {
     store.orders[orderId] = { at: Date.now(), tier, state: rec.state };
     persistStore();
     console.log('support webhook: order ' + orderId + ' → ' + tier + ' ' + rec.state);
-    // the sports key: answer the service first, mint right after (its retry is on the claim poll)
+    // the sports key: answer the service first, mint right after (its retry is on the claim poll), then the receipt
     json(res, 200, { ok: true, tier, state: rec.state });
     await ensureSportsKey(rec, sports);
+    await mail.send(rec, sid).catch((e) => console.error('support mail', e.message));
   }
 
-  return { checkout, claim, webhook };
+  return { checkout, claim, webhook, mail };
 };

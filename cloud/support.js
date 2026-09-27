@@ -31,6 +31,8 @@
 //   POST   /v1/support/checkout {tier, for?} → {url, sid} (auth optional; `for` = a link token) a hosted checkout, support-pay.js
 //   GET    /v1/support/claim?sid=         → {state, tier, code?}       the success page asks what happened
 //   POST   /v1/support/webhook/pocketsflow                             the payment service's signed call
+//   GET    /v1/support/mail               → {mail, orders:[…]}         (admin) every paid order and its receipt e-mail
+//   POST   /v1/support/mail {order, dry?, to?, again?} | {sample, to, tier?}  (admin) preview or send a receipt by hand
 //
 // TIERS (2026-09-19): supporter < plus < founder. A code or a payment carries
 // one; redeeming a higher one upgrades (since is kept), a lower one is 409.
@@ -91,8 +93,9 @@ module.exports = function attach(core) {
 
   // ---------- config: the link, the admin token and the payment service, live-reloaded ----------
   // support-config.json = {url, admin, site?, pay?: {apiKey, webhookSecret, products: {supporter, plus, founder}, api?},
-  //                        sports?: {url, token}}   — the sports backend's key-minting route (loopback) + its shared token
-  let cfg = { url: null, admin: null, site: null, pay: null, sports: null }, cfgStamp = '', cfgAt = 0;
+  //                        sports?: {url, token},  — the sports backend's key-minting route (loopback) + its shared token
+  //                        mail?: {apiKey, from, replyTo?, api?}}  — the receipt e-mail's sending account (support-mail.js)
+  let cfg = { url: null, admin: null, site: null, pay: null, sports: null, mail: null }, cfgStamp = '', cfgAt = 0;
   function config() {
     const now = Date.now();
     if (now - cfgAt >= CONFIG_CHECK_MS) {
@@ -106,7 +109,7 @@ module.exports = function attach(core) {
         cfgStamp = stamp;
         try { file = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch (e) { file = null; }
         cfg = { url: cleanUrl(file && file.url), admin: cleanAdmin(file && file.admin), site: cleanSite(file && file.site),
-          pay: cleanPay(file && file.pay), sports: cleanSports(file && file.sports) };
+          pay: cleanPay(file && file.pay), sports: cleanSports(file && file.sports), mail: cleanMail(file && file.mail) };
         wallAt = 0;                                       // a new link should show at once
       }
     }
@@ -118,7 +121,20 @@ module.exports = function attach(core) {
       site: cleanSite(process.env.SUPPORT_SITE) || cfg.site || 'https://play.rifflehq.in',
       pay: envPay || cfg.pay,
       sports: cleanSports({ url: process.env.SPORTS_MINT_URL, token: process.env.SPORTS_MINT_TOKEN }) || cfg.sports,
+      mail: cleanMail({ apiKey: process.env.RESEND_API_KEY, from: process.env.SUPPORT_MAIL_FROM }) || cfg.mail,
     };
+  }
+  /** The receipt e-mail's account: an API key and a sender at the verified domain; the API is Resend's (loopback http for the tests). */
+  function cleanMail(m) {
+    if (!m || typeof m !== 'object') return null;
+    const key = String(m.apiKey || '').trim();
+    const from = String(m.from || 'Nebula <support@rifflehq.in>').trim();
+    const replyTo = String(m.replyTo || '').trim();
+    const api = String(m.api || '').trim().replace(/\/$/, '');
+    if (!/^[A-Za-z0-9_.-]{16,200}$/.test(key)) return null;
+    if (!/^([^<>\r\n"]{1,60} )?<?[^\s@<>"]{1,64}@[^\s@<>"]{3,190}>?$/.test(from)) return null;
+    return { apiKey: key, from, replyTo: /^[^\s@<>"]{1,64}@[^\s@<>"]{3,190}$/.test(replyTo) ? replyTo : null,
+      api: /^(https:\/\/[^\s"'<>]{4,200}|http:\/\/127\.0\.0\.1(:\d+)?)$/.test(api) ? api : 'https://api.resend.com' };
   }
   /** The sports backend's mint route: loopback http (the two services share a box) or https, plus a shared token. */
   function cleanSports(s) {
@@ -262,7 +278,9 @@ module.exports = function attach(core) {
     return pretty(c);
   }
   const pay = require('./support-pay.js')({
-    store, persistStore, json, mintCode, cleanTier, TIERS,
+    store, persistStore, json, mintCode, cleanTier, TIERS, config,
+    /** The handle a code was redeemed on, or null while it is open. */
+    codeUsedBy(code) { const r = store.codes[normCode(code)]; return r && r.used ? r.used.handle || 'your profile' : null; },
     grantGid(gid, tier, note) {
       const g = loadGroup(gid);
       if (!g || !g.profile) return false;
@@ -341,10 +359,31 @@ module.exports = function attach(core) {
       return json(res, 200, await pay.claim(sid, config().sports));
     }
 
-    // ---- admin: the Founder issuing and listing codes, granting and revoking by handle
-    if (/^\/v1\/support\/(codes|grant|revoke)(\/|$)/.test(p)) {
+    // ---- admin: the Founder issuing and listing codes, granting and revoking by handle, the receipt e-mails
+    if (/^\/v1\/support\/(codes|grant|revoke|mail)(\/|$)/.test(p)) {
       if (!allow('sadmin', ip, 30, 30)) return json(res, 429, { error: 'rate limited' });
       if (!isAdmin(req)) return json(res, 401, { error: 'unauthorized' });
+      if (p === '/v1/support/mail' && m === 'GET') {
+        const c = config().mail;
+        return json(res, 200, { mail: c ? { from: c.from, replyTo: c.replyTo } : null, orders: pay.mail.list() });
+      }
+      if (p === '/v1/support/mail' && m === 'POST') {
+        const b = (await body(req)) || {};
+        const to = /^[^\s@<>"]{1,64}@[^\s@<>"]{3,190}$/.test(String(b.to || '')) ? String(b.to) : null;
+        if (b.to && !to) return json(res, 400, { error: 'bad address' });
+        const site = config().site;
+        if (b.sample) {                                   // a made-up order, to see the e-mail in a real inbox
+          if (!to) return json(res, 400, { error: 'a sample needs an address' });
+          const tier = cleanTier(b.tier);
+          const rec = { order: 'sample-' + Date.now(), tier, state: 'code', code: 'NEB-SAMP-LE00', email: to,
+            sportsKey: 'nsports_sample', sportsManifest: 'https://sports.example.org/sports/i/nsports_sample/manifest.json' };
+          return json(res, 200, await pay.mail.send(rec, '0123456789abcdef01234567', { to }));
+        }
+        const hit = pay.mail.find(String(b.order || '').slice(0, 80));
+        if (!hit) return json(res, 404, { error: 'order not found' });
+        if (b.dry) return json(res, 200, { to: pay.mail.mask(hit.rec.email), ...pay.mail.compose(hit.rec, hit.sid, site) });
+        return json(res, 200, await pay.mail.send(hit.rec, hit.sid, { to, again: !!b.again }));
+      }
       if (p === '/v1/support/codes' && m === 'POST') {
         const b = (await body(req)) || {};
         const n = Math.min(MAX_CODES_PER_CALL, Math.max(1, Number(b.n) || 1));

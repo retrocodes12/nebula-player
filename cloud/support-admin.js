@@ -12,6 +12,12 @@
 //   node support-admin.js drop NEB-XXXX-XXXX      void an unused code
 //   node support-admin.js pay                     show the payment settings (key masked)
 //   node support-admin.js pay key pk_live_…       set the store's API key (also: pay secret …, pay product supporter|plus|founder <id>, pay off)
+//   node support-admin.js mail                    show the receipt e-mail settings (key masked)
+//   node support-admin.js mail key -              set the mail service's API key from stdin (also: mail from "Name <a@b>", mail replyto a@b, mail off)
+//   node support-admin.js mail list               every paid order and whether its receipt went
+//   node support-admin.js mail preview <order>    print the receipt an order would get, without sending it
+//   node support-admin.js mail send <order> [again] [to a@b]   send it by hand (to = a test address; the order is not marked)
+//   node support-admin.js mail sample <a@b> [tier]  a made-up receipt to a test address
 //
 // Env: DATA_DIR (default ./data), CLOUD_BASE (default http://127.0.0.1:3342).
 
@@ -121,6 +127,57 @@ async function main() {
     writeConfig(c);
     console.log('Saved (live within 5 s, no restart).');
     return;
+  }
+  if (cmd === 'mail') {
+    // the one receipt e-mail every paid order gets (support-mail.js)
+    const c = readConfig() || {};
+    const mail = c.mail && typeof c.mail === 'object' ? c.mail : {};
+    const [what, a, ...more] = rest;
+    if (!what) {
+      console.log('key      ' + (mail.apiKey ? mail.apiKey.slice(0, 6) + '…' : '(unset)'));
+      console.log('from     ' + (mail.from || 'Nebula <support@rifflehq.in> (default)'));
+      console.log('replyto  ' + (mail.replyTo || '(none — replies go to the sender)'));
+      console.log('receipts ' + (mail.apiKey ? 'ON — every new paid order is e-mailed once' : 'off until the key is set'));
+      return;
+    }
+    if (what === 'off') { delete c.mail; writeConfig(c); console.log('Receipt e-mails off (orders keep waiting for one; they go when it is back on)'); return; }
+    if (what === 'key' || what === 'from' || what === 'replyto') {
+      let v = a;
+      if (what === 'key' && a === '-') v = fs.readFileSync(0, 'utf8').trim();
+      if (what === 'key' && !/^[A-Za-z0-9_.-]{16,200}$/.test(v || '')) { console.error('That does not look like an API key'); process.exit(2); }
+      if (what === 'from' && !/^([^<>\r\n"]{1,60} )?<?[^\s@<>"]{1,64}@[^\s@<>"]{3,190}>?$/.test(v || '')) { console.error('mail from "Nebula <support@rifflehq.in>"'); process.exit(2); }
+      if (what === 'replyto' && !/^[^\s@<>"]{1,64}@[^\s@<>"]{3,190}$/.test(v || '')) { console.error('mail replyto someone@example.org'); process.exit(2); }
+      mail[{ key: 'apiKey', from: 'from', replyto: 'replyTo' }[what]] = v;
+      c.mail = mail;
+      writeConfig(c);
+      console.log('Saved (live within 5 s, no restart).');
+      return;
+    }
+    if (what === 'list') {
+      const r = await call('GET', '/v1/support/mail');
+      console.log('Sender: ' + (r.mail ? r.mail.from : '(mail off)'));
+      r.orders.forEach((o) => console.log('  ' + when(o.at) + '  ' + o.order + '  ' + o.tier.padEnd(9) + ' ' + o.to.padEnd(12) +
+        ' key ' + (o.key ? 'yes' : 'NO ') + '  code ' + (o.code || '-').padEnd(4) + '  ' +
+        (o.mailed ? 'mailed ' + when(o.mailed) : o.auto ? 'not yet' + (o.error ? ' (' + o.tries + ' failed: ' + o.error + ')' : '') : 'from before receipts — send by hand')));
+      return;
+    }
+    if (what === 'preview' && a) {
+      const r = await call('POST', '/v1/support/mail', { order: a, dry: true });
+      console.log('To: ' + r.to + '\nSubject: ' + r.subject + '\n\n' + r.text);
+      return;
+    }
+    if (what === 'send' && a) {
+      const i = more.indexOf('to');
+      const r = await call('POST', '/v1/support/mail', { order: a, again: more.includes('again'), to: i >= 0 ? more[i + 1] : undefined });
+      console.log(JSON.stringify(r));
+      return;
+    }
+    if (what === 'sample' && a) {
+      console.log(JSON.stringify(await call('POST', '/v1/support/mail', { sample: true, to: a, tier: TIERS.includes(more[0]) ? more[0] : 'supporter' })));
+      return;
+    }
+    console.error('mail | mail key - | mail from "Name <a@b>" | mail replyto a@b | mail off | mail list | mail preview <order> | mail send <order> [again] [to a@b] | mail sample <a@b> [tier]');
+    process.exit(2);
   }
   if (cmd === 'list') {
     const r = await call('GET', '/v1/support/codes');

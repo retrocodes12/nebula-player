@@ -2,11 +2,15 @@
 // proxy's target validation. Uses a throwaway data dir and an ephemeral port.
 'use strict';
 
-process.env.GROUP_BURST = '60';           // one more profile since the sports-key test (09-20)
+process.env.GROUP_BURST = '64';           // one more profile since the sports-key test (09-20), two more for the receipt e-mail (09-27)
 process.env.SIGNIN_BURST = '100';       // the per-IP limiter would ration the suite; the per-handle one is tested
 process.env.SUPPORT_CONFIG_CHECK_MS = '0';
 process.env.SOCIAL_BURST = '200';        // friends are mutual since 09-23: two adds per friendship
 process.env.SFRIEND_BURST = '100';
+process.env.SUPPORT_MAIL_SWEEP_MS = '300';   // the receipt e-mail's retry loop, at test speed
+process.env.SUPPORT_MAIL_RETRY_MS = '200';
+delete process.env.RESEND_API_KEY;           // never the real mail account from a test run
+delete process.env.SUPPORT_MAIL_FROM;
 process.env.DATA_DIR = require('fs').mkdtempSync(
   require('path').join(require('os').tmpdir(), 'nebula-cloud-test-'));
 
@@ -1078,6 +1082,153 @@ test('support: every paid order earns a Nebula Sports key — minted over loopba
     payStub2.close(); mintStub.close();
     await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN });
     await admin('POST', '/v1/support/revoke', { handle: 'pay_dee' });
+  }
+});
+
+test('support: every paid order gets ONE receipt e-mail with its key and code — waits for the key, retried when the service fails, sent by hand for old orders', async () => {
+  // stand-ins: the mail service (remembers every send, can be told to fail) and the sports mint (can be down)
+  let sent = [], mailDown = false, mint2Down = false;
+  const mailStub = http.createServer((req, res) => {
+    let raw = '';
+    req.on('data', (c) => { raw += c; });
+    req.on('end', () => {
+      if (mailDown) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end('{"message":"down"}'); return; }
+      if (req.url !== '/emails' || req.headers.authorization !== 'Bearer re_test_0123456789abcdef') { res.writeHead(401); res.end('{}'); return; }
+      sent.push({ idem: req.headers['idempotency-key'], body: JSON.parse(raw) });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ id: 'msg_' + sent.length }));
+    });
+  });
+  const mint2 = http.createServer((req, res) => {
+    let raw = '';
+    req.on('data', (c) => { raw += c; });
+    req.on('end', () => {
+      const b = JSON.parse(raw || '{}');
+      if (mint2Down) { res.writeHead(503); res.end('{}'); return; }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ installKey: 'nsports_' + b.orderId, manifestUrl: 'https://sports.example.org/sports/i/nsports_' + b.orderId + '/manifest.json' }));
+    });
+  });
+  const pay3 = http.createServer((req, res) => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ id: 'sess_m', url: 'https://retrocodes.pocketsflow.com/checkout?session=m' })); });
+  for (const s of [mailStub, mint2, pay3]) await new Promise((ok) => s.listen(0, '127.0.0.1', ok));
+  const port = (s) => s.address().port;
+  const MAIL = { apiKey: 're_test_0123456789abcdef', api: 'http://127.0.0.1:' + port(mailStub) };
+  const cfg = (mail) => supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN, site: 'https://play.example.org',
+    pay: { ...PAY, api: 'http://127.0.0.1:' + port(pay3) }, sports: { url: 'http://127.0.0.1:' + port(mint2) + '/keys', token: 'sports_mint_token_0123456789' }, ...(mail ? { mail } : {}) });
+  const mine = (order) => sent.filter((m) => m.idem && m.idem.startsWith('nebula-order-' + order));   // earlier tests' orders get theirs too
+  let buys = 0, admIp = 0;
+  // the admin routes allow 30 a minute per address: this test polls them, so each call comes from its own
+  const adm = (method, p, body) => fetch(base + p, { method, headers: { 'Content-Type': 'application/json', 'X-Admin-Token': ADMIN, 'X-Forwarded-For': '10.8.7.' + (1 + (admIp++ % 250)) },
+    body: body === undefined ? undefined : JSON.stringify(body) }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) }));
+  const buy = async (tier, order, extra = {}, who) => {
+    const s = await api('POST', '/v1/support/checkout', { tier }, who && tok(who), '10.8.8.' + (++buys));
+    const prod = { supporter: 'prod_sup', plus: 'prod_plus', founder: 'prod_founder' }[tier];
+    await hook({ event: 'order.completed', order: { id: order }, product: { id: prod }, metadata: { sid: s.body.sid, tier, gid: who ? who.gid : '', handle: who ? who.handle || '' : '' }, ...extra });
+    return s.body.sid;
+  };
+  try {
+    // a bad block is no block; no admin token, no list
+    await cfg({ apiKey: 'short' });
+    assert.equal((await adm('GET', '/v1/support/mail')).body.mail, null);
+    assert.equal((await api('GET', '/v1/support/mail')).status, 401);
+    await cfg(MAIL);
+    assert.equal((await adm('GET', '/v1/support/mail')).body.mail.from, 'Nebula <support@rifflehq.in>');
+
+    // a stranger pays: one e-mail to the reported address, the key, the code and the thank-you page in it
+    const sid = await buy('founder', 'm1', { customer: { email: 'Mia@Example.org' } });
+    const m1 = await until(async () => mine('m1')[0]);
+    assert.ok(m1, 'no receipt was sent');
+    assert.equal(m1.idem, 'nebula-order-m1');
+    assert.deepEqual(m1.body.to, ['mia@example.org']);
+    assert.equal(m1.body.from, 'Nebula <support@rifflehq.in>');
+    assert.equal(m1.body.subject, 'Your Nebula key and code');
+    const claim = (await api('GET', '/v1/support/claim?sid=' + sid, undefined, undefined, '10.8.9.1')).body;
+    for (const want of [claim.code, 'https://sports.example.org/sports/i/nsports_m1/manifest.json', 'https://play.example.org/support.html?thanks=' + sid, "You're a Founder", 'Order m1']) {
+      assert.ok(m1.body.text.includes(want), 'the text lacks ' + want);
+      assert.ok(m1.body.html.includes(want.replace(/'/g, '&#39;')), 'the html lacks ' + want);
+    }
+    // the same order again, and a few sweeps later: still one
+    await hook({ event: 'order.completed', order: { id: 'm1' }, product: { id: 'prod_founder' }, metadata: {} });
+    await new Promise((r) => setTimeout(r, 900));
+    assert.equal(mine('m1').length, 1);
+    const row = (await adm('GET', '/v1/support/mail')).body.orders.find((o) => o.order === 'm1');
+    assert.equal(row.to, 'm***@e***');
+    assert.ok(row.mailed && row.key && row.code === 'open' && row.auto);
+
+    // signed in when paying: no code in it, the profile named instead
+    const eve = await mkProfile('mail_eve', 'Eve M', 'password1');
+    eve.handle = 'mail_eve';
+    await buy('plus', 'm2', { customer: { email: 'eve@example.org' } }, eve);
+    const m2 = await until(async () => mine('m2')[0]);
+    assert.equal(m2.body.subject, 'Your Nebula key');
+    assert.ok(m2.body.text.includes('already on your Nebula Player profile (@mail_eve)'));
+    assert.ok(!/NEB-/.test(m2.body.text));
+
+    // no address reported: nothing to send, nothing retried
+    await buy('supporter', 'm3');
+    await new Promise((r) => setTimeout(r, 900));
+    assert.equal(mine('m3').length, 0);
+
+    // the key is still being made: the receipt waits for it instead of going without
+    mint2Down = true;
+    await buy('supporter', 'm4', { customer: { email: 'max@example.org' } });
+    await new Promise((r) => setTimeout(r, 1200));
+    assert.equal(mine('m4').length, 0, 'went before the key');
+    mint2Down = false;
+    const m4 = await until(async () => mine('m4')[0], 9000);   // the mint's own retry is throttled to one every few seconds
+    assert.ok(m4 && m4.body.text.includes('nsports_m4'), 'the receipt never came with the key');
+
+    // the mail service fails: the sweep tries again, and one e-mail arrives once it is back
+    mailDown = true;
+    await buy('supporter', 'm5', { customer: { email: 'ned@example.org' } });
+    await until(async () => { const o = (await adm('GET', '/v1/support/mail')).body.orders.find((x) => x.order === 'm5'); return o && o.tries >= 1; });
+    const failed = (await adm('GET', '/v1/support/mail')).body.orders.find((x) => x.order === 'm5');
+    assert.equal(failed.mailed, null);
+    assert.match(failed.error, /mail 500/);
+    mailDown = false;
+    assert.ok(await until(async () => mine('m5')[0], 4000), 'never retried');
+    await new Promise((r) => setTimeout(r, 600));
+    assert.equal(mine('m5').length, 1);
+
+    // by hand: a preview sends nothing; a test address leaves the order alone; a sent order needs `again`
+    const n = sent.length;
+    const pv = (await adm('POST', '/v1/support/mail', { order: 'm1', dry: true })).body;
+    assert.equal(pv.subject, 'Your Nebula key and code');
+    assert.ok(pv.text.includes(claim.code));
+    assert.equal(sent.length, n);
+    assert.equal((await adm('POST', '/v1/support/mail', { order: 'nope' })).status, 404);
+    assert.equal((await adm('POST', '/v1/support/mail', { order: 'm1', to: 'not an address' })).status, 400);
+    assert.equal((await adm('POST', '/v1/support/mail', { order: 'm1' })).body.skipped, 'already sent');
+    const t = (await adm('POST', '/v1/support/mail', { order: 'm1', to: 'test@example.org' })).body;
+    assert.ok(t.sent);
+    assert.deepEqual(sent[sent.length - 1].body.to, ['test@example.org']);
+    assert.match(sent[sent.length - 1].idem, /^nebula-order-m1-test-/);
+    const again = (await adm('POST', '/v1/support/mail', { order: 'm1', again: true })).body;
+    assert.ok(again.sent);
+    assert.match(sent[sent.length - 1].idem, /^nebula-order-m1-again-/);
+    // a redeemed code is not offered again
+    const kit = await mkProfile('mail_kit', 'Kit M', 'password1');
+    await api('POST', '/v1/support/redeem', { code: claim.code }, tok(kit), '10.8.9.2');
+    const pv2 = (await adm('POST', '/v1/support/mail', { order: 'm1', dry: true })).body;
+    assert.ok(pv2.text.includes('already on your Nebula Player profile (@mail_kit)'));
+    assert.equal(pv2.subject, 'Your Nebula key');
+    // a made-up receipt to a test address
+    assert.equal((await adm('POST', '/v1/support/mail', { sample: true })).status, 400);
+    const smp = await adm('POST', '/v1/support/mail', { sample: true, to: 'test@example.org', tier: 'plus' });
+    assert.ok(smp.body && smp.body.sent, JSON.stringify(smp));
+    assert.ok(sent[sent.length - 1].body.text.includes("You're a Supporter Plus"));
+
+    // mail off: new orders wait (nothing sent); back on: they go
+    await cfg(null);
+    await buy('supporter', 'm6', { customer: { email: 'ola@example.org' } });
+    await new Promise((r) => setTimeout(r, 900));
+    assert.equal(mine('m6').length, 0);
+    await cfg(MAIL);
+    assert.ok(await until(async () => mine('m6')[0], 4000), 'a waiting receipt never went when mail came back');
+  } finally {
+    for (const s of [mailStub, mint2, pay3]) s.close();
+    await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN });
+    for (const h of ['mail_eve', 'mail_kit']) await adm('POST', '/v1/support/revoke', { handle: h });
   }
 });
 
