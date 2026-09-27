@@ -14,6 +14,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2307080b'/%3E%3Cpath d='M32 12 52 32 32 52 12 32Z' fill='%23E50914'/%3E%3C/svg%3E">
 <link rel="preload" href="player/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="site/promo-poster.jpg" as="image" fetchpriority="high">
 <style>
   @font-face { font-family:'Geist'; src:url('player/fonts/geist.woff2') format('woff2'); font-weight:100 900; font-display:swap; }
   :root {
@@ -82,6 +83,18 @@
   .tv { border-radius:22px; background:#15161b; padding:10px; box-shadow:0 30px 90px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.08); }
   .tv .screen { border-radius:14px; overflow:hidden; background:#000; }
   .tv .screen img { width:100%; }
+  /* the 30-second film plays in the hero's TV; nothing but the poster downloads until it is asked for */
+  .tv .screen { position:relative; }
+  .tv .screen video { display:block; width:100%; height:auto; aspect-ratio:16 / 9; background:#000; }
+  .promo-play { position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); z-index:2;
+    box-shadow:0 10px 36px rgba(0,0,0,.35); transition:opacity .25s, background .15s; }
+  .promo-play[hidden] { display:none; }
+  .promo-play .len { font-weight:400; opacity:.55; font-variant-numeric:tabular-nums; }
+  .mock.playing .promo-play { opacity:0; pointer-events:none; }
+  .phone { transition:opacity .35s, transform .35s; }
+  .mock.playing .phone { opacity:0; transform:translateY(16px); pointer-events:none; }
+  @media (max-width:640px){ .promo-play { height:40px; padding:0 18px; font-size:14px; } }
+  @media (prefers-reduced-motion: reduce){ .promo-play, .phone { transition:none; } }
   .phone { position:absolute; left:0; bottom:-26px; width:34%; min-width:220px; border-radius:26px; background:#15161b; padding:7px;
     box-shadow:0 26px 70px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.10); }
   .phone .screen { border-radius:20px; overflow:hidden; background:#000; }
@@ -278,7 +291,13 @@
     <p class="fine">Free to use. Nebula does not host, store or provide any media.</p>
   </div>
   <div class="mock">
-    <div class="tv"><div class="screen"><img src="site/player.jpg" width="2400" height="1350" alt="Nebula playing a film on a TV, with the title, its source and the toolbar showing" fetchpriority="high"></div></div>
+    <div class="tv"><div class="screen">
+      <video id="promo" controls preload="none" playsinline poster="site/promo-poster.jpg" width="1920" height="1080"
+        aria-label="Nebula in 30 seconds: browsing add-ons on a TV, the player, subtitles, a watch party, and the same place on every screen">
+        <source src="site/promo.mp4" type="video/mp4">
+      </video>
+      <button class="btn solid promo-play" id="promoPlay" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Watch the film <span class="len">0:30</span></button>
+    </div></div>
     <div class="phone"><div class="screen"><img src="site/phone.jpg" width="1800" height="832" alt="The same film playing on a phone held sideways" loading="lazy"></div></div>
   </div>
   <div class="strip">
@@ -589,6 +608,7 @@
         <p>Nebula is a player. It browses catalogs and plays streams supplied by the add-ons you install, or links you give it, and it is meant for content you are entitled to watch. It does not host, store or distribute media.</p>
         <p>Nebula is not affiliated with any add-on, catalog, source or content provider.</p>
         <p>The screenshots on this page show <a href="https://durian.blender.org/">Sintel</a>, an open film by the Blender Foundation, licensed CC BY 3.0. The title and source lines in them were filled in for the picture; the interface is the real one. In the app, artwork and details come from the add-ons you install.</p>
+        <p>The 30-second film at the top shows the real app browsing a test catalogue of <a href="https://studio.blender.org/films/">Blender open movies</a> — Spring, Sintel, Wing It!, Coffee Run, Caminandes and Big Buck Bunny, with their posters — by the Blender Foundation and Blender Studio, licensed CC BY 3.0 and 4.0. The music is original.</p>
       </div>
     </div>
     <div class="foot">
@@ -643,6 +663,22 @@
   }
   else if (os === "webos") { showTab("tv"); smart.href = "#screens"; label.textContent = "Install on this TV"; }
   else { showTab("web"); smart.href = "./player/"; label.textContent = "Open the web player"; }
+
+  // the film in the hero's TV: our own button over the poster (the native controls stay for a page
+  // without script), sound on because a press asked for it, and the phone steps aside while it plays
+  var promo = document.getElementById("promo"), promoPlay = document.getElementById("promoPlay"), mock = document.querySelector(".mock");
+  if (promo && promoPlay && mock) {
+    promo.controls = false; promoPlay.hidden = false;
+    promoPlay.addEventListener("click", function () {
+      mock.classList.add("playing"); promo.controls = true;
+      var p = promo.play(); if (p && p.catch) p.catch(function () { mock.classList.remove("playing"); });
+    });
+    promo.addEventListener("ended", function () {
+      mock.classList.remove("playing"); promo.controls = false;
+      if (document.fullscreenElement) document.exitFullscreen().catch(function () {});
+      promo.load();   // back to the poster, ready to play again
+    });
+  }
 
   // copy buttons
   document.querySelectorAll(".copybtn[data-copy]").forEach(function (btn) {
