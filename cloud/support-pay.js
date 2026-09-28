@@ -35,7 +35,7 @@ const MINT_TIMEOUT_MS = 8_000;
 const MINT_RETRY_MS = 5_000;                    // claim polls are 2 s apart; do not hammer a dead backend
 
 module.exports = function attach(deps) {
-  const { store, persistStore, json, mintCode, cleanTier, TIERS, grantGid, noteSportsKey, codeUsedBy, config } = deps;
+  const { store, persistStore, json, mintCode, cleanTier, TIERS, grantGid, revokeSubscription, noteSubscription, noteSportsKey, codeUsedBy, config } = deps;
   const mail = require('./support-mail.js')({ store, persistStore, TIERS, ensureSportsKey, codeUsedBy, config });
 
   function sweep() {
@@ -55,21 +55,26 @@ module.exports = function attach(deps) {
   /** Open a hosted checkout for one tier. Returns {url, sid}; throws when the service does not answer. */
   async function checkout({ tier, gid, handle, via, site, cfg }) {
     sweep();
+    if (!cfg.products[tier]) throw new Error('product is not configured');
     const sid = crypto.randomBytes(12).toString('hex');
     const base = site.replace(/\/$/, '');
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), SESSION_TIMEOUT_MS);
     let r, body;
+    // one field for both kinds: a subscription offer's id goes in productId as a product's does (Pocketsflow's
+    // Subscriptions API); for a subscription the metadata is kept at activation and replayed on every later event
+    const session = {
+      productId: cfg.products[tier],
+      successUrl: base + '/support.html?thanks=' + sid,
+      cancelUrl: base + '/support.html',
+      clientReferenceId: sid,
+      metadata: { sid, tier, gid: gid || '', handle: handle || '' },
+    };
     try {
       r = await fetch(cfg.api + '/checkout/sessions', {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + cfg.apiKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: cfg.products[tier],
-          successUrl: base + '/support.html?thanks=' + sid,
-          cancelUrl: base + '/support.html',
-          metadata: { sid, tier, gid: gid || '', handle: handle || '' },
-        }),
+        body: JSON.stringify(session),
         signal: ctl.signal,
       });
       body = await r.json().catch(() => null);
@@ -142,8 +147,10 @@ module.exports = function attach(deps) {
   async function claim(sid, sports) {
     const p = /^[0-9a-f]{24}$/.test(sid) ? store.pending[sid] : null;
     if (!p) return { state: 'unknown' };
-    if (p.state !== 'waiting' && p.state !== 'failed') await ensureSportsKey(p, sports);
     const out = { state: p.state, tier: p.tier };
+    // the monthly plan carries no key: its page says so, and nothing is minted or awaited for it
+    if (TIERS[p.tier] && TIERS[p.tier].recurring) { if (p.state === 'granted' && p.manage) out.manage = p.manage; return out; }
+    if (p.state !== 'waiting' && p.state !== 'failed') await ensureSportsKey(p, sports);
     if (p.state === 'code') out.code = p.code;
     return p.state === 'waiting' ? out : sportsOut(p, out, sports);
   }
@@ -167,6 +174,67 @@ module.exports = function attach(deps) {
     if (sig && same(sig, crypto.createHmac('sha256', secret).update(raw).digest('hex'))) return true;
     return same(req.headers['x-webhook-secret'], secret);
   }
+  // ---------- Monthly Supporter: the subscription events (2026-09-28) ----------
+  // A subscription never sends order.completed (that is one-time orders only). It activates with
+  // customer.subscription.created (once; a trial activates at checkout), changes with .updated / .pause /
+  // .resumed, and ends with .deleted. Every event carries subscriptionCustomerId — THIS buyer's one
+  // subscription — and replays the checkout metadata ({sid, tier, gid}), which is how it finds the profile.
+  // A pause keeps the thank-you (the service's own rule: payment stops, access stays); it goes on .deleted
+  // or a status that says the subscription is over. No sports key: the monthly plan is support, not the key.
+  const SUB_EVENT = /^customer\.subscription\.(created|updated|deleted|pause|resumed)$/;
+  const SUB_OVER = /^(canceled|cancelled|expired|ended|incomplete_expired)$/;
+  /** The subscriber's own management page (cancel, card, receipts) — a private link, kept for that profile only. */
+  function portalOf(b) {
+    const u = String(b.portalUrl || '').trim();
+    return /^https:\/\/([a-z0-9-]+\.)?pocketsflow\.com\/portal\/[A-Za-z0-9_-]{2,80}\/[A-Za-z0-9_-]{2,80}$/.test(u) ? u : null;
+  }
+  function subscriptionEvent(res, event, b, cfg) {
+    const subId = String(b.subscriptionCustomerId || (b.subscription && b.subscription.customerId) || '');
+    if (!/^[A-Za-z0-9_-]{2,80}$/.test(subId)) return json(res, 200, { ok: true, ignored: 'no subscriber id' });
+    const now = b.subscriptionCustomer && typeof b.subscriptionCustomer === 'object' ? b.subscriptionCustomer : {};
+    const status = String(now.status || b.status || '').toLowerCase().slice(0, 24);
+    const manage = portalOf(b);
+    const known = store.subscriptions[subId] || null;
+    if (event === 'customer.subscription.deleted' || SUB_OVER.test(status)) {
+      if (known) {
+        revokeSubscription(known.gid, subId);
+        delete store.subscriptions[subId];
+        persistStore();
+        console.log('support webhook: subscription ' + subId + ' ended → monthly thank-you removed');
+      }
+      return json(res, 200, { ok: true, ended: !!known });
+    }
+    if (known) {                                        // updated / pause / resumed on a subscriber we hold
+      if (status) known.status = status;
+      if (manage) known.manage = manage;
+      known.changedAt = Date.now();
+      noteSubscription(known.gid, subId, known.status, known.manage);
+      persistStore();
+      return json(res, 200, { ok: true, status: known.status });
+    }
+    if (event !== 'customer.subscription.created') return json(res, 200, { ok: true, ignored: 'unknown subscriber' });
+    // activation: only an offer we sell, only onto a profile (monthly checkout refuses anyone signed out)
+    const offer = String((b.subscription && b.subscription.id) || '');
+    const tier = Object.keys(cfg.products).find((t) => cfg.products[t] === offer && TIERS[t] && TIERS[t].recurring) || null;
+    if (!tier) { console.error('support webhook: subscription ' + subId + ' on unknown offer ' + offer); return json(res, 200, { ok: true, ignored: 'unknown offer' }); }
+    const meta = b.metadata && typeof b.metadata === 'object' ? b.metadata : {};
+    const sidRaw = String(meta.sid || b.clientReferenceId || '');
+    const sid = /^[0-9a-f]{24}$/.test(sidRaw) ? sidRaw : null;
+    const pending = (sid && store.pending[sid]) || null;
+    const gid = (pending && pending.gid) || (/^[0-9a-f]{16}$/.test(String(meta.gid || '')) ? String(meta.gid) : null);
+    if (!gid || !grantGid(gid, tier, 'subscription ' + subId, subId)) {
+      if (pending) { pending.state = 'failed'; pending.subscription = subId; }
+      persistStore();
+      console.error('support webhook: subscription ' + subId + ' has no profile to thank — look it up by hand');
+      return json(res, 200, { ok: true, tier, state: 'failed' });
+    }
+    store.subscriptions[subId] = { gid, tier, status: status || 'active', at: Date.now(), manage };
+    noteSubscription(gid, subId, status || 'active', manage);
+    if (pending) { pending.state = 'granted'; pending.tier = tier; pending.subscription = subId; pending.paidAt = Date.now(); if (manage) pending.manage = manage; }
+    persistStore();
+    console.log('support webhook: subscription ' + subId + ' → ' + tier + ' granted (' + (status || 'active') + ')');
+    return json(res, 200, { ok: true, tier, state: 'granted' });
+  }
   /** The buyer's address, wherever the service put it — for the one receipt e-mail, and (masked) the sports key's label. */
   function emailOf(b, order) {
     for (const v of [b.email, order.email, order.customerEmail, b.customer && b.customer.email, order.customer && order.customer.email, b.buyer && b.buyer.email]) {
@@ -187,7 +255,9 @@ module.exports = function attach(deps) {
     // the event name rides in a header (X-Pocketsflow-Event); the body carries it in older shapes
     const event = String(req.headers['x-pocketsflow-event'] || b.event || b.type || '').toLowerCase();
     const order = b.order && typeof b.order === 'object' ? b.order : {};
+    const meta = b.metadata && typeof b.metadata === 'object' ? b.metadata : {};
     const orderId = String(order.id || b.orderId || b.id || '').slice(0, 80);
+    if (SUB_EVENT.test(event)) return subscriptionEvent(res, event, b, cfg);
     if (event !== 'order.completed') {
       if (/refund|dispute|chargeback/.test(event) && orderId) console.log('support webhook: ' + event + ' on order ' + orderId + ' — review by hand');
       return json(res, 200, { ok: true, ignored: event || 'no event' });
@@ -198,10 +268,12 @@ module.exports = function attach(deps) {
     // the tier is what was PAID for (the product id), the metadata only says who
     const productId = String((b.product && b.product.id) || b.productId || '');
     let tier = Object.keys(cfg.products).find((t) => cfg.products[t] === productId) || null;
-    const meta = b.metadata && typeof b.metadata === 'object' ? b.metadata : {};
     if (!tier) tier = TIERS[String(meta.tier || '').toLowerCase()] ? String(meta.tier).toLowerCase() : null;
     if (!tier) { console.error('support webhook: unknown product ' + productId + ' on order ' + orderId); return json(res, 200, { ok: true, ignored: 'unknown product' }); }
     tier = cleanTier(tier);
+    // a subscription is granted by its own events above — an order naming the monthly plan must not mint a
+    // lifetime key or a permanent code (it would sell the $2 key for $1.50 once)
+    if (TIERS[tier].recurring) { console.log('support webhook: order ' + orderId + ' for the monthly plan — handled by its subscription events'); return json(res, 200, { ok: true, ignored: 'subscription order' }); }
 
     const sid = /^[0-9a-f]{24}$/.test(String(meta.sid || '')) ? String(meta.sid) : null;
     const pending = (sid && store.pending[sid]) || null;

@@ -305,6 +305,9 @@ module.exports = function attach(core) {
       if (prof) {
         out.handle = prof.handle; out.name = prof.name; out.avatar = prof.avatar;
         out.supporter = g.supporter ? { since: g.supporter.since, wall: !!g.supporter.wall, tier: g.supporter.tier || 'supporter', mark: supMark(g),
+          // the monthly plan, for its owner only: the service's status and the private link to cancel or change the card
+          ...(g.supporter.subscription ? { subscription: { status: String(g.supporter.subscription.status || 'active'),
+            ...(g.supporter.subscription.manage ? { manage: g.supporter.subscription.manage } : {}) } } : {}),
           ...(g.supporter.sportsKey ? { sportsKey: g.supporter.sportsKey, sportsManifest: g.supporter.sportsManifest || null } : {}) } : null;
       }
       return json(res, 200, out);

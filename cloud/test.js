@@ -725,7 +725,7 @@ test('support: off until a link is configured; the link and the go redirect foll
   const off = await api('GET', '/v1/support');
   assert.equal(off.status, 200);
   assert.deepEqual(off.body, { url: null, count: 0, wall: [], tiers: off.body.tiers, checkout: false, sports: false });
-  assert.equal(off.body.tiers.length, 3);
+  assert.equal(off.body.tiers.length, 4);
   // admin routes are dead without a token in the config
   assert.equal((await admin('POST', '/v1/support/codes', { n: 1 })).status, 401);
   const go0 = await fetch(base + '/v1/support/go', { redirect: 'manual' });
@@ -833,7 +833,7 @@ test('support: the wall is opt-in, names come from the profile, count is every s
 test('support: tiers — a code carries one, a higher code upgrades and keeps since, a lower one is 409; founders lead the wall', async () => {
   await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN });
   const pub = (await api('GET', '/v1/support')).body;
-  assert.deepEqual(pub.tiers.map((t) => t.id), ['supporter', 'plus', 'founder']);
+  assert.deepEqual(pub.tiers.map((t) => t.id), ['supporter', 'plus', 'founder', 'monthly']);
   assert.equal(pub.tiers[2].price, 20);
   assert.equal(pub.checkout, false);
   const a = await mkProfile('tier_ada', 'Ada T', 'password1');
@@ -896,7 +896,7 @@ const payStub = http.createServer((req, res) => {
 });
 const PAY = {
   apiKey: 'pk_test_0123456789abcdef', webhookSecret: 'whsec_test_secret_1234',
-  products: { supporter: 'prod_sup', plus: 'prod_plus', founder: 'prod_founder' },
+  products: { supporter: 'prod_sup', monthly: 'prod_monthly', plus: 'prod_plus', founder: 'prod_founder' },
 };
 // a stand-in for the sports backend's key mint: idempotent by order id, can be told to fail
 let mintAsked = [], mintDown = false;
@@ -955,6 +955,64 @@ test('support: checkout — a signed-in buyer is raised on the webhook, a strang
   assert.deepEqual(ok.body, { ok: true, tier: 'plus', state: 'granted' });
   assert.equal((await api('GET', '/v1/profile/me', undefined, tok(a))).body.supporter.tier, 'plus');
   assert.deepEqual((await api('GET', '/v1/support/claim?sid=' + s1.body.sid)).body, { state: 'granted', tier: 'plus' });
+  // THE MONTHLY PLAN (2026-09-28), in Pocketsflow's real shapes: the offer id rides in productId like a product's; the
+  // subscription activates with customer.subscription.created (never order.completed), carries subscriptionCustomerId
+  // and the checkout metadata on every event, and ends with customer.subscription.deleted
+  assert.equal((await api('POST', '/v1/support/checkout', { tier: 'monthly' }, undefined, '10.8.8.1')).status, 400);   // signed out: nothing to thank
+  const monthly = await mkProfile('pay_monthly', 'Monthly P', 'password1');
+  const sm = await api('POST', '/v1/support/checkout', { tier: 'monthly' }, tok(monthly), '10.8.8.2');   // its own address: the checkout limit is per address
+  assert.equal(sm.status, 200);
+  const monthlyAsked = payAsked[payAsked.length - 1];
+  assert.equal(monthlyAsked.body.productId, 'prod_monthly');
+  assert.equal(monthlyAsked.body.subscriptionId, undefined);
+  assert.equal(monthlyAsked.body.clientReferenceId, sm.body.sid);
+  assert.equal(monthlyAsked.body.metadata.sid, sm.body.sid);
+  const PORTAL = 'https://retrocodes.pocketsflow.com/portal/prod_monthly/sc_monthly_1';
+  const subBody = (event, status, extra = {}) => ({ event, subscription: { id: 'prod_monthly', customerId: 'sc_monthly_1' }, subscriptionCustomerId: 'sc_monthly_1',
+    subscriptionCustomer: { id: 'sc_monthly_1', status, active: status !== 'canceled', cancelAtPeriodEnd: false, paused: status === 'paused' }, status,
+    customer: { email: 'mo@example.org' }, portalUrl: PORTAL, metadata: monthlyAsked.body.metadata, clientReferenceId: sm.body.sid, ...extra });
+  // anything before activation about a subscriber we do not hold is ignored
+  assert.equal((await hook(subBody('customer.subscription.updated', 'active'))).body.ignored, 'unknown subscriber');
+  // a trial activates at checkout: the thank-you lands at once
+  const act = await hook(subBody('customer.subscription.created', 'trialing'));
+  assert.deepEqual(act.body, { ok: true, tier: 'monthly', state: 'granted' });
+  let mme = (await api('GET', '/v1/profile/me', undefined, tok(monthly))).body.supporter;
+  assert.equal(mme.tier, 'monthly');
+  assert.deepEqual(mme.subscription, { status: 'trialing', manage: PORTAL });
+  // the page shows the manage link and no key, and nothing is waited on
+  assert.deepEqual((await api('GET', '/v1/support/claim?sid=' + sm.body.sid)).body, { state: 'granted', tier: 'monthly', manage: PORTAL });
+  // .created again (a re-delivery) changes nothing; the first charge makes it active; a pause keeps the thank-you
+  assert.equal((await hook(subBody('customer.subscription.created', 'trialing'))).body.status, 'trialing');
+  await hook(subBody('customer.subscription.updated', 'active'));
+  assert.equal((await api('GET', '/v1/profile/me', undefined, tok(monthly))).body.supporter.subscription.status, 'active');
+  await hook(subBody('customer.subscription.pause', 'paused', { subscriptionCustomer: undefined, accessRetained: true }));
+  mme = (await api('GET', '/v1/profile/me', undefined, tok(monthly))).body.supporter;
+  assert.equal(mme.tier, 'monthly');
+  assert.equal(mme.subscription.status, 'paused');
+  // an order naming the monthly plan never mints a code or a lifetime key
+  assert.deepEqual((await hook({ event: 'order.completed', order: { id: 'om1' }, product: { id: 'prod_monthly' }, metadata: monthlyAsked.body.metadata })).body,
+    { ok: true, ignored: 'subscription order' });
+  // an invoice event is fine and does nothing
+  assert.equal((await hook(subBody('invoice.payment_succeeded', 'active', { billingReason: 'renewal' }))).status, 200);
+  // cancelled: the monthly-only supporter is no longer one
+  assert.equal((await hook({ event: 'customer.subscription.deleted', subscription: { id: 'prod_monthly', customerId: 'sc_monthly_1' }, subscriptionCustomerId: 'sc_monthly_1', canceledAt: '2026-10-28T00:00:00Z', metadata: monthlyAsked.body.metadata })).body.ended, true);
+  assert.equal((await api('GET', '/v1/profile/me', undefined, tok(monthly))).body.supporter, null);
+  // someone on the monthly plan who then gets a one-time tier keeps it after cancelling — and it is named for what stays
+  const m2 = await mkProfile('pay_monthly2', 'Monthly Two', 'password1');
+  const sm2 = await api('POST', '/v1/support/checkout', { tier: 'monthly' }, tok(m2), '10.8.8.3');
+  const meta2m = payAsked[payAsked.length - 1].body.metadata;
+  await hook({ event: 'customer.subscription.created', subscription: { id: 'prod_monthly', customerId: 'sc_m2' }, subscriptionCustomerId: 'sc_m2', subscriptionCustomer: { status: 'active' }, status: 'active', metadata: meta2m });
+  assert.equal(sm2.status, 200);
+  const [code2] = (await admin('POST', '/v1/support/codes', { n: 1, tier: 'supporter' })).body.codes;
+  const red2 = await api('POST', '/v1/support/redeem', { code: code2 }, tok(m2));
+  assert.equal(red2.status, 200);                                // not "already a supporter": the monthly plan alone is not permanent
+  assert.equal(red2.body.supporter.tier, 'supporter');
+  await hook({ event: 'customer.subscription.deleted', subscriptionCustomerId: 'sc_m2', subscription: { id: 'prod_monthly', customerId: 'sc_m2' } });
+  const after2 = (await api('GET', '/v1/profile/me', undefined, tok(m2))).body.supporter;
+  assert.equal(after2.tier, 'supporter');
+  assert.equal(after2.subscription, undefined);
+  // a subscription on an offer we do not sell is ignored
+  assert.equal((await hook({ event: 'customer.subscription.created', subscription: { id: 'prod_riffle', customerId: 'sc_x' }, subscriptionCustomerId: 'sc_x', metadata: meta2m })).body.ignored, 'unknown offer');
   // the same order again does nothing
   assert.equal((await hook({ event: 'order.completed', order: { id: 'o1' }, product: { id: 'prod_founder' }, metadata: asked.body.metadata })).body.duplicate, true);
   assert.equal((await api('GET', '/v1/profile/me', undefined, tok(a))).body.supporter.tier, 'plus');
@@ -1066,6 +1124,20 @@ test('support: every paid order earns a Nebula Sports key — minted over loopba
   const c3b = await until(async () => { const r = (await api('GET', '/v1/support/claim?sid=' + s3.body.sid, undefined, undefined, '10.7.7.9')).body; return r.sportsKey ? r : null; }, 9000);
   assert.ok(c3b && c3b.sportsKey, 'the key never arrived after the backend came back');
   assert.equal(c3b.sportsPending, undefined);
+
+  // the monthly plan is support, not the key: with the key service up, a subscription asks it nothing and its claim waits on nothing
+  const mk = await mkProfile('pay_mona', 'Mona K', 'password1');
+  const s5 = await api('POST', '/v1/support/checkout', { tier: 'monthly' }, tok(mk), '10.7.7.4');
+  const meta5 = { sid: s5.body.sid, tier: 'monthly', gid: '', handle: '' };   // the pending checkout knows the profile
+  const before5 = mintAsked.length;
+  await hook({ event: 'customer.subscription.created', subscription: { id: 'prod_monthly', customerId: 'sc_k5' }, subscriptionCustomerId: 'sc_k5', subscriptionCustomer: { status: 'active' }, status: 'active', metadata: meta5 });
+  const c5 = (await api('GET', '/v1/support/claim?sid=' + s5.body.sid, undefined, undefined, '10.7.7.9')).body;
+  assert.equal(c5.state, 'granted');
+  assert.equal(c5.sportsKey, undefined);
+  assert.equal(c5.sportsPending, undefined);
+  await new Promise((r) => setTimeout(r, 600));
+  assert.equal(mintAsked.length, before5);
+  assert.equal((await api('GET', '/v1/profile/me', undefined, tok(mk))).body.supporter.sportsKey, undefined);
 
   // no sports block → no key, no pending flag, nothing asked
   await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN, site: 'https://play.example.org', pay });

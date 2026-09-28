@@ -11,7 +11,7 @@
 //   node support-admin.js revoke @handle          take it back (their wall entry goes too)
 //   node support-admin.js drop NEB-XXXX-XXXX      void an unused code
 //   node support-admin.js pay                     show the payment settings (key masked)
-//   node support-admin.js pay key pk_live_…       set the store's API key (also: pay secret …, pay product supporter|plus|founder <id>, pay off)
+//   node support-admin.js pay key pk_live_…       set the store's API key (also: pay secret …, pay product supporter|monthly|plus|founder <id>, pay off)
 //   node support-admin.js mail                    show the receipt e-mail settings (key masked)
 //   node support-admin.js mail key -              set the mail service's API key from stdin (also: mail from "Name <a@b>", mail replyto a@b, mail off)
 //   node support-admin.js mail list               every paid order and whether its receipt went
@@ -31,6 +31,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const BASE = (process.env.CLOUD_BASE || 'http://127.0.0.1:3342').replace(/\/$/, '');
 const CONFIG_PATH = path.join(DATA_DIR, 'support-config.json');
 const TIERS = ['supporter', 'plus', 'founder'];
+const PAY_TIERS = ['supporter', 'monthly', 'plus', 'founder'];
 
 function readConfig() {
   try { return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')) || {}; } catch (e) { return null; }
@@ -94,18 +95,19 @@ async function main() {
     if (!what) {
       console.log('key      ' + (pay.apiKey ? pay.apiKey.slice(0, 8) + '…' : '(unset)'));
       console.log('secret   ' + (pay.webhookSecret ? '(set)' : '(unset)'));
-      TIERS.forEach((t) => console.log(('product ' + t).padEnd(17) + (pay.products[t] || '(unset)')));
-      console.log('checkout ' + (pay.apiKey && pay.webhookSecret && TIERS.every((t) => pay.products[t]) ? 'ON' : 'off until every line above is set'));
+      PAY_TIERS.forEach((t) => console.log(('product ' + t).padEnd(17) + (pay.products[t] || (t === 'monthly' ? '(optional)' : '(unset)'))));
+      console.log('checkout ' + (pay.apiKey && pay.webhookSecret && TIERS.every((t) => pay.products[t]) ? 'ON' : 'off until the one-time products are set; monthly is optional'));
       return;
     }
     if (what === 'off') { delete c.pay; writeConfig(c); console.log('Checkout off (the link still works)'); return; }
     if (what === 'key' && a) pay.apiKey = a;
     else if (what === 'secret' && a) pay.webhookSecret = a;
-    else if (what === 'product' && TIERS.includes(a) && b) pay.products[a] = b;
-    else { console.error('pay key <apiKey> | pay secret <webhookSecret> | pay product <' + TIERS.join('|') + '> <productId> | pay off'); process.exit(2); }
+    else if (what === 'product' && PAY_TIERS.includes(a) && b) pay.products[a] = b;
+    else { console.error('pay key <apiKey> | pay secret <webhookSecret> | pay product <' + PAY_TIERS.join('|') + '> <productId> | pay off'); process.exit(2); }
     c.pay = pay;
     writeConfig(c);
-    console.log('Saved (live within 5 s, no restart). Webhook to register at the store: <site>/cloud/v1/support/webhook/pocketsflow, event order.completed');
+    console.log('Saved (live within 5 s, no restart). Webhook to register at the store: <site>/cloud/v1/support/webhook/pocketsflow, events order.completed'
+      + (pay.products.monthly ? ' + customer.subscription.created/.updated/.deleted/.pause/.resumed (the monthly plan)' : ''));
     return;
   }
   if (cmd === 'sports') {

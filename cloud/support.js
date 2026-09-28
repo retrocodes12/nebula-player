@@ -34,9 +34,9 @@
 //   GET    /v1/support/mail               → {mail, orders:[…]}         (admin) every paid order and its receipt e-mail
 //   POST   /v1/support/mail {order, dry?, to?, again?} | {sample, to, tier?}  (admin) preview or send a receipt by hand
 //
-// TIERS (2026-09-19): supporter < plus < founder. A code or a payment carries
-// one; redeeming a higher one upgrades (since is kept), a lower one is 409.
-// Every tier is one-time and permanent — nothing expires.
+// TIERS (2026-09-19, expanded 2026-09-28): supporter < plus < founder, plus
+// a recurring monthly supporter plan. One-time tiers are permanent; monthly
+// access is active only while its subscription is active.
 
 'use strict';
 
@@ -55,6 +55,7 @@ const TIERS = {
   supporter: { rank: 1, name: 'Supporter', price: 2 },
   plus: { rank: 2, name: 'Supporter Plus', price: 5 },
   founder: { rank: 3, name: 'Founder', price: 20 },
+  monthly: { rank: 1, name: 'Monthly Supporter', price: 1.5, recurring: true },
 };
 const MARKS = ['star', 'heart', 'bolt', 'crown'];        // Supporter Plus and up choose theirs; everyone else is a star
 const TIER_LIST = Object.keys(TIERS).map((id) => ({ id, name: TIERS[id].name, price: TIERS[id].price }));
@@ -68,12 +69,13 @@ module.exports = function attach(core) {
   const CONFIG_PATH = path.join(DATA_DIR, 'support-config.json');
 
   // ---------- the store: codes + which groups may be on the wall + pending checkouts ----------
-  let store = { codes: {}, gids: [], pending: {}, orders: {} };
+  let store = { codes: {}, gids: [], pending: {}, orders: {}, subscriptions: {} };
   try {
     const s = JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
     if (s && typeof s === 'object') {
       store = { codes: s.codes || {}, gids: Array.isArray(s.gids) ? s.gids : [],
-        pending: s.pending && typeof s.pending === 'object' ? s.pending : {}, orders: s.orders && typeof s.orders === 'object' ? s.orders : {} };
+        pending: s.pending && typeof s.pending === 'object' ? s.pending : {}, orders: s.orders && typeof s.orders === 'object' ? s.orders : {},
+        subscriptions: s.subscriptions && typeof s.subscriptions === 'object' ? s.subscriptions : {} };
     }
   } catch (e) {}
   let storeTimer = null;
@@ -92,7 +94,7 @@ module.exports = function attach(core) {
   function flush() { if (storeTimer) { clearTimeout(storeTimer); storeTimer = null; writeStore(); } }
 
   // ---------- config: the link, the admin token and the payment service, live-reloaded ----------
-  // support-config.json = {url, admin, site?, pay?: {apiKey, webhookSecret, products: {supporter, plus, founder}, api?},
+  // support-config.json = {url, admin, site?, pay?: {apiKey, webhookSecret, products: {supporter, monthly, plus, founder}, api?},
   //                        sports?: {url, token},  — the sports backend's key-minting route (loopback) + its shared token
   //                        mail?: {apiKey, from, replyTo?, api?}}  — the receipt e-mail's sending account (support-mail.js)
   let cfg = { url: null, admin: null, site: null, pay: null, sports: null, mail: null }, cfgStamp = '', cfgAt = 0;
@@ -114,7 +116,7 @@ module.exports = function attach(core) {
       }
     }
     const envPay = cleanPay({ apiKey: process.env.PF_API_KEY, webhookSecret: process.env.PF_WEBHOOK_SECRET, api: process.env.PF_API_BASE,
-      products: { supporter: process.env.PF_PRODUCT_SUPPORTER, plus: process.env.PF_PRODUCT_PLUS, founder: process.env.PF_PRODUCT_FOUNDER } });
+      products: { supporter: process.env.PF_PRODUCT_SUPPORTER, monthly: process.env.PF_PRODUCT_MONTHLY, plus: process.env.PF_PRODUCT_PLUS, founder: process.env.PF_PRODUCT_FOUNDER } });
     return {
       url: cleanUrl(process.env.SUPPORT_URL) || cfg.url,
       admin: cleanAdmin(process.env.SUPPORT_ADMIN) || cfg.admin,
@@ -147,13 +149,14 @@ module.exports = function attach(core) {
   function cleanUrl(v) { const s = String(v || '').trim(); return /^https:\/\/[^\s"'<>]{4,400}$/.test(s) ? s : null; }
   /** Where the success/cancel pages live: https, or a loopback http address for the rigs. */
   function cleanSite(v) { const s = String(v || '').trim().replace(/\/$/, ''); return /^(https:\/\/[^\s"'<>\/]{4,200}|http:\/\/127\.0\.0\.1(:\d+)?)$/.test(s) ? s : null; }
-  /** The payment block is only usable whole: a key, a webhook secret and all three product ids. */
+  /** Permanent products are required; the recurring product is optional until configured. */
   function cleanPay(p) {
     if (!p || typeof p !== 'object') return null;
     const key = String(p.apiKey || '').trim(), secret = String(p.webhookSecret || '').trim();
     const products = {};
     for (const t of Object.keys(TIERS)) {
       const id = String((p.products && p.products[t]) || '').trim();
+      if (t === 'monthly' && !id) continue;
       if (!/^[A-Za-z0-9_-]{6,80}$/.test(id)) return null;
       products[t] = id;
     }
@@ -193,26 +196,73 @@ module.exports = function attach(core) {
     const s = g && g.supporter;
     if (!s) return null;
     const out = { since: s.since, wall: !!s.wall, tier: cleanTier(s.tier), mark: markOf(s) };
+    const sub = subView(s);
+    if (sub) out.subscription = sub;
     if (s.sportsKey) { out.sportsKey = s.sportsKey; out.sportsManifest = s.sportsManifest || null; }
     return out;
   }
+  /** The monthly plan as its owner sees it: the service's status (active, trialing, past_due, paused) and the private
+      link where they cancel or change the card. Only ever in the owner's own answers (/me, redeem, the wall switch). */
+  function subView(s) {
+    if (!s || !s.subscription) return null;
+    const out = { status: String(s.subscription.status || 'active') };
+    if (s.subscription.manage) out.manage = s.subscription.manage;
+    return out;
+  }
   function markOf(s) { return s && rankOf(s.tier) >= 2 && MARKS.includes(s.mark) ? s.mark : 'star'; }
-  /** Make (or raise) a supporter. A tier at or below the one held changes nothing; higher keeps `since`. */
-  function grant(gid, g, via, note, tier) {
+  /** Make (or raise) a supporter. A tier at or below the one held changes nothing; higher keeps `since`.
+      The monthly plan (a subscriptionId) rides beside a one-time tier and never lowers one; a one-time tier bought by
+      someone who ONLY had the monthly plan replaces it (same rank, but permanent — cancelling must not take it away). */
+  function grant(gid, g, via, note, tier, subscriptionId) {
     tier = cleanTier(tier);
     if (g.supporter) {
+      if (subscriptionId) g.supporter.subscription = { id: subscriptionId, status: 'active' };
+      if (!TIERS[tier].recurring && g.supporter.subscriptionOnly) {
+        g.supporter.subscriptionOnly = false;
+        if (rankOf(tier) >= rankOf(g.supporter.tier)) {
+          g.supporter.tier = tier; g.supporter.upgradedAt = Date.now(); g.supporter.via = via;
+          if (note) g.supporter.note = cleanNote(note);
+          persistSoon(gid); wallAt = 0;
+          return g.supporter;
+        }
+      }
+      if (subscriptionId) persistSoon(gid);
       if (rankOf(tier) <= rankOf(g.supporter.tier)) return g.supporter;
       g.supporter.tier = tier;
+      g.supporter.subscriptionOnly = false;
       g.supporter.upgradedAt = Date.now();
       g.supporter.via = via;
       if (note) g.supporter.note = cleanNote(note);
     } else {
-      g.supporter = { since: Date.now(), wall: false, via, note: cleanNote(note), tier };
+      g.supporter = { since: Date.now(), wall: false, via, note: cleanNote(note), tier,
+        subscriptionOnly: !!subscriptionId };
+      if (subscriptionId) g.supporter.subscription = { id: subscriptionId, status: 'active' };
     }
     persistSoon(gid);
     if (store.gids.indexOf(gid) < 0) { store.gids.push(gid); persistStore(); }
     wallAt = 0;
     return g.supporter;
+  }
+  /** The monthly plan ended: someone who only had it stops being a supporter; a one-time tier underneath stays. */
+  function revokeSubscription(gid, subscriptionId) {
+    const g = loadGroup(gid), s = g && g.supporter;
+    if (!s || !s.subscription || s.subscription.id !== subscriptionId) return false;
+    if (s.subscriptionOnly) revoke(gid, g);
+    else {
+      delete s.subscription;
+      if (TIERS[s.tier] && TIERS[s.tier].recurring) s.tier = 'supporter';
+      persistSoon(gid); wallAt = 0;
+    }
+    return true;
+  }
+  /** The service's latest word on a subscription (trialing → active, past_due, paused, resumed) and its manage link. */
+  function noteSubscription(gid, subscriptionId, status, manage) {
+    const g = loadGroup(gid), s = g && g.supporter;
+    if (!s || !s.subscription || s.subscription.id !== subscriptionId) return false;
+    if (status) s.subscription.status = String(status).slice(0, 24);
+    if (manage) s.subscription.manage = manage;
+    persistSoon(gid);
+    return true;
   }
   function revoke(gid, g) {
     if (g && g.supporter) { delete g.supporter; persistSoon(gid); }
@@ -281,12 +331,14 @@ module.exports = function attach(core) {
     store, persistStore, json, mintCode, cleanTier, TIERS, config,
     /** The handle a code was redeemed on, or null while it is open. */
     codeUsedBy(code) { const r = store.codes[normCode(code)]; return r && r.used ? r.used.handle || 'your profile' : null; },
-    grantGid(gid, tier, note) {
+    grantGid(gid, tier, note, subscriptionId) {
       const g = loadGroup(gid);
       if (!g || !g.profile) return false;
-      grant(gid, g, 'pocketsflow', note, tier);
+      grant(gid, g, 'pocketsflow', note, tier, subscriptionId);
       return true;
     },
+    revokeSubscription,
+    noteSubscription,
     /** The sports key a paid order earned, kept on the profile so every signed-in device can show it (`/me`). */
     noteSportsKey(gid, key, manifest) {
       const g = loadGroup(gid);
@@ -306,7 +358,8 @@ module.exports = function attach(core) {
     if (p === '/v1/support' && m === 'GET') {
       if (!allow('support', ip, 120, 60)) return json(res, 429, { error: 'rate limited' });
       const w = wall(), c = config();
-      return json(res, 200, { url: c.url, count: w.count, wall: w.wall, tiers: TIER_LIST, checkout: !!c.pay, sports: !!c.sports }, 30);
+      const tiers = TIER_LIST.map((t) => ({ ...t, checkout: !!c.pay && !!c.pay.products[t.id] }));
+      return json(res, 200, { url: c.url, count: w.count, wall: w.wall, tiers, checkout: !!c.pay, sports: !!c.sports }, 30);
     }
     if (p === '/v1/support/go' && m === 'GET') {
       if (!allow('support', ip, 120, 60)) return json(res, 429, { error: 'rate limited' });
@@ -332,6 +385,7 @@ module.exports = function attach(core) {
       let handle = a && a.g.profile ? a.g.profile.handle : null;
       const lk = linkTake(b.for);
       if (!gid && lk) { gid = lk.gid; handle = lk.handle; }
+      if (tier === 'monthly' && !gid) return json(res, 400, { error: 'monthly support needs a Nebula profile' });
       try {
         const via = String(b.via || '').replace(/[^a-z0-9-]/gi, '').slice(0, 24) || null;   // where the buyer came from (#from=sports-addon), for the books
         const out = await pay.checkout({ tier, gid, handle, via, site: c.site, cfg: c.pay });
@@ -452,7 +506,8 @@ module.exports = function attach(core) {
       const rec = c && store.codes[c];
       if (!rec || rec.used) return json(res, 404, { error: 'code not found' });
       // a code of the tier already held (or a lower one) is kept for someone else
-      if (g.supporter && rankOf(rec.tier) <= rankOf(g.supporter.tier)) return json(res, 409, { error: 'already a supporter' });
+      // (a one-time code still lands on someone who only has the monthly plan: it makes them permanent)
+      if (g.supporter && !g.supporter.subscriptionOnly && rankOf(rec.tier) <= rankOf(g.supporter.tier)) return json(res, 409, { error: 'already a supporter' });
       rec.used = { gid, handle: g.profile.handle, at: Date.now() };
       persistStore();
       grant(gid, g, 'code', rec.note, rec.tier);

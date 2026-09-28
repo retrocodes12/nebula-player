@@ -87,13 +87,15 @@
     ends it for both of you, and turning Friends off deletes what was shared from the server immediately.</li>
     <li><b>Supporting Nebula — only if you choose to.</b> Payments happen at a payment service
     (Pocketsflow), not with us; we never see card or bank details. When a payment completes, the service
-    tells our server the order number and which tier was bought, and — if you opened the support page from
-    the app — which profile it was for; our server keeps the order number, the tier, since when, and the
-    mark you picked. Every paid order also creates a Nebula Sports install key: the sports server keeps that
+     tells our server the order number and which tier was bought, and — if you opened the support page from
+     the app — which profile it was for; our server keeps the order number, the tier, since when, and the
+     mark you picked. Monthly Supporter also stores the payment service's subscription identifier, its status
+     and the link where you manage or cancel it (shown only to you, on the thank-you page and your own profile), so
+     cancellation can remove the monthly thank-you; it creates no install key. One-time tiers are permanent. Every one-time order also creates a Nebula Sports install key: the sports server keeps that
     key against the order number with a masked copy of the e-mail the payment service reported (so a lost key
     can be found), and the thank-you page shows it whenever it is opened with the same link. If you were not
     signed in, a one-time code for the app is shown on the thank-you page as well and kept until it is used.
-    Our server also keeps the e-mail address the payment service reports with the order, and sends one e-mail
+    For a one-time order our server also keeps the e-mail address the payment service reports with it, and sends one e-mail
     to it: your receipt, with the key and the code, through an e-mail delivery service (Resend). The address
     is used for nothing else — no newsletters, no marketing — and is deleted with the order record after 400 days. Your name appears on the wall or the Founders list (in the app and on this site)
     only if you switch it on, it is your profile's display name and nothing else, and you can switch it off

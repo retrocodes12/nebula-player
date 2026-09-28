@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Support Nebula</title>
-<meta name="description" content="Nebula is free for everyone. Chip in once, from $2, to help keep it running — and get your own key that skips the sponsor prompt for good.">
+<meta name="description" content="Nebula is free for everyone. Support it monthly from $1.50, or chip in once to get your own key.">
 <style>
   :root {
     --red:#E50914; --gold:#E0B24A;
@@ -28,12 +28,14 @@
   .for { margin:22px 0 0; padding:12px 16px; border:1px solid var(--line); border-radius:12px; background:var(--surface); font-size:.95rem; color:#cfd4db; }
   .for b { color:#fff; }
   .for[hidden] { display:none; }
-  .tiers { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin:30px 0 8px; }
+  .tiers { display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; margin:30px 0 8px; }
   .tier { position:relative; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:22px 20px 20px; display:flex; flex-direction:column; min-width:0; }
   .tier.pick { border-color:rgba(229,9,20,.55); }
+  .tier.monthly { border-color:rgba(106,166,255,.55); }
   .tier.founder { border-color:rgba(224,178,74,.55); }
   .tier .kick { font-family:var(--mono); font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
   .tier.pick .kick { color:#ff6b72; }
+  .tier.monthly .kick { color:#78adff; }
   .tier.founder .kick { color:var(--gold); }
   .tier h2 { font-family:var(--disp); font-weight:800; font-size:1.35rem; letter-spacing:-.01em; margin:6px 0 2px; }
   .price { font-family:var(--disp); font-weight:800; font-size:2rem; letter-spacing:-.02em; margin:6px 0 2px; }
@@ -44,6 +46,7 @@
   .tier li.key { color:#fff; font-weight:600; }
   .tier li.key::before { background:var(--red); border-color:var(--red); }
   .tier.founder li.key::before { background:var(--gold); border-color:var(--gold); }
+  .tier.monthly li.key::before { background:#78adff; border-color:#78adff; }
   .tier.founder li::before { border-color:var(--gold); }
   .tier li.inc { color:var(--muted); }
   .tier li.inc::before { border-style:dashed; }
@@ -68,6 +71,9 @@
   .keybox[hidden] { display:none; }
   .keybox .acts { display:flex; gap:10px; flex-wrap:wrap; margin:12px 0 10px; }
   .keybox .acts .btn { width:auto; padding:11px 20px; }
+  #manageBox { margin:16px 0 4px; }
+  #manageBox[hidden] { display:none; }
+  #manageBox .btn { width:auto; padding:11px 20px; }
   .keylink { font-family:var(--mono); font-size:.82rem; color:#cfd4db; word-break:break-all; user-select:all; margin:8px 0 0; }
   .steps { margin:10px 0 0; padding-left:20px; }
   .steps li { margin:4px 0; }
@@ -82,6 +88,7 @@
   a { color:#c9ced6; }
   a:hover { color:#fff; }
   footer { border-top:1px solid var(--line); margin-top:56px; padding:26px 0 40px; color:var(--muted); font-size:.86rem; }
+  @media (max-width:980px) { .tiers { grid-template-columns:repeat(2, 1fr); } }
   @media (max-width:760px) { .tiers { grid-template-columns:1fr; } .price { font-size:1.7rem; } .tier.pick { order:-1; } }
 </style>
 </head>
@@ -95,8 +102,8 @@
 <main class="wrap">
   <h1>Help keep this project alive.</h1>
   <p class="lede">Nebula is free for everyone, and it stays that way. What keeps its servers paid for is one sponsor link, shown once every 12 hours.
-  Chip in once — from $2 — and you get your own key, which skips that prompt for good.</p>
-  <p class="note">No subscription, no account. You pay once at the checkout, and your key is on the next page.</p>
+  Support it monthly from $1.50, or chip in once — from $2 — and get your own key, which skips that prompt for good.</p>
+  <p class="note">Monthly support is a recurring subscription tied to your Nebula profile. One-time plans never expire.</p>
 
   <div class="for" id="forBox" hidden>Buying for <b id="forHandle"></b> — the thank-you lands on that Nebula Player profile the moment the payment clears.</div>
 
@@ -119,9 +126,22 @@
     </div>
     <div class="code" id="thanksCode" hidden></div>
     <p class="note" id="thanksNote" hidden></p>
+    <div class="acts" id="manageBox" hidden><a class="btn" id="manageLink" href="#" rel="noopener">Manage or cancel your subscription</a></div>
   </section>
 
   <div class="tiers" id="tiers">
+    <div class="tier monthly" data-tier="monthly">
+      <div class="kick">Small, steady help</div>
+      <h2>Monthly Supporter</h2>
+      <div class="price">$1.50<small>per month</small></div>
+      <ul>
+        <li class="key">Keep Nebula running month by month</li>
+        <li>Support server costs without a large one-time payment</li>
+        <li class="app">In Nebula Player: supporter mark, colours and the wall</li>
+        <li>The first week is free — cancel any time from your receipt</li>
+      </ul>
+      <button class="btn" data-buy="monthly">Start monthly support · <span data-price="monthly">$1.50</span></button>
+    </div>
     <div class="tier pick" data-tier="supporter">
       <div class="kick">Most people pick this</div>
       <h2>Supporter</h2>
@@ -158,7 +178,7 @@
     </div>
   </div>
   <p class="msg" id="msg"></p>
-  <p class="trust">Card payment through Pocketsflow; we never see your card. The key is shown right after paying — nothing to sign up for.</p>
+  <p class="trust">Card payment through Pocketsflow; we never see your card. Monthly support needs a Nebula profile: its thank-you lives there, and ends with the subscription.</p>
   <p class="note" id="anonBox" hidden>Use Nebula Player too? Open this page from Settings › Support there and the thank-you lands on your profile as well. Otherwise you get a one-time code for it after paying.</p>
 
   <h3 id="foundersHead" hidden>Founders</h3>
@@ -168,7 +188,7 @@
 
   <div class="faq">
     <h3>Questions</h3>
-    <p><b>Does it expire?</b> No. One payment, yours for good. Paying a higher tier later simply raises you; you never pay twice for the same thing.</p>
+    <p><b>Does it expire?</b> One-time plans are yours for good. Monthly Supporter stays active while your subscription is paid; cancel any time from the "Manage subscription" link in your receipt e-mail, and the monthly thank-you stops at the end of the paid period. The monthly plan is support only — it does not include the key.</p>
     <p><b>Can I use the key on more than one device?</b> Yes — install it on your phone, your TV and your computer. It is meant for you and your household, not for passing around.</p>
     <p><b>Where do the Nebula Player thank-yous show?</b> On your Nebula profile, so on every device you sign in to. The wall is opt-in: your name appears only if you switch it on in Settings › Support.</p>
     <p><b>I lost my key.</b> The page you landed on after paying shows it — keep that address. Otherwise open an issue on the Nebula repository with the order number from your receipt and it will be sent to you.</p>
@@ -191,11 +211,12 @@
   var via = String(location.hash || "").replace(/^#from=/, "").replace(/[^a-z0-9-]/gi, "").slice(0, 24);
   var msg = document.getElementById("msg");
   var buttons = Array.prototype.slice.call(document.querySelectorAll("[data-buy]"));
-  var TIER_NAMES = { supporter: "Supporter", plus: "Supporter Plus", founder: "Founder" };
+  var TIER_NAMES = { supporter: "Supporter", monthly: "Monthly Supporter", plus: "Supporter Plus", founder: "Founder" };
 
   function say(text, err) { msg.textContent = text || ""; msg.className = "msg" + (err ? " err" : ""); }
+  function priceText(v) { return Number(v) === 1.5 ? "1.50" : String(v); }
   function api(method, path, body) {
-    return fetch(CLOUD + path, { method: method, headers: { "Content-Type": "application/json" },
+    return fetch(CLOUD + path, { method: method, cache: "no-store", headers: { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body) })
       .then(function (r) { return r.json().catch(function () { return null; }).then(function (j) { return { status: r.status, body: j }; }); });
   }
@@ -222,9 +243,11 @@
     (s.tiers || []).forEach(function (t) {
       if (typeof t.price !== "number") return;
       var card = document.querySelector('.tier[data-tier="' + t.id + '"] .price');
-      if (card) card.firstChild.nodeValue = "$" + t.price;
+      if (card) card.firstChild.nodeValue = "$" + priceText(t.price);
       var b = document.querySelector('[data-price="' + t.id + '"]');
-      if (b) b.textContent = "$" + t.price;
+      if (b) b.textContent = "$" + priceText(t.price);
+      if (t.checkout === false && b) { b.closest("button").disabled = true; b.closest("button").textContent = "Not open yet"; }
+      if (t.id === "monthly" && !forToken && b) { b.closest("button").disabled = true; b.closest("button").textContent = "Open from Nebula Player"; }
     });
     if (!s.checkout) buttons.forEach(function (b) { b.disabled = true; b.textContent = "Not open yet"; });
     var founders = [], others = [];
@@ -308,7 +331,15 @@
         var name = TIER_NAMES[s.tier] || "Supporter";
         if (s.state === "granted" || s.state === "code") {
           title.textContent = "You're a " + name + " — thank you.";
-          if (s.state === "granted") {
+          if (s.state === "granted" && s.tier === "monthly") {
+            text.textContent = "The " + name + " thank-you is on your Nebula Player profile: the mark, the colours and the wall switch are in Settings › Support. It stays while your subscription runs — cancel or change your card any time from the link below, which is also in your receipt e-mail.";
+            if (/^https:\/\//.test(s.manage || "")) {
+              document.getElementById("manageLink").href = s.manage;
+              document.getElementById("manageBox").hidden = false;
+              note.textContent = "That link is yours alone — anyone with it can manage the subscription, so do not share it.";
+              note.hidden = false;
+            }
+          } else if (s.state === "granted") {
             text.textContent = "The " + name + " thank-you is already on your Nebula Player profile: the mark, the colours and the wall switch are in Settings › Support.";
           } else {
             text.textContent = "Below is your key for the add-on. Use Nebula Player as well? The one-time code further down puts the " + name + " thank-you on your profile there.";
