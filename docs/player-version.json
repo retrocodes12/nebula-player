@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.26.2",
+  "version": "2026.09.28.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Subtitles inside a video file come on far sooner: the player reads only the next minute or so of lines before showing them, reads the file where it really lives instead of asking the add-on each time, and starts reading as soon as you open Subtitles."
+  "notes": "A cleaner player: the Subtitles panel no longer shows the controls through it, a phone's toolbar fits every control as icons, a failed stream says why in a few words, messages sit above the timeline instead of on it, and the quality menu uses the names you know (4K, 1080p, 720p)."
 }

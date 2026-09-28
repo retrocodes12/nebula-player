@@ -541,7 +541,8 @@
   .stream > * + * { margin-left:14px; }
   /* a row with no resolution to show: a quiet tile where the plate would be, the accent only when the row is lit */
   .stream-play { width:40px; height:40px; flex:0 0 auto; border-radius:var(--r-pill); background:var(--fill);
-    color:var(--label); display:flex; align-items:center; justify-content:center; }
+    color:var(--label); display:flex; align-items:center; justify-content:center;
+    margin:0 11px; }   /* centred in the plate's 62 px column, so its row's name starts where every plated name does */
   .stream:hover .stream-play { background:var(--accent); color:var(--on-accent); }
   html.tv .stream.focusable:focus .stream-play { background:var(--accent); color:var(--on-accent); }
   .stream.focusable:focus-visible .stream-play { background:var(--accent); color:var(--on-accent); }
@@ -889,9 +890,10 @@
   body:not(.playing) #status.show { transform:translate(-50%,0); }
   body.upd:not(.playing) #status { top:calc(var(--navh) + 56px); }
   html.tv body:not(.playing) #status { left:calc(50% + var(--railw) / 2); top:24px; }
-  /* with the player chrome up, the toast clears the toolbar */
-  body.pui-on #status { bottom:88px; }
-  html.tv body.pui-on #status { bottom:112px; }
+  /* with the player chrome up, the toast sits just above the scrubber — at the toolbar's shoulder it lay across the rail
+     between the two time pills, "Opening the stream…" on top of the very line it was about */
+  body.pui-on #status { bottom:148px; }
+  html.tv body.pui-on #status { bottom:190px; }
 
   /* ---- pairing / manual ---- */
   #qrbox { background:#fff; padding:18px; border-radius:var(--r-tile); display:inline-block; }
@@ -1201,9 +1203,10 @@
      offer, the tracks in the chosen one, and how the words look ---- */
   #subPanel { display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:9; }
   #subPanel.open { display:block; }
-  /* under the panel the title block and bar stay, dimmed; the back button and transport would
-     show through the heading and the middle column, so they step out */
-  body.sp-on #puiBack, body.sp-on .pui-center { opacity:0; }
+  /* under the panel the whole chrome steps out: through the scrim the title block, the time pills, the toolbar
+     and the round buttons ran into the panel's own rows (Bold under −14:46, Reset on the toolbar, the title over
+     the phone's track list). It stays laid out and focusable — closing hands the remote back to Subtitles */
+  body.sp-on .pui-top, body.sp-on .pui-center, body.sp-on .pui-bottom, body.sp-on #pinfo { opacity:0; }
   .sp-scrim { position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.72); }
   .sp-head { position:absolute; left:40px; right:40px; top:34px; }
   .sp-title { font-size:calc(28px * var(--ts)); font-weight:600; letter-spacing:-.02em; color:#fff; }
@@ -1528,7 +1531,9 @@
     .pui-barwrap { margin-top:10px; }
     .pui-bar .pui-btn { font-size:calc(12.5px * var(--ts)); padding:8px 12px; }
     .pui-bar .pui-btn svg { width:18px; height:18px; margin-right:6px; }
-    body.pui-on #status { bottom:76px; }
+    body.pui-on #status { bottom:212px; }   /* over the title block, which fills the width above the rail here */
+    /* centred from left:50%, the toast could only be half the screen wide: a sentence broke into six lines */
+    #status { width:-webkit-max-content; width:max-content; max-width:calc(100vw - 32px); }
     .sp-head { left:16px; right:16px; top:18px; }
     .sp-title { font-size:calc(22px * var(--ts)); }
     .sp-cols { left:16px; right:16px; top:60px; bottom:12px; display:block; overflow-y:auto; }
@@ -1538,6 +1543,9 @@
     .pui-center > * + * { margin-left:24px; }
     .pui-playpause { width:64px; height:64px; }
     .pui-skip { width:48px; height:48px; }
+    /* the desktop's 25 px arrow in a 48 px circle sat on its own "10": a smaller arrow, lifted, and the number lower */
+    .pui-skip svg { width:21px; height:21px; position:relative; top:-3px; }
+    .pui-skipnum { bottom:6px; }
     .qmenu, #upnext { right:16px; bottom:150px; }
     #skipBtn { right:16px; bottom:150px; }
     #srcBtn { right:16px; bottom:204px; }
@@ -1568,7 +1576,17 @@
     .pui-shade-bot { height:210px; }
     #skipBtn, #upnext { bottom:112px; }
     #srcBtn { bottom:166px; }
+    /* no room between the transport and the rail here: the toast takes the free band under the top row */
+    body.pui-on #status { top:80px; bottom:auto; }
     body.pui-on video::-webkit-media-text-track-container { transform:translateY(-150px) !important; }
+  }
+  /* a phone holds every control only as icons: with their names the bar ran off the edge (upright at Quality, on its
+     side under the time pill) and the rest waited behind a scroll nothing showed. Each keeps its name in its title;
+     a running sleep timer keeps its minutes */
+  @media (max-width:700px), (max-height:480px){
+    .pui-bar .pui-btn { padding:10px 12px; }
+    .pui-bar .pui-btn svg { width:20px; height:20px; margin-right:0; }
+    .pui-bar .pui-btn .pl, #puiQualVal, #puiSpeedVal { display:none; }
   }
 
   /* ---- TV (webOS): 10-foot sizing + sidebar layout ---- */
@@ -1651,7 +1669,7 @@
   html.tv .stream-sub { font-size:calc(16px * var(--ts)); }
   html.tv .sbadges img { height:22px; margin-right:10px; }
   html.tv .stream-facts { font-size:calc(15.5px * var(--ts)); }
-  html.tv .stream-play { width:54px; height:54px; }
+  html.tv .stream-play { width:54px; height:54px; margin:0 15px; }
   html.tv .stream-play svg { width:20px; height:20px; }
   html.tv .streams { max-width:1600px; }
   html.tv .privacy-link { display:none; }   /* a TV app can't open external pages */
@@ -1663,6 +1681,8 @@
   html.tv .pui-round { width:58px; height:58px; }
   html.tv .pui-round svg { width:26px; height:26px; }
   html.tv .pui-skip { width:72px; height:72px; }
+  /* the desktop's 9 px "10" was a speck in a 72 px circle across a room */
+  html.tv .pui-skipnum { bottom:13px; font-size:calc(11px * var(--ts)); }
   html.tv .pui-playpause { width:96px; height:96px; }
   html.tv .pui-playpause svg { width:42px; height:42px; }
   html.tv .pui-live { font-size:calc(14px * var(--ts)); padding:8px 16px; }
@@ -1984,7 +2004,7 @@
       <!-- elapsed at the left, what is left at the right (press it for the total), then the toolbar -->
       <div class="pui-foot">
         <span id="puiTimeL" class="pui-time">0:00</span>
-        <button id="puiTimeR" class="pui-time focusable" type="button" title="Time left — press for the total">0:00</button>
+        <button id="puiTimeR" class="pui-time focusable" type="button" title="Time left — press for the total">--:--</button>
         <div class="pui-barwrap"><div id="puiBar" class="pui-bar">
           <button id="puiGoLive" class="focusable pui-btn" style="display:none" title="Jump to the live edge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle class="live-dot" cx="12" cy="12" r="2.6" stroke="none"/><path d="M8.2 8.2a5.4 5.4 0 0 0 0 7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6M5.4 5.4a9.3 9.3 0 0 0 0 13.2M18.6 5.4a9.3 9.3 0 0 1 0 13.2"/></svg><span class="pl">Go live</span></button>
           <button id="puiNext" class="focusable pui-btn" style="display:none" title="Next episode (n)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5.5v13l9.5-6.5z" fill="currentColor" stroke="none"/><path d="M18.5 5.5v13"/></svg><span class="pl">Next ›</span></button>
@@ -2574,7 +2594,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.26.2';
+  var PLAYER_VERSION = '2026.09.28.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -7242,7 +7262,7 @@
     if (mpvRescueTry(seq, code)) return;
     // a plain file the desktop shell could convert: the shell looks at it before anything is said
     if (tcRefused(seq, code)) return;
-    var detail = d && d.data ? (' — ' + String(JSON.stringify(d.data)).slice(0,180)) : '';
+    var detail = d ? playErrDetail(d.data) : '';
     setStatus(playErrorLine(code, detail), 'err');
     try { $id('puiSpin').style.display = 'none'; } catch(e){}
   }
@@ -8206,7 +8226,24 @@
     if (code === 3016) return 'This stream cannot play here — its format is not supported on this device, or its host would not serve it to this player. Try another source. (3016)';
     if (code === 1001) return 'The source did not answer with a stream — it may be down or expired. Try another source. (1001' + detail + ')';
     if (code === 1002) return 'The source would not let this player read it. Try another source. (1002)';
-    return 'Failed to load (' + code + ')' + detail;
+    return 'Failed to load (' + code + detail + ')';
+  }
+  /** An error's detail cut to what diagnoses it, as " · …" for playErrorLine: the host's answer ("HTTP 404") and the engine's
+      own short words. The raw detail used to follow the sentence — the stream's address (some add-ons put the viewer's token
+      in it, and viewers post these as screenshots) and every header the host sent back. */
+  function playErrDetail(data){
+    if (data == null) return '';
+    var list = Object.prototype.toString.call(data) === '[object Array]' ? data : [data], out = [];
+    // a request that failed: [address, status, body, headers, …] — the status is the diagnosis
+    if (typeof list[0] === 'string' && /^[a-z][a-z0-9+.-]*:/i.test(list[0]))
+      return typeof list[1] === 'number' ? ' · HTTP ' + list[1] : '';
+    for (var i = 0; i < list.length && out.length < 3; i++){
+      var v = list[i];
+      if (v && typeof v === 'object') v = typeof v.code === 'number' ? v.code : v.message;
+      if (typeof v === 'number') out.push(String(v));
+      else if (typeof v === 'string' && v.trim() && !/^[a-z][a-z0-9+.-]*:\/\//i.test(v)) out.push(v.trim().slice(0, 90));
+    }
+    return out.length ? ' · ' + out.join(' · ') : '';
   }
   async function playUrl(rawUrl, clearKeys, title, subtitles, mimeType){
     // only a web address, a file this device picked (blob:) or the desktop's handle for one (local:N) is ever played: an
@@ -8427,7 +8464,7 @@
         setStatus(why, 'err'); $id('puiSpin').style.display = 'none';
         return;
       }
-      var code=(err&&(err.code||err.message))||'unknown'; var extra=err&&err.data?(' — '+JSON.stringify(err.data).slice(0,180)):'';
+      var code=(err&&(err.code||err.message))||'unknown'; var extra=err?playErrDetail(err.data):'';
       // A load-time failure REJECTS load() and fires no error event, so the rescue has to be
       // asked for here as well as in handlePlaybackError — and first, for the reason given there.
       if (!loaded && !tc && mpvRescueTry(seq, code)) return;
@@ -9265,7 +9302,20 @@
   var upnextState = { open:false, counting:false, dismissed:false, timer:null, left:0, target:null };
   function $id(x){ return document.getElementById(x); }
 
-  function heightLabel(h){ return h ? (h + 'p') : 'Auto'; }
+  /** A rendition's name in the words people know. A ladder cut for a wide film named its rungs by raw height —
+      1636p, 1090p, 818p — and a 1920×800 picture read "800p", below a 1280×720 one's "720p": the long side counts too. */
+  var RES_RUNGS = [[3200, 1800, '4K'], [2240, 1260, '1440p'], [1600, 900, '1080p'], [1120, 600, '720p'], [720, 420, '480p'], [560, 300, '360p'], [380, 200, '240p'], [240, 130, '144p']];
+  function resName(w, h){
+    var big = Math.max(w || 0, h || 0), small = Math.min(w || h || 0, h || w || 0);
+    for (var i = 0; i < RES_RUNGS.length; i++) if (big >= RES_RUNGS[i][0] || small >= RES_RUNGS[i][1]) return RES_RUNGS[i][2];
+    return small ? small + 'p' : 'Auto';
+  }
+  function heightLabel(h){
+    if (!h) return 'Auto';
+    var w = 0;
+    videoTracks().forEach(function(t){ if (t.height === h && t.width > w) w = t.width; });
+    return resName(w, h);
+  }
   function videoTracks(){ try { return (player.getVariantTracks()||[]).filter(function(t){ return t.height; }); } catch(e){ return []; } }
   function distinctHeights(tracks){
     var seen={}, out=[];
@@ -9562,7 +9612,8 @@
     } else {
       var gone = t - r.start, left = span - gone;
       $id('puiTimeL').textContent = fmtT(gone);
-      $id('puiTimeR').textContent = (span > 0 || !mp) ? (puiState.total ? fmtT(span) : '−' + fmtT(left)) : '';   // (a length mpv cannot know: none)
+      // (a length mpv cannot know: none; one still coming: "--:--", not "−0:00" — nothing is nearly over)
+      $id('puiTimeR').textContent = span > 0 ? (puiState.total ? fmtT(span) : '−' + fmtT(left)) : (mp ? '' : '--:--');
       // when this ends at the current speed — the TV-box line beside the clock, and the pause board's pill from the same
       // helper on the same tick, so the two never disagree (the board used to keep the minute it was drawn in)
       var ends = span > 0 ? endsAtLabel() : '';
@@ -10196,7 +10247,14 @@
       var abrOn=true; try { abrOn = player.getConfiguration().abr.enabled; } catch(e){}
       var activeH=0; if(!abrOn) tracks.forEach(function(v){ if(v.active) activeH=v.height; });
       menuOpt('Auto', abrOn, function(){ selectQuality(0); });
-      heights.forEach(function(h){ menuOpt(heightLabel(h), !abrOn&&h===activeH, function(){ selectQuality(h); }); });
+      // one row per name: two rungs that both read "480p" are one choice (the higher is played), lit if either is on
+      var named = [], byName = {};
+      heights.forEach(function(h){
+        var n = heightLabel(h);
+        if (!byName[n]){ byName[n] = { n:n, h:h, on:false }; named.push(byName[n]); }
+        if (!abrOn && h === activeH) byName[n].on = true;
+      });
+      named.forEach(function(r){ menuOpt(r.n, r.on, function(){ selectQuality(r.h); }); });
     } else if (kind==='audio'){
       var langs=[]; try { langs = player.getAudioLanguagesAndRoles()||[]; } catch(e){}
       if (tc && tc.info.audio && tc.info.audio.length){
