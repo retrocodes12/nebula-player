@@ -503,6 +503,38 @@ const RELEASE_REPOS = {
 };
 const releasesCache = {};     // key -> {at, ok, body}   body = last GOOD copy, kept across failures
 const releasesPending = {};   // key -> Promise           one upstream call per repo at a time
+/** "1.84.0-beta.2" → {n:[1,84,0], pre:"beta.2"}; a newer than b, a release outranking its own pre-releases. */
+function verParse(v) {
+  const m = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?/.exec(String(v || '').replace(/^player-v/, ''));
+  return m ? { n: [+m[1], +m[2], +m[3]], pre: m[4] || '' } : null;
+}
+function verNewer(a, b) {
+  const x = verParse(a), y = verParse(b);
+  if (!x || !y) return false;
+  for (let i = 0; i < 3; i++) if (x.n[i] !== y.n[i]) return x.n[i] > y.n[i];
+  if (!x.pre !== !y.pre) return !x.pre;                       // 1.84.0 is newer than 1.84.0-beta.1
+  const pa = x.pre.split('.'), pb = y.pre.split('.');
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    if (pa[i] === undefined) return false; if (pb[i] === undefined) return true;
+    const na = /^\d+$/.test(pa[i]), nb = /^\d+$/.test(pb[i]);
+    if (na && nb && +pa[i] !== +pb[i]) return +pa[i] > +pb[i];
+    if (!(na && nb) && pa[i] !== pb[i]) return pa[i] > pb[i];
+  }
+  return false;
+}
+/** One release as the feed carries it. */
+function releaseOf(r) {
+  const tag = String(r.tag_name || '');
+  const assets = [];
+  for (const a of Array.isArray(r.assets) ? r.assets : []) {
+    if (!a || typeof a !== 'object' || !/^https:\/\//.test(String(a.browser_download_url || ''))) continue;
+    assets.push({ name: String(a.name || '').slice(0, 120), url: String(a.browser_download_url).slice(0, 400), size: Number(a.size) || 0 });
+  }
+  // the release's own notes, so an app's update card can show them (Android's "Release notes" sheet): plain
+  // text as GitHub keeps it, line endings tidied, capped — a feed read by every update check stays small
+  const notes = String(r.body || '').replace(/\r\n?/g, '\n').trim().slice(0, 4000);
+  return { version: tag.replace(/^player-v|^v/, ''), tag, published_at: String(r.published_at || ''), notes, assets };
+}
 function releaseShape(list, spec) {
   if (!Array.isArray(list)) return null;
   const cutoff = Date.now() - 30 * 86400_000;
@@ -511,21 +543,24 @@ function releaseShape(list, spec) {
     if (!r || typeof r !== 'object' || r.draft || r.prerelease || !spec.tag.test(String(r.tag_name || ''))) continue;
     if (Date.parse(r.published_at) > cutoff) recent++;
   }
+  let stable = null;
   for (const r of list) {
     if (!r || typeof r !== 'object' || r.draft || r.prerelease) continue;
-    const tag = String(r.tag_name || '');
-    if (!spec.tag.test(tag)) continue;
-    const assets = [];
-    for (const a of Array.isArray(r.assets) ? r.assets : []) {
-      if (!a || typeof a !== 'object' || !/^https:\/\//.test(String(a.browser_download_url || ''))) continue;
-      assets.push({ name: String(a.name || '').slice(0, 120), url: String(a.browser_download_url).slice(0, 400), size: Number(a.size) || 0 });
-    }
-    // the release's own notes, so an app's update card can show them (Android's "Release notes" sheet): plain
-    // text as GitHub keeps it, line endings tidied, capped — a feed read by every update check stays small
-    const notes = String(r.body || '').replace(/\r\n?/g, '\n').trim().slice(0, 4000);
-    return { version: tag.replace(/^player-v|^v/, ''), tag, published_at: String(r.published_at || ''), notes, assets, recent };
+    if (!spec.tag.test(String(r.tag_name || ''))) continue;
+    stable = { ...releaseOf(r), recent };
+    break;
   }
-  return null;
+  if (!stable) return null;
+  // early builds (2026-09-28): the newest pre-release that is newer than the release — offered by the apps to supporters
+  // at the Plus level who switched early builds on. null when the release has caught up with it.
+  let beta = null;
+  for (const r of list) {
+    if (!r || typeof r !== 'object' || r.draft || !r.prerelease || !spec.tag.test(String(r.tag_name || ''))) continue;
+    const b = releaseOf(r);
+    if (verNewer(b.version, stable.version) && (!beta || verNewer(b.version, beta.version))) beta = b;
+  }
+  stable.beta = beta;
+  return stable;
 }
 async function releasesFetch(key) {
   const spec = RELEASE_REPOS[key];

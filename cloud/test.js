@@ -317,6 +317,10 @@ test('releases: one feed, shaped, cached, stale through outages, a bad repo is n
     }
     if (repo === 'nebula-android') {
       return res.end(JSON.stringify([
+        { tag_name: 'v1.55.0-beta.1', prerelease: true, published_at: ago(1), body: 'Early: the vote.', assets: [
+          { name: 'Nebula-1.55.0-beta.1.apk', browser_download_url: dl + 'v1.55.0-beta.1/Nebula-1.55.0-beta.1.apk', size: 9100000 }] },
+        { tag_name: 'v1.55.0-beta.0', prerelease: true, draft: true, published_at: ago(1), assets: [] },
+        { tag_name: 'v1.54.0-beta.3', prerelease: true, published_at: ago(4), assets: [] },   // older than the release: never offered
         { tag_name: 'v1.54.0', draft: false, prerelease: false, published_at: ago(3), body: 'Android TV: the remote.\r\nStreams load at once.', assets: [
           { name: 'Nebula.apk', browser_download_url: dl + 'v1.54.0/Nebula.apk', size: 9000000 },
           { name: 'Nebula-1.54.0.apk', browser_download_url: dl + 'v1.54.0/Nebula-1.54.0.apk', size: 9000000 },
@@ -364,6 +368,12 @@ test('releases: one feed, shaped, cached, stale through outages, a bad repo is n
     assert.equal(b1.player.notes, '', 'a release with no text carries an empty string');
     assert.equal(b1.android.assets.find((a) => a.name === 'Nebula.apk').url, 'https://github.com/retrocodes12/nebula-android/releases/download/v1.54.0/Nebula.apk');
     assert.equal(b1.desktop, null, 'a repo GitHub 404s is null, not an error');
+    // early builds (09-28): the newest pre-release newer than the release rides along as `beta`; drafts never
+    assert.equal(b1.android.version, '1.54.0', 'the release is still the release');
+    assert.equal(b1.android.beta.version, '1.55.0-beta.1');
+    assert.equal(b1.android.beta.assets[0].name, 'Nebula-1.55.0-beta.1.apk');
+    assert.equal(b1.android.beta.notes, 'Early: the vote.');
+    assert.equal(b1.player.beta.version, '1.60.0');
     assert.equal(hits.length, 8);
 
     // within the TTL the second ask is answered from memory
@@ -882,6 +892,64 @@ test('support: tiers — a code carries one, a higher code upgrades and keeps si
 
 // a stand-in for the payment service: answers the session call, remembers what was asked
 const http = require('http');
+test('support: the vote — Plus-level supporters (and the monthly plan) choose what gets built next; counts after a ballot', async () => {
+  await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN });
+  // admin calls from their own address: the admin limit is 30 a minute per address, and the tests after this one need theirs
+  const admin = (method, p, body) => fetch(base + p, { method, headers: { 'Content-Type': 'application/json', 'X-Admin-Token': ADMIN, 'X-Forwarded-For': '10.9.9.9' },
+    body: body === undefined ? undefined : JSON.stringify(body) }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) }));
+  // nothing open: an empty answer, and a ballot is refused
+  const none = await api('GET', '/v1/support/vote');
+  assert.equal(none.status, 200);
+  assert.deepEqual(none.body, { round: null, mine: null, can: false, last: null });
+  // opening needs the admin token, two to six options
+  assert.equal((await api('POST', '/v1/support/vote/open', { options: [{ title: 'A' }, { title: 'B' }] })).status, 401);
+  assert.equal((await admin('POST', '/v1/support/vote/open', { options: [{ title: 'Only one' }] })).status, 400);
+  const op = await admin('POST', '/v1/support/vote/open', { title: 'What next?', days: 7, options: [
+    { title: 'Match reminders', note: 'A notice when a game you follow starts' }, { title: 'Trakt sync' }, { title: 'Faster scrub previews' }] });
+  assert.equal(op.status, 200);
+  assert.equal(op.body.round.options.length, 3);
+  assert.equal((await admin('POST', '/v1/support/vote/open', { options: [{ title: 'X' }, { title: 'Y' }] })).status, 409);
+  // who may vote: Plus and up, and the monthly plan; a $2 supporter and a stranger may not
+  const plus = await mkProfile('vote_plus', 'Vote Plus', 'password1');
+  const sup = await mkProfile('vote_sup', 'Vote Sup', 'password1');
+  const founder = await mkProfile('vote_found', 'Vote Founder', 'password1');
+  await admin('POST', '/v1/support/grant', { handle: 'vote_plus', tier: 'plus' });
+  await admin('POST', '/v1/support/grant', { handle: 'vote_sup', tier: 'supporter' });
+  await admin('POST', '/v1/support/grant', { handle: 'vote_found', tier: 'founder' });
+  const seen = (await api('GET', '/v1/support/vote', undefined, tok(sup))).body;
+  assert.equal(seen.can, false);
+  assert.equal(seen.round.title, 'What next?');
+  assert.equal(seen.round.options[0].votes, undefined, 'no counts before one has voted');
+  assert.equal((await api('POST', '/v1/support/vote', { option: 'o1' }, tok(sup))).status, 403);
+  assert.equal((await api('POST', '/v1/support/vote', { option: 'o1' })).status, 401);
+  assert.equal((await api('GET', '/v1/support/vote', undefined, tok(plus))).body.can, true);
+  assert.equal((await api('POST', '/v1/support/vote', { option: 'o9' }, tok(plus))).status, 404);
+  const v1 = await api('POST', '/v1/support/vote', { option: 'o2' }, tok(plus));
+  assert.equal(v1.status, 200);
+  assert.equal(v1.body.mine, 'o2');
+  assert.deepEqual(v1.body.round.options.map((o) => o.votes), [0, 1, 0]);
+  // one ballot each, changeable while it runs
+  await api('POST', '/v1/support/vote', { option: 'o1' }, tok(founder));
+  const v2 = await api('POST', '/v1/support/vote', { option: 'o1' }, tok(plus));
+  assert.deepEqual(v2.body.round.options.map((o) => o.votes), [2, 0, 0]);
+  assert.equal(v2.body.round.voters, 2);
+  // closing: the winner and the counts are for everyone; a tie would go to the first listed
+  const cl = await admin('POST', '/v1/support/vote/close');
+  assert.equal(cl.body.closed.winner.title, 'Match reminders');
+  const after = (await api('GET', '/v1/support/vote')).body;
+  assert.equal(after.round, null);
+  assert.equal(after.last.winner.title, 'Match reminders');
+  assert.deepEqual(after.last.options.map((o) => o.votes), [2, 0, 0]);
+  assert.equal((await api('POST', '/v1/support/vote', { option: 'o1' }, tok(plus))).status, 404);
+  // a round past its date closes itself when anyone looks
+  await admin('POST', '/v1/support/vote/open', { title: 'Short', days: 1, options: [{ title: 'P' }, { title: 'Q' }] });
+  const all = (await admin('GET', '/v1/support/vote/all')).body;
+  assert.equal(all.round.title, 'Short');
+  assert.equal(all.past.length, 1);
+  await admin('POST', '/v1/support/vote/close');
+  for (const h of ['vote_plus', 'vote_sup', 'vote_found']) await admin('POST', '/v1/support/revoke', { handle: h });
+});
+
 let payAsked = [];
 const payStub = http.createServer((req, res) => {
   let raw = '';
@@ -1006,7 +1074,7 @@ test('support: checkout — a signed-in buyer is raised on the webhook, a strang
   const [code2] = (await admin('POST', '/v1/support/codes', { n: 1, tier: 'supporter' })).body.codes;
   const red2 = await api('POST', '/v1/support/redeem', { code: code2 }, tok(m2));
   assert.equal(red2.status, 200);                                // not "already a supporter": the monthly plan alone is not permanent
-  assert.equal(red2.body.supporter.tier, 'supporter');
+  assert.equal(red2.body.supporter.tier, 'monthly');             // still subscribed: the Plus-level plan shows; the code is kept underneath
   await hook({ event: 'customer.subscription.deleted', subscriptionCustomerId: 'sc_m2', subscription: { id: 'prod_monthly', customerId: 'sc_m2' } });
   const after2 = (await api('GET', '/v1/profile/me', undefined, tok(m2))).body.supporter;
   assert.equal(after2.tier, 'supporter');

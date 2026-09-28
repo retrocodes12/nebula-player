@@ -55,7 +55,8 @@ const TIERS = {
   supporter: { rank: 1, name: 'Supporter', price: 2 },
   plus: { rank: 2, name: 'Supporter Plus', price: 5 },
   founder: { rank: 3, name: 'Founder', price: 20 },
-  monthly: { rank: 1, name: 'Monthly Supporter', price: 1.5, recurring: true },
+  // the monthly plan carries the Plus-level perks (mark, colours, early builds, the vote, the recap) while it runs — not the key
+  monthly: { rank: 2, name: 'Monthly Supporter', price: 1.5, recurring: true },
 };
 const MARKS = ['star', 'heart', 'bolt', 'crown'];        // Supporter Plus and up choose theirs; everyone else is a star
 const TIER_LIST = Object.keys(TIERS).map((id) => ({ id, name: TIERS[id].name, price: TIERS[id].price }));
@@ -69,13 +70,14 @@ module.exports = function attach(core) {
   const CONFIG_PATH = path.join(DATA_DIR, 'support-config.json');
 
   // ---------- the store: codes + which groups may be on the wall + pending checkouts ----------
-  let store = { codes: {}, gids: [], pending: {}, orders: {}, subscriptions: {} };
+  let store = { codes: {}, gids: [], pending: {}, orders: {}, subscriptions: {}, vote: null, votes: [] };
   try {
     const s = JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
     if (s && typeof s === 'object') {
       store = { codes: s.codes || {}, gids: Array.isArray(s.gids) ? s.gids : [],
         pending: s.pending && typeof s.pending === 'object' ? s.pending : {}, orders: s.orders && typeof s.orders === 'object' ? s.orders : {},
-        subscriptions: s.subscriptions && typeof s.subscriptions === 'object' ? s.subscriptions : {} };
+        subscriptions: s.subscriptions && typeof s.subscriptions === 'object' ? s.subscriptions : {},
+        vote: s.vote && typeof s.vote === 'object' ? s.vote : null, votes: Array.isArray(s.votes) ? s.votes : [] };
     }
   } catch (e) {}
   let storeTimer = null;
@@ -348,12 +350,15 @@ module.exports = function attach(core) {
       persistSoon(gid);
     },
   });
+  const vote = require('./support-vote.js')({ store, persistStore, json, body, allow, auth, isAdmin, rankOf });
   function redirect(res, to) {
     try { res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' }); res.end(); } catch (e) {}
   }
 
   async function route(p, req, res, ip) {
     const m = req.method;
+    // the supporters' vote on what gets built next (support-vote.js)
+    if (p === '/v1/support/vote' || p.startsWith('/v1/support/vote/')) { const v = await vote.route(p, req, res, ip); if (v !== false) return v; }
 
     if (p === '/v1/support' && m === 'GET') {
       if (!allow('support', ip, 120, 60)) return json(res, 429, { error: 'rate limited' });

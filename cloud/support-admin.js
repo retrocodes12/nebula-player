@@ -18,6 +18,9 @@
 //   node support-admin.js mail preview <order>    print the receipt an order would get, without sending it
 //   node support-admin.js mail send <order> [again] [to a@b]   send it by hand (to = a test address; the order is not marked)
 //   node support-admin.js mail sample <a@b> [tier]  a made-up receipt to a test address
+//   node support-admin.js vote                    the supporters' vote: the open round with its counts, and the last ones
+//   node support-admin.js vote open [--days N] [--title "…"] "Option|note" "Option|note" …   open a round (2–6 options, 30 days)
+//   node support-admin.js vote close              close it now (the most votes wins; a tie goes to the first listed)
 //
 // Env: DATA_DIR (default ./data), CLOUD_BASE (default http://127.0.0.1:3342).
 
@@ -200,6 +203,34 @@ async function main() {
     const r = await call('POST', '/v1/support/' + cmd, { handle, tier, note: rest.join(' ') });
     console.log(cmd === 'grant' ? '@' + r.handle + ' is ' + r.supporter.tier + ' since ' + when(r.supporter.since) : 'Revoked ' + handle);
     return;
+  }
+  if (cmd === 'vote') {
+    const what = rest.shift();
+    if (!what) {
+      const r = await call('GET', '/v1/support/vote/all');
+      const show = (x, open) => {
+        console.log((open ? 'OPEN  ' : 'closed ') + '"' + x.title + '" — ' + (open ? 'closes ' + when(x.closes) : 'closed ' + when(x.closed) + (x.winner ? ', winner: ' + x.winner.title : ', no ballots')) + ' · ' + (x.voters || 0) + ' voters');
+        for (const o of x.options) console.log('   ' + String(o.votes || 0).padStart(4) + '  ' + o.id + '  ' + o.title + (o.note ? ' — ' + o.note : ''));
+      };
+      if (r.round) show(r.round, true); else console.log('No vote open.');
+      for (const x of (r.past || []).slice(0, 3)) show(x, false);
+      return;
+    }
+    if (what === 'close') { const r = await call('POST', '/v1/support/vote/close'); console.log('Closed "' + r.closed.title + '" — ' + (r.closed.winner ? 'winner: ' + r.closed.winner.title : 'no ballots')); return; }
+    if (what === 'open') {
+      let days = 30, title = '';
+      const opts = [];
+      while (rest.length) {
+        const x = rest.shift();
+        if (x === '--days') days = Number(rest.shift()) || 30;
+        else if (x === '--title') title = rest.shift() || '';
+        else { const [t, ...n] = x.split('|'); opts.push({ title: t, note: n.join('|') }); }
+      }
+      const r = await call('POST', '/v1/support/vote/open', { title, days, options: opts });
+      console.log('Opened "' + r.round.title + '" until ' + when(r.round.closes) + ': ' + r.round.options.map((o) => o.title).join(' · '));
+      return;
+    }
+    console.error('vote | vote open [--days N] [--title "…"] "Option|note" … | vote close'); process.exit(2);
   }
   if (cmd === 'drop') {
     if (!rest[0]) { console.error('Which code?'); process.exit(2); }
