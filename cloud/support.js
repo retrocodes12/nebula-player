@@ -216,6 +216,13 @@ module.exports = function attach(core) {
       The monthly plan (a subscriptionId) rides beside a one-time tier and never lowers one; a one-time tier bought by
       someone who ONLY had the monthly plan replaces it (same rank, but permanent — cancelling must not take it away). */
   function grant(gid, g, via, note, tier, subscriptionId) {
+    const s = grantTier(gid, g, via, note, tier, subscriptionId);
+    // Founders are on the wall by default (2026-09-28, the Founder's call): a place on the Founders list is what the tier
+    // promises. A Founder who switched the wall off themselves (`wallSet`) stays off, whatever is granted later.
+    if (s && rankOf(s.tier) >= 3 && !s.wall && !s.wallSet) { s.wall = true; persistSoon(gid); wallAt = 0; }
+    return s;
+  }
+  function grantTier(gid, g, via, note, tier, subscriptionId) {
     tier = cleanTier(tier);
     if (g.supporter) {
       if (subscriptionId) g.supporter.subscription = { id: subscriptionId, status: 'active' };
@@ -521,7 +528,7 @@ module.exports = function attach(core) {
     if (p === '/v1/support' && m === 'PUT') {
       if (!g.supporter) return json(res, 403, { error: 'not a supporter' });
       const b = (await body(req)) || {};
-      if (b.wall !== undefined) { g.supporter.wall = !!b.wall; persistSoon(gid); wallAt = 0; }
+      if (b.wall !== undefined) { g.supporter.wall = !!b.wall; g.supporter.wallSet = true; persistSoon(gid); wallAt = 0; }   // their own choice outranks the Founder default
       if (b.mark !== undefined) {
         if (rankOf(g.supporter.tier) < 2) return json(res, 403, { error: 'mark needs plus' });
         if (!MARKS.includes(b.mark)) return json(res, 400, { error: 'unknown mark' });

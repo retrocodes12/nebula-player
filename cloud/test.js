@@ -865,6 +865,9 @@ test('support: tiers — a code carries one, a higher code upgrades and keeps si
   assert.equal(up.body.supporter.since, since);
   const me = (await api('GET', '/v1/profile/me', undefined, tok(a))).body;
   assert.equal(me.supporter.tier, 'founder');
+  // founders are on the wall by default (09-28): nobody switched it on, and there she is; a Plus supporter is not
+  assert.equal(me.supporter.wall, true);
+  assert.deepEqual((await api('GET', '/v1/support')).body.wall.map((w) => w.name), ['Ada T']);
   // grant by handle with a tier; a lower grant changes nothing
   assert.equal((await admin('POST', '/v1/support/grant', { handle: 'tier_bob', tier: 'plus' })).body.supporter.tier, 'plus');
   assert.equal((await admin('POST', '/v1/support/grant', { handle: 'tier_bob', tier: 'supporter' })).body.supporter.tier, 'plus');
@@ -876,6 +879,12 @@ test('support: tiers — a code carries one, a higher code upgrades and keeps si
   await api('PUT', '/v1/support', { wall: true }, tok(a), '10.9.9.1');
   const wall = (await api('GET', '/v1/support')).body.wall;
   assert.deepEqual(wall.map((w) => w.name + ':' + w.tier), ['Ada T:founder', 'Bob T:plus']);
+  // a founder who switches it off stays off — a later grant does not put her back
+  await api('PUT', '/v1/support', { wall: false }, tok(a), '10.9.9.1');
+  await admin('POST', '/v1/support/grant', { handle: 'tier_ada', tier: 'founder' });
+  assert.deepEqual((await api('GET', '/v1/support')).body.wall.map((w) => w.name), ['Bob T']);
+  assert.equal((await api('GET', '/v1/profile/me', undefined, tok(a))).body.supporter.wall, false);
+  await api('PUT', '/v1/support', { wall: true }, tok(a), '10.9.9.1');
   // the mark: plus and up choose one; a supporter is a star; friends and the wall see it
   assert.equal((await api('PUT', '/v1/support', { mark: 'crown' }, tok(b))).body.supporter.mark, 'crown');
   assert.equal((await api('PUT', '/v1/support', { mark: 'dragon' }, tok(b))).status, 400);
