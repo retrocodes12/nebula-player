@@ -165,6 +165,47 @@
   html.tv #supQr svg { width:220px; height:220px; }
   html.tv .sup-url { font-size:calc(30px * var(--ts)); }
   html.tv .sup-wall { font-size:calc(19px * var(--ts)); }
+  /* the Plus-level perks (09-28): the vote, the month's recap, the monthly plan's manage QR on a TV */
+  .vote-q { font-size:calc(16px * var(--ts)); font-weight:600; letter-spacing:-.01em; color:var(--label); margin:8px 0 10px; }
+  .vote-q small { display:block; font-family:var(--mono); font-size:calc(11px * var(--ts)); font-weight:500; letter-spacing:.06em;
+    color:var(--label3); margin-top:4px; }
+  .vote-list { display:block; max-width:560px; }
+  .vote-opt { position:relative; display:block; width:100%; text-align:left; overflow:hidden; cursor:pointer;
+    background:transparent; color:var(--label); border:0; border-radius:var(--r-tile); padding:12px 56px 12px 14px;
+    box-shadow:inset 0 0 0 1px var(--line); font-family:var(--sans); transition:background .18s var(--ease); }
+  .vote-opt + .vote-opt { margin-top:8px; }
+  .vote-opt:hover { background:var(--fill); }
+  .vote-opt[disabled] { cursor:default; }
+  .vote-opt.on { box-shadow:inset 0 0 0 1px var(--accent); }
+  html.tv .vote-opt.focusable:focus { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
+  .vote-opt.focusable:focus-visible { box-shadow:0 0 0 4px rgba(255,255,255,.5); }
+  .vote-bar { position:absolute; left:0; top:0; bottom:0; background:rgba(255,255,255,.07); pointer-events:none; }
+  .vote-opt.on .vote-bar { background:rgba(255,255,255,.12); }
+  .vote-t, .vote-n, .vote-p { position:relative; }
+  .vote-t { display:block; font-size:calc(15px * var(--ts)); font-weight:600; }
+  .vote-mine { font-weight:500; color:var(--accent); }
+  .vote-n { display:block; font-size:calc(13px * var(--ts)); color:var(--label2); margin-top:3px; line-height:1.4; }
+  .vote-p { position:absolute; right:14px; top:12px; font-family:var(--mono); font-size:calc(13px * var(--ts)); color:var(--label2);
+    font-variant-numeric:tabular-nums; }
+  .recap { max-width:560px; margin-top:8px; padding:16px 18px; border-radius:var(--r-tile); box-shadow:inset 0 0 0 1px var(--line); }
+  .recap-kick { font-family:var(--mono); font-size:calc(11px * var(--ts)); letter-spacing:.12em; text-transform:uppercase; color:var(--label3); }
+  .recap-big { font-size:calc(34px * var(--ts)); font-weight:700; letter-spacing:-.03em; color:var(--label); margin-top:6px; }
+  .recap-big small { font-size:calc(15px * var(--ts)); font-weight:500; letter-spacing:0; color:var(--label2); }
+  .recap-facts { margin-top:6px; font-size:calc(13px * var(--ts)); color:var(--label2); }
+  .recap-facts span + span:before { content:' · '; }
+  .recap-top { list-style:none; margin:12px 0 0; padding:0; counter-reset:rt; }
+  .recap-top li { display:flex; align-items:baseline; padding:7px 0; border-top:1px solid var(--line); counter-increment:rt; }
+  .recap-top li:before { content:counter(rt); font-family:var(--mono); font-size:calc(12px * var(--ts)); color:var(--label3); width:22px; flex:0 0 auto; }
+  .rt-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:calc(14px * var(--ts)); color:var(--label); }
+  .rt-h { flex:0 0 auto; margin-left:12px; font-family:var(--mono); font-size:calc(13px * var(--ts)); color:var(--label2); font-variant-numeric:tabular-nums; }
+  .sup-subqr { background:#fff; padding:8px; border-radius:10px; display:inline-block; }
+  .sup-subqr svg { width:120px; height:120px; display:block; }
+  html.tv .vote-q { font-size:calc(21px * var(--ts)); }
+  html.tv .vote-t { font-size:calc(19px * var(--ts)); }
+  html.tv .vote-n { font-size:calc(16px * var(--ts)); }
+  html.tv .recap-big { font-size:calc(44px * var(--ts)); }
+  html.tv .rt-name { font-size:calc(18px * var(--ts)); }
+  html.tv .vote-list, html.tv .recap { max-width:760px; }
   html:not(.tv) #rowZoom { display:none; }   /* focus zoom only means something on a TV */
   html.tv .setname { font-size:calc(19px * var(--ts)); }
   html.tv .setname small { font-size:calc(16px * var(--ts)); }
@@ -2465,6 +2506,7 @@
         <h2 class="con-title">About</h2>
         <p class="con-sub">This build, and how your data is handled.</p>
         <p class="sub" id="setAbout" style="margin:8px 0 0"></p>
+        <div id="setThanks"></div>
         <div class="setrow" id="setUpdRow" style="display:none">
           <span class="setname"><span id="setUpdName">Nebula for the desktop</span><small id="setUpdSub">Looks for a newer version and installs it from here</small></span>
           <button id="setUpdBtn" class="textbtn focusable">Check for updates</button>
@@ -2608,10 +2650,13 @@
   // else (preload.js puts window.nebulaDesktop up before any page script runs):
   // its site files and its cloud are the published site's.
   var IS_DESKTOP = !!window.nebulaDesktop;
+  // the supporters' early web build is this same file served from …/player/beta/ (scripts/deploy-beta.sh)
+  var IS_BETA = !IS_DESKTOP && /\/player\/beta\/(index\.html)?$/.test(location.pathname);
   var SITE = GH_SITE;
   if (IS_DESKTOP) SITE = 'https://play.rifflehq.in';
   else if (HTTP_ORIGIN){
     var sitePath = location.pathname
+      .replace(/\/player\/beta(\/(index\.html)?)?$/, '/player/')   // the early build (…/player/beta/) belongs to the same site
       .replace(/\/player(\/(index\.html)?)?$/, '/')   // …/player/ → …/
       .replace(/[^/]*$/, '');                          // any filename → its directory
     SITE = HTTP_ORIGIN + sitePath.replace(/\/$/, '');
@@ -3886,7 +3931,7 @@
   }
   (function checkPlayerUpdate(){
     try {
-      if (updApi || typeof fetch !== 'function') return;
+      if (updApi || IS_BETA || typeof fetch !== 'function') return;   // the early build is ahead of the beacon on purpose
       fetch(SITE + '/player-version.json', { cache:'no-store' })
         .then(function(r){ return r.ok ? r.json() : null; })
         .then(function(j){
@@ -7197,6 +7242,7 @@
     // a deferred clear.
     clearStatus();
     playStarting = false;
+    try { wlSave(); } catch(e){}
     try { socialPublishSoon(); } catch(e){}   // friends see the freshly-watched title
     try { flushProgress(true); } catch(e){}
     curPlay = null;
@@ -9582,6 +9628,7 @@
   var lastTickT = -1, progTicks = 0;
   function puiTick(){
     if (!player) return;
+    try { wlTick(); } catch(e){}                          // the supporters' monthly recap (on this device only)
     // Healthy playback (position advancing) re-arms the one-shot retry so a
     // much-later blip can be retried once more.
     if (!video.paused && video.currentTime > lastTickT + 0.4) didRetry = false;
@@ -12014,7 +12061,10 @@
     return cloudApi('GET', '/v1/profile/me').then(function(r){
       profile = r.on ? { handle: r.handle, name: r.name, avatar: r.avatar, sup: !!r.supporter,
         since: r.supporter ? (r.supporter.since || 0) : 0, wall: !!(r.supporter && r.supporter.wall),
-        tier: r.supporter ? (r.supporter.tier || 'supporter') : null, mark: r.supporter ? (r.supporter.mark || 'star') : null } : null; profileSave();
+        tier: r.supporter ? (r.supporter.tier || 'supporter') : null, mark: r.supporter ? (r.supporter.mark || 'star') : null,
+        // the monthly plan: the payment service's status, and the private link where its owner cancels or changes the card
+        subStatus: r.supporter && r.supporter.subscription ? String(r.supporter.subscription.status || 'active') : null,
+        subManage: r.supporter && r.supporter.subscription && /^https:\/\//.test(String(r.supporter.subscription.manage || '')) ? String(r.supporter.subscription.manage) : null } : null; profileSave();
       pfDevices = r.devices || [];
       profileCardRender(); syncPanelRender();
       // the view drew from the stored copy before this answer came — patch its head in place (never redraw the
@@ -12067,7 +12117,8 @@
     return '<span class="sup-star" role="img" aria-label="Supporter"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + SUP_MARKS[k] + '</svg></span>';
   }
   var SUP_STAR = supMark('star');
-  var SUP_TIERS = { supporter: ['Supporter', 1], plus: ['Supporter Plus', 2], founder: ['Founder', 3] };
+  // the monthly plan ranks with Supporter Plus while it runs (the server ends it with the subscription)
+  var SUP_TIERS = { supporter: ['Supporter', 1], plus: ['Supporter Plus', 2], founder: ['Founder', 3], monthly: ['Monthly Supporter', 2] };
   function supRank(){ return isSupporter() && SUP_TIERS[profile.tier] ? SUP_TIERS[profile.tier][1] : (isSupporter() ? 1 : 0); }
   function supTierName(){ return isSupporter() && SUP_TIERS[profile.tier] ? SUP_TIERS[profile.tier][0] : 'Supporter'; }
   /** The mark by THIS profile's name (friends' marks come with their cards). */
@@ -12110,7 +12161,7 @@
       var wall = (r && r.wall && r.wall.length ? r.wall : []).slice(0, 200).map(function(w){ return { name: String((w && w.name) || '').slice(0, 40), avatar: (w && w.avatar) || null, tier: String((w && w.tier) || 'supporter'), mark: String((w && w.mark) || 'star') }; });
       supportCfg = { url: r && /^https:\/\//.test(String(r.url || '')) ? String(r.url) : null, wall: wall, count: (r && r.count) | 0, at: Date.now() };
       try { LS.setItem('support_v1', JSON.stringify(supportCfg)); } catch(e){}
-      supportNavRender(); supportRender();
+      supportNavRender(); supportRender(); thanksRender();
       if (was !== supportVisible()) settingsRender();      // the supporter swatches come and go with the section
       return supportCfg;
     }).catch(function(){ return supportCfg; });
@@ -12137,6 +12188,175 @@
       go(r && r.token ? url + (url.indexOf('?') < 0 ? '?' : '&') + 'for=' + r.token : url);
     }).catch(function(){ go(url); });
   }
+  // ---------- the Plus-level perks (2026-09-28): Supporter Plus, Founder, and the monthly plan while it runs ----------
+  function supPerks(){ return supRank() >= 2; }
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  // The month's watching, on THIS device only (never synced, never sent): seconds actually playing, per title and
+  // per day, for the supporters' recap. Kept for everyone, so a new supporter sees their month so far; the current
+  // month and the two before it. LS `watchlog_v1` = {"2026-09": {s, t: {title: s}, d: {day: s}}}.
+  var WL_KEY = 'watchlog_v1', wl = null, wlAt = 0, wlDirty = 0;
+  function wlLoad(){
+    if (wl) return wl;
+    try { wl = JSON.parse(LS.getItem(WL_KEY) || 'null'); } catch(e){ wl = null; }
+    if (!wl || typeof wl !== 'object') wl = {};
+    return wl;
+  }
+  function wlMonthKey(d){ return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2); }
+  /** From the player tick: wall-clock time while the picture is really moving (not paused, seeking or buffering). */
+  function wlTick(){
+    var now = Date.now(), dt = wlAt ? (now - wlAt) / 1000 : 0;
+    wlAt = now;
+    if (dt <= 0 || dt > 3) return;                         // a timer that slept (a tab in the background) is not watching
+    if (video.paused || video.seeking || video.readyState < 3) return;
+    var d = new Date(), log = wlLoad(), k = wlMonthKey(d);
+    var e = log[k] || (log[k] = { s: 0, t: {}, d: {} });
+    var title = String(($id('puiTitle') && $id('puiTitle').textContent) || '').trim().slice(0, 80) || 'Untitled';
+    e.s += dt; e.t[title] = (e.t[title] || 0) + dt;
+    var day = String(d.getDate()); e.d[day] = (e.d[day] || 0) + dt;
+    if (++wlDirty >= 60) wlSave();                          // about every 30 s of playing
+  }
+  function wlSave(){
+    wlDirty = 0; wlAt = 0;
+    if (!wl) return;
+    var ks = Object.keys(wl).sort();
+    while (ks.length > 3) delete wl[ks.shift()];
+    ks.forEach(function(k){
+      var e = wl[k], ts = Object.keys(e.t || {});
+      e.s = Math.round(e.s * 10) / 10;
+      if (ts.length > 150){ ts.sort(function(a, b){ return e.t[b] - e.t[a]; }); ts.slice(150).forEach(function(t){ delete e.t[t]; }); }
+      Object.keys(e.t).forEach(function(t){ e.t[t] = Math.round(e.t[t]); });
+      Object.keys(e.d || {}).forEach(function(x){ e.d[x] = Math.round(e.d[x]); });
+    });
+    try { LS.setItem(WL_KEY, JSON.stringify(wl)); } catch(e){}
+  }
+  function hoursText(sec){ var h = sec / 3600; return h >= 10 ? Math.round(h) + ' h' : (h >= 1 ? (Math.round(h * 10) / 10) + ' h' : Math.max(1, Math.round(sec / 60)) + ' min'); }
+  /** The recap of one month, or null when it has under a minute in it. */
+  function recapOf(k){
+    var e = wlLoad()[k];
+    if (!e || !(e.s >= 60)) return null;
+    var titles = Object.keys(e.t || {}).map(function(t){ return [t, e.t[t]]; }).sort(function(a, b){ return b[1] - a[1]; });
+    var days = Object.keys(e.d || {}).filter(function(x){ return e.d[x] >= 60; });
+    var busy = null;
+    Object.keys(e.d || {}).forEach(function(x){ if (!busy || e.d[x] > e.d[busy]) busy = x; });
+    var y = +k.slice(0, 4), m = +k.slice(5, 7);
+    return { key: k, month: MONTHS[m - 1], year: y, total: e.s, days: days.length, top: titles.slice(0, 3), titles: titles.length,
+      busy: busy ? { day: +busy, secs: e.d[busy], label: busy + ' ' + MONTHS[m - 1] } : null };
+  }
+  var recapPick = null;                                     // which month the card shows (null = the newest with anything in it)
+  function recapHtml(){
+    var ks = Object.keys(wlLoad()).sort().reverse().filter(function(k){ return !!recapOf(k); });
+    if (!ks.length) return '<p class="tagline" style="margin-top:6px">Nothing yet this month — your recap fills in as you watch. It stays on this device.</p>';
+    var k = recapPick && ks.indexOf(recapPick) >= 0 ? recapPick : ks[0], r = recapOf(k);
+    var h = '<div class="recap"><div class="recap-kick">Your ' + esc(r.month) + (r.year !== new Date().getFullYear() ? ' ' + r.year : '') + ' on Nebula</div>' +
+      '<div class="recap-big">' + esc(hoursText(r.total)) + '<small> watched</small></div>' +
+      '<div class="recap-facts"><span>' + r.days + ' day' + (r.days === 1 ? '' : 's') + ' watching</span><span>' + r.titles + ' title' + (r.titles === 1 ? '' : 's') + '</span>' +
+      (r.busy ? '<span>Busiest: ' + esc(r.busy.label) + ' · ' + esc(hoursText(r.busy.secs)) + '</span>' : '') + '</div>';
+    if (r.top.length){
+      h += '<ol class="recap-top">';
+      r.top.forEach(function(t){ h += '<li><span class="rt-name">' + esc(t[0]) + '</span><span class="rt-h">' + esc(hoursText(t[1])) + '</span></li>'; });
+      h += '</ol>';
+    }
+    h += '</div>';
+    if (ks.length > 1){
+      h += '<div class="row" style="margin-top:10px">';
+      ks.forEach(function(x){ var rr = recapOf(x); h += '<button class="chip focusable' + (x === k ? ' on' : '') + '" type="button" data-recap="' + esc(x) + '">' + esc(rr.month) + '</button>'; });
+      h += '</div>';
+    }
+    return h + '<p class="tagline" style="margin-top:8px">Worked out on this device from what it played — never sent anywhere.</p>';
+  }
+
+  // The vote on what gets built next (GET/POST /v1/support/vote): one open round, one changeable ballot per Plus-level
+  // supporter, the counts shown after one's own ballot.
+  var voteSt = { data: null, at: 0, busy: false };
+  function voteLoad(force){
+    if (!force && voteSt.at && Date.now() - voteSt.at < 60000) return Promise.resolve(voteSt.data);
+    var call = pfState() === 'in' ? cloudApi('GET', '/v1/support/vote') : cloudPublic('GET', '/v1/support/vote');
+    return call.then(function(r){ voteSt.data = r || null; voteSt.at = Date.now(); supportRender(); return r; }).catch(function(){ return null; });
+  }
+  function voteCast(id){
+    if (voteSt.busy) return;
+    voteSt.busy = true;
+    cloudApi('POST', '/v1/support/vote', { option: id }).then(function(r){
+      voteSt.data = r; voteSt.at = Date.now();
+      setStatus('Your vote is in — you can change it until the vote closes.', 'ok');
+    }).catch(function(e){
+      var m = e && e.body && e.body.error;
+      setStatus(m === 'vote needs plus' ? 'Voting is for Supporter Plus, Founders and Monthly supporters.' : m === 'no vote open' ? 'That vote has just closed.' : supErr(e), 'err');
+      voteLoad(true);
+    }).then(function(){
+      voteSt.busy = false; supportRender();
+      var b = $id('vote-' + id); if (b && (IS_TV || kbUsed)) b.focus();
+    });
+  }
+  function voteDate(ms){ var d = new Date(ms); return d.getDate() + ' ' + MONTHS[d.getMonth()]; }
+  function voteHtml(canVote){
+    var v = voteSt.data;
+    if (!v) return '<p class="tagline" style="margin-top:6px">Loading the vote…</p>';
+    var r = v.round, h = '';
+    if (!r){
+      h += '<p class="tagline" style="margin-top:6px">No vote open right now — the next one shows up here.</p>';
+      if (v.last && v.last.winner) h += '<p class="tagline" style="margin-top:4px">Last time, supporters chose <b>' + esc(v.last.winner.title) + '</b>.</p>';
+      return h;
+    }
+    var voted = !!v.mine, total = voted ? Math.max(1, r.voters || 0) : 0;
+    h += '<div class="vote-q">' + esc(r.title) + '<small>Closes ' + esc(voteDate(r.closes)) + (voted ? ' · ' + (r.voters || 0) + ' vote' + (r.voters === 1 ? '' : 's') + ' so far' : '') + '</small></div><div class="vote-list">';
+    r.options.forEach(function(o){
+      var pct = voted ? Math.round(100 * (o.votes || 0) / total) : 0, mine = v.mine === o.id;
+      h += '<button class="vote-opt focusable' + (mine ? ' on' : '') + '" type="button" id="vote-' + esc(o.id) + '" data-vote="' + esc(o.id) + '"' + (canVote ? '' : ' disabled') + '>' +
+        (voted ? '<span class="vote-bar" style="width:' + pct + '%"></span>' : '') +
+        '<span class="vote-t">' + esc(o.title) + (mine ? ' <span class="vote-mine">· your vote</span>' : '') + '</span>' +
+        (o.note ? '<span class="vote-n">' + esc(o.note) + '</span>' : '') +
+        (voted ? '<span class="vote-p">' + pct + '%</span>' : '') + '</button>';
+    });
+    return h + '</div>';
+  }
+
+  // Early builds: the web player's next version, a few days before everyone, at …/player/beta/ (Android has its own
+  // switch; the TV's package cannot be offered to some viewers and not others).
+  var BETA_URL = 'https://play.rifflehq.in/player/beta/';
+  var betaSt = { at: 0, info: null };
+  function betaLoad(){
+    if (betaSt.at && Date.now() - betaSt.at < 600000) return;
+    betaSt.at = Date.now();
+    try {
+      fetch(BETA_URL + 'player-version.json', { cache: 'no-store' }).then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(j){ betaSt.info = j && j.version && j.version !== PLAYER_VERSION ? j : false; supportRender(); })
+        .catch(function(){ betaSt.info = null; supportRender(); });
+    } catch(e){}
+  }
+  function betaHtml(){
+    if (IS_BETA) return '<p class="tagline" style="margin-top:6px">You are on the early build (' + esc(PLAYER_VERSION) + '). Thank you for trying it first.</p>' +
+      '<div class="row" style="margin-top:8px"><a class="btn ghost focusable" href="' + esc(SITE + '/player/') + '">Back to the regular player</a></div>';
+    if (IS_TV) return '<p class="tagline" style="margin-top:6px">Early builds come to Android and the web first — open ' + esc('play.rifflehq.in/player/beta') + ' in a browser.</p>';
+    var i = betaSt.info;
+    return '<p class="tagline" style="margin-top:6px">' + (i ? 'Early build ' + esc(i.version) + (i.notes ? ' — ' + esc(i.notes) : '') :
+      i === false ? 'No early build right now — the next one shows up here, a few days before everyone gets it.' :
+      'The next version of this player, a few days before everyone gets it. It is tested, just newer.') + '</p>' +
+      (i !== false ? '<div class="row" style="margin-top:8px"><button id="supBeta" class="btn ghost focusable" type="button">Open the early build</button></div>' : '');
+  }
+
+  /** The monthly plan's own row: where it stands, and the private link to cancel or change the card. */
+  var SUB_WORDS = { trialing: 'Free week', active: 'Active', past_due: 'Payment failed — update your card', paused: 'Paused' };
+  function subHtml(){
+    if (!profile || !profile.subStatus) return '';
+    var h = '<div class="setrow"><span class="setname">Monthly plan<small>' + esc(SUB_WORDS[profile.subStatus] || profile.subStatus) + ' · cancel or change your card any time</small></span>';
+    if (profile.subManage) h += IS_TV ? '<span id="supSubQr" class="sup-subqr" aria-hidden="true"></span>' : '<button id="supManage" class="textbtn focusable" type="button">Manage</button>';
+    return h + '</div>' + (IS_TV && profile.subManage ? '<p class="tagline" style="margin-top:4px">Scan with your phone to manage it. The link is yours alone.</p>' : '');
+  }
+
+  /** Settings › About: the supporters who chose to be named, for everyone to see. */
+  function thanksRender(){
+    var el = $id('setThanks'); if (!el) return;
+    var w = supportCfg.wall || [];
+    var founders = w.filter(function(x){ return x.tier === 'founder'; }).map(function(x){ return x.name; }).filter(Boolean);
+    var others = w.filter(function(x){ return x.tier !== 'founder'; }).map(function(x){ return x.name; }).filter(Boolean);
+    if (!founders.length && !others.length){ el.innerHTML = ''; return; }
+    el.innerHTML = '<div class="lbl" style="margin-top:18px">Thank you</div><p class="sub" style="margin:6px 0 0">Nebula is kept going by ' +
+      (founders.length ? 'its Founders, ' + esc(joinNames(founders)) + (others.length ? ', and by ' : '') : '') +
+      (others.length ? esc(joinNames(others)) : '') + (supportCfg.count > w.length ? ' — and ' + (supportCfg.count - w.length) + ' more who keep it quiet' : '') + '.</p>';
+  }
+
   function supportRender(){
     var body = $id('supBody'); if (!body) return;
     var h = '', rank = supRank();
@@ -12146,9 +12366,20 @@
         '<p class="tagline" style="margin-top:4px">' + (since ? 'Since ' + esc(since) + '. ' : '') + 'Thank you — this is what keeps Nebula going.</p>' +
         '<div class="setrow"><span class="setname">Your name on the wall<small>In Settings › Support on every device, and on the website</small></span><span id="supWallSeg" class="seg"></span></div>';
       if (rank >= 2) h += '<div class="setrow"><span class="setname">Your mark<small>Beside your name, for you and your friends</small></span><span id="supMarkSeg" class="seg"></span></div>';
+      h += subHtml();
+      if (supPerks()){
+        h += '<div class="lbl" style="margin-top:22px">Vote on what’s next</div>' + voteHtml(!!(voteSt.data && voteSt.data.can));
+        h += '<div class="lbl" style="margin-top:22px">Your month</div>' + recapHtml();
+        h += '<div class="lbl" style="margin-top:22px">Early builds</div>' + betaHtml();
+      } else {
+        var vq = voteSt.data && voteSt.data.round ? voteSt.data.round.title : '';
+        h += '<div class="lbl" style="margin-top:22px">More with Supporter Plus or the monthly plan</div>' +
+          '<p class="tagline" style="margin-top:6px">' + (vq ? 'Supporters are voting on “' + esc(vq) + '”. ' : '') +
+          'A vote on what gets built next, early builds, and a private recap of your month — with Supporter Plus, or monthly from $1.50.</p>';
+      }
       if (rank < 3 && supportCfg.url){
         h += '<div class="setrow" style="display:block"><span class="setname" style="display:block">Raise your tier' +
-          '<small>' + (rank < 2 ? 'Supporter Plus: any accent colour, your own mark, early builds. ' : '') + 'Founder: the Founders list, a gold ring, Nebula Sports without the sponsor prompt.</small></span>';
+          '<small>' + (rank < 2 ? 'Supporter Plus, or monthly from $1.50: any accent colour, your own mark, early builds, the vote, your monthly recap. ' : '') + 'Founder: the Founders list, a gold ring, Nebula Sports without the sponsor prompt.</small></span>';
         h += IS_TV
           ? '<div class="sup-tv"><div id="supQr" aria-hidden="true"></div><div><div class="sup-url">' + SUPPORT_SHORT + '</div><p class="tagline" style="margin-top:4px">Open it on your phone — it takes a minute.</p></div></div>'
           : '<div class="row" style="margin-top:10px"><button id="supGo" class="btn ghost focusable" type="button">See the tiers</button></div>';
@@ -12156,7 +12387,8 @@
       }
     } else {
       h += '<p class="tagline" style="margin-top:4px">Every feature stays free for everyone. Supporting keeps the sync server and the site running, and you get a ' +
-        'small thank-you: a mark beside your name, more accent colours, your name on the wall if you like — and more at the higher tiers.</p>';
+        'small thank-you: a mark beside your name, more accent colours, your name on the wall if you like — and with Supporter Plus or the monthly plan ' +
+        '(from $1.50), a vote on what gets built next, early builds and a private recap of your month.</p>';
       if (supportCfg.url){
         h += IS_TV
           ? '<div class="sup-tv"><div id="supQr" aria-hidden="true"></div><div><div class="sup-url">' + SUPPORT_SHORT + '</div>' +
@@ -12209,6 +12441,23 @@
     }
     var sg = $id('supGo'); if (sg) sg.onclick = supportOpen;
     var si = $id('supSignIn'); if (si) si.onclick = function(){ show('profile'); };
+    // the perks: the vote, the recap's months, the early build, the monthly plan's own link
+    Array.prototype.forEach.call(body.querySelectorAll('[data-vote]'), function(b){
+      b.onclick = function(){ if (!b.disabled) voteCast(b.getAttribute('data-vote')); };
+    });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-recap]'), function(b){
+      b.onclick = function(){
+        recapPick = b.getAttribute('data-recap'); supportRender();
+        var nb = body.querySelector('[data-recap="' + recapPick + '"]'); if (nb && (IS_TV || kbUsed)) nb.focus();
+      };
+    });
+    var sbeta = $id('supBeta');
+    if (sbeta) sbeta.onclick = function(){ if (IS_DESKTOP) window.open(BETA_URL, '_blank', 'noopener'); else location.href = BETA_URL; };
+    var sman = $id('supManage');
+    if (sman) sman.onclick = function(){ if (profile && profile.subManage) window.open(profile.subManage, '_blank', 'noopener'); };
+    var sq = $id('supSubQr');
+    if (sq && profile && profile.subManage){ try { var q2 = qrcode(0, 'M'); q2.addData(profile.subManage); q2.make(); sq.innerHTML = q2.createSvgTag({ cellSize: 3, margin: 0 }); } catch(e){} }
+    if (isSupporter()){ voteLoad(); if (supPerks() && !IS_TV && !IS_BETA) betaLoad(); }
     var rd = $id('supRedeem');
     if (rd){
       pfEnter(['supCode'], 'supRedeem');
@@ -12922,8 +13171,9 @@
     }
     if (pn && document.activeElement !== pn) pn.value = pr.pname || '';
     pn.placeholder = partyName();
-    $id('setAbout').textContent = (updApi ? 'Nebula for ' + (desktopOs() || 'the desktop') + ' ' + updApi.info.version + ' · player build ' : 'Nebula · build ') + PLAYER_VERSION +
+    $id('setAbout').textContent = (updApi ? 'Nebula for ' + (desktopOs() || 'the desktop') + ' ' + updApi.info.version + ' · player build ' : (IS_BETA ? 'Nebula · early build ' : 'Nebula · build ')) + PLAYER_VERSION +
       ' · plays every add-on format, on-device';
+    thanksRender();
     updAboutRender();
     var asub = $id('setAddonsSub'), allAdd = getAddons(), an = allAdd.length, offN = allAdd.filter(function(a){ return a.off; }).length;
     if (asub) asub.textContent = an
@@ -13178,17 +13428,20 @@
   document.addEventListener('visibilitychange', function(){
     if (document.visibilityState === 'hidden'){
       try { flushProgress(true); } catch(e){}
+      try { wlSave(); } catch(e){}
       try { flushCloudNow(); } catch(e){}
     }
   });
   window.addEventListener('pagehide', function(){
     try { flushProgress(true); } catch(e){}
+    try { wlSave(); } catch(e){}
     try { flushCloudNow(); } catch(e){}
   });
   // the desktop shell asks before it closes: the process would end before a keepalive fetch left
   if (window.nebulaDesktop && window.nebulaDesktop.onFlush){
     window.nebulaDesktop.onFlush(function(){
       try { flushProgress(true); } catch(e){}
+      try { wlSave(); } catch(e){}
       try { flushCloudNow(); } catch(e){}
     });
   }
