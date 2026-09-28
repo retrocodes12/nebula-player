@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.28.1",
+  "version": "2026.09.28.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "A cleaner player: the Subtitles panel no longer shows the controls through it, a phone's toolbar fits every control as icons, a failed stream says why in a few words, messages sit above the timeline instead of on it, and the quality menu uses the names you know (4K, 1080p, 720p)."
+  "notes": "New for Supporter Plus, Founders and the monthly plan: vote on what Nebula builds next, a private recap of your month, and early builds. Settings › About now thanks the supporters."
 }
