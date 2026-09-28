@@ -575,6 +575,27 @@
   .streamsec { display:grid; grid-template-columns:1fr; gap:10px; }
   .streamsec:empty { display:none; }
   .streams > * { min-width:0; }
+  /* an add-on still being asked (09-28): its name and a spinner where its rows will go — a slow one can take a minute */
+  .s-wait { display:flex; align-items:center; min-width:0; padding:14px 16px; border-radius:var(--r-tile);
+    box-shadow:inset 0 0 0 1px var(--line); color:var(--label2); }
+  .s-spin { flex:0 0 auto; width:18px; height:18px; margin:0 14px 0 4px; border:2px solid rgba(255,255,255,.18);
+    border-top-color:var(--label); border-radius:50%; animation:puispin .9s linear infinite; }
+  .s-wait-t { min-width:0; }
+  .s-wait-t b { display:block; color:var(--label); font-weight:600; font-size:calc(14.5px * var(--ts));
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .s-wait-t small { display:block; font-size:calc(12.5px * var(--ts)); color:var(--label2); margin-top:2px; }
+  html.tv .s-wait { padding:18px 22px; }
+  html.tv .s-spin { width:24px; height:24px; border-width:3px; margin-right:18px; }
+  html.tv .s-wait-t b { font-size:calc(19px * var(--ts)); }
+  html.tv .s-wait-t small { font-size:calc(15px * var(--ts)); }
+  @media (prefers-reduced-motion: reduce){ .s-spin { animation-duration:2.4s; } }
+  /* …and above the list, once rows are on screen, so a slow add-on still reads as loading when its place is far below */
+  .s-waitline { display:none; align-items:center; max-width:960px; margin:-6px 0 14px; font-size:calc(13px * var(--ts)); color:var(--label2); }
+  .s-waitline.on { display:flex; }
+  .s-waitline .s-spin { width:14px; height:14px; margin:0 10px 0 2px; }
+  .s-waitline b { color:var(--label); font-weight:600; }
+  html.tv .s-waitline { font-size:calc(17px * var(--ts)); margin-bottom:18px; }
+  html.tv .s-waitline .s-spin { width:18px; height:18px; border-width:2px; margin-right:12px; }
   .stream { min-width:0; display:flex; align-items:center; text-align:left; cursor:pointer; background:var(--l1);
     border:0; border-radius:var(--r-tile); padding:14px 16px; color:var(--label);
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
@@ -2624,6 +2645,7 @@
       </div>
       <div id="streamResume"><span id="srText"></span><button class="chip focusable" id="srBtn" type="button">Start over</button></div>
       <div id="streamFilters" style="display:none"></div>
+      <div id="streamsWait" class="s-waitline" role="status" aria-live="polite"></div>
       <div id="streamList" class="streams"></div>
     </div>
   </div>
@@ -2636,7 +2658,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.09.28.2';
+  var PLAYER_VERSION = '2026.09.28.3';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -4343,6 +4365,11 @@
     return s;
   }
   /** Placeholder rows shaped like the stream cards they stand in for. */
+  /** An add-on still being asked for streams: its name and a spinner in its place in the list. */
+  function streamWait(a){
+    return '<div class="s-wait" role="status"><span class="s-spin" aria-hidden="true"></span><span class="s-wait-t"><b>' +
+      esc((a && a.name) || 'Add-on') + '</b><small>Looking for streams…</small></span></div>';
+  }
   function streamSkeletons(n){
     var s='';
     for(var i=0;i<n;i++) s+='<div class="stream skel"><span class="sk-blob"></span>' +
@@ -7097,6 +7124,21 @@
     // be asked at all (a manifest that did not load, or a streaming add-on's request that failed). A catalog-only origin is
     // still asked, but its refusal is no one's outage — a fresh install (catalogs + subtitles only) is not "offline".
     var pending = order.length, total = 0, sections = 0, answered = 0, lost = 0;
+    // the add-ons still being asked, named above the list once rows are on screen (their own places may be far below)
+    var waiting = [], waitSlow = false;
+    var waitEl = $id('streamsWait'); waitEl.className = 's-waitline'; waitEl.innerHTML = '';
+    setTimeout(function(){ if (seq === openSeq){ waitSlow = true; waitRender(); } }, 12000);
+    function waitRender(){
+      if (seq !== openSeq) return;
+      if (!waiting.length || !total){ waitEl.className = 's-waitline'; waitEl.innerHTML = ''; return; }
+      var names = waiting.length === 1 ? '<b>' + esc(waiting[0]) + '</b>'
+        : waiting.length === 2 ? '<b>' + esc(waiting[0]) + '</b> and <b>' + esc(waiting[1]) + '</b>'
+        : '<b>' + waiting.length + ' add-ons</b>';
+      waitEl.innerHTML = '<span class="s-spin" aria-hidden="true"></span><span>Still asking ' + names +
+        (waitSlow ? ' — some add-ons take up to a minute' : '') + '</span>';
+      waitEl.className = 's-waitline on';
+    }
+    function waitDone(name){ var i = waiting.indexOf(name); if (i >= 0) waiting.splice(i, 1); waitRender(); }
     function removeLoading(){
       var el = document.getElementById('streamsLoading');
       if (el && el.parentNode) el.parentNode.removeChild(el);
@@ -7140,7 +7182,7 @@
       var box = document.createElement('div'); box.className='streamsec'; list.appendChild(box);
       // an add-on that will be asked shows skeleton rows until it answers
       // (named to avoid shadowing the outer `pending` counter that done() uses)
-      var boxPending = false, known = false, declares = false;
+      var boxPending = false, known = false, declares = false, waitName = null;   // waitName: this add-on, while it is being asked
       getManifest(a.url).then(function(m){
         known = true; declares = canStream(m, type, id);
         // the origin add-on is always asked; others only when their manifest
@@ -7149,11 +7191,20 @@
         if (seq !== openSeq) return;
         boxPending = true;
         removeLoading();                       // this add-on's own rows stand in now
-        // a catalog-only origin is still asked, but never shimmers as if it
-        // had streams coming — that skeleton sat above the real sources
-        box.innerHTML = canStream(m, type, id) ? streamSkeletons(3) : '';
+        // a catalog-only origin is still asked, but never shows as if it had streams coming — that sat above the real
+        // sources. One that streams shows its NAME and a spinner until it answers (it used to be three nameless shimmering
+        // rows, so a slow add-on — one takes a minute — was indistinguishable from a stuck page)
+        box.innerHTML = canStream(m, type, id) ? streamWait(a) : '';
+        waitName = canStream(m, type, id) ? ((a && a.name) || 'Add-on') : null;
+        if (waitName){ waiting.push(waitName); waitRender(); }
+        var slowT = setTimeout(function(){
+          var w = boxPending && box.querySelector('.s-wait small');
+          if (w) w.textContent = 'Still looking — some add-ons take up to a minute';
+        }, 12000);
         var u = a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json';
         return getJson(u).then(function(d){
+          clearTimeout(slowT);
+          if (waitName){ waitDone(waitName); waitName = null; }
           if (declares) answered++;
           if (seq !== openSeq) return;
           var streams = streamsForList((d.streams||[]).filter(function(s){ return s.url; }));
@@ -7167,6 +7218,7 @@
             box.innerHTML = '<div class="rowhead"><span class="row-title">'+esc(a.name||'Add-on')+'</span></div>';
           }
           var cards = streams.map(function(s){ total++; var c = streamCard(s, a); box.appendChild(c); return c; });
+          waitRender();                        // rows on screen now: the ones still asking are named above them
           updateStreamFilters();
           // the D-pad lands on the first row (not the topbar's Back button)
           var driving = IS_TV || kbUsed, untouched = lastKeyAt <= openedAt;
@@ -7191,6 +7243,7 @@
       }).catch(function(){
         if (!known || declares) lost++;
         if (boxPending){ box.innerHTML = ''; boxPending = false; }   // never leave it shimmering
+        if (waitName){ waitDone(waitName); waitName = null; }
       }).then(done);
     });
   }

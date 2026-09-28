@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.28.2",
+  "version": "2026.09.28.3",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "New for Supporter Plus, Founders and the monthly plan: vote on what Nebula builds next, a private recap of your month, and early builds. Settings › About now thanks the supporters."
+  "notes": "The streams page now names every add-on that is still answering, with a spinner — some take up to a minute — instead of looking finished without them."
 }
