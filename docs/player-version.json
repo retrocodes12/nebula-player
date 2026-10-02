@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.28.3",
+  "version": "2026.10.02.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "The streams page now names every add-on that is still answering, with a spinner — some take up to a minute — instead of looking finished without them."
+  "notes": "Seekr previews: connect your own free key from seekr.tv in Settings › Playback and scrubbing a film or episode shows a picture at once — on the TV too. The key follows your profile, so add it on your phone or computer."
 }
