@@ -2665,7 +2665,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.10.02.1';
+  var PLAYER_VERSION = '2026.10.02.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -9535,6 +9535,7 @@
     document.body.classList.remove('scrubbing');
     scrubState.req++;                          // a thumbnail still in flight lands on nothing
     shadowState.want = -1; clearTimeout(shadowState.timer); shadowState.timer = null;
+    skWant = -1;
   }
   /** ←/→ on the focused rail: move the preview — 10 s a press, 30 s after five quick ones, 60 s after ten. */
   function scrubStep(dir){
@@ -9714,7 +9715,7 @@
     seekrForget();
   }
   /** A new key (or none) starts clean: its own allowance, no remembered refusal, no lookups from the old one. */
-  function seekrForget(){ skDead = ''; skHoldUntil = 0; skWarned = false; skCache = {}; sk = { ck: '', state: '', cues: null, scale: 1 }; }
+  function seekrForget(){ skDead = ''; skHoldUntil = 0; skWarned = false; skCache = {}; sk = { ck: '', state: '', cues: null, scale: 1 }; skDrop(); }
   function mergeSeekr(remote){
     var rAt = Number(remote && remote.at) || 0;
     if (!remote || typeof remote.key !== 'string' || (remote.key && !SEEKR_KEY_RE.test(remote.key))) return { changed: false, localNewer: seekr.at > 0 };
@@ -9780,13 +9781,13 @@
   }
   /** The picture for media time t: the last cue starting at or before it, or the next one once t is past the middle
       (each picture is taken at its cue's start, so past the middle the next is the nearer moment). */
-  function seekrCueAt(cues, scale, t){
-    if (!cues || !cues.length) return null;
+  function seekrIdx(cues, scale, t){
+    if (!cues || !cues.length) return -1;
     var p = t / (scale || 1), lo = 0, hi = cues.length - 1, i = 0;
-    if (p <= cues[0].s) return cues[0];
+    if (p <= cues[0].s) return 0;
     while (lo <= hi){ var mid = (lo + hi) >> 1; if (cues[mid].s <= p){ i = mid; lo = mid + 1; } else hi = mid - 1; }
     var cur = cues[i], nx = cues[i + 1];
-    return nx && (p - cur.s) > (cur.e - p) ? nx : cur;
+    return nx && (p - cur.s) > (cur.e - p) ? i + 1 : i;
   }
   function seekrOn(){ return !!(seekr.key && skDead !== seekr.key && curPlay && !puiIsLive() && seekrQuery(curPlay)); }
   /** Ask Seekr once per play, as soon as the length is known; a title asked this session is answered from memory. */
@@ -9797,9 +9798,9 @@
     var q = seekrQuery(curPlay), ck = curPlay.id + '|' + Math.round(dur);
     if (sk.ck === ck && sk.state) return;
     var my = { ck: ck, state: 'asking', cues: null, scale: 1 }, key = seekr.key;
-    sk = my;
+    sk = my; skDrop();                                             // another lookup: the last one's pictures go
     var hit = skCache[ck];
-    if (hit && Date.now() - hit.at < SEEKR_TTL){ my.cues = hit.cues; my.scale = hit.scale; my.state = 'ready'; return; }
+    if (hit && Date.now() - hit.at < SEEKR_TTL){ my.cues = hit.cues; my.scale = hit.scale; my.state = 'ready'; skReady(); return; }
     fetch(SEEKR_API + '/sprites?duration_ms=' + Math.round(dur * 1000) + '&' + q, { headers: { 'X-API-Key': key }, cache: 'no-store' })
       .then(function(res){
         if (res.status === 401){
@@ -9822,7 +9823,7 @@
         if (!cues.length) throw 0;
         my.cues = cues; my.state = 'ready';
         skCache[ck] = { cues: cues, scale: my.scale, at: Date.now() };
-        if (sk === my && scrubShowing()) scrubFrameFor(scrubState.t);
+        if (sk === my){ skReady(); if (scrubShowing()) scrubFrameFor(scrubState.t); }
       })
       .catch(function(){ if (my.state === 'asking') my.state = 'none'; });
   }
@@ -9836,26 +9837,121 @@
       if (!sk.state && ++skTries < 20) skTimer = setTimeout(again, 2000);
     })();
   }
-  function seekrReset(){ clearTimeout(skTimer); skTimer = null; sk = { ck: '', state: '', cues: null, scale: 1 }; }
-  /** Paint the cue's tile into the scrub card; false when Seekr has nothing for this play (the next source answers). */
+  function seekrReset(){ clearTimeout(skTimer); skTimer = null; sk = { ck: '', state: '', cues: null, scale: 1 }; skDrop(); }
+  // -- the pictures: every sheet fetched up front, one picture cut out at a time --
+  // A sheet is ~100 pictures (3200×1800, ~0.5 MB, cached by the browser for a year). Once the lookup answers, every sheet
+  // of the title is fetched in the background, one at a time, nearest the playhead first (`skPrefetch`); a scrub never
+  // waits for a download after the first few seconds. A picture is cut ONCE out of its decoded sheet into a canvas at the
+  // card's size (`skTiles`, an LRU) — repainting a 3200×1800 background per step is what a TV chokes on — and only the
+  // last few decoded sheets are held (`skImgs`). One cut at a time: the wanted cue, then the next SK_AHEAD the way the
+  // scrub moves, then SK_WARM either side of where the viewer is. The card keeps the nearest picture it has (dimmed) and
+  // never goes blank in the middle of a scrub.
+  var SK_TILES = IS_TV ? 80 : 160, SK_IMGS = IS_TV ? 2 : 4, SK_AHEAD = 4, SK_WARM = 6, SK_NEAR = 6;
+  var skTiles = new Map(), skImgs = new Map(), skWaits = {}, skBad = {}, skPre = 0, skWant = -1, skHome = 0, skDir = 1, skBusy = false;
+  function skDrop(){ skTiles.clear(); skImgs.clear(); skWaits = {}; skBad = {}; skPre++; skWant = -1; skBusy = false; }
+  /** The lookup answered: start the downloads, and cut the pictures around where the viewer is. */
+  function skReady(){
+    skHome = Math.max(0, seekrIdx(sk.cues, sk.scale, video.currentTime || 0));
+    skPrefetch(); skPump();
+  }
+  function skPrefetch(){
+    var seq = ++skPre, cues = sk.cues, urls = [], seen = {};
+    for (var k = 0; k < cues.length; k++) if (!seen[cues[k].u]){ seen[cues[k].u] = 1; urls.push(cues[k].u); }
+    var at = Math.max(0, urls.indexOf(cues[skHome].u)), order = [];
+    for (var d = 0; d < urls.length; d++){ if (at + d < urls.length) order.push(urls[at + d]); if (d && at - d >= 0) order.push(urls[at - d]); }
+    (function next(i){
+      if (seq !== skPre || i >= order.length) return;
+      var u = order[i];
+      if (skSheets[u] || skBad[u]){ next(i + 1); return; }
+      var img = new Image();
+      img.crossOrigin = 'anonymous';                               // sprites.seekr.tv sends Access-Control-Allow-Origin: *
+      img.onload = function(){ skSheets[u] = { w: img.naturalWidth, h: img.naturalHeight }; setTimeout(function(){ next(i + 1); }, 30); };
+      img.onerror = function(){ setTimeout(function(){ next(i + 1); }, 30); };
+      img.src = u;                                                 // kept by the browser's cache; the element is dropped
+    })(0);
+  }
+  /** The decoded sheet, from the few held, or loaded (from the cache, mostly) and decoded first. */
+  function skImg(u, cb){
+    var have = skImgs.get(u);
+    if (have){ skImgs.delete(u); skImgs.set(u, have); cb(have); return; }
+    if (skWaits[u]){ skWaits[u].push(cb); return; }
+    skWaits[u] = [cb];
+    var seq = skPre, img = new Image();
+    img.crossOrigin = 'anonymous';
+    function done(ok){
+      var w = skWaits[u]; delete skWaits[u];
+      if (seq !== skPre) return;
+      if (ok){
+        skImgs.set(u, img);
+        while (skImgs.size > SK_IMGS) skImgs.delete(skImgs.keys().next().value);
+      } else skBad[u] = 1;
+      (w || []).forEach(function(f){ f(ok ? img : null); });
+    }
+    img.onload = function(){ if (img.decode) img.decode().then(function(){ done(true); }, function(){ done(true); }); else done(true); };
+    img.onerror = function(){ done(false); };
+    img.src = u;
+  }
+  /** Cue i cut out of its sheet into a canvas at the card's size (shown, never read back). */
+  function skCut(img, i){
+    var c = sk.cues[i], sz = tipFrameSize(), k = Math.min(2, window.devicePixelRatio || 1);
+    var cv = document.createElement('canvas'); cv.width = Math.round(sz[0] * k); cv.height = Math.round(sz[1] * k);
+    try { cv.getContext('2d').drawImage(img, c.x, c.y, c.w, c.h, 0, 0, cv.width, cv.height); } catch(e){ return null; }
+    cv.setAttribute('data-cue', String(i));
+    skTiles.set(i, cv);
+    while (skTiles.size > SK_TILES) skTiles.delete(skTiles.keys().next().value);
+    return cv;
+  }
+  /** Cue i's picture, else the nearest within SK_NEAR that is cut, else -1. */
+  function skNearest(i){
+    if (skTiles.has(i)) return i;
+    for (var d = 1; d <= SK_NEAR; d++){
+      if (skTiles.has(i - d)) return i - d;
+      if (skTiles.has(i + d)) return i + d;
+    }
+    return -1;
+  }
+  function skShow(){
+    if (skWant < 0 || !scrubShowing()) return;
+    var j = skNearest(skWant);
+    if (j >= 0){ var cv = skTiles.get(j); skTiles.delete(j); skTiles.set(j, cv); scrubFrameSet(cv, j !== skWant); }
+  }
+  /** The next picture worth cutting: the wanted one, then ahead of it, then around where the viewer is. */
+  function skNext(){
+    var cues = sk.cues; if (!cues) return -1;
+    function ok(i){ return i >= 0 && i < cues.length && !skTiles.has(i) && !skBad[cues[i].u]; }
+    if (skWant >= 0){
+      if (ok(skWant)) return skWant;
+      for (var d = 1; d <= SK_AHEAD; d++) if (ok(skWant + skDir * d)) return skWant + skDir * d;
+    }
+    var h = skWant >= 0 ? skWant : skHome;
+    if (ok(h)) return h;
+    for (var e = 1; e <= SK_WARM; e++){ if (ok(h + e)) return h + e; if (ok(h - e)) return h - e; }
+    return -1;
+  }
+  function skPump(){
+    if (skBusy || sk.state !== 'ready') return;
+    var i = skNext(); if (i < 0) return;
+    skBusy = true;
+    var seq = skPre, my = sk;
+    skImg(sk.cues[i].u, function(img){
+      if (seq !== skPre) return;
+      skBusy = false;
+      if (my !== sk){ setTimeout(skPump, 0); return; }
+      if (img) skCut(img, i);
+      skShow();
+      setTimeout(skPump, 0);
+    });
+  }
+  /** The scrub card's picture from Seekr; false when Seekr has nothing for this play (the next source answers). */
   function seekrFrame(t){
     if (!seekrOn()) return false;
     if (sk.state !== 'ready'){ if (!sk.state) seekrLoad(); return false; }
-    var c = seekrCueAt(sk.cues, sk.scale, t); if (!c) return false;
-    var seq = ++scrubState.req, sh = skSheets[c.u];
-    if (sh && sh.w){ tipPaintSprite(c.u, sh.w, sh.h, c); return true; }
-    scrubFrameStale();                                             // the sheet is on its way: the last picture, dimmed
-    if (!sh){
-      // a sheet is ~100 pictures (3200×1800, ~0.5 MB, cached by the browser for a year); only its size is kept here
-      sh = skSheets[c.u] = { w: 0, h: 0 };
-      var img = new Image();
-      img.onload = function(){
-        sh.w = img.naturalWidth; sh.h = img.naturalHeight;
-        if (seq === scrubState.req && scrubShowing()) tipPaintSprite(c.u, sh.w, sh.h, c);
-      };
-      img.onerror = function(){ delete skSheets[c.u]; if (seq === scrubState.req) scrubFrameClear(); };
-      img.src = c.u;
-    }
+    var i = seekrIdx(sk.cues, sk.scale, t); if (i < 0) return false;
+    if (skWant >= 0 && i !== skWant) skDir = i > skWant ? 1 : -1;
+    skWant = i; skHome = i;
+    scrubState.req++;                                              // a stream thumbnail in flight lands on nothing
+    if (skNearest(i) >= 0) skShow(); else scrubFrameStale();      // the last picture, dimmed, until this one is cut
+    skPump();
     return true;
   }
   /** Settings › Playback: a key field + Connect, or Connected + Disconnect. Rebuilt only when that flips, so a settings

@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.02.1",
+  "version": "2026.10.02.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Seekr previews: connect your own free key from seekr.tv in Settings › Playback and scrubbing a film or episode shows a picture at once — on the TV too. The key follows your profile, so add it on your phone or computer."
+  "notes": "Seekr previews show at once and without gaps: every picture of the film is fetched in the background as soon as it starts, and the scrub never blanks while the next one is made."
 }
