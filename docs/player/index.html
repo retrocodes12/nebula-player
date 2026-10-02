@@ -1518,6 +1518,8 @@
   .pmode { margin:4px 0 18px; }
   .field.half { max-width:380px; display:block; }
   .setrow .field { width:auto; flex:0 1 260px; margin:0; }
+  .seekr-ctl { display:flex; align-items:center; justify-content:flex-end; flex:0 1 420px; min-width:0; margin-left:auto; }
+  .seekr-ctl .field { flex:1 1 auto; min-width:0; margin:0 8px 0 0; font-family:var(--mono); }
   /* one device per line, remove action at the far end */
   .pdev { display:flex; align-items:center; padding:12px 0; }
   .pdev + .pdev { border-top:1px solid var(--sep); }
@@ -2429,6 +2431,11 @@
         <div class="setrow" id="rowScrub" data-lvl="all">
           <span class="setname">Preview frames while scrubbing<small>A picture of where you are about to jump · Turn it off if playback stutters on your TV</small></span>
           <span id="setScrub" class="seg"></span>
+        </div>
+        <!-- Seekr: ready-made scrub pictures with the viewer's own key, synced through the profile -->
+        <div class="setrow" id="rowSeekr">
+          <span class="setname">Seekr previews<small id="setSeekrSub"></small></span>
+          <span class="seekr-ctl" id="setSeekr"></span>
         </div>
         <div class="setrow" id="rowKb">
           <span class="setname">Keyboard shortcuts<small>Press ? anywhere to see them</small></span>
@@ -7311,6 +7318,7 @@
     closePuiMenu(false);
     scrubCancel();
     shadowTeardown();                    // the shadow copy goes with the stream, cache and all
+    seekrReset();
     exitPip();
     resetSubs();
     if (miniOn) setMini(false);
@@ -8519,6 +8527,7 @@
       applyStartSpeed();                 // Settings › Speed when a video starts
       subStartApply();                   // Settings › Subtitles when a video starts
       shadowArm();                       // a frame source for the scrub preview, when this stream allows one
+      seekrStart();                      // and ready-made pictures, when the viewer brought a Seekr key
       // ask the subtitle add-ons what they have for this title (candidates only —
       // nothing is downloaded until one is picked)
       subState.innerReady = innerStart(seq, rawUrl);   // a plain file's own subtitle tracks (Matroska), which the engine never lists
@@ -9565,6 +9574,7 @@
   function scrubFrameFor(t){
     var trackId = imageTrackId();
     if (trackId !== null){ scrubThumb(trackId, t); return; }          // the stream brought its own
+    if (seekrFrame(t)) return;                                         // the viewer's own Seekr key
     if (!shadowState.armed){ scrubFrameClear(); return; }
     var b = shadowBucket(t), hit = shadowCache.get(b) || shadowCache.get(b - 1) || shadowCache.get(b + 1);
     if (hit) scrubFrameSet(hit, !shadowCache.has(b)); else scrubFrameStale();   // the nearest we have, now; the exact one follows
@@ -9580,17 +9590,22 @@
     pr.then(function(th){
       if (seq !== scrubState.req) return;
       if (!th || !th.uris || !th.uris.length){ scrubFrameClear(); return; }
-      var f = $id('puiTipFrame'), sz = tipFrameSize();
-      var sx = th.width ? sz[0] / th.width : 1, sy = th.height ? sz[1] / th.height : 1;
-      var iw = th.imageWidth || th.width || sz[0], ih = th.imageHeight || th.height || sz[1];
-      while (f.firstChild) f.removeChild(f.firstChild);
-      f.style.backgroundImage = 'url("' + String(th.uris[0]).replace(/"/g, '%22') + '")';
-      f.style.backgroundSize = Math.round(iw * sx) + 'px ' + Math.round(ih * sy) + 'px';
-      f.style.backgroundPosition = (-Math.round((th.positionX || 0) * sx)) + 'px ' + (-Math.round((th.positionY || 0) * sy)) + 'px';
-      f.classList.remove('stale');
-      $id('puiTip').classList.add('frame');
-      scrubPlace();
+      var sz = tipFrameSize();
+      tipPaintSprite(th.uris[0], th.imageWidth || th.width || sz[0], th.imageHeight || th.height || sz[1],
+        { x: th.positionX || 0, y: th.positionY || 0, w: th.width || sz[0], h: th.height || sz[1] });
     }, function(){ if (seq === scrubState.req) scrubFrameClear(); });
+  }
+  /** One w×h region at (x, y) of a sprite sheet iw×ih, scaled into the tile as its background. */
+  function tipPaintSprite(url, iw, ih, r){
+    var f = $id('puiTipFrame'), sz = tipFrameSize();
+    var sx = r.w ? sz[0] / r.w : 1, sy = r.h ? sz[1] / r.h : 1;
+    while (f.firstChild) f.removeChild(f.firstChild);
+    f.style.backgroundImage = 'url("' + String(url).replace(/"/g, '%22') + '")';
+    f.style.backgroundSize = Math.round(iw * sx) + 'px ' + Math.round(ih * sy) + 'px';
+    f.style.backgroundPosition = (-Math.round((r.x || 0) * sx)) + 'px ' + (-Math.round((r.y || 0) * sy)) + 'px';
+    f.classList.remove('stale');
+    $id('puiTip').classList.add('frame');
+    scrubPlace();
   }
   function scrubFrameSet(canvas, stale){
     var f = $id('puiTipFrame');
@@ -9676,6 +9691,225 @@
       try { shadow.removeAttribute('src'); shadow.load(); } catch(e){}
       if (scrubShowing()) scrubFrameClear();
     });
+  }
+
+  // ---------- Seekr: ready-made scrub pictures with the viewer's OWN key ----------
+  // seekr.tv keeps a picture every ~10 s of films and episodes, looked up by the title's id and the length of what plays.
+  // Each viewer brings their own free key (their terms allow no key in public apps, and each key has a small daily
+  // allowance — 20 films, 70 episodes), so the device asks Seekr itself; nothing goes through our server. The key is the
+  // synced doc `seekr` {key, at}: newest wins across a profile's devices, so a key typed on a phone reaches the TV, and a
+  // disconnect (key '') reaches them all. Order of pictures: the stream's own thumbnails, then Seekr, then the shadow copy.
+  // A different cut of the film can sit a constant few seconds off — Seekr's pictures come from one release.
+  var SEEKR_API = 'https://api.seekr.tv', SEEKR_KEY_RE = /^sk_live_[0-9a-f]{64}$/, SEEKR_TTL = 5.5 * 3600000;
+  var SEEKR_TILE = /^(https:\/\/sprites\.seekr\.tv\/[^#\s"'()\\]+)#xywh=(\d{1,5}),(\d{1,5}),(\d{1,4}),(\d{1,4})$/;
+  var seekr = null;
+  try { seekr = JSON.parse(LS.getItem('seekr_v1') || 'null'); } catch(e){}
+  if (!seekr || typeof seekr !== 'object' || typeof seekr.key !== 'string') seekr = { key: '', at: 0 };
+  // this play's lookup: ck = id|seconds, state '' (not asked) | asking | ready | none
+  var sk = { ck: '', state: '', cues: null, scale: 1 };
+  var skCache = {}, skSheets = {}, skTimer = null, skTries = 0, skDead = '', skHoldUntil = 0, skWarned = false;
+  function seekrSave(){ var j = JSON.stringify(seekr); try { LS.setItem('seekr_v1', j); } catch(e){} mirrorKv('seekr', j); }
+  function seekrSet(key){
+    seekr = { key: key || '', at: Date.now() }; seekrSave(); cloudPushSoon('seekr');
+    seekrForget();
+  }
+  /** A new key (or none) starts clean: its own allowance, no remembered refusal, no lookups from the old one. */
+  function seekrForget(){ skDead = ''; skHoldUntil = 0; skWarned = false; skCache = {}; sk = { ck: '', state: '', cues: null, scale: 1 }; }
+  function mergeSeekr(remote){
+    var rAt = Number(remote && remote.at) || 0;
+    if (!remote || typeof remote.key !== 'string' || (remote.key && !SEEKR_KEY_RE.test(remote.key))) return { changed: false, localNewer: seekr.at > 0 };
+    if (rAt > seekr.at){
+      seekr = { key: remote.key, at: rAt };
+      try { LS.setItem('seekr_v1', JSON.stringify(seekr)); } catch(e){}
+      mirrorKv('seekr', JSON.stringify(seekr));
+      seekrForget();
+      try { seekrRender(); } catch(e){}
+      return { changed: true, localNewer: false };
+    }
+    return { changed: false, localNewer: seekr.at > rAt };
+  }
+  // rides the add-on/progress mirrors: a TV storage wipe should not lose a key that took a remote to type
+  function initPersistentSeekr(){
+    var has = false; try { has = !!LS.getItem('seekr_v1'); } catch(e){}
+    if (has){ mirrorKv('seekr', JSON.stringify(seekr)); return; }
+    idbLoad('seekr')
+      .then(function(v){ if (v) return v; return db8Load('seekr'); })
+      .then(function(v){
+        var o = null; try { o = JSON.parse(v || 'null'); } catch(e){}
+        if (!o || typeof o.key !== 'string' || (o.key && !SEEKR_KEY_RE.test(o.key)) || !((Number(o.at) || 0) > seekr.at)) return;
+        seekr = { key: o.key, at: Number(o.at) };
+        try { LS.setItem('seekr_v1', JSON.stringify(seekr)); } catch(e){}
+        try { seekrRender(); } catch(e){}
+      })
+      .catch(function(){});
+  }
+  /** The lookup's query for what plays: films by tt…/tmdb:N, episodes by the show's id + season + episode; null for a
+      channel, kitsu, an add-on's own ids, or a special (season 0 — Seekr counts seasons from 1). */
+  function seekrQuery(c){
+    if (!c || !c.id) return null;
+    var id = String(c.id), m;
+    if (c.type === 'movie'){
+      if ((m = /^(tt\d{5,10})$/.exec(id))) return 'imdb_id=' + m[1];
+      if ((m = /^tmdb:([1-9]\d{0,9})$/.exec(id))) return 'tmdb_id=' + m[1];
+      return null;
+    }
+    if (c.type !== 'series') return null;
+    if ((m = /^(tt\d{5,10}):([1-9]\d{0,3}):([1-9]\d{0,4})$/.exec(id))) return 'show_imdb_id=' + m[1] + '&season=' + m[2] + '&episode=' + m[3];
+    if ((m = /^tmdb:([1-9]\d{0,9}):([1-9]\d{0,3}):([1-9]\d{0,4})$/.exec(id))) return 'show_tmdb_id=' + m[1] + '&season=' + m[2] + '&episode=' + m[3];
+    return null;
+  }
+  function seekrSecs(s){
+    var p = String(s).split(':'), t = 0;
+    for (var i = 0; i < p.length; i++) t = t * 60 + parseFloat(p[i]);
+    return isFinite(t) ? t : NaN;
+  }
+  /** WEBVTT → [{s, e, u, x, y, w, h}] by start: a timing line, then ONE line naming the tile on its sprite sheet. */
+  function seekrParseVtt(txt){
+    var out = [], lines = String(txt || '').split(/\r?\n/);
+    for (var i = 0; i < lines.length - 1; i++){
+      var m = /^\s*((?:\d+:)?\d{1,2}:\d{2}(?:\.\d{1,3})?)\s+-->\s+((?:\d+:)?\d{1,2}:\d{2}(?:\.\d{1,3})?)/.exec(lines[i]);
+      if (!m) continue;
+      var x = SEEKR_TILE.exec(String(lines[i + 1]).trim());
+      if (!x) continue;
+      var s = seekrSecs(m[1]), e = seekrSecs(m[2]);
+      if (isFinite(s) && isFinite(e) && e > s && +x[4] > 0 && +x[5] > 0) out.push({ s: s, e: e, u: x[1], x: +x[2], y: +x[3], w: +x[4], h: +x[5] });
+      i++;
+    }
+    out.sort(function(a, b){ return a.s - b.s; });
+    return out;
+  }
+  /** The picture for media time t: the last cue starting at or before it, or the next one once t is past the middle
+      (each picture is taken at its cue's start, so past the middle the next is the nearer moment). */
+  function seekrCueAt(cues, scale, t){
+    if (!cues || !cues.length) return null;
+    var p = t / (scale || 1), lo = 0, hi = cues.length - 1, i = 0;
+    if (p <= cues[0].s) return cues[0];
+    while (lo <= hi){ var mid = (lo + hi) >> 1; if (cues[mid].s <= p){ i = mid; lo = mid + 1; } else hi = mid - 1; }
+    var cur = cues[i], nx = cues[i + 1];
+    return nx && (p - cur.s) > (cur.e - p) ? nx : cur;
+  }
+  function seekrOn(){ return !!(seekr.key && skDead !== seekr.key && curPlay && !puiIsLive() && seekrQuery(curPlay)); }
+  /** Ask Seekr once per play, as soon as the length is known; a title asked this session is answered from memory. */
+  function seekrLoad(){
+    if (!seekrOn() || Date.now() < skHoldUntil) return;
+    var r = puiRange(), dur = r.end - r.start;
+    if (!(dur > 60) || !isFinite(dur)) return;                    // not known yet: the start loop asks again
+    var q = seekrQuery(curPlay), ck = curPlay.id + '|' + Math.round(dur);
+    if (sk.ck === ck && sk.state) return;
+    var my = { ck: ck, state: 'asking', cues: null, scale: 1 }, key = seekr.key;
+    sk = my;
+    var hit = skCache[ck];
+    if (hit && Date.now() - hit.at < SEEKR_TTL){ my.cues = hit.cues; my.scale = hit.scale; my.state = 'ready'; return; }
+    fetch(SEEKR_API + '/sprites?duration_ms=' + Math.round(dur * 1000) + '&' + q, { headers: { 'X-API-Key': key }, cache: 'no-store' })
+      .then(function(res){
+        if (res.status === 401){
+          skDead = key;
+          if (!skWarned){ skWarned = true; setStatus('Seekr turned your key down — add it again in Settings › Playback.', 'err', 7000); }
+          throw 0;
+        }
+        if (res.status === 429){ skHoldUntil = Date.now() + 30 * 60000; throw 0; }   // the day's allowance or the rate: quiet
+        if (!res.ok) throw 0;                                      // 404 = no pictures for this title or length
+        return res.json();
+      })
+      .then(function(j){
+        if (!j || typeof j.vtt_url !== 'string' || !/^https:\/\/sprites\.seekr\.tv\//.test(j.vtt_url)) throw 0;
+        var sc = Number(j.scale);
+        my.scale = isFinite(sc) && sc > 0.5 && sc < 2 ? sc : 1;
+        return fetch(j.vtt_url, { cache: 'no-store' }).then(function(r2){ if (!r2.ok) throw 0; return r2.text(); });
+      })
+      .then(function(txt){
+        var cues = seekrParseVtt(txt);
+        if (!cues.length) throw 0;
+        my.cues = cues; my.state = 'ready';
+        skCache[ck] = { cues: cues, scale: my.scale, at: Date.now() };
+        if (sk === my && scrubShowing()) scrubFrameFor(scrubState.t);
+      })
+      .catch(function(){ if (my.state === 'asking') my.state = 'none'; });
+  }
+  /** From playUrl: ask once the length is in (an engine may take a few seconds to know it), for up to 40 s. */
+  function seekrStart(){
+    clearTimeout(skTimer); skTries = 0;
+    (function again(){
+      skTimer = null;
+      if (!seekrOn() || sk.state) return;
+      seekrLoad();
+      if (!sk.state && ++skTries < 20) skTimer = setTimeout(again, 2000);
+    })();
+  }
+  function seekrReset(){ clearTimeout(skTimer); skTimer = null; sk = { ck: '', state: '', cues: null, scale: 1 }; }
+  /** Paint the cue's tile into the scrub card; false when Seekr has nothing for this play (the next source answers). */
+  function seekrFrame(t){
+    if (!seekrOn()) return false;
+    if (sk.state !== 'ready'){ if (!sk.state) seekrLoad(); return false; }
+    var c = seekrCueAt(sk.cues, sk.scale, t); if (!c) return false;
+    var seq = ++scrubState.req, sh = skSheets[c.u];
+    if (sh && sh.w){ tipPaintSprite(c.u, sh.w, sh.h, c); return true; }
+    scrubFrameStale();                                             // the sheet is on its way: the last picture, dimmed
+    if (!sh){
+      // a sheet is ~100 pictures (3200×1800, ~0.5 MB, cached by the browser for a year); only its size is kept here
+      sh = skSheets[c.u] = { w: 0, h: 0 };
+      var img = new Image();
+      img.onload = function(){
+        sh.w = img.naturalWidth; sh.h = img.naturalHeight;
+        if (seq === scrubState.req && scrubShowing()) tipPaintSprite(c.u, sh.w, sh.h, c);
+      };
+      img.onerror = function(){ delete skSheets[c.u]; if (seq === scrubState.req) scrubFrameClear(); };
+      img.src = c.u;
+    }
+    return true;
+  }
+  /** Settings › Playback: a key field + Connect, or Connected + Disconnect. Rebuilt only when that flips, so a settings
+      re-render never wipes a half-typed key. */
+  function seekrRender(){
+    var box = $id('setSeekr'), sub = $id('setSeekrSub');
+    if (!box || !sub) return;
+    var state = seekr.key ? 'on' : 'off';
+    sub.textContent = seekr.key
+      ? 'Connected · key ending ' + seekr.key.slice(-4) + ' · Pictures while you scrub films and episodes' +
+        (cloudLinked() ? ' · Every device on your profile uses it' : '')
+      : 'Pictures while you scrub films and episodes, at once · Paste your own free key from seekr.tv' +
+        (IS_TV ? (cloudLinked() ? ' — easier on your phone or computer: it reaches this TV through your profile' : '') : '');
+    if (box.getAttribute('data-state') === state) return;
+    var hadFocus = box.contains(document.activeElement);
+    box.setAttribute('data-state', state);
+    box.innerHTML = '';
+    if (seekr.key){
+      var off = document.createElement('button');
+      off.id = 'setSeekrOff'; off.className = 'textbtn focusable'; off.type = 'button'; off.textContent = 'Disconnect';
+      off.onclick = function(){ seekrSet(''); seekrRender(); setStatus('Seekr disconnected.', 'ok'); };
+      box.appendChild(off);
+      if (hadFocus) off.focus();
+      return;
+    }
+    var inp = document.createElement('input');
+    inp.id = 'setSeekrKey'; inp.className = 'focusable field'; inp.type = 'text'; inp.maxLength = 90;
+    inp.autocomplete = 'off'; inp.spellcheck = false; inp.placeholder = 'sk_live_…';
+    var go = document.createElement('button');
+    go.id = 'setSeekrGo'; go.className = 'textbtn focusable'; go.type = 'button'; go.textContent = 'Connect';
+    function connect(){
+      var k = inp.value.trim().toLowerCase();
+      if (!SEEKR_KEY_RE.test(k)){ setStatus('That does not look like a Seekr key — it starts with sk_live_.', 'err'); return; }
+      go.disabled = true; go.textContent = 'Checking…';
+      // the check costs nothing from the key's daily allowance
+      fetch(SEEKR_API + '/v1/keys/validate', { headers: { 'X-API-Key': k }, cache: 'no-store' })
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          if (j && j.valid === true){
+            seekrSet(k); seekrRender();
+            setStatus('Seekr connected.', 'ok');
+            var o = $id('setSeekrOff'); if (o) o.focus();
+            if (player) seekrStart();
+            return;
+          }
+          go.disabled = false; go.textContent = 'Connect';
+          setStatus('Seekr did not accept that key.', 'err');
+        })
+        .catch(function(){ go.disabled = false; go.textContent = 'Connect'; setStatus('Could not reach Seekr. Try again.', 'err'); });
+    }
+    go.onclick = connect;
+    inp.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.keyCode === 13){ e.preventDefault(); connect(); } });
+    box.appendChild(inp); box.appendChild(go);
+    if (hadFocus) inp.focus();
   }
 
   var lastTickT = -1, progTicks = 0;
@@ -10916,6 +11150,7 @@
     closePuiMenu(false);
     scrubCancel();
     shadowTeardown();                    // the last stream's frames must not answer for this one
+    seekrReset();
     $id('puiSpin').style.display = 'block';
     $id('puiFill').style.width='0%'; $id('puiBuf').style.width='0%'; $id('puiKnob').style.left='0%';
     $id('puiSubs').style.display=''; $id('puiAudio').style.display=''; $id('puiQual').style.display='none';
@@ -11778,7 +12013,7 @@
   var cloudDirty = {};
   try { cloudDirty = JSON.parse(LS.getItem('cloud_dirty')||'{}') || {}; } catch(e){}
   var syncApplying = false, syncTimers = {}, lastPullAt = 0;
-  var SYNC_KEYS = ['addons','progress','library','sub_style','ratings'];
+  var SYNC_KEYS = ['addons','progress','library','sub_style','ratings','seekr'];
   function cloudLinked(){ return !!(cloudLink && cloudLink.gid && (cloudLink.token || cloudLink.secret)); }
   function saveCloudLink(){ try { if (cloudLink) LS.setItem('cloud_link', JSON.stringify(cloudLink)); else LS.removeItem('cloud_link'); } catch(e){} }
   function saveCloudRevs(){ try { LS.setItem('cloud_revs', JSON.stringify(cloudRevs)); } catch(e){} }
@@ -11850,6 +12085,7 @@
       var at = 0; try { at = Number(LS.getItem('sub_style_at')) || 0; } catch(e){}
       return JSON.stringify({ style: subStyle, at: at });
     }
+    if (key === 'seekr') return JSON.stringify(seekr);
     return null;
   }
   function syncDocHasContent(key){
@@ -11858,6 +12094,7 @@
     if (key === 'library') return Object.keys(getLibrary()).length > 0;
     if (key === 'ratings') return Object.keys(getRatings()).length > 0;
     if (key === 'sub_style'){ var at = 0; try { at = Number(LS.getItem('sub_style_at')) || 0; } catch(e){} return at > 0; }
+    if (key === 'seekr') return seekr.at > 0;
     return false;
   }
   function cloudPushSoon(key){
@@ -12004,6 +12241,7 @@
     if (key === 'library') return mergeLibrary(remote);
     if (key === 'ratings') return mergeRatings(remote);
     if (key === 'sub_style') return mergeSubStyle(remote);
+    if (key === 'seekr') return mergeSeekr(remote);
     return { changed: false, localNewer: false };
   }
   function cloudPullAll(force){
@@ -13205,6 +13443,7 @@
     segChips('setControlsHide', [['2 s','2'], ['3.5 s','3.5'], ['6 s','6']], controlsHideKey(), function(v){ setPref('controlsHide', v); });
     segChips('setScrub', [['On', true], ['Off', false]], scrubFramesOn(), function(v){ setPref('scrubFrames', v); });
     if (IS_WEBOS && $id('rowScrub')) $id('rowScrub').style.display = 'none';   // no frames to be had on the TV itself
+    seekrRender();
     // ---- streams ----
     segChips('setStreamSort', [['As listed','listed'], ['Best quality first','quality'], ['Smallest first','size']], pr.streamSort === 'quality' || pr.streamSort === 'size' ? pr.streamSort : 'listed', function(v){ setPref('streamSort', v); });
     segChips('setMinRes', [['Any','any'], ['720p','720'], ['1080p','1080'], ['4K','2160']], pr.minRes === '720' || pr.minRes === '1080' || pr.minRes === '2160' ? pr.minRes : 'any', function(v){ setPref('minRes', v); });
@@ -13517,6 +13756,7 @@
   initPersistentSubStyle();
   initPersistentLibrary();
   initPersistentRatings();
+  initPersistentSeekr();
   buildHomeRows(true);
   if (cloudLinked()) setTimeout(function(){ cloudPullAll(true); profileBoot(); }, 900);
   setTimeout(function(){ supportLoad(false); }, 1400);   // the support link + wall, for everyone (no credential)
