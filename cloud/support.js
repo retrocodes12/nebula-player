@@ -358,12 +358,18 @@ module.exports = function attach(core) {
     },
   });
   const vote = require('./support-vote.js')({ store, persistStore, json, body, allow, auth, isAdmin, rankOf });
+  const goal = require('./support-goal.js')({ config });
   function redirect(res, to) {
     try { res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' }); res.end(); } catch (e) {}
   }
 
   async function route(p, req, res, ip) {
     const m = req.method;
+    if (p === '/v1/support/goal' && m === 'GET') {
+      if (!allow('support_goal', ip, 30, 30)) return json(res, 429, { error: 'rate limited' });
+      const out = await goal.get();
+      return json(res, out.raisedCents === null ? 503 : 200, out, out.stale ? 0 : 30);
+    }
     // the supporters' vote on what gets built next (support-vote.js)
     if (p === '/v1/support/vote' || p.startsWith('/v1/support/vote/')) { const v = await vote.route(p, req, res, ip); if (v !== false) return v; }
 

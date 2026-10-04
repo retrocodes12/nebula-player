@@ -752,6 +752,43 @@ test('support: off until a link is configured; the link and the go redirect foll
   assert.equal((await fetch(base + '/v1/support', { headers: { 'Cache-Control': 'no-cache' } })).status, 200);
 });
 
+test('support: the public goal returns only confirmed revenue, caches the payment API, and never invents zero while unconfigured', async () => {
+  const unavailable = await api('GET', '/v1/support/goal');
+  assert.equal(unavailable.status, 503);
+  assert.equal(unavailable.body.raisedCents, null);
+  let calls = 0;
+  const provider = require('http').createServer((req, res) => {
+    assert.equal(req.headers.authorization, 'Bearer test-goal-api-key-0123456789');
+    assert.equal(new URL(req.url, 'http://x').pathname, '/payments');
+    calls++;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ payments: [{ _id: 'goal-receipt', productId: 'prod_supporter', isSubscription: false,
+      amountBeforeTax: 2, amount: 2.2, currency: 'usd', isRefunded: false, isDisputed: false,
+      createdAt: new Date().toISOString(), buyerEmail: 'private@example.org' }],
+      pagination: { currentPage: 1, totalPages: 1, hasMore: false } }));
+  });
+  await new Promise((ok) => provider.listen(0, '127.0.0.1', ok));
+  try {
+    await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN, pay: {
+      api: 'http://127.0.0.1:' + provider.address().port, apiKey: 'test-goal-api-key-0123456789', webhookSecret: 'test-goal-secret',
+      products: { supporter: 'prod_supporter', plus: 'prod_plus', founder: 'prod_founder', monthly: 'offer_monthly' },
+    } });
+    const r = await fetch(base + '/v1/support/goal');
+    const out = await r.json();
+    assert.equal(r.status, 200);
+    assert.equal(out.raisedCents, 200);
+    assert.equal(out.targetCents, 15000);
+    assert.equal(out.currency, 'USD');
+    assert.equal(out.month, new Date().toISOString().slice(0, 7));
+    assert.deepEqual(Object.keys(out).sort(), ['currency', 'month', 'raisedCents', 'stale', 'targetCents', 'updatedAt']);
+    assert.deepEqual((await api('GET', '/v1/support/goal')).body, out);
+    assert.equal(calls, 1);
+  } finally {
+    await new Promise((ok) => provider.close(ok));
+    await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN });
+  }
+});
+
 test('support: codes are issued by the admin, redeemed once by a profile, and show on the profile and to friends', async () => {
   assert.equal((await fetch(base + '/v1/support/codes', { method: 'POST', headers: { 'X-Admin-Token': 'wrong' } })).status, 401);
   const issued = await admin('POST', '/v1/support/codes', { n: 2, note: 'kofi test' });
