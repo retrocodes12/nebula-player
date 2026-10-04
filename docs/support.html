@@ -28,6 +28,19 @@
   .for { margin:22px 0 0; padding:12px 16px; border:1px solid var(--line); border-radius:12px; background:var(--surface); font-size:.95rem; color:#cfd4db; }
   .for b { color:#fff; }
   .for[hidden] { display:none; }
+  .goal { padding:18px 20px; }
+  .goal-head, .goal-foot { display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px 16px; }
+  .goal h2 { font:600 .95rem var(--body); margin:0; color:var(--text); }
+  .goal-month, .goal-foot, .goal-note { color:var(--muted); font-size:.85rem; }
+  .goal-total { margin:10px 0 12px; font-variant-numeric:tabular-nums; }
+  .goal-total strong { color:var(--text); font-size:1.6rem; font-weight:700; }
+  .goal progress { display:block; appearance:none; width:100%; height:10px; border:0; border-radius:999px; overflow:hidden; background:var(--line); accent-color:var(--red); margin:0 0 10px; }
+  .goal progress::-webkit-progress-bar { background:var(--line); border-radius:999px; }
+  .goal progress::-webkit-progress-value { background:var(--red); border-radius:999px; }
+  .goal progress::-moz-progress-bar { background:var(--red); border-radius:999px; }
+  .goal progress[hidden], .goal-foot[hidden] { display:none; }
+  .goal-foot { font-variant-numeric:tabular-nums; }
+  .goal-note { margin:10px 0 0; }
   .tiers { display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; margin:30px 0 8px; }
   .tier { position:relative; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:22px 20px 20px; display:flex; flex-direction:column; min-width:0; }
   .tier.pick { border-color:rgba(229,9,20,.55); }
@@ -105,7 +118,14 @@
   Support it monthly from $1.50, or chip in once — from $2 — and get your own key, which skips that prompt for good.</p>
   <p class="note">Monthly support is a recurring subscription tied to your Nebula profile. One-time plans never expire.</p>
 
-  <p class="for" id="donationGoal"><b>Monthly donation goal: $150 USD</b><br>Your support helps keep Nebula's servers running.</p>
+  <section class="for goal" id="donationGoal" aria-labelledby="goalTitle">
+    <div class="goal-head"><h2 id="goalTitle">Monthly donation goal</h2><span class="goal-month" id="goalMonth"></span></div>
+    <p class="goal-total" id="goalTotal" aria-live="polite">Checking donations toward our $150 USD goal…</p>
+    <progress id="goalProgress" max="15000" hidden aria-labelledby="goalTitle" aria-describedby="goalTotal"></progress>
+    <div class="goal-foot" id="goalFoot" hidden><span id="goalRemaining"></span><span id="goalPercent"></span></div>
+    <p class="goal-note">Your support helps keep Nebula's servers running. One-time and monthly payments count, excluding tax and refunds, before payment fees. Resets each month (UTC).</p>
+    <noscript><p class="goal-note">Enable JavaScript to see the current donation total.</p></noscript>
+  </section>
 
   <div class="for" id="forBox" hidden>Buying for <b id="forHandle"></b> — the thank-you lands on that Nebula Player profile the moment the payment clears.</div>
 
@@ -225,6 +245,59 @@
       body: body === undefined ? undefined : JSON.stringify(body) })
       .then(function (r) { return r.json().catch(function () { return null; }).then(function (j) { return { status: r.status, body: j }; }); });
   }
+
+  // The payment ledger provides the amount actually received, including renewals.
+  // A missing total is not $0; hide the meter rather than inventing an amount.
+  var goalBusy = false, goalLast = null;
+  function goalLoad() {
+    if (goalLast && goalLast.month !== new Date().toISOString().slice(0, 7)) {
+      goalLast = null;
+      document.getElementById("goalMonth").textContent = "";
+      document.getElementById("goalProgress").hidden = true;
+      document.getElementById("goalFoot").hidden = true;
+      document.getElementById("goalTotal").textContent = "Checking this month’s donations…";
+    }
+    if (goalBusy || document.hidden) return;
+    goalBusy = true;
+    var ctl = new AbortController(), timer = setTimeout(function () { ctl.abort(); }, 12000);
+    function money(cents) { return "$" + (cents / 100).toFixed(2); }
+    function unavailable() {
+      if (goalLast && Date.now() - Date.parse(goalLast.updatedAt) < 24 * 60 * 60 * 1000) {
+        document.getElementById("goalPercent").textContent = "Last confirmed " + new Date(goalLast.updatedAt).toLocaleString() + " · updates temporarily unavailable";
+      } else {
+        goalLast = null;
+        document.getElementById("goalTotal").textContent = "Donation total is unavailable right now. We’ll try again shortly. Goal: $150 USD.";
+        document.getElementById("goalProgress").hidden = true;
+        document.getElementById("goalFoot").hidden = true;
+      }
+    }
+    fetch(CLOUD + "/v1/support/goal", { cache: "no-store", signal: ctl.signal }).then(function (r) {
+      if (!r.ok) throw new Error("Goal unavailable");
+      return r.json();
+    }).then(function (g) {
+      var currentMonth = new Date().toISOString().slice(0, 7);
+      if (!g || g.currency !== "USD" || !Number.isSafeInteger(g.raisedCents) || g.raisedCents < 0 ||
+          !Number.isSafeInteger(g.targetCents) || g.targetCents <= 0 || g.month !== currentMonth ||
+          !Number.isFinite(Date.parse(g.updatedAt)) || Date.now() - Date.parse(g.updatedAt) >= 24 * 60 * 60 * 1000) throw new Error("Invalid goal");
+      goalLast = g;
+      document.getElementById("goalMonth").textContent = new Date(g.month + "-01T00:00:00Z").toLocaleDateString("en", { month: "long", year: "numeric", timeZone: "UTC" });
+      var total = document.getElementById("goalTotal"), strong = document.createElement("strong");
+      total.textContent = "";
+      strong.textContent = money(g.raisedCents);
+      total.appendChild(strong);
+      total.appendChild(document.createTextNode(" raised of " + money(g.targetCents) + " USD"));
+      var progress = document.getElementById("goalProgress");
+      progress.max = g.targetCents;
+      progress.value = Math.min(g.raisedCents, g.targetCents);
+      progress.hidden = false;
+      document.getElementById("goalFoot").hidden = false;
+      document.getElementById("goalRemaining").textContent = g.raisedCents >= g.targetCents ? "Goal reached. Thank you!" : money(g.targetCents - g.raisedCents) + " to go";
+      document.getElementById("goalPercent").textContent = g.stale ? "Last confirmed " + new Date(g.updatedAt).toLocaleString() : Math.floor(g.raisedCents / g.targetCents * 100) + "% funded";
+    }).catch(unavailable).then(function () { clearTimeout(timer); goalBusy = false; });
+  }
+  goalLoad();
+  setInterval(goalLoad, 60000);
+  document.addEventListener("visibilitychange", goalLoad);
 
   // whose profile this page buys for
   if (forToken.length === 8) {
