@@ -41,6 +41,22 @@
   .goal progress[hidden], .goal-foot[hidden] { display:none; }
   .goal-foot { font-variant-numeric:tabular-nums; }
   .goal-note { margin:10px 0 0; }
+  .profile-box { margin:22px 0 0; padding:20px 22px; border:1px solid rgba(106,166,255,.45); border-radius:14px; background:var(--surface); }
+  .profile-box[hidden], .profile-form[hidden], .profile-recovery[hidden] { display:none; }
+  .profile-kick { color:#78adff; font:600 .7rem var(--mono); letter-spacing:.12em; text-transform:uppercase; }
+  .profile-box h2 { font-family:var(--disp); font-weight:800; font-size:1.25rem; margin:6px 0 2px; }
+  .profile-box p { margin:4px 0 14px; }
+  .profile-fields { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px 12px; }
+  .profile-field { display:grid; gap:5px; }
+  .profile-field.full { grid-column:1 / -1; }
+  .profile-field label { color:var(--muted); font-size:.82rem; }
+  .profile-field input { width:100%; border:1px solid #3a3a44; border-radius:9px; background:#101015; color:#fff; padding:10px 12px; font:inherit; }
+  .profile-field input:focus { outline:none; border-color:#78adff; }
+  .profile-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+  .profile-actions .btn { width:auto; }
+  .profile-msg { min-height:1.4em; margin:12px 0 0; color:#ff6b6b; font-size:.9rem; }
+  .profile-recovery { margin-top:14px; padding:12px 14px; border:1px solid rgba(120,173,255,.45); border-radius:10px; color:#cfd4db; font-size:.9rem; }
+  .profile-recovery b { color:#fff; }
   .tiers { display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; margin:30px 0 8px; }
   .tier { position:relative; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:22px 20px 20px; display:flex; flex-direction:column; min-width:0; }
   .tier.pick { border-color:rgba(229,9,20,.55); }
@@ -102,7 +118,7 @@
   a:hover { color:#fff; }
   footer { border-top:1px solid var(--line); margin-top:56px; padding:26px 0 40px; color:var(--muted); font-size:.86rem; }
   @media (max-width:980px) { .tiers { grid-template-columns:repeat(2, 1fr); } }
-  @media (max-width:760px) { .tiers { grid-template-columns:1fr; } .price { font-size:1.7rem; } .tier.pick { order:-1; } }
+  @media (max-width:760px) { .tiers { grid-template-columns:1fr; } .price { font-size:1.7rem; } .tier.pick { order:-1; } .profile-fields { grid-template-columns:1fr; } .profile-field.full { grid-column:auto; } }
 </style>
 </head>
 <body>
@@ -128,6 +144,29 @@
   </section>
 
   <div class="for" id="forBox" hidden>Buying for <b id="forHandle"></b> — the thank-you lands on that Nebula Player profile the moment the payment clears.</div>
+
+  <section class="profile-box" id="profileBox" hidden>
+    <div class="profile-kick">Monthly support</div>
+    <h2>Use a Nebula profile</h2>
+    <p class="note">Monthly support can be started here. Sign in to an existing profile, or create one without opening Nebula Player.</p>
+    <form class="profile-form" id="profileCreateForm">
+      <div class="profile-fields">
+        <div class="profile-field"><label for="profileHandle">Handle</label><input id="profileHandle" name="handle" minlength="3" maxlength="20" pattern="[a-zA-Z0-9_]{3,20}" autocomplete="username" required></div>
+        <div class="profile-field"><label for="profileName">Name</label><input id="profileName" name="name" maxlength="40" autocomplete="name" required></div>
+        <div class="profile-field full"><label for="profilePassword">Password</label><input id="profilePassword" name="password" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></div>
+      </div>
+      <div class="profile-actions"><button class="btn primary" type="submit">Create profile</button><button class="btn" type="button" id="profileShowSignin">Already have one? Sign in</button></div>
+    </form>
+    <form class="profile-form" id="profileSigninForm" hidden>
+      <div class="profile-fields">
+        <div class="profile-field"><label for="profileSigninHandle">Handle</label><input id="profileSigninHandle" name="handle" minlength="3" maxlength="20" autocomplete="username" required></div>
+        <div class="profile-field"><label for="profileSigninPassword">Password</label><input id="profileSigninPassword" name="password" type="password" minlength="8" maxlength="128" autocomplete="current-password" required></div>
+      </div>
+      <div class="profile-actions"><button class="btn primary" type="submit">Sign in</button><button class="btn" type="button" id="profileShowCreate">Create a profile instead</button></div>
+    </form>
+    <p class="profile-msg" id="profileMsg" aria-live="polite"></p>
+    <div class="profile-recovery" id="profileRecovery" hidden><b>Save this recovery key:</b> <span id="profileRecoveryKey"></span><br>It is the only way back if you forget your password.</div>
+  </section>
 
   <section class="thanks" id="thanks" hidden>
     <h2 id="thanksTitle">Confirming your payment…</h2>
@@ -202,8 +241,8 @@
     </div>
   </div>
   <p class="msg" id="msg"></p>
-  <p class="trust">Card payment through Pocketsflow; we never see your card. Monthly support needs a Nebula profile: its thank-you lives there, and ends with the subscription.</p>
-  <p class="note" id="anonBox" hidden>Use Nebula Player too? Open this page from Settings › Support there and the thank-you lands on your profile as well. Otherwise you get a one-time code for it after paying.</p>
+  <p class="trust">Card payment through Pocketsflow; we never see your card. Monthly support can start here or from Nebula Player, and needs a Nebula profile: its thank-you lives there, and ends with the subscription.</p>
+  <p class="note" id="anonBox" hidden>Monthly support is available here without opening Nebula Player — choose it and create or sign in to a profile when asked. One-time plans can still be bought without a profile.</p>
 
   <h3 id="foundersHead" hidden>Founders</h3>
   <ul class="wall" id="founders" hidden></ul>
@@ -236,14 +275,65 @@
   var via = String(location.hash || "").replace(/^#from=/, "").replace(/[^a-z0-9-]/gi, "").slice(0, 24);
   var msg = document.getElementById("msg");
   var buttons = Array.prototype.slice.call(document.querySelectorAll("[data-buy]"));
+  var profileBox = document.getElementById("profileBox");
+  var profileCreateForm = document.getElementById("profileCreateForm");
+  var profileSigninForm = document.getElementById("profileSigninForm");
+  var profileMsg = document.getElementById("profileMsg");
+  var profileRecovery = document.getElementById("profileRecovery");
+  var profileRecoveryKey = document.getElementById("profileRecoveryKey");
+  var pendingTier = "";
+  var profileLink = null;
+  try { profileLink = JSON.parse(localStorage.getItem("cloud_link") || "null"); } catch (e) { profileLink = null; }
   var TIER_NAMES = { supporter: "Supporter", monthly: "Monthly Supporter", plus: "Supporter Plus", founder: "Founder" };
 
   function say(text, err) { msg.textContent = text || ""; msg.className = "msg" + (err ? " err" : ""); }
+  function profileSay(text) { profileMsg.textContent = text || ""; }
+  function hasProfile() { return !!(profileLink && profileLink.gid && (profileLink.token || profileLink.secret)); }
+  function saveProfile(r) {
+    profileLink = { gid: r.gid, token: r.token };
+    try { localStorage.setItem("cloud_link", JSON.stringify(profileLink)); } catch (e) {}
+    document.getElementById("anonBox").hidden = true;
+  }
+  function clearProfile() {
+    profileLink = null;
+    try { localStorage.removeItem("cloud_link"); } catch (e) {}
+  }
+  function profileHeaders() {
+    var h = { "Content-Type": "application/json" };
+    if (hasProfile()) h.Authorization = "Bearer " + profileLink.gid + "." + (profileLink.token || profileLink.secret);
+    return h;
+  }
   function priceText(v) { return Number(v) === 1.5 ? "1.50" : String(v); }
   function api(method, path, body) {
-    return fetch(CLOUD + path, { method: method, cache: "no-store", headers: { "Content-Type": "application/json" },
+    return fetch(CLOUD + path, { method: method, cache: "no-store", headers: profileHeaders(),
       body: body === undefined ? undefined : JSON.stringify(body) })
       .then(function (r) { return r.json().catch(function () { return null; }).then(function (j) { return { status: r.status, body: j }; }); });
+  }
+  function deviceInfo() { return { name: "Nebula support page", plat: "web" }; }
+  function setProfileMode(signin) {
+    profileCreateForm.hidden = !!signin;
+    profileSigninForm.hidden = !signin;
+    profileSay("");
+  }
+  function showProfileForMonthly() {
+    profileBox.hidden = false;
+    setProfileMode(false);
+    profileBox.scrollIntoView({ behavior: "smooth", block: "center" });
+    document.getElementById("profileHandle").focus();
+  }
+  function finishProfile(r, created) {
+    if (!r || !r.gid || !r.token || !r.profile) { profileSay("The profile service returned an incomplete answer."); return; }
+    saveProfile(r);
+    if (created && r.recovery) {
+      profileRecoveryKey.textContent = r.recovery;
+      profileRecovery.hidden = false;
+      profileSay("Profile created. Save the recovery key, then checkout is opening.");
+    } else {
+      profileSay("Signed in. Checkout is opening.");
+    }
+    var b = document.querySelector('[data-buy="' + pendingTier + '"]');
+    profileBox.hidden = true;
+    runCheckout(b, pendingTier);
   }
 
   // The payment ledger provides the amount actually received, including renewals.
@@ -325,7 +415,6 @@
       var b = document.querySelector('[data-price="' + t.id + '"]');
       if (b) b.textContent = "$" + priceText(t.price);
       if (t.checkout === false && b) { b.closest("button").disabled = true; b.closest("button").textContent = "Not open yet"; }
-      if (t.id === "monthly" && !forToken && b) { b.closest("button").disabled = true; b.closest("button").textContent = "Open from Nebula Player"; }
     });
     if (!s.checkout) buttons.forEach(function (b) { b.disabled = true; b.textContent = "Not open yet"; });
     var founders = [], others = [];
@@ -353,21 +442,55 @@
   buttons.forEach(function (b) {
     b.addEventListener("click", function () {
       var tier = b.getAttribute("data-buy");
+      if (tier === "monthly" && !forToken && !hasProfile()) {
+        pendingTier = tier;
+        showProfileForMonthly();
+        return;
+      }
+      runCheckout(b, tier);
+    });
+  });
+
+  function runCheckout(b, tier) {
+      if (!b) return;
       buttons.forEach(function (x) { x.disabled = true; });
       b.setAttribute("aria-busy", "true");
       say("Opening the checkout…");
       api("POST", "/v1/support/checkout", { tier: tier, for: forToken || undefined, via: via || undefined }).then(function (r) {
         if (r.status === 200 && r.body && r.body.url) { location.href = r.body.url; return; }
         buttons.forEach(function (x) { x.disabled = false; x.removeAttribute("aria-busy"); });
-        if (r.status === 503) say("Checkout is not switched on yet.", true);
+        if (tier === "monthly" && r.status === 400 && /profile/i.test(String(r.body && r.body.error || ""))) {
+          clearProfile();
+          pendingTier = tier;
+          showProfileForMonthly();
+          profileSay("Sign in or create a profile to start monthly support.");
+        } else if (r.status === 503) say("Checkout is not switched on yet.", true);
         else if (r.status === 429) say("Too many tries — give it a minute.", true);
         else say("The payment service did not answer — try again in a minute.", true);
       }).catch(function () {
         buttons.forEach(function (x) { x.disabled = false; x.removeAttribute("aria-busy"); });
         say("Could not reach the server.", true);
       });
-    });
+  }
+
+  profileCreateForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    profileSay("Creating your profile…");
+    api("POST", "/v1/profile", { handle: document.getElementById("profileHandle").value, name: document.getElementById("profileName").value, password: document.getElementById("profilePassword").value, device: deviceInfo() }).then(function (r) {
+      if (r.status === 200) finishProfile(r.body, true);
+      else profileSay(r.status === 409 ? "That handle is already taken." : "Could not create the profile. Check the fields and try again.");
+    }).catch(function () { profileSay("Could not reach the profile service."); });
   });
+  profileSigninForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    profileSay("Signing in…");
+    api("POST", "/v1/profile/signin", { handle: document.getElementById("profileSigninHandle").value, password: document.getElementById("profileSigninPassword").value, device: deviceInfo() }).then(function (r) {
+      if (r.status === 200) finishProfile(r.body, false);
+      else profileSay("That handle or password was not recognised.");
+    }).catch(function () { profileSay("Could not reach the profile service."); });
+  });
+  document.getElementById("profileShowSignin").addEventListener("click", function () { setProfileMode(true); document.getElementById("profileSigninHandle").focus(); });
+  document.getElementById("profileShowCreate").addEventListener("click", function () { setProfileMode(false); document.getElementById("profileHandle").focus(); });
 
   // back from the checkout: ask what happened until the payment service has told us, then until the key is there
   if (/^[0-9a-f]{24}$/.test(sid)) {
