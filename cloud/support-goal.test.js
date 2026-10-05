@@ -120,7 +120,8 @@ test('the page retains a timestamped total through a short outage, but hides it 
   let at = OCTOBER, fail = false, refresh;
   const nodes = new Map();
   function element() {
-    return { textContent: '', hidden: true, style: {}, appendChild(child) { this.textContent += child.textContent; } };
+    return { textContent: '', hidden: true, style: {}, addEventListener() {},
+      appendChild(child) { this.textContent += child.textContent; } };
   }
   const document = { hidden: false,
     getElementById(id) { if (!nodes.has(id)) nodes.set(id, element()); return nodes.get(id); },
