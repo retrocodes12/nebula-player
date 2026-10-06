@@ -308,7 +308,14 @@ module.exports = function attach(core) {
           // the monthly plan, for its owner only: the service's status and the private link to cancel or change the card
           ...(g.supporter.subscription ? { subscription: { status: String(g.supporter.subscription.status || 'active'),
             ...(g.supporter.subscription.manage ? { manage: g.supporter.subscription.manage } : {}) } } : {}),
-          ...(g.supporter.sportsKey ? { sportsKey: g.supporter.sportsKey, sportsManifest: g.supporter.sportsManifest || null } : {}) } : null;
+          ...(() => {
+            const subscriptionActive = /^(active|trialing|paused)$/.test(String(g.supporter.subscription && g.supporter.subscription.status || ''));
+            const primaryIsSubscription = g.supporter.sportsKeySource === 'subscription' || (!g.supporter.sportsKeySource && g.supporter.sportsSubscriptionId);
+            const key = g.supporter.sportsKey && (!primaryIsSubscription || subscriptionActive)
+              ? { key: g.supporter.sportsKey, manifest: g.supporter.sportsManifest, expiresAt: g.supporter.sportsExpiresAt, lifetime: g.supporter.sportsLifetime }
+              : (subscriptionActive && g.supporter.sportsSubscriptionKey ? { key: g.supporter.sportsSubscriptionKey, manifest: g.supporter.sportsSubscriptionManifest, expiresAt: g.supporter.sportsSubscriptionExpiresAt, lifetime: g.supporter.sportsSubscriptionLifetime } : null);
+            return key ? { sportsKey: key.key, sportsManifest: key.manifest || null, ...(key.expiresAt ? { sportsExpiresAt: key.expiresAt } : {}), ...(key.lifetime ? { sportsLifetime: true } : {}) } : {};
+          })() } : null;
       }
       return json(res, 200, out);
     }

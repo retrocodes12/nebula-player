@@ -1029,9 +1029,21 @@ const mintStub = http.createServer((req, res) => {
   });
 });
 const until = async (fn, ms = 3000) => { const t0 = Date.now(); let v; while (!(v = await fn()) && Date.now() - t0 < ms) await new Promise((r) => setTimeout(r, 400)); return v; };   // the claim route is rate limited: poll like the page does, not in a tight loop
+const orderReceipts = {};
+function receiptResponse(req, res) {
+  if (!req.url.startsWith('/orders/')) return false;
+  const id = decodeURIComponent(req.url.slice('/orders/'.length));
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ sale: orderReceipts[id] || null }));
+  return true;
+}
 function hook(body, secret = PAY.webhookSecret, headers = {}) {
   // the real service names the event in a header and NOT in the body (seen in its own webhook test, 09-19)
   const { event, ...rest } = body;
+  if (event === 'order.completed' && body.order && body.product && !orderReceipts[body.order.id]) orderReceipts[body.order.id] = {
+    _id: body.order.id, productId: body.product.id, currency: 'usd', amountBeforeTax: body.amount === 0 ? 0 : 2,
+    isRefunded: false, isDisputed: false, isSubscription: false,
+  };
   const raw = JSON.stringify(rest);
   const sig = require('crypto').createHmac('sha256', secret).update(raw).digest('hex');
   return fetch(base + '/v1/support/webhook/pocketsflow', { method: 'POST',
@@ -1184,7 +1196,7 @@ test('support: checkout — a signed-in buyer is raised on the webhook, a strang
 
 test('support: every paid order earns a Nebula Sports key — minted over loopback, shown by the claim, kept on the profile, retried while the backend is down', async () => {
   await new Promise((ok) => mintStub.listen(0, '127.0.0.1', ok));
-  const payStub2 = http.createServer((req, res) => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ id: 'sess_k', url: 'https://retrocodes.pocketsflow.com/checkout?session=k' })); });
+  const payStub2 = http.createServer((req, res) => { if (receiptResponse(req, res)) return; res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ id: 'sess_k', url: 'https://retrocodes.pocketsflow.com/checkout?session=k' })); });
   await new Promise((ok) => payStub2.listen(0, '127.0.0.1', ok));
   const SPORTS = { url: 'http://127.0.0.1:' + mintStub.address().port + '/sports/internal/keys', token: 'sports_mint_token_0123456789' };
   const pay = { ...PAY, api: 'http://127.0.0.1:' + payStub2.address().port };
@@ -1207,6 +1219,27 @@ test('support: every paid order earns a Nebula Sports key — minted over loopba
   assert.equal(c1.sportsPending, undefined);
   assert.deepEqual(mintAsked[0].body, { orderId: 'k1', tier: 'supporter', email: 'kim@example.org', label: 'pocketsflow supporter' });
   assert.equal(mintAsked[0].token, SPORTS.token);
+
+  // A delayed legacy webhook uses the payment timestamp, not delivery time.
+  // The webhook answers before minting, so wait for the background request.
+  await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN, site: 'https://play.example.org', pay, sports: { ...SPORTS, offersStartedAt: '2026-06-01T00:00:00.000Z' } });
+  const legacyPaidAt = Date.parse('2026-01-01T00:00:00.000Z');
+  for (const [i, paidAt] of ['2026-01-01T00:00:00.000Z', legacyPaidAt / 1000, String(legacyPaidAt / 1000), legacyPaidAt, String(legacyPaidAt)].entries()) {
+    const orderId = 'legacy-delay-' + i;
+    assert.equal((await hook({ event: 'order.completed', order: { id: orderId, paidAt }, product: { id: 'prod_sup' }, metadata: { sid: '', tier: 'supporter', gid: '', handle: '' } })).status, 200);
+    const legacyMint = await until(async () => mintAsked.find((entry) => entry.body.orderId === orderId));
+    assert.ok(legacyMint, 'the delayed legacy order was never minted');
+    assert.equal(legacyMint.body.tier, 'sports-lifetime');
+  }
+  const afterCutoff = '2026-07-01T00:00:00.000Z';
+  for (const [i, dates] of [{ paidAt: afterCutoff }, { createdAt: '2026-01-01T00:00:00.000Z' }].entries()) {
+    const orderId = 'post-cutoff-' + i;
+    await hook({ event: 'order.completed', order: { id: orderId, ...dates }, paidAt: afterCutoff, product: { id: 'prod_sup' } });
+    const newMint = await until(async () => mintAsked.find((entry) => entry.body.orderId === orderId));
+    assert.ok(newMint, 'the post-cutoff order was never minted');
+    assert.equal(newMint.body.tier, 'supporter');
+  }
+  await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN, site: 'https://play.example.org', pay, sports: SPORTS });
   // asking again mints nothing new
   const before = mintAsked.length;
   assert.equal((await api('GET', '/v1/support/claim?sid=' + s.body.sid, undefined, undefined, '10.7.7.9')).body.sportsKey, c1.sportsKey);
@@ -1222,7 +1255,21 @@ test('support: every paid order earns a Nebula Sports key — minted over loopba
   assert.equal(me.tier, 'founder');
   assert.equal(me.sportsKey, c2.sportsKey);
   assert.equal(me.sportsManifest, c2.sportsManifest);
-  assert.equal(mintAsked[mintAsked.length - 1].body.label, 'pocketsflow founder @pay_dee');
+   assert.equal(mintAsked[mintAsked.length - 1].body.label, 'pocketsflow founder @pay_dee');
+
+   // A one-time key and a monthly key can coexist. Ending monthly access must
+   // leave the permanent/timed one-time key visible on the profile.
+   const mixed = await mkProfile('pay_mixed', 'Mixed P', 'password1');
+   const monthlyMixed = await api('POST', '/v1/support/checkout', { tier: 'monthly' }, tok(mixed), '10.7.7.5');
+   await hook({ event: 'customer.subscription.created', subscription: { id: 'prod_monthly', customerId: 'sc_mixed' }, subscriptionCustomerId: 'sc_mixed', subscriptionCustomer: { status: 'trialing' }, status: 'trialing', metadata: { sid: monthlyMixed.body.sid, tier: 'monthly', gid: '', handle: '' } });
+   const mixedMonthly = await until(async () => { const r = (await api('GET', '/v1/support/claim?sid=' + monthlyMixed.body.sid, undefined, undefined, '10.7.7.9')).body; return r.sportsKey ? r : null; });
+   const oneTimeMixed = await api('POST', '/v1/support/checkout', { tier: 'plus' }, tok(mixed), '10.7.7.6');
+   await hook({ event: 'order.completed', order: { id: 'mixed-once' }, product: { id: 'prod_plus' }, metadata: { sid: oneTimeMixed.body.sid, tier: 'plus', gid: '', handle: '' } });
+   const mixedOnce = await until(async () => { const r = (await api('GET', '/v1/support/claim?sid=' + oneTimeMixed.body.sid, undefined, undefined, '10.7.7.9')).body; return r.sportsKey ? r : null; });
+   assert.notEqual(mixedOnce.sportsKey, mixedMonthly.sportsKey);
+   assert.equal((await api('GET', '/v1/profile/me', undefined, tok(mixed))).body.supporter.sportsKey, mixedOnce.sportsKey);
+   await hook({ event: 'customer.subscription.deleted', subscriptionCustomerId: 'sc_mixed' });
+   assert.equal((await api('GET', '/v1/profile/me', undefined, tok(mixed))).body.supporter.sportsKey, mixedOnce.sportsKey);
 
   // the backend is down when the webhook comes: the claim says pending, then finds the key once it is back
   mintDown = true;
@@ -1239,19 +1286,45 @@ test('support: every paid order earns a Nebula Sports key — minted over loopba
   assert.ok(c3b && c3b.sportsKey, 'the key never arrived after the backend came back');
   assert.equal(c3b.sportsPending, undefined);
 
-  // the monthly plan is support, not the key: with the key service up, a subscription asks it nothing and its claim waits on nothing
+  // The monthly plan now includes a non-lifetime key, including during trial.
   const mk = await mkProfile('pay_mona', 'Mona K', 'password1');
   const s5 = await api('POST', '/v1/support/checkout', { tier: 'monthly' }, tok(mk), '10.7.7.4');
   const meta5 = { sid: s5.body.sid, tier: 'monthly', gid: '', handle: '' };   // the pending checkout knows the profile
-  const before5 = mintAsked.length;
-  await hook({ event: 'customer.subscription.created', subscription: { id: 'prod_monthly', customerId: 'sc_k5' }, subscriptionCustomerId: 'sc_k5', subscriptionCustomer: { status: 'active' }, status: 'active', metadata: meta5 });
-  const c5 = (await api('GET', '/v1/support/claim?sid=' + s5.body.sid, undefined, undefined, '10.7.7.9')).body;
+  await hook({ event: 'customer.subscription.created', subscription: { id: 'prod_monthly', customerId: 'sc_k5' }, subscriptionCustomerId: 'sc_k5', subscriptionCustomer: { status: 'trialing' }, status: 'trialing', metadata: meta5 });
+  const c5 = await until(async () => { const r = (await api('GET', '/v1/support/claim?sid=' + s5.body.sid, undefined, undefined, '10.7.7.9')).body; return r.sportsKey ? r : null; });
   assert.equal(c5.state, 'granted');
-  assert.equal(c5.sportsKey, undefined);
+  assert.match(c5.sportsKey, /^nsports_/);
   assert.equal(c5.sportsPending, undefined);
-  await new Promise((r) => setTimeout(r, 600));
-  assert.equal(mintAsked.length, before5);
+  assert.equal((await api('GET', '/v1/profile/me', undefined, tok(mk))).body.supporter.sportsKey, c5.sportsKey);
+  const monthlyMint = mintAsked.find((m) => m.body.orderId === 'subscription:sc_k5');
+  assert.equal(monthlyMint.body.subscriptionStatus, 'trialing');
+  assert.equal(monthlyMint.body.tier, 'monthly');
+  assert.ok(monthlyMint.body.subscriptionEventAt > 0);
+  // Past-due/cancellation updates are sent even when a key already exists;
+  // the claim and profile no longer present it as usable. Recovery keeps it.
+  await hook({ event: 'customer.subscription.updated', subscriptionCustomerId: 'sc_k5', status: 'past_due' });
+  assert.equal((await api('GET', '/v1/support/claim?sid=' + s5.body.sid, undefined, undefined, '10.7.7.9')).body.state, 'inactive');
   assert.equal((await api('GET', '/v1/profile/me', undefined, tok(mk))).body.supporter.sportsKey, undefined);
+  await until(async () => mintAsked.some((m) => m.body.orderId === 'subscription:sc_k5' && m.body.subscriptionStatus === 'past_due'));
+  await hook({ event: 'customer.subscription.updated', subscriptionCustomerId: 'sc_k5', status: 'active' });
+  await until(async () => mintAsked.some((m) => m.body.orderId === 'subscription:sc_k5' && m.body.subscriptionStatus === 'active'));
+   await hook({ event: 'customer.subscription.deleted', subscriptionCustomerId: 'sc_k5' });
+  await until(async () => mintAsked.some((m) => m.body.orderId === 'subscription:sc_k5' && m.body.subscriptionStatus === 'canceled'));
+  const endedClaim = (await api('GET', '/v1/support/claim?sid=' + s5.body.sid, undefined, undefined, '10.7.7.9')).body;
+  assert.equal(endedClaim.state, 'inactive'); assert.equal(endedClaim.sportsKey, undefined);
+   assert.equal((await hook({ event: 'customer.subscription.created', subscription: { id: 'prod_monthly', customerId: 'sc_k5' }, subscriptionCustomerId: 'sc_k5', status: 'trialing', metadata: meta5 })).body.ignored, 'ended subscription');
+
+   // A terminal webhook can arrive before creation. Keep a tombstone so a
+   // later out-of-order creation event cannot grant access.
+   const early = await api('POST', '/v1/support/checkout', { tier: 'monthly' }, tok(mk), '10.7.7.7');
+   const earlyMeta = { sid: early.body.sid, tier: 'monthly', gid: mk.gid, handle: 'pay_mona' };
+   assert.equal((await hook({ event: 'customer.subscription.deleted', subscriptionCustomerId: 'sc_early' })).body.ended, false);
+   assert.equal((await hook({ event: 'customer.subscription.created', subscription: { id: 'prod_monthly', customerId: 'sc_early' }, subscriptionCustomerId: 'sc_early', subscriptionCustomer: { status: 'trialing' }, status: 'trialing', metadata: earlyMeta })).body.ignored, 'ended subscription');
+
+  // An unknown product cannot manufacture an entitlement through metadata,
+  // and an explicitly free checkout is not a qualifying donation.
+  assert.equal((await hook({ event: 'order.completed', order: { id: 'k_unknown' }, product: { id: 'other_product' }, metadata: { tier: 'founder' } })).body.ignored, 'unknown product');
+  assert.equal((await hook({ event: 'order.completed', order: { id: 'k_free' }, product: { id: 'prod_sup' }, amount: 0 })).body.ignored, 'unpaid order');
 
   // no sports block → no key, no pending flag, nothing asked
   await supportConfig({ url: 'https://example.org/support-nebula', admin: ADMIN, site: 'https://play.example.org', pay });
@@ -1295,7 +1368,7 @@ test('support: every paid order gets ONE receipt e-mail with its key and code �
       res.end(JSON.stringify({ installKey: 'nsports_' + b.orderId, manifestUrl: 'https://sports.example.org/sports/i/nsports_' + b.orderId + '/manifest.json' }));
     });
   });
-  const pay3 = http.createServer((req, res) => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ id: 'sess_m', url: 'https://retrocodes.pocketsflow.com/checkout?session=m' })); });
+  const pay3 = http.createServer((req, res) => { if (receiptResponse(req, res)) return; res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ id: 'sess_m', url: 'https://retrocodes.pocketsflow.com/checkout?session=m' })); });
   for (const s of [mailStub, mint2, pay3]) await new Promise((ok) => s.listen(0, '127.0.0.1', ok));
   const port = (s) => s.address().port;
   const MAIL = { apiKey: 're_test_0123456789abcdef', api: 'http://127.0.0.1:' + port(mailStub) };

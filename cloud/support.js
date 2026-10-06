@@ -55,7 +55,7 @@ const TIERS = {
   supporter: { rank: 1, name: 'Supporter', price: 2 },
   plus: { rank: 2, name: 'Supporter Plus', price: 5 },
   founder: { rank: 3, name: 'Founder', price: 20 },
-  // the monthly plan carries the Plus-level perks (mark, colours, early builds, the vote, the recap) while it runs — not the key
+  // The monthly plan carries Plus-level perks and a subscription-scoped key.
   monthly: { rank: 2, name: 'Monthly Supporter', price: 1.5, recurring: true },
 };
 const MARKS = ['star', 'heart', 'bolt', 'crown'];        // Supporter Plus and up choose theirs; everyone else is a star
@@ -70,13 +70,14 @@ module.exports = function attach(core) {
   const CONFIG_PATH = path.join(DATA_DIR, 'support-config.json');
 
   // ---------- the store: codes + which groups may be on the wall + pending checkouts ----------
-  let store = { codes: {}, gids: [], pending: {}, orders: {}, subscriptions: {}, vote: null, votes: [] };
+  let store = { codes: {}, gids: [], pending: {}, orders: {}, subscriptions: {}, subscriptionTombstones: {}, vote: null, votes: [] };
   try {
     const s = JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
     if (s && typeof s === 'object') {
       store = { codes: s.codes || {}, gids: Array.isArray(s.gids) ? s.gids : [],
         pending: s.pending && typeof s.pending === 'object' ? s.pending : {}, orders: s.orders && typeof s.orders === 'object' ? s.orders : {},
         subscriptions: s.subscriptions && typeof s.subscriptions === 'object' ? s.subscriptions : {},
+        subscriptionTombstones: s.subscriptionTombstones && typeof s.subscriptionTombstones === 'object' ? s.subscriptionTombstones : {},
         vote: s.vote && typeof s.vote === 'object' ? s.vote : null, votes: Array.isArray(s.votes) ? s.votes : [] };
     }
   } catch (e) {}
@@ -146,7 +147,8 @@ module.exports = function attach(core) {
     const url = String(s.url || '').trim(), token = String(s.token || '').trim();
     if (!/^(https:\/\/[^\s"'<>]{8,300}|http:\/\/127\.0\.0\.1(:\d+)?\/[^\s"'<>]{1,200})$/.test(url)) return null;
     if (!/^[A-Za-z0-9_-]{16,200}$/.test(token)) return null;
-    return { url, token };
+    const offersStartedAt = Date.parse(String(s.offersStartedAt || ''));
+    return { url, token, offersStartedAt: Number.isFinite(offersStartedAt) ? offersStartedAt : 0 };
   }
   function cleanUrl(v) { const s = String(v || '').trim(); return /^https:\/\/[^\s"'<>]{4,400}$/.test(s) ? s : null; }
   /** Where the success/cancel pages live: https, or a loopback http address for the rigs. */
@@ -200,8 +202,26 @@ module.exports = function attach(core) {
     const out = { since: s.since, wall: !!s.wall, tier: cleanTier(s.tier), mark: markOf(s) };
     const sub = subView(s);
     if (sub) out.subscription = sub;
-    if (s.sportsKey) { out.sportsKey = s.sportsKey; out.sportsManifest = s.sportsManifest || null; }
+    const sports = visibleSportsKey(s);
+    if (sports) {
+      out.sportsKey = sports.key;
+      out.sportsManifest = sports.manifest;
+      if (sports.expiresAt) out.sportsExpiresAt = sports.expiresAt;
+      if (sports.lifetime) out.sportsLifetime = true;
+    }
     return out;
+  }
+  function visibleSportsKey(s) {
+    if (!s) return null;
+    const subscriptionActive = /^(active|trialing|paused)$/.test(String(s.subscription && s.subscription.status || ''));
+    const primaryIsSubscription = s.sportsKeySource === 'subscription' || (!s.sportsKeySource && s.sportsSubscriptionId);
+    if (s.sportsKey && (!primaryIsSubscription || subscriptionActive)) {
+      return { key: s.sportsKey, manifest: s.sportsManifest || null, expiresAt: s.sportsExpiresAt || null, lifetime: s.sportsLifetime === true };
+    }
+    if (subscriptionActive && s.sportsSubscriptionKey) {
+      return { key: s.sportsSubscriptionKey, manifest: s.sportsSubscriptionManifest || null, expiresAt: s.sportsSubscriptionExpiresAt || null, lifetime: s.sportsSubscriptionLifetime === true };
+    }
+    return null;
   }
   /** The monthly plan as its owner sees it: the service's status (active, trialing, past_due, paused) and the private
       link where they cancel or change the card. Only ever in the owner's own answers (/me, redeem, the wall switch). */
@@ -259,6 +279,12 @@ module.exports = function attach(core) {
     if (s.subscriptionOnly) revoke(gid, g);
     else {
       delete s.subscription;
+      if (s.sportsSubscriptionId === subscriptionId) {
+        const wasPrimary = s.sportsKeySource === 'subscription' || (!s.sportsKeySource && s.sportsSubscriptionId);
+        delete s.sportsSubscriptionId; delete s.sportsSubscriptionKey; delete s.sportsSubscriptionManifest;
+        delete s.sportsSubscriptionExpiresAt; delete s.sportsSubscriptionLifetime;
+        if (wasPrimary) { delete s.sportsKey; delete s.sportsManifest; delete s.sportsExpiresAt; delete s.sportsLifetime; delete s.sportsKeySource; }
+      }
       if (TIERS[s.tier] && TIERS[s.tier].recurring) s.tier = 'supporter';
       persistSoon(gid); wallAt = 0;
     }
@@ -349,11 +375,31 @@ module.exports = function attach(core) {
     revokeSubscription,
     noteSubscription,
     /** The sports key a paid order earned, kept on the profile so every signed-in device can show it (`/me`). */
-    noteSportsKey(gid, key, manifest) {
+    noteSportsKey(gid, key, manifest, subscriptionId, details = {}) {
       const g = loadGroup(gid);
       if (!g || !g.supporter) return;
-      g.supporter.sportsKey = String(key).slice(0, 120);
-      g.supporter.sportsManifest = String(manifest || '').slice(0, 300);
+      const normalizedKey = String(key).slice(0, 120);
+      const normalizedManifest = String(manifest || '').slice(0, 300);
+      if (subscriptionId) {
+        g.supporter.sportsSubscriptionId = subscriptionId;
+        g.supporter.sportsSubscriptionKey = normalizedKey;
+        g.supporter.sportsSubscriptionManifest = normalizedManifest;
+        g.supporter.sportsSubscriptionExpiresAt = details.expiresAt || null;
+        g.supporter.sportsSubscriptionLifetime = details.lifetime === true;
+        if (!g.supporter.sportsKey || g.supporter.sportsKeySource === 'subscription') {
+          g.supporter.sportsKey = normalizedKey;
+          g.supporter.sportsManifest = normalizedManifest;
+          g.supporter.sportsExpiresAt = details.expiresAt || null;
+          g.supporter.sportsLifetime = details.lifetime === true;
+          g.supporter.sportsKeySource = 'subscription';
+        }
+      } else {
+        g.supporter.sportsKey = normalizedKey;
+        g.supporter.sportsManifest = normalizedManifest;
+        g.supporter.sportsExpiresAt = details.expiresAt || null;
+        g.supporter.sportsLifetime = details.lifetime === true;
+        g.supporter.sportsKeySource = 'one-time';
+      }
       persistSoon(gid);
     },
   });
