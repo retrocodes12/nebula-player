@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.02.2",
+  "version": "2026.10.07.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Seekr previews show at once and without gaps: every picture of the film is fetched in the background as soon as it starts, and the scrub never blanks while the next one is made."
+  "notes": "Smoother on LG TVs: rows and pages glide instead of jumping, a press of the remote no longer repaints the whole screen, opening a title and coming back to Home are several times faster, and the remote does more of what it should — Back on Home leaves the app, CH+/CH− page through rows, Play plays, and the Magic Remote pointer lights what it rests on."
 }

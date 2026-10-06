@@ -1985,6 +1985,29 @@
   html.lite .skel .thumb, html.lite .card-label.sk, html.lite .sk-line, html.lite .sk-box, html.lite .sk-blob,
   html.lite .sk-head, html.lite .sk-chip { animation:none; background:var(--l1); }
   html.lite .cw-left { background:rgba(28,28,30,.9); }
+  /* Scroll on the compositor. A TV renders at 1x, where Chromium keeps a scroller on the main thread unless it is a
+     stacking context painting an opaque background — and then every press of the remote repaints the whole screen
+     (measured on Chromium 68: Home was ONE 1920x1080 layer, every row "repaints on scroll"). Two more things stop it
+     there, both measured: a position:fixed scroller never qualifies (absolute is the same box — html and body never
+     scroll), and a fade that keeps its end state ("both") keeps every scroller inside it off the compositor for good.
+     Not the player's menus: they sit over the picture. */
+  html.lite .view { position:absolute; }
+  html.lite .view.active { animation-fill-mode:backwards; }
+  html.lite .view, html.lite .scroller { background-color:var(--bg); }
+  html.lite .con-nav, html.lite .con-pane { background-color:#070707; }   /* = #setConsole's 3 % white over the black page, opaque */
+  html.lite .scroller, html.lite .con-nav, html.lite .con-pane { position:relative; z-index:0; }
+  html.lite .hrow { position:relative; z-index:0; background-color:var(--bg); }
+  /* The lit card keeps its lift and its white ring, not the 46px blurred shadow under it: black on a black page shows next to
+     nothing, and each press repainted it (and the label's colour) frame by frame for 0.18 s on two cards. */
+  html.lite .card .thumb, html.lite .card-label { transition:none; }
+  html.lite .card.focusable:focus .thumb { box-shadow:0 0 0 3px #fff; }
+  html.lite .card:hover .thumb { box-shadow:inset 0 0 0 1px rgba(255,255,255,.14); }
+  html.lite .card.focusable:focus { z-index:auto; }
+  /* Home under the page on top (show()) — never the leaving fade's display:none */
+  html.lite #view-home.kept { display:block; z-index:1; animation:none; }
+  /* Back to Home is a cut: it is already drawn underneath, and its fade re-made every row's layer (repainted them all) */
+  html.lite #view-home.active { animation:none; }
+  html.lite body.playing #view-home.kept { visibility:hidden; }
 
 </style>
 </head>
@@ -2665,7 +2688,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.10.02.2';
+  var PLAYER_VERSION = '2026.10.07.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -2749,14 +2772,20 @@
     if (statusEl.classList.contains('show') && !statusEl.classList.contains('err') &&
         Date.now() - statusAt > 400) clearStatus();
     var wasPlaying = document.body.className.indexOf('playing') !== -1;
+    // A TV keeps Home laid out and painted under the page on top (opaque there, so it costs nothing to draw): tearing its
+    // ~1800 boxes down and building them again on the way back cost a TV most of a second. Hidden, still laid out, while
+    // the player owns the screen. It never takes the leaving fade: that is display:none on a TV, and its pointer-events
+    // (inherited) restyled all ~1800 boxes once on the way out and again 220 ms later.
+    var keepHome = IS_LITE && name !== 'home';
     document.querySelectorAll('.view').forEach(function(v){
       // the view being left fades under the new one — not to or from the player, which owns the screen
-      if (v.classList.contains('active') && !wasPlaying && name !== 'player' && v.id !== 'view-'+name){
+      if (v.classList.contains('active') && !wasPlaying && name !== 'player' && v.id !== 'view-'+name && !(keepHome && v.id === 'view-home')){
         v.classList.add('leaving');
         setTimeout(function(){ v.classList.remove('leaving'); }, 220);
       }
       v.classList.remove('active');
     });
+    if (IS_LITE){ var hv = document.getElementById('view-home'); if (hv) hv.classList.toggle('kept', keepHome); }
     var el = document.getElementById('view-'+name);
     if (el){ el.classList.add('active'); if (!back) el.scrollTop = 0; }
     // cheap and synchronous — keeps Continue watching honest after playback
@@ -2805,6 +2834,25 @@
   // hold opens a sheet mid-press — without this the repeats reach whatever the
   // sheet just focused and fire it. Capture, so it is true before any element sees the key.
   var enterDown = false;
+  // The Magic Remote's pointer (webOS): what it rests on takes the focus, as on the TV's own screens, so the arrows carry on
+  // from where the pointer was — not from a card it left screens ago (its wheel scrolls the page without moving focus). Only a
+  // pointer that MOVED (Chromium repeats the last position after a scroll), never a text field (that throws the keyboard up),
+  // never scrolling the page under it. When the pointer hides (an arrow key, LG's 5-way mode) with nothing lit, Home's first
+  // spot is lit again.
+  if (IS_WEBOS){
+    var ptrX = -1, ptrY = -1;
+    document.addEventListener('mousemove', function(e){
+      if (e.clientX === ptrX && e.clientY === ptrY) return;
+      ptrX = e.clientX; ptrY = e.clientY;
+      var t = e.target && e.target.closest ? e.target.closest('.focusable') : null;
+      if (!t || t === document.activeElement || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.disabled) return;
+      try { t.focus({ preventScroll: true }); } catch(err){}
+    }, true);
+    document.addEventListener('cursorStateChange', function(e){
+      var shown = e && e.detail && e.detail.visibility;
+      if (!shown && (!document.activeElement || document.activeElement === document.body)) setTimeout(function(){ focusFirst(); }, 0);
+    });
+  }
   document.addEventListener('keydown', function(e){ if (e.keyCode === 13) enterDown = true; }, true);
   document.addEventListener('keyup', function(e){ if (e.keyCode === 13) enterDown = false; }, true);
   // Back returns the remote to what it left. Every focus inside a view is noted (so a sheet's action or a card's
@@ -2917,6 +2965,10 @@
       var v = document.querySelector('.view.active'), f = v && document.body.className.indexOf('playing') === -1 ? firstFocusable(v) : null;
       (f && list.indexOf(f) >= 0 ? f : list[0]).focus(); return;
     }
+    var best = stepFrom(list, cur, dx, dy);
+    if (best) focusReveal(best);
+  }
+  function stepFrom(list, cur, dx, dy){
     var browsing = document.body.className.indexOf('playing') === -1;
     var best = (IS_TV && browsing) ? tvBrowseStep(list, cur, dx, dy) : pickNearest(list, cur, dx, dy);
     // a season row is entered on the season on screen, never on whichever chip happened to sit nearest
@@ -2924,7 +2976,43 @@
       var son = best.parentNode.querySelector('.chip.on');
       if (son && isShown(son)) best = son;
     }
-    if (best){ best.focus(); best.scrollIntoView({block:'nearest', inline:'nearest'}); }
+    return best;
+  }
+  /** CH+ / CH− (Page Up / Page Down to the page): the remote a screen's worth up or down — rows on Home, a list's rows —
+      where the browser's own page scroll moved the page and left the lit item behind, off screen. */
+  function pageMove(dir){
+    var list = focusables(); if (!list.length) return;
+    var cur = document.activeElement, rail = $id('rail');
+    if (list.indexOf(cur) < 0 || (rail && rail.contains(cur))){ moveFocus2D(0, dir); return; }
+    var v = document.querySelector('.view.active'), h = v ? v.clientHeight * 0.8 : 600;
+    var top0 = cur.getBoundingClientRect().top, at = cur;
+    for (var i = 0; i < 24; i++){
+      var nx = stepFrom(list, at, 0, dir); if (!nx || (rail && rail.contains(nx))) break;
+      at = nx; if (Math.abs(at.getBoundingClientRect().top - top0) >= h) break;
+    }
+    if (at !== cur) focusReveal(at);
+  }
+  /** The remote's move. On a TV the page and its rows glide to the new spot instead of jumping: they scroll on the
+      compositor there (the lite CSS), so the glide costs the main thread nothing. Where they go is unchanged — what
+      focus() itself does, Chromium's "centre if needed": a spot wholly out of its scroller is centred, any other is
+      brought to the nearest edge. Everywhere else, exactly as before. */
+  function focusReveal(el){
+    if (!IS_LITE){ el.focus(); try { el.scrollIntoView({ block:'nearest', inline:'nearest' }); } catch(e){} return; }
+    try { el.focus({ preventScroll: true }); } catch(e){ el.focus(); }
+    var r = el.getBoundingClientRect();
+    try { el.scrollIntoView({ block: revealAxis(el, r, false), inline: revealAxis(el, r, true), behavior: 'smooth' }); } catch(e2){}
+  }
+  function revealAxis(el, r, horiz){
+    for (var p = el.parentElement; p && p !== document.body; p = p.parentElement){
+      if (horiz ? p.scrollWidth <= p.clientWidth : p.scrollHeight <= p.clientHeight) continue;
+      var ov = getComputedStyle(p)[horiz ? 'overflowX' : 'overflowY'];
+      if (ov !== 'auto' && ov !== 'scroll') continue;
+      var pr = p.getBoundingClientRect();
+      var lo = horiz ? pr.left + p.clientLeft : pr.top + p.clientTop, hi = lo + (horiz ? p.clientWidth : p.clientHeight);
+      var a0 = horiz ? r.left : r.top, a1 = horiz ? r.right : r.bottom;
+      return (a1 <= lo || a0 >= hi) ? 'center' : 'nearest';
+    }
+    return 'nearest';
   }
   /** A TV's browse screens: the rail down the left is a column of its own. Up and Down never leave the page for it (a rail
       icon a few pixels below and far to the side outscored the card right under the one lit); Left reaches it only when
@@ -2939,8 +3027,17 @@
       return null;
     }
     if (dx < 0){
-      var cr = cur.getBoundingClientRect();
-      var line = page.filter(function(el){ var r = el.getBoundingClientRect(); return r.bottom > cr.top + 4 && r.top < cr.bottom - 4; });
+      var cr = cur.getBoundingClientRect(), lo = cr.top + 4, hi = cr.bottom - 4, seen = [], keep = [];
+      // a row wholly off the line takes its cards with it: one measurement instead of one a card (see pickNearest)
+      var line = page.filter(function(el){
+        var p = el.parentNode;
+        if (p && p.classList && p.classList.contains('hrow')){
+          var k = seen.indexOf(p);
+          if (k < 0){ var pr = p.getBoundingClientRect(); k = seen.length; seen.push(p); keep.push(pr.bottom > lo && pr.top < hi); }
+          if (!keep[k]) return false;
+        }
+        var r = el.getBoundingClientRect(); return r.bottom > lo && r.top < hi;
+      });
       var side = pickNearest(line, cur, dx, 0); if (side) return side;
       var on = rail && rail.querySelector('.navitem.on');
       return (on && railList.indexOf(on) >= 0) ? on : (railList[0] || null);
@@ -2955,16 +3052,37 @@
     // of them, where the eye reads from — centres picked the third result. Equal-width rows and grids behave as before; the
     // player keeps centres (its toolbar is centred under the full-width scrubber).
     var byLeft = dy !== 0 && document.body.className.indexOf('playing') === -1;
-    var best=null, bestScore=Infinity;
-    list.forEach(function(el){ if(el===cur) return;
+    var best=null, bestScore=Infinity, bestAt=-1;
+    function score(el, at){
       var r=el.getBoundingClientRect(), ex=r.left+r.width/2, ey=r.top+r.height/2, ddx=ex-cx, ddy=ey-cy;
       if (dx>0 && ddx<8) return; if (dx<0 && ddx>-8) return;
       if (dy>0 && ddy<8) return; if (dy<0 && ddy>-8) return;
       var primary = dx!==0 ? Math.abs(ddx) : Math.abs(ddy);
       var cross = dx!==0 ? Math.abs(ddy) : (byLeft ? Math.abs(r.left - cr.left) : Math.abs(ddx));
-      var score = primary + cross*2.2;
-      if (score < bestScore){ bestScore=score; best=el; }
-    });
+      var s = primary + cross*2.2;
+      if (s < bestScore || (s === bestScore && at < bestAt)){ bestScore=s; best=el; bestAt=at; }   // a tie: the first in the list
+    }
+    // A row's cards all sit inside the row's own box, so its one rectangle bounds the score of every card in it: a row that
+    // cannot beat the best found so far is passed over without measuring its cards. Home holds ~150 cards and a TV paid
+    // ~60 µs a measurement on every press; the answer is exactly the one measuring them all gives.
+    var rows = [], members = [], i;
+    for (i = 0; i < list.length; i++){
+      var el = list[i]; if (el === cur) continue;
+      var p = el.parentNode;
+      if (p && p.classList && p.classList.contains('hrow')){
+        var k = rows.indexOf(p); if (k < 0){ k = rows.length; rows.push(p); members.push([]); }
+        members[k].push(i);
+      } else score(el, i);
+    }
+    var bounds = rows.map(function(row, k){
+      var rr = row.getBoundingClientRect(), d = cy < rr.top ? rr.top - cy : (cy > rr.bottom ? cy - rr.bottom : 0);
+      if ((dy > 0 && rr.bottom < cy + 8) || (dy < 0 && rr.top > cy - 8)) return { k: k, lb: Infinity };   // nothing of it that way
+      return { k: k, lb: dx !== 0 ? d * 2.2 : d };
+    }).sort(function(a, b){ return a.lb - b.lb; });
+    for (i = 0; i < bounds.length && bounds[i].lb <= bestScore + 1e-6; i++){
+      var m = members[bounds[i].k];
+      for (var q = 0; q < m.length; q++) score(list[m[q]], m[q]);
+    }
     return best;
   }
   function goBack(){
@@ -2999,7 +3117,25 @@
       show(top, false);
     }
     else if (viewStack[0] !== 'home'){ setTab('home'); }
-    else show('home', false);
+    else homeBack();
+  }
+  /** Back on Home with nothing left to peel. A TV first goes back to the top of Home with the remote on its first spot, then
+      leaves the way LG asks of an app that answers Back itself (webOS 6 and later ask "exit?", 5 and earlier open the
+      launcher) — Back there used to do nothing at all. */
+  function homeBack(){
+    var v = $id('view-home');
+    if (!IS_WEBOS || !v || !v.classList.contains('active')){ show('home', false); return; }
+    var f = firstFocusable(v), ae = document.activeElement;
+    if (v.scrollTop > 4 || (f && ae !== f)){
+      try { v.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e){ v.scrollTop = 0; }
+      if (f){ try { f.focus({ preventScroll: true }); } catch(e2){ f.focus(); } }
+      return;
+    }
+    try {
+      if (window.webOS && window.webOS.platformBack) window.webOS.platformBack();
+      else if (window.PalmSystem && window.PalmSystem.platformBack) window.PalmSystem.platformBack();
+      else window.close();
+    } catch(e3){}
   }
   function setTab(t){
     stopPairing(); pfTvStop();
@@ -3154,6 +3290,8 @@
         if (k===412 || mk==='MediaRewind'){ seekBy(-seekStepSecs()); puiShow(); e.preventDefault(); return; }
         if (k===417 || mk==='MediaFastForward'){ seekBy(seekStepSecs()); puiShow(); e.preventDefault(); return; }
         if (k===413 || mk==='MediaStop'){ goBack(); e.preventDefault(); return; }
+        if (k===457){ pinfoSet(!pinfoOn); puiShow(); e.preventDefault(); return; }   // a conventional remote's Info: the playback facts
+        if (k===33 || k===34){ e.preventDefault(); return; }                        // CH+/− have nothing to scroll here
       }
       if (k===70 && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey){
         toggleFullscreen(); e.preventDefault(); return;
@@ -3285,7 +3423,7 @@
         if (navEl.contains(sae)){
           if (k===38 || k===40){
             var its = setNavItems(), ni = its.indexOf(sae) + (k===40 ? 1 : -1);
-            if (ni >= 0 && ni < its.length){ its[ni].focus(); try { its[ni].scrollIntoView({ block:'nearest' }); } catch(err){} }
+            if (ni >= 0 && ni < its.length) focusReveal(its[ni]);
             else if (ni < 0){   // above the first section sits the Essential · Everything switch
               var mc = document.querySelector('#setMode .chip.on') || document.querySelector('#setMode .chip');
               if (mc){ try { mc.focus({ preventScroll:true }); } catch(err2){ mc.focus(); } }
@@ -3299,7 +3437,7 @@
             // the next ROW's control (nearest across), never the geometrically nearest — a short segmented
             // control must not be skipped for the long one under it
             var pb = paneRowStep(paneList, sae, k===40 ? 1 : -1) || pickNearest(paneList, sae, 0, k===40 ? 1 : -1);
-            if (pb){ pb.focus(); try { pb.scrollIntoView({ block:'nearest' }); } catch(err){} }
+            if (pb) focusReveal(pb);
             e.preventDefault(); return;
           }
           // sideways stays on the row (a segmented control walks itself); ← with nothing left on the
@@ -3323,7 +3461,7 @@
       if (lv && lv.id === 'view-library' && tabsEl && lae){
         var bodyList = Array.prototype.filter.call(lv.querySelectorAll('#libBody .focusable, #friendsSec .focusable'), function(x){ return x.offsetParent !== null; });
         if (k===40 && tabsEl.contains(lae) && bodyList.length){
-          bodyList[0].focus(); try { bodyList[0].scrollIntoView({ block:'nearest' }); } catch(err){}
+          focusReveal(bodyList[0]);
           e.preventDefault(); return;
         }
         if (k===38 && bodyList.length && lae === bodyList[0]){
@@ -3331,6 +3469,19 @@
           if (onTab){ onTab.focus(); e.preventDefault(); return; }
         }
       }
+    }
+    // the remote's channel keys and transport keys on the browse screens (TV): CH+/− a screen at a time, Play = OK on what
+    // plays (a card, a stream, an episode) and Play on a title page; the other transport keys have nothing to do here
+    if (IS_TV && !inInput && !mod){
+      if (k===33 || k===34){ pageMove(k===34 ? 1 : -1); e.preventDefault(); return; }
+      var bk = e.key || '';
+      if (k===415 || k===179 || k===10252 || bk==='MediaPlay' || bk==='MediaPlayPause'){
+        var pa = document.activeElement, pv = document.querySelector('.view.active');
+        if (pa && pa.classList && (pa.classList.contains('card') || pa.classList.contains('stream')) && pa.classList.contains('focusable')) pa.click();
+        else if (pv && pv.id === 'view-detail' && $id('detPlay') && isShown($id('detPlay'))) $id('detPlay').click();
+        e.preventDefault(); return;
+      }
+      if (k===19 || k===412 || k===413 || k===417 || bk==='MediaPause' || bk==='MediaStop' || bk==='MediaRewind' || bk==='MediaFastForward'){ e.preventDefault(); return; }
     }
     if (k===37){ if(!inInput){ rowMove(-1); e.preventDefault(); } }
     else if (k===39){ if(!inInput){ rowMove(1); e.preventDefault(); } }
