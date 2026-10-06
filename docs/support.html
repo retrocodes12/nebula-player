@@ -41,6 +41,11 @@
   .goal progress[hidden], .goal-foot[hidden] { display:none; }
   .goal-foot { font-variant-numeric:tabular-nums; }
   .goal-note { margin:10px 0 0; }
+  .alt-support { margin-top:14px; }
+  .alt-support h2 { font:600 .95rem var(--body); margin:0 0 6px; color:var(--text); }
+  .alt-support p { margin:0; max-width:700px; }
+  .alt-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+  .alt-actions .btn { width:auto; }
   .profile-box { margin:22px 0 0; padding:20px 22px; border:1px solid rgba(106,166,255,.45); border-radius:14px; background:var(--surface); }
   .profile-box[hidden], .profile-form[hidden], .profile-recovery[hidden] { display:none; }
   .profile-kick { color:#78adff; font:600 .7rem var(--mono); letter-spacing:.12em; text-transform:uppercase; }
@@ -130,7 +135,7 @@
 
 <main class="wrap">
   <h1>Help keep this project alive.</h1>
-  <p class="lede">Your donation keeps Nebula's servers running. Browse every channel for free; donate from $1.50 to play channel streams with your own supporter key.</p>
+  <p class="lede">Donations help cover Nebula's development and server expenses. Browse every channel for free; donate from $1.50 to play channel streams with your own supporter key.</p>
   <p class="note">$1.50/month includes access during the seven-day trial. $2 once gives one month, $5 once gives two months, and $20 once gives one year. Existing lifetime keys keep their access.</p>
 
   <section class="for goal" id="donationGoal" aria-labelledby="goalTitle">
@@ -138,8 +143,17 @@
     <p class="goal-total" id="goalTotal" aria-live="polite">Checking donations toward our $150 USD goal…</p>
     <progress id="goalProgress" max="15000" hidden aria-labelledby="goalTitle" aria-describedby="goalTotal"></progress>
     <div class="goal-foot" id="goalFoot" hidden><span id="goalRemaining"></span><span id="goalPercent"></span></div>
-    <p class="goal-note">Your support keeps Nebula's servers running.</p>
+    <p class="goal-note">Your support helps cover development and server expenses.</p>
     <noscript><p class="goal-note">Enable JavaScript to see the current donation total.</p></noscript>
+  </section>
+
+  <section class="for alt-support" aria-labelledby="altSupportTitle">
+    <h2 id="altSupportTitle">Another way to help</h2>
+    <p>Donations help cover Nebula's development and server expenses. If you cannot donate, star the Nebula Player repository and DM a screenshot of the starred repository in Discord. We can review it and unlock your channel access manually.</p>
+    <div class="alt-actions">
+      <a class="btn" href="https://github.com/retrocodes12/nebula-player" target="_blank" rel="noopener noreferrer">Star Nebula Player</a>
+      <a class="btn" href="https://discord.gg/rbqectfnT" target="_blank" rel="noopener noreferrer">Join Discord</a>
+    </div>
   </section>
 
   <div class="for" id="forBox" hidden>Buying for <b id="forHandle"></b> — the thank-you lands on that Nebula Player profile the moment the payment clears.</div>
