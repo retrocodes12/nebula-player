@@ -12,9 +12,10 @@
 // GET /v1/support/claim?sid= and shows. Orders are remembered by id so a
 // re-delivered webhook does nothing twice.
 //
-// Every paid order also earns a Nebula Sports install key (2026-09-20: the
-// add-on's audience is the one paying, and the key — no sponsor prompt, for
-// good — is the thing they want). The key is minted by the sports backend
+// Every donor offer also earns a Nebula Sports install key. New one-time
+// offers grant 1 / 2 / 12 months; monthly keys follow subscription state,
+// including its free trial. Previously issued lifetime keys keep their grant.
+// The key is minted by the sports backend
 // over loopback (`sports` block: {url, token}); the success page shows it with
 // a one-tap install. A backend that was down when the webhook came is asked
 // again on every claim poll — minting is idempotent by order id over there.
@@ -25,6 +26,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const verifySportsDonation = require('./support-sports-payment.js');
 
 const PENDING_TTL_MS = 14 * 24 * 3600_000;      // a checkout nobody finished
 const MAX_WAITING = 2000;                        // …and at most this many of them are kept (the oldest go first)
@@ -33,6 +35,25 @@ const MAX_WEBHOOK_BYTES = 256 * 1024;
 const SESSION_TIMEOUT_MS = 10_000;
 const MINT_TIMEOUT_MS = 8_000;
 const MINT_RETRY_MS = 5_000;                    // claim polls are 2 s apart; do not hammer a dead backend
+
+function timestampMs(value) {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value < 1e12 ? value * 1000 : value;
+  if (typeof value === 'string' && value.trim()) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric < 1e12 ? numeric * 1000 : numeric;
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+}
+
+function paidAtOf(body, order) {
+  for (const value of [order.paidAt, order.completedAt, body.paidAt, body.completedAt, order.createdAt, order.created]) {
+    const parsed = timestampMs(value);
+    if (parsed > 0) return parsed;
+  }
+  return Date.now();
+}
 
 module.exports = function attach(deps) {
   const { store, persistStore, json, mintCode, cleanTier, TIERS, grantGid, revokeSubscription, noteSubscription, noteSportsKey, codeUsedBy, config } = deps;
@@ -103,7 +124,8 @@ module.exports = function attach(deps) {
       r = await fetch(sports.url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Sports-Mint-Token': sports.token },
-        body: JSON.stringify({ orderId: rec.order, tier: rec.tier, email: rec.email || '', label: 'pocketsflow ' + rec.tier + (rec.handle ? ' @' + rec.handle : '') }),
+        body: JSON.stringify({ orderId: rec.order, tier: !rec.subscription && sports.offersStartedAt && rec.receiptPaidAt > 0 && rec.receiptPaidAt < sports.offersStartedAt ? 'sports-lifetime' : rec.tier, email: rec.email || '', label: 'pocketsflow ' + rec.tier + (rec.handle ? ' @' + rec.handle : ''),
+          ...(rec.subscription ? { subscriptionStatus: rec.status, subscriptionEventAt: rec.changedAt || rec.at } : {}) }),
         signal: ctl.signal,
       });
       body = await r.json().catch(() => null);
@@ -111,19 +133,29 @@ module.exports = function attach(deps) {
     const key = body && typeof body.installKey === 'string' && /^[A-Za-z0-9_-]{8,120}$/.test(body.installKey) ? body.installKey : null;
     const manifest = body && typeof body.manifestUrl === 'string' && /^https:\/\/[^\s"'<>]{8,300}$/.test(body.manifestUrl) ? body.manifestUrl : null;
     if (!r.ok || !key || !manifest) throw new Error('sports mint ' + r.status + ' ' + JSON.stringify(body || '').slice(0, 200));
-    return { installKey: key, manifestUrl: manifest };
+    return { installKey: key, manifestUrl: manifest, expiresAt: body.expiresAt || null, lifetime: body.lifetime === true };
   }
   /** Attach the key to a paid record (and the profile, when there is one). Quiet on failure: the next claim retries. */
   async function ensureSportsKey(rec, sports) {
-    if (!sports || !rec || !rec.order || rec.sportsKey) return;
+    if (!sports || !rec || !rec.order || rec.sportsEligible === false || (rec.sportsKey && (!rec.subscription || rec.sportsSyncedStatus === rec.status))) return;
     if (Date.now() - (rec.sportsTriedAt || 0) < MINT_RETRY_MS) return;
     rec.sportsTriedAt = Date.now();
+    const wantedStatus = rec.status;
     try {
+      if (!rec.subscription && rec.sportsEligible === undefined) {
+        const sale = await verifySportsDonation.fetchReceipt(rec, config().pay);
+        rec.receiptPaidAt = verifySportsDonation.receiptTimestamp(sale);
+        rec.sportsEligible = verifySportsDonation.eligibleReceipt(sale);
+        persistStore();
+        if (!rec.sportsEligible) return;
+      }
       const k = await mintSportsKey(rec, sports);
       rec.sportsKey = k.installKey;
       rec.sportsManifest = k.manifestUrl;
+      rec.sportsExpiresAt = k.expiresAt; rec.sportsLifetime = k.lifetime;
+      if (rec.subscription) rec.sportsSyncedStatus = wantedStatus;
       delete rec.sportsError;
-      if (rec.gid) noteSportsKey(rec.gid, k.installKey, k.manifestUrl);
+      if (rec.gid && (!rec.subscription || /^(active|trialing|paused)$/.test(rec.status))) noteSportsKey(rec.gid, k.installKey, k.manifestUrl, rec.subscription || null, { expiresAt: k.expiresAt, lifetime: k.lifetime });
       persistStore();
       console.log('support: order ' + rec.order + ' → sports key ready');
     } catch (e) {
@@ -133,10 +165,14 @@ module.exports = function attach(deps) {
     }
   }
   function sportsOut(rec, out, sports) {
+    if (rec.sportsEligible === false) { out.sportsUnavailable = true; return out; }
+    if (rec.subscription && !/^(active|trialing|paused)$/.test(rec.status)) return out;
     if (rec.sportsKey && rec.sportsManifest) {
       out.sportsKey = rec.sportsKey;
       out.sportsManifest = rec.sportsManifest;
       out.sportsInstall = 'stremio://' + rec.sportsManifest.replace(/^https:\/\//, '');
+      if (rec.sportsExpiresAt) out.sportsExpiresAt = rec.sportsExpiresAt;
+      if (rec.sportsLifetime) out.sportsLifetime = true;
     } else if (sports && rec.order) {
       out.sportsPending = true;                  // the backend has not answered yet — the page keeps asking
     }
@@ -148,8 +184,15 @@ module.exports = function attach(deps) {
     const p = /^[0-9a-f]{24}$/.test(sid) ? store.pending[sid] : null;
     if (!p) return { state: 'unknown' };
     const out = { state: p.state, tier: p.tier };
-    // the monthly plan carries no key: its page says so, and nothing is minted or awaited for it
-    if (TIERS[p.tier] && TIERS[p.tier].recurring) { if (p.state === 'granted' && p.manage) out.manage = p.manage; return out; }
+    if (TIERS[p.tier] && TIERS[p.tier].recurring) {
+      const sub = store.subscriptions[p.subscription];
+      if (!sub) return out;
+      sub.subscription = p.subscription; sub.order = sub.order || 'subscription:' + p.subscription;
+      await ensureSportsKey(sub, sports);
+      if (sub.manage) out.manage = sub.manage;
+      if (!/^(active|trialing|paused)$/.test(sub.status)) out.state = 'inactive';
+      return sportsOut(sub, out, sports);
+    }
     if (p.state !== 'waiting' && p.state !== 'failed') await ensureSportsKey(p, sports);
     if (p.state === 'code') out.code = p.code;
     return p.state === 'waiting' ? out : sportsOut(p, out, sports);
@@ -180,7 +223,8 @@ module.exports = function attach(deps) {
   // .resumed, and ends with .deleted. Every event carries subscriptionCustomerId — THIS buyer's one
   // subscription — and replays the checkout metadata ({sid, tier, gid}), which is how it finds the profile.
   // A pause keeps the thank-you (the service's own rule: payment stops, access stays); it goes on .deleted
-  // or a status that says the subscription is over. No sports key: the monthly plan is support, not the key.
+  // or a status that says the subscription is over. The Sports key follows the
+  // same state, with past_due denying playback until payment recovers.
   const SUB_EVENT = /^customer\.subscription\.(created|updated|deleted|pause|resumed)$/;
   const SUB_OVER = /^(canceled|cancelled|expired|ended|incomplete_expired)$/;
   /** The subscriber's own management page (cancel, card, receipts) — a private link, kept for that profile only. */
@@ -188,29 +232,39 @@ module.exports = function attach(deps) {
     const u = String(b.portalUrl || '').trim();
     return /^https:\/\/([a-z0-9-]+\.)?pocketsflow\.com\/portal\/[A-Za-z0-9_-]{2,80}\/[A-Za-z0-9_-]{2,80}$/.test(u) ? u : null;
   }
-  function subscriptionEvent(res, event, b, cfg) {
+  async function subscriptionEvent(res, event, b, cfg, sports) {
     const subId = String(b.subscriptionCustomerId || (b.subscription && b.subscription.customerId) || '');
     if (!/^[A-Za-z0-9_-]{2,80}$/.test(subId)) return json(res, 200, { ok: true, ignored: 'no subscriber id' });
     const now = b.subscriptionCustomer && typeof b.subscriptionCustomer === 'object' ? b.subscriptionCustomer : {};
     const status = String(now.status || b.status || '').toLowerCase().slice(0, 24);
     const manage = portalOf(b);
     const known = store.subscriptions[subId] || null;
+    const tombstone = store.subscriptionTombstones[subId] || null;
+    const eventAt = timestampMs(b.created) || Date.now();
+    if (known && eventAt < Number(known.changedAt || 0)) return json(res, 200, { ok: true, ignored: 'stale event' });
+    if (!known && tombstone) return json(res, 200, { ok: true, ignored: 'ended subscription' });
     if (event === 'customer.subscription.deleted' || SUB_OVER.test(status)) {
       if (known) {
         revokeSubscription(known.gid, subId);
-        delete store.subscriptions[subId];
+        known.status = 'canceled'; known.changedAt = eventAt; known.sportsTriedAt = 0;
         persistStore();
         console.log('support webhook: subscription ' + subId + ' ended → monthly thank-you removed');
       }
-      return json(res, 200, { ok: true, ended: !!known });
+      json(res, 200, { ok: true, ended: !!known });
+      if (known) await ensureSportsKey(known, sports);
+      else { store.subscriptionTombstones[subId] = { status: 'canceled', changedAt: eventAt }; persistStore(); }
+      return;
     }
     if (known) {                                        // updated / pause / resumed on a subscriber we hold
-      if (status) known.status = status;
+      if (SUB_OVER.test(known.status)) return json(res, 200, { ok: true, ignored: 'ended subscription' });
+      if (status && status !== known.status) { known.status = status; known.sportsTriedAt = 0; }
       if (manage) known.manage = manage;
-      known.changedAt = Date.now();
+      known.changedAt = eventAt;
       noteSubscription(known.gid, subId, known.status, known.manage);
       persistStore();
-      return json(res, 200, { ok: true, status: known.status });
+      json(res, 200, { ok: true, status: known.status });
+      await ensureSportsKey(known, sports);
+      return;
     }
     if (event !== 'customer.subscription.created') return json(res, 200, { ok: true, ignored: 'unknown subscriber' });
     // activation: only an offer we sell, only onto a profile (monthly checkout refuses anyone signed out)
@@ -228,13 +282,33 @@ module.exports = function attach(deps) {
       console.error('support webhook: subscription ' + subId + ' has no profile to thank — look it up by hand');
       return json(res, 200, { ok: true, tier, state: 'failed' });
     }
-    store.subscriptions[subId] = { gid, tier, status: status || 'active', at: Date.now(), manage };
+    const rec = { gid, tier, status: status || 'active', at: Date.now(), changedAt: eventAt, manage,
+      subscription: subId, order: 'subscription:' + subId, email: emailOf(b, {}), handle: pending && pending.handle };
+    store.subscriptions[subId] = rec;
     noteSubscription(gid, subId, status || 'active', manage);
     if (pending) { pending.state = 'granted'; pending.tier = tier; pending.subscription = subId; pending.paidAt = Date.now(); if (manage) pending.manage = manage; }
     persistStore();
     console.log('support webhook: subscription ' + subId + ' → ' + tier + ' granted (' + (status || 'active') + ')');
-    return json(res, 200, { ok: true, tier, state: 'granted' });
+    json(res, 200, { ok: true, tier, state: 'granted' });
+    await ensureSportsKey(rec, sports);
   }
+
+  // A canceled buyer will not poll the thank-you page. Retry unsynced monthly
+  // state even then, so a temporarily unavailable Sports backend cannot leave
+  // a canceled or past-due key active. No checkout or profile data is exposed.
+  let syncingSubscriptions = false;
+  const subscriptionSyncTimer = setInterval(async () => {
+    if (syncingSubscriptions) return;
+    syncingSubscriptions = true;
+    try {
+      const sports = config().sports;
+      for (const [id, rec] of Object.entries(store.subscriptions)) {
+        rec.subscription = id; rec.order = rec.order || 'subscription:' + id;
+        await ensureSportsKey(rec, sports);
+      }
+    } finally { syncingSubscriptions = false; }
+  }, 60_000);
+  subscriptionSyncTimer.unref();
   /** The buyer's address, wherever the service put it — for the one receipt e-mail, and (masked) the sports key's label. */
   function emailOf(b, order) {
     for (const v of [b.email, order.email, order.customerEmail, b.customer && b.customer.email, order.customer && order.customer.email, b.buyer && b.buyer.email]) {
@@ -257,7 +331,7 @@ module.exports = function attach(deps) {
     const order = b.order && typeof b.order === 'object' ? b.order : {};
     const meta = b.metadata && typeof b.metadata === 'object' ? b.metadata : {};
     const orderId = String(order.id || b.orderId || b.id || '').slice(0, 80);
-    if (SUB_EVENT.test(event)) return subscriptionEvent(res, event, b, cfg);
+    if (SUB_EVENT.test(event)) return subscriptionEvent(res, event, b, cfg, sports);
     if (event !== 'order.completed') {
       if (/refund|dispute|chargeback/.test(event) && orderId) console.log('support webhook: ' + event + ' on order ' + orderId + ' — review by hand');
       return json(res, 200, { ok: true, ignored: event || 'no event' });
@@ -268,8 +342,8 @@ module.exports = function attach(deps) {
     // the tier is what was PAID for (the product id), the metadata only says who
     const productId = String((b.product && b.product.id) || b.productId || '');
     let tier = Object.keys(cfg.products).find((t) => cfg.products[t] === productId) || null;
-    if (!tier) tier = TIERS[String(meta.tier || '').toLowerCase()] ? String(meta.tier).toLowerCase() : null;
     if (!tier) { console.error('support webhook: unknown product ' + productId + ' on order ' + orderId); return json(res, 200, { ok: true, ignored: 'unknown product' }); }
+    if (Number(b.amountBeforeTax ?? b.amount ?? 1) === 0) return json(res, 200, { ok: true, ignored: 'unpaid order' });
     tier = cleanTier(tier);
     // a subscription is granted by its own events above — an order naming the monthly plan must not mint a
     // lifetime key or a permanent code (it would sell the $2 key for $1.50 once)
@@ -282,7 +356,7 @@ module.exports = function attach(deps) {
     rec.tier = tier;
     rec.order = orderId;
     rec.email = emailOf(b, order);
-    rec.paidAt = Date.now();
+    rec.paidAt = paidAtOf(b, order);
     rec.mailWant = true;                             // the sweep sends it if the try below does not
     if (gid && grantGid(gid, tier, 'order ' + orderId)) {
       rec.state = 'granted';
@@ -292,7 +366,7 @@ module.exports = function attach(deps) {
       rec.state = rec.code ? 'code' : 'failed';
     }
     store.pending[sid || ('order:' + orderId)] = rec;
-    store.orders[orderId] = { at: Date.now(), tier, state: rec.state };
+    store.orders[orderId] = { at: Date.now(), paidAt: rec.paidAt, tier, state: rec.state };
     persistStore();
     console.log('support webhook: order ' + orderId + ' → ' + tier + ' ' + rec.state);
     // the sports key: answer the service first, mint right after (its retry is on the claim poll), then the receipt
@@ -300,6 +374,19 @@ module.exports = function attach(deps) {
     await ensureSportsKey(rec, sports);
     await mail.send(rec, sid).catch((e) => console.error('support mail', e.message));
   }
+
+  let syncingPaidOrders = false;
+  const paidOrderSyncTimer = setInterval(async () => {
+    if (syncingPaidOrders) return;
+    syncingPaidOrders = true;
+    try {
+      const sports = config().sports;
+      for (const rec of Object.values(store.pending)) {
+        if (rec && rec.order && rec.state !== 'waiting' && (!rec.sportsKey || rec.sportsSyncedStatus !== rec.status)) await ensureSportsKey(rec, sports);
+      }
+    } finally { syncingPaidOrders = false; }
+  }, 60_000);
+  paidOrderSyncTimer.unref();
 
   return { checkout, claim, webhook, mail };
 };

@@ -30,6 +30,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const visibleSportsKey = require('./support-sports-key.js');
 
 const HANDLE_RE = /^[a-z0-9_]{3,20}$/;
 const RESERVED = new Set(['nebula', 'admin', 'administrator', 'support', 'help', 'root', 'system',
@@ -308,7 +309,10 @@ module.exports = function attach(core) {
           // the monthly plan, for its owner only: the service's status and the private link to cancel or change the card
           ...(g.supporter.subscription ? { subscription: { status: String(g.supporter.subscription.status || 'active'),
             ...(g.supporter.subscription.manage ? { manage: g.supporter.subscription.manage } : {}) } } : {}),
-          ...(g.supporter.sportsKey ? { sportsKey: g.supporter.sportsKey, sportsManifest: g.supporter.sportsManifest || null } : {}) } : null;
+          ...(() => {
+            const key = visibleSportsKey(g.supporter);
+            return key ? { sportsKey: key.key, sportsManifest: key.manifest || null, ...(key.expiresAt ? { sportsExpiresAt: key.expiresAt } : {}), ...(key.lifetime ? { sportsLifetime: true } : {}) } : {};
+          })() } : null;
       }
       return json(res, 200, out);
     }

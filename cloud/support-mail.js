@@ -51,6 +51,8 @@ module.exports = function attach(deps) {
     if (hasKey) {
       head('Your key');
       p('No sponsor prompt, on every device you add it to.');
+      if (rec.sportsExpiresAt) p('Channel access ends on ' + String(rec.sportsExpiresAt).slice(0, 10) + ' (UTC).');
+      else if (rec.sportsLifetime) p('Your existing lifetime key keeps its access.');
       if (page) button('Install it', page);
       p(page ? 'Or paste this link into your add-ons list on any device:' : 'Paste this link into your add-ons list on any device:');
       mono(rec.sportsManifest);
@@ -110,7 +112,7 @@ module.exports = function attach(deps) {
     try {
       if (c.sports && !rec.sportsKey) await ensureSportsKey(rec, c.sports);
       const paidAt = rec.paidAt || (store.orders[rec.order] && store.orders[rec.order].at) || rec.at || 0;
-      if (c.sports && !rec.sportsKey && !opts.to && !opts.again && Date.now() - paidAt < KEY_WAIT_MS) return { deferred: 'waiting for the key' };
+      if (c.sports && rec.sportsEligible !== false && !rec.sportsKey && !opts.to && !opts.again && Date.now() - paidAt < KEY_WAIT_MS) return { deferred: 'waiting for the key' };
       const msg = compose(rec, sid, c.site);
       const idem = 'nebula-order-' + rec.order + (opts.to ? '-test-' + Date.now() : opts.again ? '-again-' + Date.now() : '');
       try {
