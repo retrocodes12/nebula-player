@@ -124,7 +124,7 @@ module.exports = function attach(deps) {
       r = await fetch(sports.url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Sports-Mint-Token': sports.token },
-        body: JSON.stringify({ orderId: rec.order, tier: !rec.subscription && sports.offersStartedAt && (rec.paidAt || rec.at || 0) < sports.offersStartedAt ? 'sports-lifetime' : rec.tier, email: rec.email || '', label: 'pocketsflow ' + rec.tier + (rec.handle ? ' @' + rec.handle : ''),
+        body: JSON.stringify({ orderId: rec.order, tier: !rec.subscription && sports.offersStartedAt && rec.receiptPaidAt > 0 && rec.receiptPaidAt < sports.offersStartedAt ? 'sports-lifetime' : rec.tier, email: rec.email || '', label: 'pocketsflow ' + rec.tier + (rec.handle ? ' @' + rec.handle : ''),
           ...(rec.subscription ? { subscriptionStatus: rec.status, subscriptionEventAt: rec.changedAt || rec.at } : {}) }),
         signal: ctl.signal,
       });
@@ -142,9 +142,10 @@ module.exports = function attach(deps) {
     rec.sportsTriedAt = Date.now();
     const wantedStatus = rec.status;
     try {
-      const grandfathered = !rec.subscription && sports.offersStartedAt && (rec.paidAt || rec.at || 0) < sports.offersStartedAt;
-      if (!rec.subscription && !grandfathered && rec.sportsEligible === undefined) {
-        rec.sportsEligible = await verifySportsDonation(rec, config().pay);
+      if (!rec.subscription && rec.sportsEligible === undefined) {
+        const sale = await verifySportsDonation.fetchReceipt(rec, config().pay);
+        rec.receiptPaidAt = verifySportsDonation.receiptTimestamp(sale);
+        rec.sportsEligible = verifySportsDonation.eligibleReceipt(sale);
         persistStore();
         if (!rec.sportsEligible) return;
       }

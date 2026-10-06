@@ -1043,6 +1043,7 @@ function hook(body, secret = PAY.webhookSecret, headers = {}) {
   if (event === 'order.completed' && body.order && body.product && !orderReceipts[body.order.id]) orderReceipts[body.order.id] = {
     _id: body.order.id, productId: body.product.id, currency: 'usd', amountBeforeTax: body.amount === 0 ? 0 : 2,
     isRefunded: false, isDisputed: false, isSubscription: false,
+    ...(body.paidAt || (body.order && (body.order.paidAt || body.order.createdAt)) ? { createdAt: body.paidAt || body.order.paidAt || body.order.createdAt } : {}),
   };
   const raw = JSON.stringify(rest);
   const sig = require('crypto').createHmac('sha256', secret).update(raw).digest('hex');

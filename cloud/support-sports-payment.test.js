@@ -2,6 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const verify = require('./support-sports-payment.js');
+const visibleSportsKey = require('./support-sports-key.js');
 const rec = { order: 'order-123', tier: 'supporter' };
 const pay = { api: 'https://payment.test', apiKey: 'test-only-key', products: { supporter: 'product-2' } };
 const receipt = { _id: rec.order, productId: 'product-2', amountBeforeTax: 2, currency: 'usd', isRefunded: false, isDisputed: false, isSubscription: false };
@@ -20,4 +21,21 @@ test('only an actual USD donation of at least $1.50 unlocks channel streams', as
 test('a missing, unrelated or unreachable receipt never becomes a qualifying donation', async () => {
   for (const extra of [{ _id: 'other-order' }, { productId: 'other-product' }, { amountBeforeTax: null }]) await assert.rejects(verify(rec, pay, async () => ({ ok: true, json: async () => ({ sale: { ...receipt, ...extra } }) })), /invalid receipt/);
   await assert.rejects(verify(rec, pay, async () => ({ ok: false, status: 503 })), /HTTP 503/);
+});
+
+test('receipt timestamp is available for cutoff classification', async () => {
+  const sale = { ...receipt, createdAt: '2026-01-01T00:00:00.000Z' };
+  const got = await verify.fetchReceipt(rec, pay, async () => ({ ok: true, json: async () => ({ sale }) }));
+  assert.equal(verify.receiptTimestamp(got), Date.parse(sale.createdAt));
+  assert.equal(verify.eligibleReceipt(got), true);
+});
+
+test('expired one-time Sports keys fall back to an active subscription key', () => {
+  const key = visibleSportsKey({
+    sportsKey: 'one-time-expired', sportsManifest: 'https://sports.example/expired',
+    sportsExpiresAt: new Date(Date.now() - 60_000).toISOString(), sportsKeySource: 'one-time',
+    subscription: { status: 'active' }, sportsSubscriptionId: 'sub-1', sportsSubscriptionKey: 'monthly-live',
+    sportsSubscriptionManifest: 'https://sports.example/monthly', sportsSubscriptionExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+  });
+  assert.deepEqual(key, { key: 'monthly-live', manifest: 'https://sports.example/monthly', expiresAt: key.expiresAt, lifetime: false });
 });

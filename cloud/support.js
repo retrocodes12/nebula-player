@@ -43,6 +43,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const visibleSportsKey = require('./support-sports-key.js');
 
 const MAX_CODES_PER_CALL = 20;
 const MAX_OPEN_CODES = 2000;
@@ -210,18 +211,6 @@ module.exports = function attach(core) {
       if (sports.lifetime) out.sportsLifetime = true;
     }
     return out;
-  }
-  function visibleSportsKey(s) {
-    if (!s) return null;
-    const subscriptionActive = /^(active|trialing|paused)$/.test(String(s.subscription && s.subscription.status || ''));
-    const primaryIsSubscription = s.sportsKeySource === 'subscription' || (!s.sportsKeySource && s.sportsSubscriptionId);
-    if (s.sportsKey && (!primaryIsSubscription || subscriptionActive)) {
-      return { key: s.sportsKey, manifest: s.sportsManifest || null, expiresAt: s.sportsExpiresAt || null, lifetime: s.sportsLifetime === true };
-    }
-    if (subscriptionActive && s.sportsSubscriptionKey) {
-      return { key: s.sportsSubscriptionKey, manifest: s.sportsSubscriptionManifest || null, expiresAt: s.sportsSubscriptionExpiresAt || null, lifetime: s.sportsSubscriptionLifetime === true };
-    }
-    return null;
   }
   /** The monthly plan as its owner sees it: the service's status (active, trialing, past_due, paused) and the private
       link where they cancel or change the card. Only ever in the owner's own answers (/me, redeem, the wall switch). */

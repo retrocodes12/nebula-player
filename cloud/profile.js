@@ -30,6 +30,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const visibleSportsKey = require('./support-sports-key.js');
 
 const HANDLE_RE = /^[a-z0-9_]{3,20}$/;
 const RESERVED = new Set(['nebula', 'admin', 'administrator', 'support', 'help', 'root', 'system',
@@ -309,11 +310,7 @@ module.exports = function attach(core) {
           ...(g.supporter.subscription ? { subscription: { status: String(g.supporter.subscription.status || 'active'),
             ...(g.supporter.subscription.manage ? { manage: g.supporter.subscription.manage } : {}) } } : {}),
           ...(() => {
-            const subscriptionActive = /^(active|trialing|paused)$/.test(String(g.supporter.subscription && g.supporter.subscription.status || ''));
-            const primaryIsSubscription = g.supporter.sportsKeySource === 'subscription' || (!g.supporter.sportsKeySource && g.supporter.sportsSubscriptionId);
-            const key = g.supporter.sportsKey && (!primaryIsSubscription || subscriptionActive)
-              ? { key: g.supporter.sportsKey, manifest: g.supporter.sportsManifest, expiresAt: g.supporter.sportsExpiresAt, lifetime: g.supporter.sportsLifetime }
-              : (subscriptionActive && g.supporter.sportsSubscriptionKey ? { key: g.supporter.sportsSubscriptionKey, manifest: g.supporter.sportsSubscriptionManifest, expiresAt: g.supporter.sportsSubscriptionExpiresAt, lifetime: g.supporter.sportsSubscriptionLifetime } : null);
+            const key = visibleSportsKey(g.supporter);
             return key ? { sportsKey: key.key, sportsManifest: key.manifest || null, ...(key.expiresAt ? { sportsExpiresAt: key.expiresAt } : {}), ...(key.lifetime ? { sportsLifetime: true } : {}) } : {};
           })() } : null;
       }
