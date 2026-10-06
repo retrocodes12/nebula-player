@@ -23,7 +23,7 @@
     font-weight:100 900; font-style:normal; font-display:swap; }
 
   :root {
-    --bg:#000000;
+    --bg:#000000; --con:#070707;
     --l1:#1C1C1E; --l2:#2C2C2E; --l3:#3A3A3C;
     --on-accent:#fff;   /* text on an accent fill: black when the accent is light (applyPrefs, by luminance) */
     --sep:rgba(255,255,255,.10);
@@ -239,6 +239,10 @@
   /* flex-start, like .grid: a stretched row centred every one-line <button> card half a label line below a two-line one */
   .hrow { display:flex; align-items:flex-start; overflow-x:auto; padding:10px 12px 18px; margin:0 -12px; scrollbar-width:none; }
   .hrow::-webkit-scrollbar { display:none; }
+  /* Home's and the Library's rows scroll on the GPU everywhere: a stacking context painting an opaque background is what
+     Chromium needs at 1x (measured on 145: every arrow press repainted the whole page layer, now only the row it touches).
+     Not a title page's Universe row, which can sit over the backdrop's fade. */
+  #homeRows .hrow, #view-library .hrow { position:relative; z-index:0; background-color:var(--bg); }
   .hrow .card { flex:0 0 var(--cardw); margin-right:16px; }
   .hrow .card.shape-landscape { flex-basis:calc(var(--cardw) * 1.773); }
   .hrow .card.shape-square { flex-basis:calc(var(--cardw) * 1.133); }
@@ -1975,6 +1979,9 @@
   html.lite .pui-dim { transition:none; }
   html.lite #pui.pb-on #pauseBoard { animation:none; }
   html.lite .pui-time, html.lite .sp-opt, html.lite .sp-card, html.lite .sp-step { transition:none; }
+  /* what the remote lights in the player changes at once: each of these animated its background (and the pills their
+     bottom, a layout property) frame by frame over the picture on every press; the chrome's own fades stay */
+  html.lite .pui-btn, html.lite .pui-round, html.lite .pui-rail, html.lite .qopt, html.lite #skipBtn, html.lite #srcBtn { transition:none; }
   html.lite .pui-tip { box-shadow:inset 0 0 0 1px rgba(255,255,255,.10); }
   html.lite .pui-tipframe { transition:none; }
   html.lite .view.active { animation-name:fadeIn; }
@@ -1994,7 +2001,7 @@
   html.lite .view { position:absolute; }
   html.lite .view.active { animation-fill-mode:backwards; }
   html.lite .view, html.lite .scroller { background-color:var(--bg); }
-  html.lite .con-nav, html.lite .con-pane { background-color:#070707; }   /* = #setConsole's 3 % white over the black page, opaque */
+  html.lite .con-nav, html.lite .con-pane { background-color:var(--con); }   /* = #setConsole's 3 % white over the page, opaque (per surface) */
   html.lite .scroller, html.lite .con-nav, html.lite .con-pane { position:relative; z-index:0; }
   html.lite .hrow { position:relative; z-index:0; background-color:var(--bg); }
   /* The lit card keeps its lift and its white ring, not the 46px blurred shadow under it: black on a black page shows next to
@@ -2688,7 +2695,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.10.07.1';
+  var PLAYER_VERSION = '2026.10.07.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -4473,8 +4480,11 @@
   }
   function renderGenres(){
     var row = document.getElementById('genreRow'); row.innerHTML='';
-    if (ctx.catalogs.length > 1){
-      ctx.catalogs.forEach(function(c){
+    // only catalogs that answer on their own: one that needs a list of ids or a search term (Cinemeta's "Last videos",
+    // "Calendar videos") loaded nothing when picked — Home and Discover already leave them out
+    var cats = (ctx.catalogs||[]).filter(function(c){ return c === ctx.catalog || catalogBrowsable(c); });
+    if (cats.length > 1){
+      cats.forEach(function(c){
         var b=document.createElement('button'); b.className='chip focusable'+(c===ctx.catalog && !ctx.query?' on':'');
         b.textContent = catalogLabel(c, ctx.catalogs);
         b.onclick=function(){ ctx.catalog=c; ctx.genre=null; clearSearchInput(); setCatalogTitle(); renderGenres(); loadCatalog(); };
@@ -7452,6 +7462,7 @@
     // toast right after (goBack → endParty's "Left the party.") isn't wiped by
     // a deferred clear.
     clearStatus();
+    mediaKeysOff();
     playStarting = false;
     try { wlSave(); } catch(e){}
     try { socialPublishSoon(); } catch(e){}   // friends see the freshly-watched title
@@ -8312,6 +8323,36 @@
     mpvMedia(false);
     var cv = $id('mpvView'); if (cv) cv.style.display = 'none';
   }
+  // The system's media keys and now-playing panel for the page's own player (desktop and the web): the title and the art, play,
+  // pause, a seek step each way, a jump to a spot, and Next = the player's own Next (the next episode, or its "nothing queued").
+  // Only Play and Pause worked before, by the browser's default — a keyboard's Next and the panel's seek did nothing. Not on a
+  // TV, whose remote the key handler answers itself; mpv sets its own (mpvMedia) and keeps them while it plays.
+  var MS_ACTS = ['play', 'pause', 'stop', 'seekbackward', 'seekforward', 'seekto', 'nexttrack'], msOwn = false;
+  function mediaKeysOn(){
+    var ms = navigator.mediaSession; if (!ms || IS_TV || mp || video.style.display !== 'block') return;
+    try {
+      var art = ctx.playPoster || ctx.playBack || '';
+      ms.metadata = new MediaMetadata({ title: ctx.playTitle || ctx.streamTitle || 'Nebula', artist: ctx.seriesName || 'Nebula', artwork: art ? [{ src: art }] : [] });
+      var live = puiIsLive();
+      var h = {
+        play: function(){ if (!video.paused) return; try { var pl = video.play(); if (pl && pl.catch) pl.catch(function(){}); } catch(e){} },
+        pause: function(){ try { video.pause(); } catch(e){} },
+        stop: function(){ try { video.pause(); } catch(e){} },
+        seekbackward: live ? null : function(){ seekBy(-seekStepSecs()); puiShow(); },
+        seekforward: live ? null : function(){ seekBy(seekStepSecs()); puiShow(); },
+        seekto: live ? null : function(d){ if (d && d.seekTime >= 0){ try { video.currentTime = d.seekTime; } catch(e){} puiShow(); } },
+        nexttrack: function(){ puiKey('puiNext'); }
+      };
+      MS_ACTS.forEach(function(a){ try { ms.setActionHandler(a, h[a]); } catch(e){} });
+      msOwn = true;
+    } catch(e){}
+  }
+  function mediaKeysOff(){
+    var ms = navigator.mediaSession; if (!msOwn || !ms) return;
+    msOwn = false;
+    try { ms.metadata = null; } catch(e){}
+    MS_ACTS.forEach(function(a){ try { ms.setActionHandler(a, null); } catch(e){} });
+  }
   // Media keys and the system's now-playing panel follow a page that is playing sound; mpv plays it outside the page, so a
   // silent loop stands in while the full-format player is on, and the keys reach mpv through the media session.
   var mpvKeep = null;
@@ -8324,7 +8365,7 @@
     return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
   }
   function mpvMedia(on){
-    var ms = navigator.mediaSession, acts = ['play', 'pause', 'stop', 'seekbackward', 'seekforward', 'seekto'];
+    var ms = navigator.mediaSession, acts = ['play', 'pause', 'stop', 'seekbackward', 'seekforward', 'seekto', 'nexttrack'];
     try {
       if (on){
         if (!mpvKeep){ mpvKeep = new Audio(mpvSilence()); mpvKeep.loop = true; }
@@ -8335,7 +8376,8 @@
         var h = {
           play: function(){ if (!mpvRetryAsked()) video.play(); }, pause: function(){ video.pause(); }, stop: function(){ video.pause(); },
           seekbackward: function(){ mpvSeek(mpvNow() - seekStepSecs()); }, seekforward: function(){ mpvSeek(mpvNow() + seekStepSecs()); },
-          seekto: function(dt){ if (dt && dt.seekTime >= 0) mpvSeek(dt.seekTime); }
+          seekto: function(dt){ if (dt && dt.seekTime >= 0) mpvSeek(dt.seekTime); },
+          nexttrack: function(){ puiKey('puiNext'); }
         };
         acts.forEach(function(a){ try { ms.setActionHandler(a, h[a]); } catch(e){} });
       } else {
@@ -9653,9 +9695,10 @@
   function scrubPlace(){
     var seek = $id('puiSeek'), tip = $id('puiTip'), r = puiRange();
     if (!seek || !tip || r.end <= r.start) return;
-    var w = seek.clientWidth || 0, x = (scrubState.t - r.start) / (r.end - r.start) * w;
+    // both widths read before any write: one layout a step, not two (a write between them forced a second one)
+    var w = seek.clientWidth || 0, tw = tip.offsetWidth || 0, x = (scrubState.t - r.start) / (r.end - r.start) * w;
     $id('puiGhost').style.left = x.toFixed(1) + 'px';
-    var tw = tip.offsetWidth || 0, left = x - tw / 2;
+    var left = x - tw / 2;
     if (left + tw > w) left = w - tw;
     if (left < 0) left = 0;
     tip.style.left = Math.round(left) + 'px';
@@ -10169,40 +10212,15 @@
     lastTickT = video.currentTime;
     try { audioSilenceCheck(); } catch(e){}
     var r = puiRange(), t = video.currentTime;
-    var span = r.end - r.start, pct = span>0 ? (t-r.start)/span : 0;
-    if (pct<0) pct=0; if (pct>1) pct=1;
-    $id('puiFill').style.width = (pct*100)+'%';
-    $id('puiKnob').style.left = (pct*100)+'%';
-    var buf = 0;
-    try { var b = video.buffered; if (b && b.length && span>0) buf = (b.end(b.length-1)-r.start)/span; } catch(e){}
-    if (buf<0) buf=0; if (buf>1) buf=1;
-    $id('puiBuf').style.width = (buf*100)+'%';
+    var span = r.end - r.start;
     var live = puiIsLive();
-    $id('puiLiveBadge').style.display = live ? '' : 'none';
-    // until the playhead has landed inside the window (first tick of a live
-    // load, currentTime still 0) the lag is meaningless — call it the edge
-    var lag = (live && t >= r.start - 1) ? r.end - t : 0;
-    $id('puiGoLive').style.display = (live && lag > 12) ? '' : 'none';
     if (pinfoOn) pinfoRender();
     if (subOffset || subScale !== 1) applySubOffset();
     if (ss) ssPaint();
-    var now = new Date(), clock = fmtClock(now);
-    if (live){
-      $id('puiTimeL').textContent = lag > 12 ? '−'+fmtT(lag)+' behind live' : 'At the live edge';
-      $id('puiTimeR').textContent = 'LIVE';
-    } else {
-      var gone = t - r.start, left = span - gone;
-      $id('puiTimeL').textContent = fmtT(gone);
-      // (a length mpv cannot know: none; one still coming: "--:--", not "−0:00" — nothing is nearly over)
-      $id('puiTimeR').textContent = span > 0 ? (puiState.total ? fmtT(span) : '−' + fmtT(left)) : (mp ? '' : '--:--');
-      // when this ends at the current speed — the TV-box line beside the clock, and the pause board's pill from the same
-      // helper on the same tick, so the two never disagree (the board used to keep the minute it was drawn in)
-      var ends = span > 0 ? endsAtLabel() : '';
-      if (ends) clock += ' · ' + ends;
-      var pbEnds = pui.className.indexOf('pb-on') !== -1 ? $id('pbEnds') : null;
-      if (pbEnds && ends) pbEnds.textContent = ends;
-    }
-    $id('puiClock').textContent = clock;
+    // What nobody can see is not drawn: with the controls asleep and no pause board the bar, the times and the clock wait
+    // for puiShow (which draws them at once). Twice a second they restyled, laid out and repainted the whole overlay over
+    // the picture — on a TV, for nothing.
+    if (pui.className.indexOf('idle') === -1 || pui.className.indexOf('pb-on') !== -1) puiPaint();
     // keep the resume point roughly current (~5s), and offer the next episode
     // once we're near the end
     progTicks++;
@@ -10224,6 +10242,42 @@
       else if (remain > at + 15 && !credits && upnextState.open && !upnextState.counting) closeUpNext();
     }
   }
+  /** The controls' moving parts: the bar, the buffered stretch, the times, the clock, the live badges and the board's "Ends". */
+  function puiPaint(){
+    if (!player) return;
+    var r = puiRange(), t = video.currentTime;
+    var span = r.end - r.start, pct = span>0 ? (t-r.start)/span : 0;
+    if (pct<0) pct=0; if (pct>1) pct=1;
+    $id('puiFill').style.width = (pct*100)+'%';
+    $id('puiKnob').style.left = (pct*100)+'%';
+    var buf = 0;
+    try { var b = video.buffered; if (b && b.length && span>0) buf = (b.end(b.length-1)-r.start)/span; } catch(e){}
+    if (buf<0) buf=0; if (buf>1) buf=1;
+    $id('puiBuf').style.width = (buf*100)+'%';
+    var live = puiIsLive();
+    $id('puiLiveBadge').style.display = live ? '' : 'none';
+    // until the playhead has landed inside the window (first tick of a live
+    // load, currentTime still 0) the lag is meaningless — call it the edge
+    var lag = (live && t >= r.start - 1) ? r.end - t : 0;
+    $id('puiGoLive').style.display = (live && lag > 12) ? '' : 'none';
+    var now = new Date(), clock = fmtClock(now);
+    if (live){
+      $id('puiTimeL').textContent = lag > 12 ? '−'+fmtT(lag)+' behind live' : 'At the live edge';
+      $id('puiTimeR').textContent = 'LIVE';
+    } else {
+      var gone = t - r.start, left = span - gone;
+      $id('puiTimeL').textContent = fmtT(gone);
+      // (a length mpv cannot know: none; one still coming: "--:--", not "−0:00" — nothing is nearly over)
+      $id('puiTimeR').textContent = span > 0 ? (puiState.total ? fmtT(span) : '−' + fmtT(left)) : (mp ? '' : '--:--');
+      // when this ends at the current speed — the TV-box line beside the clock, and the pause board's pill from the same
+      // helper on the same tick, so the two never disagree (the board used to keep the minute it was drawn in)
+      var ends = span > 0 ? endsAtLabel() : '';
+      if (ends) clock += ' · ' + ends;
+      var pbEnds = pui.className.indexOf('pb-on') !== -1 ? $id('pbEnds') : null;
+      if (pbEnds && ends) pbEnds.textContent = ends;
+    }
+    $id('puiClock').textContent = clock;
+  }
   function puiSyncPlayIcon(){
     var paused = video.paused;
     $id('puiIconPlay').style.display = paused ? '' : 'none';
@@ -10231,7 +10285,9 @@
   }
   function puiShow(){
     if (!pui) return;
+    var woke = pui.className.indexOf('idle') !== -1;
     pui.className = '';
+    if (woke){ try { puiPaint(); } catch(e){} }   // asleep it was not kept current (puiTick)
     document.body.classList.add('pui-on');
     if (mp) mpvSubLift();
     pauseBoardHide();
@@ -12188,6 +12244,7 @@
   video.addEventListener('playing', stallOnPlaying);
 
   video.addEventListener('play', function(){ sleepState.fired = false; puiSyncPlayIcon(); puiShow(); });
+  video.addEventListener('playing', mediaKeysOn);
   video.addEventListener('pause', function(){ puiSyncPlayIcon(); puiShow(); });
   pui.addEventListener('mousemove', function(){ if (document.body.className.indexOf('playing') !== -1) puiShow(); });
   pui.addEventListener('click', function(e){
@@ -13407,8 +13464,8 @@
   }
   // the panel darknesses besides the stylesheet's own (Black): pure black for OLED panels, graphite lifted a little
   var SURFACES = {
-    pure:     { '--bg':'#000000', '--l1':'#000000', '--l2':'#101012', '--l3':'#1C1C1E', '--fill':'rgba(118,118,128,.18)' },
-    graphite: { '--bg':'#0B0B0F', '--l1':'#141418', '--l2':'#1C1C22', '--l3':'#26262E', '--fill':'rgba(118,118,128,.30)' }
+    pure:     { '--bg':'#000000', '--l1':'#000000', '--l2':'#101012', '--l3':'#1C1C1E', '--fill':'rgba(118,118,128,.18)', '--con':'#070707' },
+    graphite: { '--bg':'#0B0B0F', '--l1':'#141418', '--l2':'#1C1C22', '--l3':'#26262E', '--fill':'rgba(118,118,128,.30)', '--con':'#121216' }
   };
   var SYSTEM_SANS = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
   // [label, code] — the SAME list the Android app offers, in the same order, on purpose: the
@@ -13459,7 +13516,7 @@
     st.setProperty('--accent', accNow);
     st.setProperty('--on-accent', onAccent(accNow));
     st.setProperty('--fzoom', pr.zoom || '1.04');
-    var sf = SURFACES[pr.surface] || null, tk = ['--bg','--l1','--l2','--l3','--fill'];
+    var sf = SURFACES[pr.surface] || null, tk = ['--bg','--l1','--l2','--l3','--fill','--con'];
     for (var i = 0; i < tk.length; i++){ if (sf) st.setProperty(tk[i], sf[tk[i]]); else st.removeProperty(tk[i]); }
     // text size: Standard leaves the stylesheet's own size alone (16, 20 on a TV); the others scale it
     var ts = pr.textSize, px = ts === 'compact' ? (IS_TV ? 19 : 15) : (ts === 'large' ? (IS_TV ? 23 : 18) : 0);

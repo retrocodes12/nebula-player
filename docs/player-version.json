@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.07.1",
+  "version": "2026.10.07.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Smoother on LG TVs: rows and pages glide instead of jumping, a press of the remote no longer repaints the whole screen, opening a title and coming back to Home are several times faster, and the remote does more of what it should — Back on Home leaves the app, CH+/CH− page through rows, Play plays, and the Magic Remote pointer lights what it rests on."
+  "notes": "Smoother playback screen on TVs (the hidden controls no longer redraw over the picture, the remote lights the controls at once), smoother rows on computers, keyboard media keys and the system's now-playing panel on computers (Next goes to the next episode), the TV settings panes match the Graphite surface, and catalog chips no longer offer catalogs that cannot show anything."
 }
