@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.07.2",
+  "version": "2026.10.07.3",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Smoother playback screen on TVs (the hidden controls no longer redraw over the picture, the remote lights the controls at once), smoother rows on computers, keyboard media keys and the system's now-playing panel on computers (Next goes to the next episode), the TV settings panes match the Graphite surface, and catalog chips no longer offer catalogs that cannot show anything."
+  "notes": "A TV guide: Guide in the rail shows the live and upcoming events from your add-ons on a timeline, by sport, with a line at the current time; OK opens one like a card. It appears only when an installed add-on lists events with start times."
 }

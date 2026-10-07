@@ -1657,6 +1657,43 @@
     .pui-bar .pui-btn .pl, #puiQualVal, #puiSpeedVal { display:none; }
   }
 
+  /* ---- the Guide (TV only): a timeline of live and upcoming items. 1 hour = 300 px, lanes 92 px, the sport labels and the
+     time ruler stay put while the grid scrolls under them ---- */
+  #view-guide.active { display:flex; flex-direction:column; overflow:hidden; padding-bottom:0; }
+  .g-sub { color:var(--label2); font-family:var(--mono); font-size:calc(15px * var(--ts)); letter-spacing:.12em;
+    text-transform:uppercase; margin:2px 0 18px; }
+  .g-wrap { flex:1 1 auto; min-height:0; overflow:auto; scrollbar-width:none; margin:0 calc(-1 * var(--pad)) 0 0; padding:0 0 24px; }
+  .g-wrap::-webkit-scrollbar { display:none; }
+  .g-canvas { position:relative; }
+  .g-ruler { position:-webkit-sticky; position:sticky; top:0; z-index:4; height:48px; background:var(--bg);
+    border-bottom:1px solid var(--sep); }
+  .g-corner { position:-webkit-sticky; position:sticky; left:0; z-index:1; width:220px; height:48px; background:var(--bg); }
+  .g-tick { position:absolute; top:0; height:48px; padding-left:8px; border-left:1px solid var(--sep);
+    color:var(--label2); font-family:var(--mono); font-size:calc(14px * var(--ts)); line-height:48px; white-space:nowrap; }
+  .g-nowtag { position:absolute; top:10px; height:26px; line-height:26px; padding:0 9px; border-radius:13px; background:var(--red);
+    color:#fff; font-family:var(--mono); font-size:calc(13px * var(--ts)); font-weight:600; transform:translateX(-50%); z-index:2; }
+  .g-lane { position:relative; height:92px; }
+  .g-lane.g-first { border-top:1px solid var(--sep); }
+  .g-label { position:-webkit-sticky; position:sticky; left:0; z-index:3; width:220px; height:100%; background:var(--bg);
+    display:flex; align-items:center; padding-right:16px; font-size:calc(20px * var(--ts)); font-weight:650; color:var(--label);
+    overflow:hidden; }
+  .g-label span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .gblock { position:absolute; top:6px; height:80px; padding:10px 14px; border:0; border-radius:12px; text-align:left;
+    background:var(--surface2); color:var(--label); cursor:pointer; overflow:hidden; display:flex; flex-direction:column;
+    justify-content:center; font:inherit; }
+  .gblock.live { box-shadow:inset 3px 0 0 var(--red); }
+  .gb-in { display:flex; flex-direction:column; min-width:0; }
+  .gb-name { font-size:calc(17px * var(--ts)); font-weight:600; line-height:1.2; display:-webkit-box; -webkit-line-clamp:2;
+    -webkit-box-orient:vertical; overflow:hidden; word-break:break-word; }
+  .gb-time { margin-top:4px; color:var(--label2); font-family:var(--mono); font-size:calc(13px * var(--ts)); white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; }
+  .gb-dot { display:inline-block; width:8px; height:8px; border-radius:4px; background:var(--red); margin-right:7px; vertical-align:1px; }
+  .gblock.focusable:focus { z-index:2; outline:0; background:var(--l3); box-shadow:0 0 0 3px #fff; }
+  .gblock.live.focusable:focus { box-shadow:inset 3px 0 0 var(--red), 0 0 0 3px #fff; }
+  .gblock.focusable:focus-visible { z-index:2; outline:0; background:var(--l3); box-shadow:0 0 0 3px #fff; }
+  .g-now { position:absolute; top:0; width:2px; margin-left:-1px; background:var(--red); z-index:1; pointer-events:none; }
+  .g-empty { color:var(--label2); padding:40px 0; }
+
   /* ---- TV (webOS): 10-foot sizing + sidebar layout ---- */
   html.tv { font-size:calc(20px * var(--ts)); --navh:82px; --pad:56px; --railw:80px; }
   html.tv body.upd .view { top:52px; }
@@ -2162,6 +2199,9 @@
     <button id="navHome" class="navitem focusable on" data-tab="home" title="Home">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
       <span>Home</span></button>
+    <button id="navGuide" class="navitem focusable" data-tab="guide" title="Guide" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11M15 13h3M15 16h3"/></svg>
+      <span>Guide</span></button>
     <button id="navSearch" class="navitem focusable" data-tab="search" title="Search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
       <span>Search</span></button>
@@ -2193,6 +2233,13 @@
   </div>
 
   <!-- LIBRARY: My List + upcoming episodes -->
+  <!-- GUIDE (TV): every live and upcoming item from the add-ons whose catalogs carry start times, on a timeline -->
+  <div id="view-guide" class="view">
+    <div class="page-title">Guide</div>
+    <div id="guideSub" class="g-sub"></div>
+    <div id="guideWrap" class="g-wrap scroller"><div id="guideCanvas" class="g-canvas"></div></div>
+  </div>
+
   <div id="view-library" class="view">
     <div class="page-title">Library</div>
     <div id="libraryBody"></div>
@@ -2695,7 +2742,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.10.07.2';
+  var PLAYER_VERSION = '2026.10.07.3';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -2801,6 +2848,7 @@
     // must not sit behind a boot screen waiting for catalogues it won't show.
     if (name !== 'home'){ try { bootReady(); } catch(e){} }
     if (name === 'library'){ try { renderLibraryTab(); } catch(e){} }
+    if (name === 'guide'){ try { guideShown(); } catch(e){} }
     // back to a Discover grid that is still there keeps it, and its place in it
     if (name === 'search' && !(back && $id('discover') && disc && disc.opts)){ try { searchIdle(); } catch(e){} }
     // the rows list is built from live manifests: an add-on added since is in it; the console's
@@ -2824,7 +2872,7 @@
     document.body.classList.toggle('playing', name==='player');
     if (push !== false){ if (viewStack[viewStack.length-1] !== name) viewStack.push(name); }
     // light up the rail item for whichever tab this stack is rooted in
-    var tabs = { home:'navHome', search:'navSearch', library:'navLibrary', addons:'navAddons', settings:'navSettings' };
+    var tabs = { home:'navHome', guide:'navGuide', search:'navSearch', library:'navLibrary', addons:'navAddons', settings:'navSettings' };
     Object.keys(tabs).forEach(function(t){
       var b = document.getElementById(tabs[t]); if (b) b.classList.toggle('on', viewStack[0]===t);
     });
@@ -3421,6 +3469,17 @@
       if (inInput){ document.activeElement.blur(); } else { goBack(); }
       e.preventDefault(); return;
     }
+    // the Guide: ←/→ along a lane, ↑/↓ to the lane above/below by time, CH± a screen of lanes; → from the rail comes back
+    if (IS_TV && !inInput && !mod && ((k >= 37 && k <= 40) || k === 33 || k === 34)){
+      var gv = $id('view-guide'), gae = document.activeElement;
+      if (gv && gv.classList.contains('active') && gae){
+        if (gae.__g && gv.contains(gae) && guideKey(k, gae)){ e.preventDefault(); return; }
+        if (k === 39 && $id('rail') && $id('rail').contains(gae)){
+          var back2 = viewFocusTake(gv) || (guide.lanes[0] && guide.lanes[0][0]);
+          if (back2){ guideReveal(back2); e.preventDefault(); return; }
+        }
+      }
+    }
     // the TV settings console: ↑/↓ walk the section list, → steps into the open section, ← comes
     // back from its left edge; inside the pane ↑/↓ stay in the pane
     if (IS_TV && !inInput && k >= 37 && k <= 40){
@@ -3484,7 +3543,7 @@
       var bk = e.key || '';
       if (k===415 || k===179 || k===10252 || bk==='MediaPlay' || bk==='MediaPlayPause'){
         var pa = document.activeElement, pv = document.querySelector('.view.active');
-        if (pa && pa.classList && (pa.classList.contains('card') || pa.classList.contains('stream')) && pa.classList.contains('focusable')) pa.click();
+        if (pa && pa.classList && (pa.classList.contains('card') || pa.classList.contains('stream') || pa.classList.contains('gblock')) && pa.classList.contains('focusable')) pa.click();
         else if (pv && pv.id === 'view-detail' && $id('detPlay') && isShown($id('detPlay'))) $id('detPlay').click();
         e.preventDefault(); return;
       }
@@ -3520,6 +3579,7 @@
     cloudPushSoon('addons');
     manifestCache = {};                        // a changed add-on list invalidates cached manifests
     discInvalidate();                          // …and Discover's pickers
+    try { guideInvalidate(); } catch(e){}     // …and the Guide's schedule
     try { buildHomeRows(true); } catch(e){}   // any add-on change reshapes Home
   }
   function mirrorKv(key, json){ try { idbSave(key, json); } catch(e){} db8Save(key, json); }
@@ -9886,6 +9946,276 @@
       try { shadow.removeAttribute('src'); shadow.load(); } catch(e){}
       if (scrubShowing()) scrubFrameClear();
     });
+  }
+
+  // ---------- the Guide (TV): live and upcoming items on a timeline ----------
+  // Fed by ANY installed add-on whose catalog items carry start times (the "2026-10-07 20:00 UTC" form, an ISO `released`
+  // with a time, or isLive === true) — today that is a sports schedule. Movie/series/anime catalogs are never asked. With no
+  // such add-on the rail has no Guide at all. No add-on sends an end, so a sport's usual length stands in.
+  var G_HOUR = 300, G_LABEL = 220, G_LANE = 92, G_RULER = 48, G_MS = G_HOUR / 3600000;
+  var guide = { raw: [], at: 0, seq: 0, scanning: null, items: [], groups: [], avail: false, from: 0, to: 0,
+    lanes: [], last: '', sig: '', dirty: true };
+  var G_TIME_RE = /^\s*(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?\s*(UTC|GMT|Z)?\s*$/i;
+  function guideStart(m){
+    if (m.released && /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(m.released))){
+      var t = Date.parse(m.released); if (!isNaN(t)) return t;
+    }
+    var srcs = [m.releaseInfo, m.time];
+    for (var i = 0; i < srcs.length; i++){
+      var x = G_TIME_RE.exec(String(srcs[i] || ''));
+      if (x) return Date.UTC(+x[1], +x[2] - 1, +x[3], +x[4], +x[5], +(x[6] || 0));
+    }
+    return NaN;
+  }
+  /** isLive as a real true, or a releaseInfo that says only "LIVE" (a channel's "Live TV" is not an event). */
+  function guideIsLive(m){
+    if (m.isLive === true) return true;
+    return /^[^A-Za-z0-9]*live[^A-Za-z0-9]*$/i.test(String(m.releaseInfo || '')) && isNaN(guideStart(m));
+  }
+  function guideSport(m){
+    var g = m.genre || (m.genres && m.genres[0]) || '';
+    if (!g && m.description) g = String(m.description).split(/[\s·]/)[0];
+    return String(g || '');
+  }
+  var G_LEN = [
+    [/american football|nfl|ncaaf/, 210], [/baseball|mlb/, 180], [/basketball|nba|wnba|euroleague/, 150], [/hockey|nhl/, 150],
+    [/cricket/, 240], [/tennis/, 150], [/golf/, 300], [/motorsport|formula|f1|nascar|indycar|motogp/, 120],
+    [/fight|ufc|boxing|mma|wwe/, 180], [/rugby/, 110],
+    [/football|soccer|league|liga|serie|bundesliga|ligue|cup|brasileir|uefa|premier|mls/, 115]
+  ];
+  function guideMinutes(m){
+    var r = String(m.runtime || ''), h = /(\d+)\s*h/i.exec(r), mm = /(\d+)\s*m/i.exec(r);
+    if (/^\s*\d+\s*$/.test(r)) return +r;
+    if (h || (mm && /min/i.test(r))) return (h ? +h[1] * 60 : 0) + (mm ? +mm[1] : 0);
+    var s = guideSport(m).toLowerCase();
+    for (var i = 0; i < G_LEN.length; i++) if (G_LEN[i][0].test(s)) return G_LEN[i][1];
+    return 120;
+  }
+  function guideGroupName(m){
+    var g = (m.genre || (m.genres && m.genres[0]) || '').replace(/[^\w\s&'’().\-\/À-ɏ]/g, '').trim();
+    return g || 'Other';
+  }
+  /** The window's items, grouped, in lanes. Pure apart from `now`. */
+  function guideBuild(raw, now){
+    var seen = {}, items = [];
+    raw.forEach(function(r){
+      var m = r.meta; if (!m || !m.id) return;
+      var st = guideStart(m), live = guideIsLive(m);
+      if (isNaN(st) && !live) return;
+      var prev = seen[m.id];
+      if (prev && (!isNaN(prev.startAt) || isNaN(st))) return;   // the copy with a start time wins
+      var dur = guideMinutes(m) * 60000, start, end;
+      if (isNaN(st)){ start = now - 90 * 60000; end = now + 60 * 60000; }   // starts off the left edge: its start is unknown
+      else { start = st; end = st + dur; if (live) end = Math.max(end, now + 15 * 60000); }
+      var it = { id: m.id, meta: m, a: r.a, m: r.m, c: r.c, start: start, end: end, live: live, startAt: st, group: guideGroupName(m) };
+      if (prev) items.splice(items.indexOf(prev), 1, it); else items.push(it);
+      seen[m.id] = it;
+    });
+    items = items.filter(function(it){ return it.end > now && it.start < now + 48 * 3600000; });
+    var by = {}, order = [];
+    items.forEach(function(it){ if (!by[it.group]){ by[it.group] = []; order.push(it.group); } by[it.group].push(it); });
+    var groups = order.map(function(name){
+      var list = by[name].sort(function(x, y){ return x.start - y.start || String(x.meta.name).localeCompare(String(y.meta.name)); });
+      var lanes = [];
+      list.forEach(function(it){
+        for (var i = 0; i < lanes.length; i++){ var l = lanes[i]; if (l[l.length - 1].end <= it.start){ l.push(it); return; } }
+        lanes.push([it]);
+      });
+      return { name: name, lanes: lanes, live: list.some(function(x){ return x.live; }), first: list[0].start };
+    });
+    groups.sort(function(x, y){ return (y.live - x.live) || (x.first - y.first); });
+    return { items: items, groups: groups };
+  }
+  function guideTimeout(p, ms){ return Promise.race([p, new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('timeout')); }, ms); })]); }
+  /** Asks every enabled add-on's non-film catalogs (first page) for items with start times; 5 minutes between asks. */
+  function guideScan(force){
+    if (!IS_TV) return Promise.resolve();
+    if (guide.scanning) return guide.scanning;
+    if (!force && guide.at && Date.now() - guide.at < 5 * 60000) return Promise.resolve();
+    var seq = ++guide.seq;
+    guide.scanning = (async function(){
+      var adds = activeAddons(), jobs = [];
+      var mans = await Promise.all(adds.map(function(a){ return guideTimeout(getManifest(a.url), 15000).catch(function(){ return null; }); }));
+      adds.forEach(function(a, i){
+        var m = mans[i]; if (!m || !a.base) return;
+        (m.catalogs || []).forEach(function(c){
+          if (catalogBrowsable(c) && !/^(movie|series|anime)$/i.test(c.type)) jobs.push({ a: a, m: m, c: c });
+        });
+      });
+      var raw = [], next = 0;
+      async function worker(){
+        while (next < jobs.length){
+          var j = jobs[next++];
+          try {
+            var d = await guideTimeout(getJson(j.a.base + '/catalog/' + encodeURIComponent(j.c.type) + '/' + encodeURIComponent(j.c.id) + '.json'), 15000);
+            var metas = (d && d.metas) || [];
+            // a catalog is a schedule only when something on its first page has a start time or is live
+            if (!metas.some(function(x){ return x && (!isNaN(guideStart(x)) || guideIsLive(x)); })) continue;
+            metas.forEach(function(x){ raw.push({ meta: x, a: j.a, m: j.m, c: j.c }); });
+          } catch(e){}
+        }
+      }
+      var ws = []; for (var w = 0; w < Math.min(4, jobs.length); w++) ws.push(worker());
+      await Promise.all(ws);
+      if (seq !== guide.seq) return;
+      guide.raw = raw; guide.at = Date.now();
+      guideRefresh();
+    })();
+    return guide.scanning.then(function(){ guide.scanning = null; }, function(){ guide.scanning = null; });
+  }
+  function guideInvalidate(){ guide.at = 0; guide.seq++; guide.scanning = null; setTimeout(function(){ guideScan(true); }, 1500); }
+  /** Recomputes the window (each minute and after a scan): the rail item comes and goes, an open guide redraws. */
+  function guideRefresh(){
+    var b = guideBuild(guide.raw, Date.now());
+    guide.items = b.items; guide.groups = b.groups;
+    guide.avail = IS_TV && b.items.length > 0;
+    var nav = $id('navGuide'); if (nav) nav.style.display = guide.avail ? '' : 'none';
+    var sig = b.items.map(function(it){ return it.id + '@' + it.start + '-' + it.end + (it.live ? 'L' : ''); }).join('|');
+    if (sig !== guide.sig){ guide.sig = sig; guide.dirty = true; }
+    var v = $id('view-guide');
+    if (v && v.classList.contains('active')){
+      if (!guide.avail){ setTab('home'); return; }
+      if (guide.dirty) guideRender(true); else guideNow();
+    }
+  }
+  function guideClockLine(){
+    var d = new Date(), days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    return days[d.getDay()] + ' · ' + fmtClock(d);
+  }
+  function guideX(t){ return G_LABEL + Math.round((Math.max(t, guide.from) - guide.from) * G_MS); }
+  function guideRender(keep){
+    var wrap = $id('guideWrap'), cv = $id('guideCanvas'); if (!wrap || !cv) return;
+    var ae = document.activeElement, keepId = keep && ae && ae.__g ? ae.__g.item.id : (keep ? guide.last : '');
+    var sl = wrap.scrollLeft, st = wrap.scrollTop;
+    var now = Date.now(), half = 30 * 60000;
+    guide.from = Math.floor(now / half) * half - half;
+    var to = guide.from + 6 * 3600000;
+    guide.items.forEach(function(it){ if (it.end > to) to = it.end; });
+    guide.to = Math.min(to, now + 48 * 3600000);
+    var width = G_LABEL + Math.ceil((guide.to - guide.from) * G_MS) + 60;
+    var h = '<div class="g-ruler" style="width:' + width + 'px"><div class="g-corner"></div>';
+    var nowX = guideX(now);
+    for (var t = guide.from; t <= guide.to; t += half){
+      var tx = guideX(t);   // a time under the Now tag keeps its tick, not its words
+      h += '<div class="g-tick" style="left:' + tx + 'px">' + (tx > nowX - 40 && tx < nowX + 110 ? '' : esc(fmtClock(new Date(t)))) + '</div>';
+    }
+    h += '<div class="g-nowtag" id="guideNowTag" style="left:' + guideX(now) + 'px">Now</div></div>';
+    var lanesTotal = 0;
+    guide.groups.forEach(function(g){
+      g.lanes.forEach(function(lane, li){
+        h += '<div class="g-lane' + (li === 0 ? ' g-first' : '') + '" style="width:' + width + 'px"><div class="g-label">' +
+          (li === 0 ? '<span>' + esc(g.name) + '</span>' : '') + '</div>';
+        lane.forEach(function(it){
+          var x0 = guideX(it.start), x1 = guideX(it.end), w = Math.max(64, x1 - x0 - 6);
+          var when = it.live ? '<span class="gb-dot"></span>Live' : esc(fmtClock(new Date(it.start)) + ' – ' + fmtClock(new Date(it.end)));
+          h += '<button class="gblock focusable' + (it.live ? ' live' : '') + '" data-key="g:' + esc(it.id) + '" style="left:' + x0 + 'px;width:' + w + 'px">' +
+            '<span class="gb-in"><span class="gb-name">' + esc(it.meta.name || it.id) + '</span><span class="gb-time">' + when + '</span></span></button>';
+        });
+        h += '</div>';
+        lanesTotal++;
+      });
+    });
+    h += '<div class="g-now" id="guideNowLine" style="left:' + guideX(now) + 'px;top:' + G_RULER + 'px;height:' + (lanesTotal * G_LANE) + 'px"></div>';
+    cv.style.width = width + 'px';
+    cv.innerHTML = h;
+    // wire the blocks: lane index, place in lane, item
+    guide.lanes = [];
+    var laneEls = cv.querySelectorAll('.g-lane'), li2 = 0, found = null;
+    guide.groups.forEach(function(g){
+      g.lanes.forEach(function(lane){
+        var els = laneEls[li2].querySelectorAll('.gblock'), row = [];
+        lane.forEach(function(it, k){
+          var el = els[k]; el.__g = { lane: li2, idx: k, item: it }; row.push(el);
+          el.onclick = function(){ guideOpen(it); };
+          el.addEventListener('focus', function(){ guide.last = it.id; });
+          if (keepId && it.id === keepId) found = el;
+        });
+        guide.lanes.push(row); li2++;
+      });
+    });
+    guide.dirty = false;
+    $id('guideSub').textContent = guideClockLine();
+    wrap.scrollLeft = sl; wrap.scrollTop = st;
+    if (found && keep && ae && ae.__g){ try { found.focus({ preventScroll: true }); } catch(e){ found.focus(); } }
+    return found;
+  }
+  /** The minute tick on an open guide: the now line, the tag and the clock move; nothing is rebuilt. */
+  function guideNow(){
+    var now = Date.now(), ln = $id('guideNowLine'), tg = $id('guideNowTag');
+    if (ln) ln.style.left = guideX(now) + 'px';
+    if (tg) tg.style.left = guideX(now) + 'px';
+    var sub = $id('guideSub'); if (sub) sub.textContent = guideClockLine();
+  }
+  function guideOpen(it){
+    if (it.a){ ctx.addon = it.a; ctx.manifest = it.m; ctx.catalogs = (it.m && it.m.catalogs) || []; ctx.catalog = it.c; }
+    openItem(it.meta);
+  }
+  /** Keeps a block in view: its start an hour in from the labels when it would sit off either side; its lane under the ruler. */
+  function guideReveal(el){
+    var wrap = $id('guideWrap'); if (!wrap || !el) return;
+    try { el.focus({ preventScroll: true }); } catch(e){ el.focus(); }
+    var vw = wrap.clientWidth - G_LABEL, x0 = el.offsetLeft - G_LABEL, sl = wrap.scrollLeft;
+    if (x0 < sl || x0 > sl + vw - 160) wrap.scrollLeft = Math.max(0, x0 - G_HOUR);
+    var lane = el.parentNode, top = lane.offsetTop, st = wrap.scrollTop;
+    if (top < st + G_RULER) wrap.scrollTop = top - G_RULER;
+    else if (top + G_LANE > st + wrap.clientHeight) wrap.scrollTop = top + G_LANE - wrap.clientHeight;
+  }
+  /** The block in lane `li` nearest in time to what is lit: the most overlap with its visible span, else the nearest start. */
+  function guidePick(li, it){
+    var row = guide.lanes[li]; if (!row || !row.length) return null;
+    var wrap = $id('guideWrap'), viewFrom = guide.from + (wrap ? wrap.scrollLeft : 0) / G_MS;
+    var vs = Math.max(it.start, viewFrom), ve = Math.max(it.end, vs + 60000), best = null, bo = -Infinity, bd = Infinity;
+    row.forEach(function(el){
+      var b = el.__g.item, ov = Math.min(ve, b.end) - Math.max(vs, b.start);
+      if (ov > 0){ if (ov > bo){ bo = ov; best = el; } return; }
+      if (bo > 0) return;
+      var d = b.start >= ve ? b.start - ve : vs - b.end;
+      if (d < bd){ bd = d; best = el; }
+    });
+    return best;
+  }
+  /** The remote on a block. Returns true when it took the key. */
+  function guideKey(k, ae){
+    var g = ae.__g; if (!g) return false;
+    var row = guide.lanes[g.lane];
+    if (k === 37){
+      if (g.idx > 0) guideReveal(row[g.idx - 1]);
+      else { var nv = $id('navGuide'); if (nv) nv.focus(); }
+      return true;
+    }
+    if (k === 39){ if (g.idx < row.length - 1) guideReveal(row[g.idx + 1]); return true; }
+    var step = (k === 38) ? -1 : (k === 40) ? 1 : 0;
+    if (k === 33 || k === 34){
+      var wrap = $id('guideWrap'), n = Math.max(1, Math.floor(((wrap ? wrap.clientHeight : 800) - G_RULER) / G_LANE) - 1);
+      step = (k === 34 ? 1 : -1) * n;
+    }
+    if (!step) return false;
+    var li = Math.max(0, Math.min(guide.lanes.length - 1, g.lane + step));
+    if (li !== g.lane){ var t = guidePick(li, g.item); if (t) guideReveal(t); }
+    return true;
+  }
+  /** Opening the guide: the first live block (top-most), else the earliest; the now line about an hour in. */
+  function guideShown(){
+    if (!guide.avail){ guideScan(false); return; }
+    var gv = $id('view-guide'), wrap = $id('guideWrap');
+    if (guide.dirty || !$id('guideCanvas').firstChild) guideRender(false); else guideNow();
+    // back to the guide (a tab switch or Back from a title page): the block that was lit, if it is still on
+    var was = viewFocusTake(gv);
+    if (was && was.__g){ guideReveal(was); return; }
+    var land = null, early = null;
+    guide.lanes.forEach(function(row){ row.forEach(function(el){
+      var it = el.__g.item;
+      if (!land && it.live) land = el;
+      if (!early || it.start < early.__g.item.start) early = el;
+    }); });
+    land = land || early;
+    if (wrap){ wrap.scrollTop = 0; wrap.scrollLeft = Math.max(0, Math.round((Date.now() - guide.from) * G_MS) - G_HOUR); }
+    if (land) guideReveal(land);
+  }
+  if (IS_TV){
+    setTimeout(function(){ guideScan(false); }, 4000);
+    setInterval(function(){ if (guide.raw.length || guide.avail) guideRefresh(); }, 60000);
+    setInterval(function(){ if (!document.hidden) guideScan(false); }, 5 * 60000 + 1000);
   }
 
   // ---------- Seekr: ready-made scrub pictures with the viewer's OWN key ----------
