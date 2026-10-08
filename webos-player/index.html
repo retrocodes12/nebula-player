@@ -2742,7 +2742,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.10.07.3';
+  var PLAYER_VERSION = '2026.10.08.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -8656,10 +8656,12 @@
     try { await player.attach(video); } catch(e){}
     // Be tolerant of flaky CDNs (these are tokenised/proxied sports CDNs): more
     // segment/manifest retries with backoff, and don't reject live manifests
-    // over minBufferTime quirks.
+    // over minBufferTime quirks. 2026-10-08: the engine's own stallTimeout (5 s without a byte) dropped 10–20 MB 4K live
+    // pieces mid-download on a ~20 Mbps TV and fetched them again, so the pieces it needed came later still. A piece now
+    // gets 20 s of silence and a minute in all; a dead connection is still dropped by the stall rule.
     try {
       player.configure({
-        streaming: { retryParameters: { maxAttempts: 6, baseDelay: 500, backoffFactor: 1.5, timeout: 30000 } },
+        streaming: { retryParameters: { maxAttempts: 6, baseDelay: 500, backoffFactor: 1.5, timeout: 60000, stallTimeout: 20000, connectionTimeout: 15000 } },
         manifest: { retryParameters: { maxAttempts: 4, baseDelay: 500, backoffFactor: 1.5 }, dash: { ignoreMinBufferTime: true } }
       });
     } catch(e){}
@@ -8771,6 +8773,7 @@
       else await player.load(relayLoadUrl(cleanUrl(rawUrl), mimeType), null, mimeType || undefined);
       if (seq !== playSeq) return;
       loaded = true; playStarting = false;
+      applyBufferPolicy();   // live is known only now (Auto keeps a bigger lead on live streams)
       // the safety net: a file that looked ordinary but Chromium cannot voice restarts through the shell
       if (tcLater) tcCheckProbe(tcc).then(function(){ tcDecide(tcc, seq); });
       setStatus(swapName ? ('Switched to ' + swapName + '.') : startAt ? (mpvKeptPlace() ? 'This source can only play from the beginning — your place is kept.' : 'Resumed from ' + fmtT(startAt) + '.') : (fresh ? 'Starting from the beginning.' : 'Playing.'), 'ok');
@@ -11550,13 +11553,18 @@
       return;
     }
     if (!player || player.tc) return;
-    var n = bufferSecs(), st = BUFFER_STEPS[n], d = null;
+    var n = bufferSecs(), st = BUFFER_STEPS[n], d = null, live = false;
     try { d = shaka.util.PlayerConfiguration.createDefault().streaming; } catch(e){}
+    try { live = !!(player.isLive && player.isLive()); } catch(e3){}
     try {
+      // Auto on a live stream: the engine's 10 s is about one piece of a 10 s-segment feed, so one slow piece stalls the
+      // picture. Aim for 30 s (the live edge caps it) and fetch two pieces side by side.
       player.configure({ streaming: st ? { bufferingGoal: n, rebufferingGoal: st[0], segmentPrefetchLimit: st[1] }
+        : live ? { bufferingGoal: LIVE_AUTO_AHEAD, rebufferingGoal: d ? d.rebufferingGoal : 0, segmentPrefetchLimit: 2 }
         : { bufferingGoal: d ? d.bufferingGoal : 10, rebufferingGoal: d ? d.rebufferingGoal : 0, segmentPrefetchLimit: d ? d.segmentPrefetchLimit : 1 } });
     } catch(e2){}
   }
+  var LIVE_AUTO_AHEAD = 30;
   /** How many segments the engine fetches side by side (Buffer ahead's second dial); 0 outside the engine's own playback. */
   function bufferPrefetch(){
     try { if (player && player.getLoadMode && player.getLoadMode() === shaka.Player.LoadMode.MEDIA_SOURCE) return Number(player.getConfiguration().streaming.segmentPrefetchLimit) || 0; } catch(e){}

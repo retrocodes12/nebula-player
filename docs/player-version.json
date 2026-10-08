@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.07.3",
+  "version": "2026.10.08.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "A TV guide: Guide in the rail shows the live and upcoming events from your add-ons on a timeline, by sport, with a line at the current time; OK opens one like a card. It appears only when an installed add-on lists events with start times."
+  "notes": "Smoother live streams: big live pieces (4K channels) are no longer dropped and downloaded again after a short pause, and on Auto a live stream keeps about 30 seconds in hand instead of 10."
 }
