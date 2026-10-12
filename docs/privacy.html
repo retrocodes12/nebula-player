@@ -43,7 +43,7 @@
 
 <main class="wrap">
   <h1>Privacy</h1>
-  <div class="date">Effective 7 October 2026</div>
+  <div class="date">Effective 12 October 2026</div>
 
   <div class="card">
     <p><b>The short version:</b> Nebula has no sign-up, no email, no ads, no analytics and no trackers.
@@ -120,6 +120,10 @@
     line). When the file's host will not let the app read them directly, our server fetches those pieces for
     it — the file's address passes through, only byte ranges are read (never the whole file), and nothing is
     kept beyond the ordinary logs above.</li>
+    <li><b>Why a stream would not start.</b> When a video file will not start, the app asks the file's host for its
+    first few bytes, and — when the host will not answer the app itself — asks our server to try the same, so it can tell
+    you whether the host refused the file or the format cannot play on your device. The file's address passes through our
+    server as above; nothing else about you is sent, and nothing is kept beyond the ordinary logs above.</li>
     <li><b>Sync automatically (experimental).</b> Matching subtitles to the voices happens on your device:
     the app listens to the sound of what is playing (the desktop app reads the file's sound ahead with its
     own tools) and nothing of that sound, or of what it finds, is sent anywhere.</li>
