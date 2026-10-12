@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.08.1",
+  "version": "2026.10.12.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Smoother live streams: big live pieces (4K channels) are no longer dropped and downloaded again after a short pause, and on Auto a live stream keeps about 30 seconds in hand instead of 10."
+  "notes": "A stream that will not play now says why — the file’s host refused it, sent a web page, or its format cannot play here — and offers the next source on one press. On LG TVs, a film whose audio the TV cannot play (DTS) says so instead of playing silently."
 }

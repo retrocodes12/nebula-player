@@ -2742,7 +2742,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.10.08.1';
+  var PLAYER_VERSION = '2026.10.12.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -7594,6 +7594,7 @@
     var detail = d ? playErrDetail(d.data) : '';
     setStatus(playErrorLine(code, detail), 'err');
     try { $id('puiSpin').style.display = 'none'; } catch(e){}
+    if (!tc && lastPlay) failWhy(seq, code, lastPlay.url);
   }
   // ---- desktop transcode. Chromium has no decoder for Dolby Digital (Plus), DTS or TrueHD on any desktop, and HEVC only
   // with hardware help; Nuvio's desktop app plays such files through its own libmpv. Nebula's shell carries FFmpeg
@@ -8561,6 +8562,20 @@
   }
   function audioSilenceCheck(){
     if (audioSilentNoted || !video || video.paused || video.muted || video.volume === 0) return;
+    // An LG TV plays a plain file in its own media pipeline, which counts no decoded bytes at all, so the test below can
+    // never fire there. What it does do is leave a track it cannot decode out of the list: a 2021 LG (webOS 6) lists NO
+    // audio track for a DTS film and plays it in silence, while Dolby Digital Plus is listed and plays (measured 10-12).
+    var srcMode = false;
+    try { srcMode = !!(player && player.getLoadMode && player.getLoadMode() === shaka.Player.LoadMode.SRC_EQUALS); } catch(e0){}
+    if (IS_WEBOS && srcMode){
+      if (video.currentTime < 4 || !video.audioTracks || video.audioTracks.length) return;
+      var tvHint = audioCodecHint(ctx.playRow || '');
+      if (!tvHint) return;                              // a file with no sound of its own is not a fault
+      audioSilentNoted = true;
+      setStatus('No sound: this TV cannot play this file’s audio (' + tvHint + '). Pick another stream — Dolby Digital Plus and AAC play here.', 'err', 9000);
+      stallOffer('sound');
+      return;
+    }
     if (typeof video.webkitAudioDecodedByteCount !== 'number' || video.currentTime < 4) return;
     if (video.webkitAudioDecodedByteCount > 0 || !(video.webkitVideoDecodedByteCount > 0)) return;
     // the desktop shell can do better than a message: a file the probe shows HAS audio, playing natively in silence
@@ -8583,7 +8598,8 @@
   function playErrorLine(code, detail){
     // 3016: the media element itself refused the source — a format this device cannot decode, or a host that
     // answered with a page instead of the file (add-ons flag such rows "not web-ready")
-    if (code === 3016) return 'This stream cannot play here — its format is not supported on this device, or its host would not serve it to this player. Try another source. (3016)';
+    // (failWhy then asks the host which of the two it was, and words it again)
+    if (code === 3016) return 'This stream would not start — its host may have refused it, or its format cannot play on this device. Try another source. (3016)';
     if (code === 1001) return 'The source did not answer with a stream — it may be down or expired. Try another source. (1001' + detail + ')';
     if (code === 1002) return 'The source would not let this player read it. Try another source. (1002)';
     return 'Failed to load (' + code + detail + ')';
@@ -8604,6 +8620,50 @@
       else if (typeof v === 'string' && v.trim() && !/^[a-z][a-z0-9+.-]*:\/\//i.test(v)) out.push(v.trim().slice(0, 90));
     }
     return out.length ? ' · ' + out.join(' · ') : '';
+  }
+  /** Does a plain file's host send it? 'serves', 'refused', 'page' (a web page in its place) or '' (nothing could tell).
+      Asked from here first. A host that refuses every request this page makes but not the TV's media pipeline (pixeldrain
+      answers the page "hotlink_detected" 403 for a file the TV then plays) is asked again through our server, which reads
+      a few bytes the way the built-in subtitle reader does: it gets the host's real answer. */
+  async function hostAnswer(url){
+    var own = 0, ct = '';
+    async function ask(u, opts, ms){
+      var ctl = window.AbortController ? new AbortController() : null, timer = setTimeout(function(){ if (ctl) ctl.abort(); }, ms);
+      try { opts.signal = ctl ? ctl.signal : undefined; opts.cache = 'no-store'; var r = await fetch(u, opts); return r; }
+      finally { clearTimeout(timer); }
+    }
+    try {
+      var r = await ask(url, { headers: { Range: 'bytes=0-15' } }, 8000);
+      own = r.status; ct = String(r.headers.get('content-type') || '');
+      try { if (r.body && r.body.cancel) r.body.cancel(); } catch(e){}
+    } catch(e){}
+    if (own >= 200 && own < 300) return /text\/html/i.test(ct) ? 'page' : 'serves';
+    try {
+      var r2 = await ask(CLOUD_BASE + '/v1/ranges?u=' + encodeURIComponent(url) + '&r=0-15', {}, 15000);
+      if (r2.ok) return 'serves';
+      if (r2.status === 502) return 'refused';      // the host would not hand our server those bytes either
+    } catch(e){}
+    return own >= 400 && own !== 429 ? 'refused' : '';
+  }
+  /** A stream that would not play, for good: a plain file's host is asked whether it refused the file — 3016 reads "its
+      format", and a viewer blames the format (10-12: the TV's "Dolby Digital Plus files do not play" was pixeldrain
+      refusing the rows it had rate-limited; the same Dolby files from it played) — and the next row in the list goes on
+      the pill, so one press of OK tries it. */
+  async function failWhy(seq, code, url){
+    if (seq !== playSeq || stall.failSeq === seq) return;
+    stall.failSeq = seq;
+    srcFailedNote(url);
+    if (code === 3016 && /^https?:\/\//i.test(url || '') && !/\.(mpd|m3u8)(\?|#|$)/i.test(url) && !(lastPlay && lastPlay.keys)){
+      var host = ''; try { host = new URL(url).hostname.replace(/^www\./, ''); } catch(e){}
+      var a = await hostAnswer(cleanUrl(url));
+      if (seq !== playSeq) return;
+      var line = '';
+      if (a === 'refused') line = (host || 'Its host') + ' would not send this file — it may be rate-limited, expired or taken down. Try another source. (3016)';
+      else if (a === 'page') line = (host || 'Its host') + ' answered with a web page instead of the video. Try another source. (3016)';
+      else if (a === 'serves') line = 'This file’s format cannot play on this ' + (IS_TV ? 'TV' : 'device') + '. Try another source. (3016)';
+      if (line) setStatus(line, 'err');
+    }
+    stallOffer('fail');
   }
   async function playUrl(rawUrl, clearKeys, title, subtitles, mimeType){
     // only a web address, a file this device picked (blob:) or the desktop's handle for one (local:N) is ever played: an
@@ -8842,6 +8902,7 @@
         return playUrl(rawUrl, clearKeys, title, subtitles, mimeType);
       }
       setStatus(tc ? tcConvertLine(String(code) + extra) : playErrorLine(code, extra),'err'); $id('puiSpin').style.display='none';
+      if (!tc) failWhy(seq, code, rawUrl);
     }
   }
   function playStream(s){
@@ -10559,7 +10620,7 @@
     progTicks++;
     if (!video.paused && progTicks % 10 === 0) flushProgress(false);
     if (!video.paused && progTicks % 10 === 5) bwSample();                 // what this line carries: the list's marks and the player's own picks
-    if (stall.shownAt && Date.now() - stall.shownAt > 60000) srcHide();   // an offer nobody took lapses once playback has settled
+    if (stall.shownAt && stall.why !== 'fail' && Date.now() - stall.shownAt > 60000) srcHide();   // an offer nobody took lapses once playback has settled (one for a stream that never played stays)
     sleepTick();
     if (!live && span > 0) skipTick(t);
     // a sleep timer set to the end of this episode means exactly that: nothing
@@ -12130,23 +12191,28 @@
     return ctx.playSig || null;
   }
   /** The next row after the one playing, round the list: not its twin, not one the add-on says will not play here, and one this connection carries before one it cannot. */
-  function stallPick(cands, curUrl, curSig){
+  function stallPick(cands, curUrl, curSig, loose){
     var n = cands.length, start = 0, i, pass, k;
     for (i = 0; i < n; i++) if (cands[i].s.url === curUrl){ start = i + 1; break; }
-    for (pass = 0; pass < 2; pass++){
+    // loose (after a stream that would not play at all): a third round takes a row its add-on calls not web-ready — some
+    // add-ons say that of every row they have, and such files often play on a TV (HdHub's did, 10-12) — and the same file
+    // from another host, which is just what a refused file wants
+    for (pass = 0; pass < (loose ? 3 : 2); pass++){
       for (k = 0; k < n; k++){
         var c = cands[(start + k) % n];
-        if (c.s.url === curUrl) continue;
-        if (c.s.behaviorHints && c.s.behaviorHints.notWebReady) continue;
-        if (curSig && isTwin(c.s, curSig, c.a)) continue;
+        if (c.s.url === curUrl || srcFailed.urls[c.s.url]) continue;
+        if (pass < 2 && c.s.behaviorHints && c.s.behaviorHints.notWebReady) continue;
+        if (pass < 2 && curSig && isTwin(c.s, curSig, c.a)) continue;
         if (pass === 0 && streamSlow(c.s)) continue;
         return c;
       }
     }
     return null;
   }
-  async function stallOffer(){
+  /** why: '' = it keeps stalling, 'fail' = it would not play at all, 'sound' = it plays with no sound. */
+  async function stallOffer(why){
     if (party && !party.isHost) return;
+    if (stall.busy) return;
     stall.busy = true;
     var my = playSeq, c = null;
     try {
@@ -12154,23 +12220,31 @@
       if (cur && cur.id){
         var cands = stallCandidates(cur);
         if (!cands.length) cands = await fetchSiblings(cur.type, cur.id);
-        if (my === playSeq) c = stallPick(cands, curUrl, stallCurSig(cands, curUrl));
+        if (my === playSeq) c = stallPick(cands, curUrl, stallCurSig(cands, curUrl), why === 'fail');
       }
     } catch(e){}
     stall.busy = false;
     if (my !== playSeq) return;
     stall.offered = true;
-    if (c) srcShow(c);
-    else setStatus('This source keeps stalling — another stream from the list may do better.', 'info', 7000);
+    if (c) srcShow(c, why);
+    else if (!why) setStatus('This source keeps stalling — another stream from the list may do better.', 'info', 7000);
+  }
+  // the rows that would not play for this title, this sitting: the pill never offers one again, so a press cannot bounce
+  // between two refused files
+  var srcFailed = { id: '', urls: {} };
+  function srcFailedNote(url){
+    var id = curPlay ? curPlay.id : '';
+    if (srcFailed.id !== id) srcFailed = { id: id, urls: {} };
+    if (url) srcFailed.urls[url] = 1;
   }
   function srcName(c){
     var n = cleanStreamName(c.s.name, c.a && c.a.name) || (c.a && c.a.name) || 'another stream';
     return n.length > 30 ? n.slice(0, 29) + '…' : n;
   }
-  function srcShow(c){
-    stall.sib = c; stall.shownAt = Date.now();
+  function srcShow(c, why){
+    stall.sib = c; stall.shownAt = Date.now(); stall.why = why || '';
     var b = $id('srcBtn');
-    b.textContent = 'Keeps stalling · Try ' + srcName(c);
+    b.textContent = (why === 'fail' ? 'Won’t play' : why === 'sound' ? 'No sound' : 'Keeps stalling') + ' · Try ' + srcName(c);
     b.classList.add('show');
     // the pill takes focus unless the viewer is busy in the controls, so OK switches
     var ae = document.activeElement;
