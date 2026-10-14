@@ -11441,7 +11441,8 @@
           var label = tcTrackLabel(a);
           menuOpt(label, i === tc.a, function(){ tcSetAudio(i); setStatus('Audio: ' + label, 'ok'); closePuiMenu(true); });
         });
-        puiNote(tc.why === 'video' ? 'Converted by the app: this machine cannot decode the video, so it is re-encoded while it plays.'
+        puiNote(tc.lan ? 'Sound converted by ' + soundHelperName(tc.lan) + ': this TV cannot play the film’s ' + (FF_AUDIO_NAMES[String((tc.info.audio[tc.a] || {}).codec || '').toLowerCase()] || 'sound') + ', so your computer turns it into Dolby Digital Plus while it plays.'
+          : tc.why === 'video' ? 'Converted by the app: this machine cannot decode the video, so it is re-encoded while it plays.'
           : tc.why === 'file' ? 'Converted by the app: this file comes in a container the player cannot open, so it is repackaged while it plays.'
           : tc.why === 'host' ? 'Played through the app: this stream’s host does not serve the player directly, so the app fetches it while it plays.'
           : 'Converted by the app: the audio (' + (tcBadAudioNames(tc.info) || audioCodecHint(ctx.playRow || '') || String(tc.info.audio[tc.a].codec || '').toUpperCase()) + ') is turned into a format this device plays.');
