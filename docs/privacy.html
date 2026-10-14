@@ -43,7 +43,7 @@
 
 <main class="wrap">
   <h1>Privacy</h1>
-  <div class="date">Effective 14 October 2026</div>
+  <div class="date">Effective 15 October 2026</div>
 
   <div class="card">
     <p><b>The short version:</b> Nebula has no sign-up, no email, no ads, no analytics and no trackers.
@@ -114,6 +114,11 @@
     request headers for it. The computer fetches the film from its host and hands the TV the same picture with the sound
     converted. This stays inside your home network: nothing about it reaches our server, and the computer writes nothing
     of it to disk. The computer only fetches films from the internet, never from other devices on your network.</li>
+    <li><b>Sound your TV cannot play (the Android app, while "Convert sound for your TV" is on).</b> The phone publishes to
+    your profile what a sharing computer does: its addresses on your home network, a port and a random key. When a film's
+    sound is one your TV cannot play, the TV reads the film from its host itself and sends the phone only the film's
+    sound, as the TV reads it; the phone sends it back converted. The phone is never told the film's address and fetches
+    nothing; nothing about it reaches our server, and the phone writes nothing of it to disk.</li>
     <li><b>Add an add-on from your phone.</b> The TV's pairing page shows a QR code; the add-on link you
     type on the phone is scrambled and passed to the TV through ntfy.sh, a public message relay, which keeps
     messages for a few hours. Nothing else about you is sent.</li>

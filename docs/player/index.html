@@ -7399,7 +7399,7 @@
     list.parentNode.scrollTop = 0;
     show('streams'); setStatus('Loading streams…','info');
     // an LG: whether a computer converts the sound it cannot play decides how DTS rows are marked (the list waits for nobody)
-    if (IS_WEBOS && relayWanted() && !soundHelper()) relayResolve().then(function(){ if (seq === openSeq) soundMarksRefresh(); });
+    if (IS_WEBOS && relayWanted() && !soundHelper()) Promise.all([relayResolve(), phoneResolve()]).then(function(){ if (seq === openSeq) soundMarksRefresh(); });
 
     // the origin add-on always, then every other one that is switched on — one switched off feeds nothing
     var act = activeAddons();
@@ -7735,6 +7735,7 @@
   function tcHdrs(h){ return h ? '&h=' + encodeURIComponent(JSON.stringify(h)) : ''; }
   /** What the shell's FFprobe sees in the file, or null — with what the host did kept on `c.fail` (a 403, a page). */
   async function tcProbe(url, c){
+    if (c && c.lan && c.lan.phone) return rxProbe(url, c);   // a phone converts the sound: the TV reads the file's header itself
     var ctl = new AbortController(), timer = setTimeout(function(){ ctl.abort(); }, 25000);
     try {
       var r = await fetch(tcProbeUrl(url, c), { signal: ctl.signal });
@@ -7799,14 +7800,18 @@
   var TV_AUDIO_OK = { ac3:1, eac3:1, aac:1 };
   /** The sharing computer, when it converts sound and answered lately (Settings › Play through your PC, not Off). */
   function soundHelper(){
-    return (IS_TV && !IS_DESKTOP && relayLive && relayLive.sound && relayMode() !== 'off' && Date.now() - relayLive.at < 300000) ? relayLive : null;
+    if (!(IS_TV && !IS_DESKTOP && relayMode() !== 'off')) return null;
+    if (relayLive && relayLive.sound && Date.now() - relayLive.at < 300000) return relayLive;
+    return (phoneLive && Date.now() - phoneLive.at < 300000) ? phoneLive : null;   // a phone (it sends the sound only)
   }
   function soundHelperName(h){ var n = String((h && h.name) || 'your PC'); return n.length > 22 ? n.slice(0, 21) + '…' : n; }
   /** The engine takes what that computer makes: the codec it says it makes, in fragmented MP4. */
   function soundCodecOk(h){ try { return !!(h && h.sound && window.MediaSource && MediaSource.isTypeSupported('audio/mp4; codecs="' + h.sound + '"')); } catch(e){ return false; } }
   /** A plain file from the internet (never a playlist, a manifest, a key, a file on this network), on a TV with such a computer. */
   function tvSoundCandidate(url, keys){
-    return !!ctx.soundVia && !keys && /^https?:\/\//i.test(url) && !/\.(mpd|m3u8?)(\?|#|$)/i.test(url) && relayWorth(url) && soundCodecOk(ctx.soundVia);
+    return !!ctx.soundVia && !keys && /^https?:\/\//i.test(url) && !/\.(mpd|m3u8?)(\?|#|$)/i.test(url) && relayWorth(url) && soundCodecOk(ctx.soundVia) &&
+      // a phone: the TV reads the picture itself — never with the add-on's headers (a page cannot send them), Matroska only
+      (!ctx.soundVia.phone || (!ctx.playHeaders && !/\.(mp4|m4v|mov|ts|m2ts|avi)(\?|#|$)/i.test(url)));
   }
   /** The picture can go through as it is (this TV's engine takes it in fragmented MP4): no computer re-encodes a film for a TV. */
   var TV_COPY_CODECS = { vp9: 'vp09.00.10.08', av1: 'av01.0.08M.08' };   // besides H.264 and HEVC (tcHevcCodec)
@@ -7937,6 +7942,7 @@
         if (dur && tc.next >= dur - 0.25){ tcFinish(); break; }
         if (tc.flush){ tc.flush = false; await tcRemove(0, 1e9); }
         if (tcAhead() > tcAheadGoal()){ await tcWait(800); continue; }
+        if (tc.rx){ await rxStep(session, my); continue; }      // a phone converts the sound: picture here, sound from it
         var ctl = new AbortController(); tc.ctl = ctl; var pend = null;
         // (a TV: full pieces from the first — a 10 s first piece stalled ~1.4 s at its end on his LG, the next piece's seeks
         // over the internet taking 3–5 s; the picture still comes with the first fragment)
@@ -8009,6 +8015,8 @@
   function tcCut(){
     if (!tc) return;
     if (tc.ctl){ try { tc.ctl.abort(); } catch(e){} }
+    tc.rxInit = false;
+    if (tc.snd) rxSoundClose(tc.snd);                        // the phone's conversion ends with what it was converting
     try { if (tc.sb && tc.ms.readyState === 'open') tc.sb.abort(); } catch(e){}
     try { if (tc.sbA && tc.ms.readyState === 'open') tc.sbA.abort(); } catch(e){}
   }
@@ -8031,7 +8039,9 @@
     var vc = String(info.video && info.video.codec || '').toLowerCase();
     var copyOk = vc === 'h264' || ((vc === 'hevc' || vc === 'h265') && tcHevcOk(info));
     tc = { src: url, info: info, a: (info.a >= 0 && info.audio && info.audio[info.a]) ? info.a : tcPickAudio(info), vmode: (!info.lan && (why === 'video' || !copyOk)) ? 'h264' : 'copy', lan: info.lan || null,
-      ms: null, sb: null, ctl: null, obj: null, next: Math.max(0, Math.floor(startAt || 0)), pumping: false, done: false, flush: false, gen: 0, why: why, h: ctx.playHeaders || null, warm: false };
+      ms: null, sb: null, ctl: null, obj: null, next: Math.max(0, Math.floor(startAt || 0)), pumping: false, done: false, flush: false, gen: 0, why: why, h: ctx.playHeaders || null, warm: false,
+      // a phone converts the sound: the picture is read here (rx), its init segment appended again after every cut
+      rx: info.rx ? rxSession(info.rx) : null, rxOpen: info.rxOpen || null, rxCont: null, rxInit: false, snd: null };
     var session = tc;
     player = tcShim();
     var ms = new MediaSource(); tc.ms = ms;
@@ -8043,7 +8053,7 @@
     try { ms.duration = info.duration || 0; } catch(e){}
     if (tc.lan){
       // a TV's engine takes Dolby sound only in a buffer of its own: "hvc1…, ec-3" together is refused, apart they play (LG webOS 6, 10-14)
-      tc.sb = ms.addSourceBuffer('video/mp4; codecs="' + tcVideoCodec() + '"'); tc.sb.mode = 'segments';
+      tc.sb = ms.addSourceBuffer('video/mp4; codecs="' + (tc.rx ? rxCodec(info.rx) : tcVideoCodec()) + '"'); tc.sb.mode = 'segments';
       tc.sbA = ms.addSourceBuffer('audio/mp4; codecs="' + tc.lan.sound + '"'); tc.sbA.mode = 'segments';
     } else { tc.sb = ms.addSourceBuffer(tcMime()); tc.sb.mode = 'segments'; }
     video.addEventListener('seeking', tcOnSeeking);
@@ -8058,6 +8068,7 @@
     video.removeEventListener('error', tcOnError);
     video.removeEventListener('waiting', tcGapJump);
     var s = tc; tc = null;
+    if (s && s.snd) rxSoundClose(s.snd);
     if (s){ s.gen++; if (s.ctl) { try { s.ctl.abort(); } catch(e){} } try { if (s.ms.readyState === 'open') s.ms.endOfStream(); } catch(e){} if (s.obj){ try { URL.revokeObjectURL(s.obj); } catch(e){} } }
     Array.prototype.forEach.call(video.querySelectorAll('track'), function(t){ try { URL.revokeObjectURL(t.src); } catch(e){} t.remove(); });
     try { video.removeAttribute('src'); video.load(); } catch(e){}
@@ -8102,6 +8113,468 @@
         for (var i = 0; i < video.textTracks.length; i++) video.textTracks[i].mode = (on && i === chosen) ? 'showing' : 'disabled';
       }
     };
+  }
+
+  // ---- the picture straight from the file (rx-begin) ----
+  // A phone cannot carry a 4K film's picture for a TV (it would fetch and resend 40–80 Mbps over Wi-Fi), so when a phone
+  // converts the sound, the TV reads the picture itself: a Matroska file's video blocks, read with range requests from
+  // the host, become fragmented MP4 for the video buffer here (the bytes copied, never decoded), while the phone sends
+  // the converted sound as a second buffer. The index (Cues) is where a seek lands; the file's own colour description
+  // (HDR10 mastering, light levels) goes into the init segment, and the HDR SEI inside the picture travels as it is.
+  var RX = { DUR: 0x4489, VIDEO: 0xE0, PIXW: 0xB0, PIXH: 0xBA, COLOUR: 0x55B0, MATRIX: 0x55B1, RANGE: 0x55B9, TRANSFER: 0x55BA,
+    PRIMS: 0x55BB, MAXCLL: 0x55BC, MAXFALL: 0x55BD, MASTER: 0x55D0, PRIV: 0x63A2, DEFDUR: 0x23E383, AUDIO: 0xE1, CHANNELS: 0x9F,
+    FDEFAULT: 0x88, FENABLED: 0xB9, CTIME: 0xE7, REFBLOCK: 0xFB, TAGS: 0x1254C367, ATTACH: 0x1941A469, CHAPTERS: 0x1043A770 };
+  var RX_VCODEC = { 'V_MPEGH/ISO/HEVC': 'hevc', 'V_MPEG4/ISO/AVC': 'h264', 'V_VP9': 'vp9' };
+  var RX_ACODEC = { A_DTS: 'dts', A_AC3: 'ac3', A_EAC3: 'eac3', A_TRUEHD: 'truehd', A_OPUS: 'opus', A_FLAC: 'flac', A_VORBIS: 'vorbis',
+    'A_MPEG/L3': 'mp3', 'A_MPEG/L2': 'mp2' };
+  function rxAcodec(id){ return RX_ACODEC[id] || (/^A_AAC/.test(id) ? 'aac' : /^A_PCM/.test(id) ? 'pcm' : /^A_DTS/.test(id) ? 'dts' : String(id || '').toLowerCase()); }
+  function rxFloat(b, s, e){ var dv = new DataView(b.buffer, b.byteOffset + s, e - s); return e - s === 4 ? dv.getFloat32(0) : e - s === 8 ? dv.getFloat64(0) : 0; }
+  function rxTracks(b, s, e){
+    return mkvKids(b, s, e).filter(function(k){ return k.id === MKV_ID.TRACK; }).map(function(te){
+      var t = { num: 0, type: 0, codec: '', lang: 'eng', bcp: '', name: '', dflt: true, on: true, compressed: false, priv: null, defDur: 0, w: 0, h: 0, colour: null, channels: 0 };
+      mkvKids(b, te.data, te.end).forEach(function(k){
+        var id = k.id;
+        if (id === MKV_ID.TNUM) t.num = mkvUint(b, k.data, k.end);
+        else if (id === MKV_ID.TTYPE) t.type = mkvUint(b, k.data, k.end);
+        else if (id === MKV_ID.CODEC) t.codec = mkvStr(b, k.data, k.end);
+        else if (id === MKV_ID.LANG) t.lang = mkvStr(b, k.data, k.end);
+        else if (id === MKV_ID.LANGBCP) t.bcp = mkvStr(b, k.data, k.end);
+        else if (id === MKV_ID.NAME) t.name = mkvStr(b, k.data, k.end);
+        else if (id === RX.FDEFAULT) t.dflt = !!mkvUint(b, k.data, k.end);
+        else if (id === RX.FENABLED) t.on = !!mkvUint(b, k.data, k.end);
+        else if (id === MKV_ID.ENCODINGS){
+          // header removal (mkvmerge did it to DTS and AC-3 by default for years): every frame lost the same first
+          // bytes, kept here to put back; any other encoding (zlib, encryption) is one this reader cannot undo
+          t.compressed = true;
+          mkvKids(b, k.data, k.end).forEach(function(enc){
+            if (enc.id !== 0x6240) return;
+            mkvKids(b, enc.data, enc.end).forEach(function(c){
+              if (c.id !== 0x5034) return;
+              var algo = 0, set = null;
+              mkvKids(b, c.data, c.end).forEach(function(x){ if (x.id === 0x4254) algo = mkvUint(b, x.data, x.end); else if (x.id === 0x4255) set = b.slice(x.data, x.end); });
+              if (algo === 3 && set){ t.strip = set; t.compressed = false; }
+            });
+          });
+        }
+        else if (id === RX.PRIV) t.priv = b.slice(k.data, k.end);
+        else if (id === RX.DEFDUR) t.defDur = mkvUint(b, k.data, k.end);
+        else if (id === RX.AUDIO) mkvKids(b, k.data, k.end).forEach(function(a){ if (a.id === RX.CHANNELS) t.channels = mkvUint(b, a.data, a.end); });
+        else if (id === RX.VIDEO) mkvKids(b, k.data, k.end).forEach(function(v){
+          if (v.id === RX.PIXW) t.w = mkvUint(b, v.data, v.end);
+          else if (v.id === RX.PIXH) t.h = mkvUint(b, v.data, v.end);
+          else if (v.id === RX.COLOUR){
+            var c = t.colour = { matrix: 2, transfer: 2, prims: 2, range: 0, cll: 0, fall: 0, master: null };
+            mkvKids(b, v.data, v.end).forEach(function(x){
+              if (x.id === RX.MATRIX) c.matrix = mkvUint(b, x.data, x.end);
+              else if (x.id === RX.TRANSFER) c.transfer = mkvUint(b, x.data, x.end);
+              else if (x.id === RX.PRIMS) c.prims = mkvUint(b, x.data, x.end);
+              else if (x.id === RX.RANGE) c.range = mkvUint(b, x.data, x.end);
+              else if (x.id === RX.MAXCLL) c.cll = mkvUint(b, x.data, x.end);
+              else if (x.id === RX.MAXFALL) c.fall = mkvUint(b, x.data, x.end);
+              else if (x.id === RX.MASTER){
+                var m = c.master = {};          // 0x55D1–0x55D8 chromaticities R G B white (x, y), 0x55D9/0x55DA luminance max/min
+                mkvKids(b, x.data, x.end).forEach(function(y){ if (y.id >= 0x55D1 && y.id <= 0x55DA) m[y.id] = rxFloat(b, y.data, y.end); });
+              }
+            });
+          }
+        });
+      });
+      return t;
+    });
+  }
+  /** What the file holds and where its keyframes are, from the header and the index: {scale (ns a tick), duration (s),
+      v (the video track), audio [], cues [{t (ticks), pos (absolute)}], first (the first cluster), segStart}. */
+  async function rxOpen(read){
+    var head = await read(0, 262144);
+    var ebml = mkvEl(head, 0); if (!ebml || ebml.id !== MKV_ID.EBML) throw new Error('not matroska');
+    var seg = mkvEl(head, ebml.end); if (!seg || seg.id !== MKV_ID.SEGMENT) throw new Error('no segment');
+    var o = { scale: 1000000, duration: 0, tracks: null, cues: [], first: -1, segStart: seg.data }, at = { cues: -1, tracks: -1, info: -1 }, gotInfo = false, p;
+    async function elAt(pos, cap){
+      var buf = await read(pos, pos + 65536), el = mkvEl(buf, 0); if (!el || el.end < 0) return null;
+      if (el.end > buf.length){ if (el.end > (cap || 4194304)) return null; buf = await read(pos, pos + el.end); }
+      return { el: el, buf: buf };
+    }
+    function info(b, el){ mkvKids(b, el.data, el.end).forEach(function(k){ if (k.id === MKV_ID.TSCALE) o.scale = mkvUint(b, k.data, k.end); else if (k.id === RX.DUR) o.duration = rxFloat(b, k.data, k.end); }); }
+    for (p = o.segStart; p < head.length; ){
+      var el = mkvEl(head, p);
+      if (!el) break;
+      if (el.id === MKV_ID.CLUSTER){ o.first = p; break; }
+      if (el.size < 0) break;
+      if (el.end <= head.length){
+        if (el.id === MKV_ID.SEEKHEAD) mkvKids(head, el.data, el.end).forEach(function(s){
+          if (s.id !== MKV_ID.SEEK) return;
+          var sid = 0, spos = -1;
+          mkvKids(head, s.data, s.end).forEach(function(k){ if (k.id === MKV_ID.SEEKID) sid = mkvUint(head, k.data, k.end); if (k.id === MKV_ID.SEEKPOS) spos = mkvUint(head, k.data, k.end); });
+          if (spos < 0) return;
+          if (sid === MKV_ID.CUES) at.cues = o.segStart + spos; else if (sid === MKV_ID.TRACKS) at.tracks = o.segStart + spos; else if (sid === MKV_ID.INFO) at.info = o.segStart + spos;
+        });
+        else if (el.id === MKV_ID.INFO){ gotInfo = true; info(head, el); }
+        else if (el.id === MKV_ID.TRACKS) o.tracks = rxTracks(head, el.data, el.end);
+      }
+      if (el.id === MKV_ID.CUES) at.cues = p;
+      p = el.end;
+    }
+    if (!o.tracks && at.tracks >= 0){ var tk = await elAt(at.tracks); if (tk && tk.el.id === MKV_ID.TRACKS) o.tracks = rxTracks(tk.buf, tk.el.data, tk.el.end); }
+    if (!gotInfo && at.info >= 0){ var inf = await elAt(at.info); if (inf && inf.el.id === MKV_ID.INFO) info(inf.buf, inf.el); }
+    o.duration = o.duration * o.scale / 1e9;
+    o.v = (o.tracks || []).filter(function(t){ return t.type === 1; })[0] || null;
+    o.audio = (o.tracks || []).filter(function(t){ return t.type === 2; });
+    if (!o.v) throw new Error('no video track');
+    if (o.v.compressed || o.v.strip) throw new Error('compressed video track');
+    if (!RX_VCODEC[o.v.codec]) throw new Error('video ' + o.v.codec);
+    if (at.cues < 0) throw new Error('no index');
+    var c = await elAt(at.cues, 16777216);
+    if (!c || c.el.id !== MKV_ID.CUES) throw new Error('no index');
+    mkvKids(c.buf, c.el.data, c.el.end).forEach(function(cp){
+      if (cp.id !== MKV_ID.CUEPOINT) return;
+      var time = -1;
+      mkvKids(c.buf, cp.data, cp.end).forEach(function(k){
+        if (k.id === MKV_ID.CUETIME){ time = mkvUint(c.buf, k.data, k.end); return; }
+        if (k.id !== MKV_ID.CUEPOS || time < 0) return;
+        var tr = 0, cl = -1;
+        mkvKids(c.buf, k.data, k.end).forEach(function(x){ if (x.id === MKV_ID.CUETRACK) tr = mkvUint(c.buf, x.data, x.end); else if (x.id === MKV_ID.CUECLUSTER) cl = mkvUint(c.buf, x.data, x.end); });
+        if (tr === o.v.num && cl >= 0) o.cues.push({ t: time, pos: o.segStart + cl });
+      });
+    });
+    o.cues.sort(function(a, b){ return a.t - b.t; });
+    if (!o.cues.length) throw new Error('no index');
+    if (o.first < 0) o.first = o.cues[0].pos;
+    // bytes a second, from the index (a film is read in pieces sized by it)
+    var lc = o.cues[o.cues.length - 1], fc = o.cues[0];
+    o.bitrate = lc.t > fc.t ? Math.round((lc.pos - fc.pos) * 8 / ((lc.t - fc.t) * o.scale / 1e9)) : 0;
+    return o;
+  }
+  /** The codec string the video buffer is opened with. */
+  function rxCodec(o){
+    var v = o.v, c = RX_VCODEC[v.codec], b = v.priv;
+    if (c === 'hevc') return (b && b.length > 1 && (b[1] & 31) === 2) ? 'hvc1.2.4.L153.B0' : 'hvc1.1.6.L153.B0';
+    if (c === 'h264'){ var h = function(x){ return (x < 16 ? '0' : '') + x.toString(16); }; return b && b.length > 3 ? 'avc1.' + h(b[1]) + h(b[2]) + h(b[3]) : 'avc1.64001f'; }
+    return 'vp09.00.10.08';
+  }
+  /** What the probe would have said (tc's info), with the reader kept for the picture. */
+  function rxInfo(o){
+    var vc = RX_VCODEC[o.v.codec];
+    return { duration: o.duration, bitrate: o.bitrate, start: 0, rx: o,
+      video: { codec: vc, width: o.v.w, height: o.v.h, profile: (vc === 'hevc' && /hvc1\.2/.test(rxCodec(o))) ? 'Main 10' : '' },
+      audio: o.audio.map(function(t, i){ return { i: i, codec: t.compressed ? 'compressed' : rxAcodec(t.codec), lang: t.bcp || t.lang || 'und', title: t.name || '', channels: t.channels || 0, dflt: t.dflt }; }) };
+  }
+  // ISO boxes
+  function rxBox(type){
+    var parts = Array.prototype.slice.call(arguments, 1), n = 8, i;
+    for (i = 0; i < parts.length; i++) n += parts[i].length;
+    var out = new Uint8Array(n), p = 8;
+    out[0] = n >>> 24; out[1] = (n >>> 16) & 255; out[2] = (n >>> 8) & 255; out[3] = n & 255;
+    for (i = 0; i < 4; i++) out[4 + i] = type.charCodeAt(i);
+    for (i = 0; i < parts.length; i++){ out.set(parts[i], p); p += parts[i].length; }
+    return out;
+  }
+  function rxBytes(list){   // [[value, byte count], …] big-endian (a count of 8 takes a number up to 2^53)
+    var n = 0, i; for (i = 0; i < list.length; i++) n += list[i][1];
+    var out = new Uint8Array(n), p = 0;
+    for (i = 0; i < list.length; i++){
+      var v = list[i][0], k = list[i][1];
+      if (k === 8){ var hi = Math.floor(v / 4294967296), lo = v - hi * 4294967296; out.set(rxBytes([[hi, 4], [lo, 4]]), p); p += 8; continue; }
+      for (var j = k - 1; j >= 0; j--){ out[p + j] = v & 255; v = Math.floor(v / 256); }
+      p += k;
+    }
+    return out;
+  }
+  var RX_MATRIX = [[0x10000, 4], [0, 4], [0, 4], [0, 4], [0x10000, 4], [0, 4], [0, 4], [0, 4], [0x40000000, 4]];
+  /** The init segment: one video track on the file's own clock (its ticks), the decoder record copied from the file. */
+  function rxInit(o){
+    var v = o.v, ts = Math.round(1e9 / o.scale), c = RX_VCODEC[v.codec], cfg, col = v.colour, extra = [];
+    if (c === 'hevc') cfg = rxBox('hvcC', v.priv);
+    else if (c === 'h264') cfg = rxBox('avcC', v.priv);
+    else {
+      // VP9 carries no record in Matroska: profile 0, 8-bit 4:2:0, its colour as described (or unknown)
+      var full = col && col.range === 2 ? 1 : 0;
+      cfg = rxBox('vpcC', rxBytes([[1 << 24, 4], [0, 1], [31, 1], [(8 << 4) | (1 << 1) | full, 1], [col ? col.prims : 2, 1], [col ? col.transfer : 2, 1], [col ? col.matrix : 2, 1], [0, 2]]));
+    }
+    if (col && (col.prims !== 2 || col.transfer !== 2 || col.matrix !== 2))
+      extra.push(rxBox('colr', rxBytes([[0x6E636C78, 4], [col.prims, 2], [col.transfer, 2], [col.matrix, 2], [col.range === 2 ? 0x80 : 0, 1]])));
+    if (col && col.master && col.master[0x55D9]){
+      var m = col.master, q = function(id){ return [Math.round((m[id] || 0) * 50000), 2]; };
+      // green, blue, red, white (the order of the HEVC SEI the box follows); luminance in 0.0001 cd/m²
+      extra.push(rxBox('mdcv', rxBytes([q(0x55D3), q(0x55D4), q(0x55D5), q(0x55D6), q(0x55D1), q(0x55D2), q(0x55D7), q(0x55D8),
+        [Math.round(m[0x55D9] * 10000), 4], [Math.round((m[0x55DA] || 0) * 10000), 4]])));
+    }
+    if (col && (col.cll || col.fall)) extra.push(rxBox('clli', rxBytes([[col.cll, 2], [col.fall, 2]])));
+    var entry = rxBox(c === 'hevc' ? 'hvc1' : c === 'h264' ? 'avc1' : 'vp09', rxBytes([[0, 6], [1, 2], [0, 16], [v.w, 2], [v.h, 2], [0x480000, 4], [0x480000, 4],
+      [0, 4], [1, 2], [0, 32], [0x18, 2], [0xFFFF, 2]]), cfg, ...extra);
+    var empty = rxBytes([[0, 4], [0, 4]]);
+    var stbl = rxBox('stbl', rxBox('stsd', rxBytes([[0, 4], [1, 4]]), entry), rxBox('stts', empty), rxBox('stsc', empty),
+      rxBox('stsz', rxBytes([[0, 4], [0, 4], [0, 4]])), rxBox('stco', empty));
+    var minf = rxBox('minf', rxBox('vmhd', rxBytes([[1, 4], [0, 8]])), rxBox('dinf', rxBox('dref', rxBytes([[0, 4], [1, 4]]), rxBox('url ', rxBytes([[1, 4]])))), stbl);
+    var mdia = rxBox('mdia', rxBox('mdhd', rxBytes([[0, 4], [0, 4], [0, 4], [ts, 4], [0, 4], [0x55C4, 2], [0, 2]])),
+      rxBox('hdlr', rxBytes([[0, 4], [0, 4], [0x76696465, 4], [0, 12]]), new Uint8Array([86, 105, 100, 101, 111, 0])), minf);
+    var tkhd = rxBox('tkhd', rxBytes([[3, 4], [0, 4], [0, 4], [1, 4], [0, 4], [0, 4], [0, 8], [0, 2], [0, 2], [0, 2], [0, 2]].concat(RX_MATRIX, [[v.w * 65536, 4], [v.h * 65536, 4]])));
+    var mvhd = rxBox('mvhd', rxBytes([[0, 4], [0, 4], [0, 4], [ts, 4], [0, 4], [0x10000, 4], [0x100, 2], [0, 10]].concat(RX_MATRIX, [[0, 24], [2, 4]])));
+    var mvex = rxBox('mvex', rxBox('trex', rxBytes([[0, 4], [1, 4], [1, 4], [0, 4], [0, 4], [0, 4]])));
+    return tcJoin(rxBox('ftyp', rxBytes([[0x69736F6D, 4], [1, 4], [0x69736F6D, 4], [0x61766331, 4], [0x69736F36, 4]])), rxBox('moov', mvhd, rxBox('trak', tkhd, mdia), mvex));
+  }
+  /** One fragment of frames in decode order [{pts, key, data}]: decode times from the frames' own display times (the
+      sorted display times, held back by the session's reorder delay), never before the last fragment's. */
+  function rxFrag(st, frames){
+    var pts = frames.map(function(f){ return f.pts; }).sort(function(a, b){ return a - b; }), n = frames.length, i;
+    if (st.delay < 0){   // the reorder delay, once, from the first group: how far a frame shows before its place in decode order
+      st.delay = 0; for (i = 0; i < n; i++) st.delay = Math.max(st.delay, pts[i] - frames[i].pts);
+    }
+    var dts = new Array(n);
+    for (i = 0; i < n; i++){ var d = Math.max(0, pts[i] - st.delay); if (st.last >= 0 && d <= st.last) d = st.last + 1; dts[i] = d; st.last = d; }
+    var size = 0; for (i = 0; i < n; i++) size += frames[i].data.length;
+    var trun = new Uint8Array(12 + 16 * n), p = 12;
+    trun.set(rxBytes([[0x01000F01, 4], [n, 4], [0, 4]]), 0);   // version 1, data-offset + duration/size/flags/cts per sample
+    for (i = 0; i < n; i++){
+      var dur = i + 1 < n ? dts[i + 1] - dts[i] : st.frameDur, cts = Math.max(0, frames[i].pts - dts[i]);
+      trun.set(rxBytes([[dur, 4], [frames[i].data.length, 4], [frames[i].key ? 0x02000000 : 0x01010000, 4], [cts, 4]]), p); p += 16;
+    }
+    var traf = rxBox('traf', rxBox('tfhd', rxBytes([[0x020000, 4], [1, 4]])), rxBox('tfdt', rxBytes([[0x01000000, 4], [dts[0], 8]])), rxBox('trun', trun));
+    var moof = rxBox('moof', rxBox('mfhd', rxBytes([[0, 4], [++st.seq, 4]])), traf);
+    // where the samples start: from the moof's first byte (default-base-is-moof) past it and the mdat header
+    var off = moof.length + 8, at = moof.length - trun.length + 8;   // trun's data_offset field sits 8 bytes into its body
+    moof[at] = off >>> 24; moof[at + 1] = (off >>> 16) & 255; moof[at + 2] = (off >>> 8) & 255; moof[at + 3] = off & 255;
+    var out = new Uint8Array(moof.length + 8 + size); out.set(moof, 0);
+    out.set(rxBytes([[8 + size, 4], [0x6D646174, 4]]), moof.length); p = moof.length + 8;
+    for (i = 0; i < n; i++){ out.set(frames[i].data, p); p += frames[i].data.length; }
+    return out;
+  }
+  /** A session's state: the decode clock carried from fragment to fragment. */
+  function rxSession(o){ return { o: o, delay: -1, last: -1, seq: 0, frameDur: o.v.defDur ? Math.max(1, Math.round(o.v.defDur / o.scale)) : 0 }; }
+  /**
+   * The picture from `from` (s) for about `len` s: from the keyframe at or before it (the index), or straight on from where
+   * the last piece stopped (`cont`), up to the first keyframe at or past from+len. Each group of pictures is handed to
+   * `put` as a fragment as soon as it is read. `open(at)` → a stream of the file from byte `at`: {next() → bytes | null, cancel()}.
+   * → {start, end (s), cont, eof}
+   */
+  /** The frames inside a block's payload [s, e): one, or several laced (Xiph, fixed-size, EBML) → [[start, end], …]. */
+  function rxLace(b, s, e, flags){
+    var lace = flags & 0x06; if (!lace) return [[s, e]];
+    var n = b[s] + 1, p = s + 1, sizes = [], i, v;
+    if (lace === 0x04){ var each = Math.floor((e - p) / n); for (i = 0; i < n; i++) sizes.push(each); }
+    else if (lace === 0x02){
+      for (i = 0; i < n - 1; i++){ v = 0; while (b[p] === 255){ v += 255; p++; } v += b[p++]; sizes.push(v); }
+    } else {
+      v = mkvVint(b, p, false); if (!v) return []; sizes.push(v.v); p += v.len;
+      for (i = 1; i < n - 1; i++){ var d = mkvVint(b, p, false); if (!d) return []; sizes.push(sizes[i - 1] + d.v - (Math.pow(2, 7 * d.len - 1) - 1)); p += d.len; }
+    }
+    if (lace !== 0x04){ var used = 0; for (i = 0; i < sizes.length; i++) used += sizes[i]; sizes.push(e - p - used); }
+    var out = []; for (i = 0; i < sizes.length; i++){ if (sizes[i] < 0 || p + sizes[i] > e) return []; out.push([p, p + sizes[i]]); p += sizes[i]; }
+    return out;
+  }
+  async function rxPiece(st, open, from, len, cont, put, alive, aud){
+    var o = st.o, sec = o.scale / 1e9, vnum = o.v.num, pos, skipTo = -1;
+    if (cont && Math.abs(cont.t - from) < 0.002){ pos = cont.cluster; skipTo = cont.block; }
+    else { var cue = o.cues[0]; for (var ci = 0; ci < o.cues.length && o.cues[ci].t * sec <= from + 0.001; ci++) cue = o.cues[ci]; pos = cue.pos; }
+    var src = open(pos), buf = new Uint8Array(0), at = pos, p = 0, ended = false;
+    // at least n bytes from p on in buf (false: the file ended first). The chunks are gathered and joined once, into a new
+    // array: an array once read is never written again, so a frame can keep a view of it.
+    async function need(n){
+      if (buf.length - p >= n) return true;
+      var parts = [buf.subarray(p)], have = buf.length - p;
+      while (have < n && !ended){
+        var chunk = await src.next();
+        if (!chunk || !chunk.length){ ended = true; break; }
+        parts.push(chunk); have += chunk.length;
+      }
+      var nb = new Uint8Array(have), q = 0;
+      for (var i = 0; i < parts.length; i++){ nb.set(parts[i], q); q += parts[i].length; }
+      at += p; buf = nb; p = 0;
+      return have >= n;
+    }
+    async function header(){ if (!(await need(2))) return null; var el = mkvEl(buf, p); if (!el && (await need(12))) el = mkvEl(buf, p); return el; }
+    async function skip(n){ while (n > 0){ if (!(await need(1))) return; var k = Math.min(n, buf.length - p); p += k; n -= k; } }
+    var group = [], groupBytes = 0, start = -1, out = { start: 0, end: o.duration, cont: null, eof: false };
+    async function flush(){
+      if (!group.length) return;
+      if (!st.frameDur){ var ps = group.map(function(f){ return f.pts; }).sort(function(a, b){ return a - b; }); st.frameDur = ps.length > 1 ? Math.max(1, Math.round((ps[ps.length - 1] - ps[0]) / (ps.length - 1))) : Math.round(0.04 / sec); }
+      var frag = rxFrag(st, group); group = []; groupBytes = 0;
+      await put(frag);
+    }
+    try {
+      outer: while (true){
+        if (alive && !alive()) return null;
+        var el = await header(); if (!el){ out.eof = true; break; }
+        if (el.id !== MKV_ID.CLUSTER){
+          if (el.id === MKV_ID.CUES || el.id === RX.TAGS || el.id === RX.ATTACH || el.id === RX.CHAPTERS || el.size < 0){ out.eof = true; break; }
+          p = el.data; await skip(el.size); continue;   // something between clusters (a void)
+        }
+        var clusterAt = at + p, cend = el.size < 0 ? -1 : at + el.data + el.size, ctime = 0;
+        p = el.data;
+        while (cend < 0 || at + p < cend){
+          var k = await header(); if (!k){ out.eof = true; break outer; }
+          if (k.id === MKV_ID.CLUSTER || k.id === MKV_ID.CUES || k.id === RX.TAGS){ if (cend < 0) break; out.eof = true; break outer; }   // an open-ended cluster ends at the next level-1 element
+          if (k.size < 0){ out.eof = true; break outer; }
+          var blockAt = at + p;
+          if (k.id !== RX.CTIME && k.id !== MKV_ID.SIMPLEBLOCK && k.id !== MKV_ID.BLOCKGROUP){ p = k.data; await skip(k.size); continue; }
+          if (!(await need(k.end - p))){ out.eof = true; break outer; }
+          k = mkvEl(buf, p);                                 // (the bytes may have moved)
+          if (k.id === RX.CTIME){ ctime = mkvUint(buf, k.data, k.end); p = k.end; continue; }
+          var blk = k, key = true;
+          if (k.id === MKV_ID.BLOCKGROUP){
+            blk = null;
+            mkvKids(buf, k.data, k.end).forEach(function(x){ if (x.id === MKV_ID.BLOCK) blk = x; else if (x.id === RX.REFBLOCK) key = false; });
+            if (!blk){ p = k.end; continue; }
+          }
+          var tn = mkvVint(buf, blk.data, false);
+          if (tn && aud && tn.v === aud.num && start >= 0 && !(skipTo >= 0 && blockAt < skipTo)){
+            // the sound track a phone converts: its frames, in file order, with the block's time (header removal undone)
+            var ah = blk.data + tn.len, arel = (buf[ah] << 8) | buf[ah + 1]; if (arel & 0x8000) arel -= 0x10000;
+            var fr = rxLace(buf, ah + 3, blk.end, buf[ah + 2]).map(function(r){ var f = buf.subarray(r[0], r[1]); return aud.strip ? tcJoin(aud.strip, f) : f; });
+            if (fr.length) aud.push(ctime + arel, fr);
+          }
+          if (!tn || tn.v !== vnum){ p = k.end; continue; }
+          var hd = blk.data + tn.len, rel = (buf[hd] << 8) | buf[hd + 1], flags = buf[hd + 2];
+          if (rel & 0x8000) rel -= 0x10000;
+          if (k.id === MKV_ID.SIMPLEBLOCK) key = !!(flags & 0x80);
+          if (flags & 0x06) throw new Error('laced video');
+          var pts = ctime + rel;
+          if (skipTo >= 0 && blockAt < skipTo){ p = k.end; continue; }
+          skipTo = -1;
+          if (start < 0 && !key){ p = k.end; continue; }    // a piece starts on a keyframe
+          if (key && start >= 0 && (pts * sec >= from + len || groupBytes > 48e6)){
+            await flush();
+            out.end = pts * sec; out.cont = { t: pts * sec, cluster: clusterAt, block: blockAt };
+            break outer;
+          }
+          if (key && group.length && groupBytes > 3e6) await flush();   // a group at a time (a long group: every ~3 MB from a keyframe)
+          if (start < 0){ start = pts; out.start = pts * sec; }
+          var data = buf.subarray(hd + 3, blk.end);
+          group.push({ pts: pts, key: key, data: data }); groupBytes += data.length;
+          p = k.end;
+        }
+      }
+      await flush();
+    } finally { try { src.cancel(); } catch(e){} }
+    if (start < 0) return null;
+    return out;
+  }
+  // ---- (rx-end) ----
+  /** The file straight from its host, as this page may read it — a host that will not let it (no CORS, no ranges) is not
+      played this way. A read that stops arriving for 20 s is a failure, not a wait. */
+  function rxReader(url){
+    var rd = { target: url };
+    rd.read = async function(s, e){
+      var ctl = new AbortController(), timer = setTimeout(function(){ ctl.abort(); }, 15000);
+      try {
+        var r = await fetch(rd.target, { headers: { Range: 'bytes=' + s + '-' + (e - 1) }, signal: ctl.signal });
+        if (r.status !== 206){ ctl.abort(); throw new Error(r.status === 200 ? 'the host sends no ranges' : 'the host answered ' + r.status); }
+        if (r.url && r.url !== rd.target && /^https?:\/\//i.test(r.url)) rd.target = r.url;   // a redirect: ask where it led
+        return new Uint8Array(await r.arrayBuffer());
+      } finally { clearTimeout(timer); }
+    };
+    rd.open = function(at){
+      var ctl = new AbortController(), reader = null, gone = false;
+      function stall(p){ var t; return Promise.race([p, new Promise(function(ok, no){ t = setTimeout(function(){ no(new Error('the host stopped sending')); try { ctl.abort(); } catch(e){} }, 20000); })]).then(function(v){ clearTimeout(t); return v; }, function(e){ clearTimeout(t); throw e; }); }
+      return {
+        next: async function(){
+          if (gone) return null;
+          if (!reader){
+            var r = await stall(fetch(rd.target, { headers: { Range: 'bytes=' + at + '-' }, signal: ctl.signal }));
+            if (r.status !== 206) throw new Error('the host answered ' + r.status);
+            reader = r.body.getReader();
+          }
+          var x = await stall(reader.read());
+          if (x.done){ gone = true; return null; }
+          return x.value;
+        },
+        cancel: function(){ gone = true; try { ctl.abort(); } catch(e){} }
+      };
+    };
+    return rd;
+  }
+  /** What the file holds, read by the TV itself (a phone converts the sound): tc's info, with the reader kept for the picture. */
+  async function rxProbe(url, c){
+    var rd = rxReader(url);
+    try { var info = rxInfo(await rxOpen(rd.read)); info.rxOpen = rd.open; return info; }
+    catch(e){ if (c) c.fail = { error: (e && e.message) || 'unreadable' }; return null; }
+  }
+  /** The phone's conversion for one run of playback (a start or a seek, up to the next cut): the sound track's frames go to
+      it as the TV reads them (the TV reads every byte for the picture anyway — the phone never touches the film's host), and
+      its Dolby Digital Plus comes back on one long answer, appended from the time of the first frame sent. */
+  function rxSoundOpen(){
+    var me = tc, tr = me.rx.o.audio[me.a] || {}, base = me.lan.base, k = '&k=' + encodeURIComponent(me.lan.token), ctl = new AbortController();
+    var s = { ctl: ctl, base: base, k: k, id: '', at: -1, q: [], qBytes: 0, chain: Promise.resolve(), failed: null, num: tr.num, strip: tr.strip || null };
+    var fail = function(e){ if (!ctl.signal.aborted && !s.failed) s.failed = e instanceof Error ? e : new Error(String(e)); };
+    s.push = function(pts, frames){
+      if (s.at < 0) s.at = pts * me.rx.o.scale / 1e9;
+      for (var i = 0; i < frames.length; i++){ s.q.push(frames[i]); s.qBytes += frames[i].length; }
+      if (s.qBytes >= 65536) rxSoundSend(s);
+    };
+    s.ready = (async function(){
+      var r = await fetch(base + '/sound/open?f=dts&ch=' + (tr.channels || 0) + k, { method: 'POST', signal: ctl.signal });
+      if (!r.ok) throw new Error('its answer was ' + r.status);
+      s.id = String((await r.json()).id || '');
+      (async function(){
+        var o = await fetch(base + '/sound/out?id=' + encodeURIComponent(s.id) + k, { signal: ctl.signal });
+        if (!o.ok) throw new Error('its answer was ' + o.status);
+        var rd = o.body.getReader(), first = true;
+        while (true){
+          var x = await rd.read(); if (x.done) break;
+          if (tc !== me || ctl.signal.aborted){ try { rd.cancel(); } catch(e){} return; }
+          if (first){
+            while (me.sbA.updating) await tcWait(15);
+            try { me.sbA.timestampOffset = s.at; } catch(e){ me.sbA.abort(); me.sbA.timestampOffset = s.at; }   // the phone's sound starts at 0
+            first = false;
+          }
+          await tcAppend(x.value, me.sbA);
+        }
+      })().catch(fail);
+    })();
+    s.ready.catch(fail);
+    return s;
+  }
+  /** What has been read of the sound track so far, to the phone (in order, one request after another); `last`: the film ended. */
+  function rxSoundSend(s, last){
+    if (!s.q.length && !last) return s.chain;
+    var parts = s.q, n = s.qBytes, body = new Uint8Array(n), p = 0; s.q = []; s.qBytes = 0;
+    for (var i = 0; i < parts.length; i++){ body.set(parts[i], p); p += parts[i].length; }
+    s.chain = s.chain.then(function(){ return s.ready; }).then(async function(){
+      if (s.ctl.signal.aborted) return;
+      // text/plain: a simple request, no preflight to the phone
+      var r = await fetch(s.base + '/sound/feed?id=' + encodeURIComponent(s.id) + (last ? '&end=1' : '') + s.k, { method: 'POST', body: body, headers: { 'Content-Type': 'text/plain' }, signal: s.ctl.signal });
+      if (!r.ok) throw new Error('its answer was ' + r.status);
+    });
+    s.chain.catch(function(e){ if (!s.ctl.signal.aborted && !s.failed) s.failed = e; });
+    return s.chain;
+  }
+  function rxSoundClose(s){
+    if (!s) return;
+    if (tc && tc.snd === s) tc.snd = null;
+    try { s.ctl.abort(); } catch(e){}
+    if (s.id) fetch(s.base + '/sound/close?id=' + encodeURIComponent(s.id) + s.k, { method: 'POST' }).catch(function(){});
+  }
+  /** One piece with a phone converting the sound: the picture read and appended here, the sound track's frames read on the
+      way and sent to the phone, whose conversion runs on from piece to piece until a seek or a track change cuts it. */
+  async function rxStep(session, my){
+    var o = tc.rx.o, from = tc.next, len = tvPieceLen(), cont = tc.rxCont;
+    var ctl = new AbortController(); tc.ctl = ctl; tc.pieceFrom = from;
+    var live = function(){ return tc === session && tc.gen === my && !ctl.signal.aborted; };
+    var going = !!(cont && Math.abs(cont.t - from) < 0.002);
+    if (!going || !tc.snd){ rxSoundClose(tc.snd); tc.snd = rxSoundOpen(); }   // a start, a seek: a new conversion
+    var snd = tc.snd, r = null;
+    try {
+      if (!tc.rxInit){ await tcAppend(rxInit(o), tc.sb); tc.rxInit = true; }
+      r = await rxPiece(tc.rx, tc.rxOpen, from, len, going ? cont : null, function(frag){
+        if (snd.failed) throw snd.failed;
+        rxSoundSend(snd);                                    // the sound of each group goes as soon as it is read
+        return live() ? tcAppend(frag, tc.sb) : Promise.resolve();
+      }, live, snd).catch(function(e){ var x = new Error((e && e.name === 'QuotaExceededError') || (e && snd.failed === e) ? e.message : 'the picture: ' + ((e && e.message) || e)); x.name = e && e.name || 'Error'; throw x; });
+      if (!live()) return;
+      rxSoundSend(snd, !r || r.eof || !r.cont);
+      await snd.chain;                                       // the phone has this piece's sound before the next is read
+      if (snd.failed) throw snd.failed;
+    } catch(e){
+      var cut = ctl.signal.aborted;                            // a seek or a track change stopped this piece: not a fault
+      if (tc !== session || tc.gen !== my || cut) return;
+      if (e && e.name === 'QuotaExceededError'){ await tcQuota(); return; }   // the buffer is full, not broken
+      throw e;
+    }
+    if (!live()) return;
+    if (!r){ tcFinish(); return; }
+    tc.rxCont = r.cont; tc.next = r.end; tc.warm = true;
+    if (r.eof || !r.cont) tcFinish();
+    tcGapJump();
+    try { var b = tcBuf(); if (b.length && b.start(0) < video.currentTime - 35) await tcRemove(0, video.currentTime - 15); } catch(e){}
   }
 
   // ---- the full-format player (desktop). The shell carries libmpv (a helper process, mpv-host.js): it plays the file itself — every codec, every
@@ -8781,8 +9254,15 @@
       var tvHint = audioCodecHint(ctx.playRow || '');
       if (!tvHint) return;                              // a file with no sound of its own is not a fault
       audioSilentNoted = true;
+      // a phone was there but could not take this file: the TV has to read the picture itself, and could not
+      var pf = c0 && c0.lan && c0.lan.phone && c0.seq === playSeq && c0.fail ? String(c0.fail.error || '') : '';
+      if (pf){
+        setStatus('No sound: this TV cannot play this file’s audio (' + tvHint + '), and ' + soundHelperName(c0.lan) + ' could not convert it — the TV could not read this file from its host (' + pf + '). Pick another stream — Dolby Digital Plus and AAC play here.', 'err', 9000);
+        stallOffer('sound');
+        return;
+      }
       setStatus('No sound: this TV cannot play this file’s audio (' + tvHint + '). Pick another stream — Dolby Digital Plus and AAC play here' +
-        (tvHint === 'DTS' && !soundHelper() ? ', or Nebula on your computer can convert it (Settings › Playback › Play through your PC).' : '.'), 'err', 9000);
+        (tvHint === 'DTS' && !soundHelper() ? ', or Nebula on your computer or Android phone can convert it (Settings › Playback › Play through your PC).' : '.'), 'err', 9000);
       stallOffer('sound');
       return;
     }
@@ -8918,11 +9398,14 @@
     // Play through your PC (TV): the sharing computer, when one answers — settled before the engine is built
     ctx.viaRelay = null; ctx.relayBase = ''; ctx.relaySrc = false; ctx.soundVia = null;
     if (/^https?:\/\//i.test(rawUrl)){
-      var rl = await relayResolve();
+      var found = await Promise.all([relayResolve(), phoneResolve()]), rl = found[0], ph = found[1];
       if (seq !== playSeq) return;
       if (rl && relayMode() === 'auto'){ ctx.viaRelay = rl; ctx.relayBase = rl.base; }
-      // …and the same computer converts sound this TV cannot play (Auto and Sound only) — not for a file it just failed
-      if (rl && rl.sound && !(ctx.soundOffFor === rawUrl && Date.now() - (ctx.soundOffAt || 0) < 120000)) ctx.soundVia = rl;
+      // …and the same computer converts sound this TV cannot play (Auto and Sound only) — not for a file it just failed;
+      // with no such computer, a phone that converts sound (it sends the sound only; the TV reads the picture itself)
+      var soundOff = ctx.soundOffFor === rawUrl && Date.now() - (ctx.soundOffAt || 0) < 120000;
+      if (rl && rl.sound && !soundOff) ctx.soundVia = rl;
+      else if (ph && !soundOff) ctx.soundVia = ph;
     }
     player = new shaka.Player();
     try { await player.attach(video); } catch(e){}
@@ -11963,6 +12446,52 @@
     }).catch(function(){ return null; });
     return Promise.race([work, new Promise(function(ok){ setTimeout(function(){ ok(null); }, 2600); })]);
   }
+  // A phone converts sound too (Nebula for Android › Settings › Playback › Convert sound for your TV): found the same way,
+  // through the profile (`sound_v1`, the computer's shape: name, hosts, port, token), and asked at its own address. A phone
+  // sends the sound only — the TV reads the picture from the host itself (rxStep) — so a computer that converts is asked
+  // first, and a phone takes the Matroska films this TV can read straight from their host.
+  var phoneDoc = null, phoneLive = null, phoneDeadAt = 0, phonePullAt = 0;
+  try { phoneDoc = JSON.parse(LS.getItem('sound_v1') || 'null'); } catch(e){ phoneDoc = null; }   // (a signed-out TV keeps the last copy)
+  if (phoneDoc && typeof phoneDoc !== 'object') phoneDoc = null;
+  function phoneSaveDoc(){ try { if (phoneDoc) LS.setItem('sound_v1', JSON.stringify(phoneDoc)); else LS.removeItem('sound_v1'); } catch(e){} }
+  function phonePull(force){
+    if (!cloudLinked()) return Promise.resolve(phoneDoc);
+    if (!force && Date.now() - phonePullAt < 60000) return Promise.resolve(phoneDoc);
+    phonePullAt = Date.now();
+    return cloudApi('GET', '/v1/kv/sound_v1').then(function(rec){
+      var d = null; try { d = JSON.parse(rec.v); } catch(e){}
+      phoneDoc = d && typeof d === 'object' ? d : null; phoneSaveDoc(); return phoneDoc;
+    }).catch(function(e){ if (e && e.status === 404){ phoneDoc = null; phoneSaveDoc(); } return phoneDoc; });
+  }
+  function phoneProbe(d){
+    if (!relayUsable(d)) return Promise.resolve(null);
+    var hosts = d.hosts.filter(relayLanHost).slice(0, 4);
+    return new Promise(function(done){
+      var left = hosts.length, settled = false;
+      function finish(v){ if (!settled){ settled = true; done(v); } }
+      function miss(){ if (--left <= 0) finish(null); }
+      hosts.forEach(function(h){
+        var base = 'http://' + h + ':' + d.port;
+        fetchTimeout(base + '/sound/healthz?k=' + encodeURIComponent(d.token), 1800)
+          .then(function(r){ return r && r.ok ? r.json() : null; })
+          .then(function(j){
+            var snd = j && j.ok && j.sound && j.sound.audioOnly === true && /^[a-z0-9.-]{2,16}$/i.test(String(j.sound.codec || '')) ? String(j.sound.codec) : '';
+            if (snd) finish({ base: base, token: d.token, name: d.name || j.name || 'Your phone', at: Date.now(), sound: snd, phone: true }); else miss();
+          }, miss);
+      });
+    });
+  }
+  function phoneResolve(){
+    if (!relayWanted()) return Promise.resolve(null);
+    if (phoneLive && Date.now() - phoneLive.at < 300000) return Promise.resolve(phoneLive);
+    if (Date.now() < phoneDeadAt) return Promise.resolve(null);
+    var work = phonePull(false).then(function(d){ return phoneProbe(d || phoneDoc); }).then(function(live){
+      phoneLive = live; if (!live) phoneDeadAt = Date.now() + 120000;
+      relayStatusRender();
+      return live;
+    }).catch(function(){ return null; });
+    return Promise.race([work, new Promise(function(ok){ setTimeout(function(){ ok(null); }, 2600); })]);
+  }
   /** An address already pointed at the sharing computer is left alone — wrapping it twice would have it fetch itself. */
   function relayUrl(u){
     if (u.indexOf(ctx.viaRelay.base + '/relay?') === 0) return u;
@@ -12012,6 +12541,9 @@
       else if (relayUsable(relayDoc)) line = (relayDoc.name || 'Your PC') + ' was sharing but does not answer right now · Check it is on, and on the same network';
       else if (!cloudLinked()) line = 'Sign in here and on the computer — that is how the TV finds it';
       else line = 'No computer is sharing right now · Turn it on in Nebula for Windows or Linux › Settings › Playback';
+      // a phone converting sound: on its own when no computer answers, else as a second line
+      if (phoneLive && relayMode() !== 'off' && Date.now() - phoneLive.at < 300000)
+        line = (relayLive ? line + ' · ' : '') + phoneLive.name + ' converts sound this TV cannot play (DTS)' + (relayLive ? '' : ' · ' + phoneLive.base.replace(/^http:\/\//, ''));
       tv.textContent = line;
     }
     if (relayApi && sh){
@@ -12033,11 +12565,12 @@
     shRow.style.display = relayApi ? '' : 'none';
     if (tvOn){
       segChips('setRelay', [['Auto','auto'], ['Sound only','sound'], ['Off','off']], relayMode(), function(v){
-        setPref('relay', v); relayLive = null; relayDeadAt = 0;
-        if (v !== 'off') relayResolve(); else relayStatusRender();
+        setPref('relay', v); relayLive = null; relayDeadAt = 0; phoneLive = null; phoneDeadAt = 0;
+        if (v !== 'off'){ relayResolve(); phoneResolve(); } else relayStatusRender();
       });
       relayPull(false).then(relayStatusRender);
       if (!relayLive && Date.now() >= relayDeadAt) relayResolve();
+      if (!phoneLive && Date.now() >= phoneDeadAt) phoneResolve();
     }
     if (relayApi){ relayShareChips(); relayPublish(false); }
     relayStatusRender();
