@@ -7725,6 +7725,9 @@
   // and the pieces, the picture copied as it is (HEVC 10-bit, HDR), the audio made Dolby Digital Plus, and plays them through
   // the same converter session as the desktop, so seeking, the length, Resume and subtitles work as for any file. ----
   var TV_AUDIO_BAD = { dts:1 };   // what the TV drops (TrueHD is not known to be: a silent TrueHD film comes through the silence watch)
+  // …and what it plays: a file carrying one of these beside DTS plays as it is — the TV leaves DTS out, lists the Dolby
+  // track and switches it on by itself (all four DTS + AC-3 / E-AC-3 files, MKV and MP4, measured on his LG 10-14)
+  var TV_AUDIO_OK = { ac3:1, eac3:1, aac:1 };
   /** The sharing computer, when it converts sound and answered lately (Settings › Play through your PC, not Off). */
   function soundHelper(){
     return (IS_TV && !IS_DESKTOP && relayLive && relayLive.sound && relayMode() !== 'off' && Date.now() - relayLive.at < 300000) ? relayLive : null;
@@ -7748,7 +7751,9 @@
   function tvSoundReason(info){
     if (!info || !info.video || !info.audio || !info.audio.length || !tvCopyOk(info)) return '';
     var pick = info.audio[tcPickAudio(info)] || {};
-    return TV_AUDIO_BAD[String(pick.codec || '').toLowerCase()] ? 'audio' : '';
+    if (!TV_AUDIO_BAD[String(pick.codec || '').toLowerCase()]) return '';
+    for (var i = 0; i < info.audio.length; i++) if (TV_AUDIO_OK[String(info.audio[i].codec || '').toLowerCase()]) return '';
+    return 'audio';
   }
   /** The probe: on this computer's own shell (desktop), or the TV's sharing computer. */
   function tcProbeUrl(url, c){
@@ -7797,11 +7802,11 @@
     for (i = 0; i < list.length; i++) if (list[i].dflt) return i;
     return 0;
   }
-  function tcMime(){
+  function tcVideoCodec(){
     var vc = String(tc.info.video.codec || '').toLowerCase();
-    var v = (vc === 'hevc' || vc === 'h265') && tc.vmode === 'copy' ? tcHevcCodec(tc.info) : (tc.lan && TV_COPY_CODECS[vc]) || 'avc1.64001f';
-    return 'video/mp4; codecs="' + v + ', ' + (tc.lan ? tc.lan.sound : 'mp4a.40.2') + '"';
+    return (vc === 'hevc' || vc === 'h265') && tc.vmode === 'copy' ? tcHevcCodec(tc.info) : (tc.lan && TV_COPY_CODECS[vc]) || 'avc1.64001f';
   }
+  function tcMime(){ return 'video/mp4; codecs="' + tcVideoCodec() + ', mp4a.40.2"'; }
   function tcSegUrl(t, len){
     var q = 'src=' + encodeURIComponent(tc.src) + '&t=' + t + '&len=' + len + '&a=' + tc.a + '&v=' + tc.vmode +
       '&vc=' + encodeURIComponent(tc.info.video.codec || '') + '&vh=' + (tc.info.video.height || 0) + '&st=' + (tc.info.start || 0) + tcHdrs(tc.h);
@@ -7812,8 +7817,9 @@
       '&k=' + encodeURIComponent(tc.lan.token);
   }
   function tcWait(ms){ return new Promise(function(ok){ setTimeout(ok, ms); }); }
+  function tcJoin(a, b){ var c = new Uint8Array(a.length + b.length); c.set(a, 0); c.set(b, a.length); return c; }
   function tcAhead(){
-    try { var b = tc.sb.buffered, t = video.currentTime; for (var i = 0; i < b.length; i++) if (b.start(i) <= t + 0.5 && b.end(i) >= t) return b.end(i) - t; } catch(e){}
+    try { var b = tcBuf(), t = video.currentTime; for (var i = 0; i < b.length; i++) if (b.start(i) <= t + 0.5 && b.end(i) >= t) return b.end(i) - t; } catch(e){}
     return 0;
   }
   /** How far ahead the converter runs: Settings › Buffer ahead when set, the stock 45 s otherwise, never past what the element's memory took last time. */
@@ -7828,9 +7834,11 @@
     tcCut();
     await tcRemove(0, Math.max(0, video.currentTime - 10));
   }
-  function tcAppend(buf){
+  /** What is held: the one buffer, or — picture and sound apart (a TV) — where both are (the element's own answer). */
+  function tcBuf(){ return tc.sbA ? video.buffered : tc.sb.buffered; }
+  function tcAppend(buf, into){
     return new Promise(function(ok, no){
-      var sb = tc && tc.sb; if (!sb){ ok(); return; }
+      var sb = into || (tc && tc.sb); if (!sb){ ok(); return; }
       var done = function(){ sb.removeEventListener('updateend', done); sb.removeEventListener('error', bad); ok(); };
       var bad = function(e){ sb.removeEventListener('updateend', done); sb.removeEventListener('error', bad); no(e && e.name === 'QuotaExceededError' ? e : new Error('append failed')); };
       (async function(){
@@ -7841,7 +7849,11 @@
     });
   }
   async function tcRemove(from, to){
-    var sb = tc && tc.sb; if (!sb) return;
+    if (tc && tc.sbA) await tcRemoveFrom(tc.sbA, from, to);
+    await tcRemoveFrom(tc && tc.sb, from, to);
+  }
+  async function tcRemoveFrom(sb, from, to){
+    if (!sb) return;
     try {
       while (sb.updating) await tcWait(15);
       await new Promise(function(ok){ var d = function(){ sb.removeEventListener('updateend', d); ok(); }; sb.addEventListener('updateend', d); try { sb.remove(from, to); } catch(e){ d(); } });
@@ -7856,7 +7868,7 @@
         if (dur && tc.next >= dur - 0.25){ tcFinish(); break; }
         if (tc.flush){ tc.flush = false; await tcRemove(0, 1e9); }
         if (tcAhead() > tcAheadGoal()){ await tcWait(800); continue; }
-        var ctl = new AbortController(); tc.ctl = ctl;
+        var ctl = new AbortController(); tc.ctl = ctl; var pend = null;
         var from = tc.next, len = tc.lan ? (tc.warm ? tvPieceLen() : Math.min(TC_LEN, tvPieceLen())) : (tc.warm ? TC_LEN_RUN : TC_LEN), got = 0, r = null;
         tc.pieceFrom = from;
         try { r = await fetch(tcSegUrl(from, len), { signal: ctl.signal }); } catch(e){ if (ctl.signal.aborted) continue; throw e; }
@@ -7868,7 +7880,16 @@
           while (true){
             var chunk = await reader.read(); if (chunk.done) break;
             if (tc !== session || tc.gen !== my || ctl.signal.aborted){ try { reader.cancel(); } catch(e){} break; }
-            await tcAppend(chunk.value); got += chunk.value.length;
+            if (!tc.sbA){ await tcAppend(chunk.value); got += chunk.value.length; continue; }
+            // picture and sound apart (a TV): frames of 'V' | 'A' (one byte), the length (four, big-endian), the bytes
+            var buf = pend ? tcJoin(pend, chunk.value) : chunk.value, p = 0; pend = null;
+            while (p + 5 <= buf.length){
+              var n = ((buf[p + 1] << 24) >>> 0) + (buf[p + 2] << 16) + (buf[p + 3] << 8) + buf[p + 4];
+              if (p + 5 + n > buf.length) break;
+              await tcAppend(buf.subarray(p + 5, p + 5 + n), buf[p] === 0x41 ? tc.sbA : tc.sb); got += n; p += 5 + n;
+              if (tc !== session || tc.gen !== my || ctl.signal.aborted) break;
+            }
+            if (p < buf.length) pend = buf.subarray(p);
           }
         } catch(e){
           if (e && e.name === 'QuotaExceededError') await tcQuota();   // the buffer is full, not broken: back off and refill
@@ -7878,11 +7899,11 @@
         if (ctl.signal.aborted) continue;                       // a seek or a track change moved tc.next
         if (!got) throw new Error('empty piece');
         // the piece ran from the keyframe before `from` up to from+len; carry on from what actually landed
-        var end = 0; try { var bb = tc.sb.buffered; for (var k = 0; k < bb.length; k++) if (bb.start(k) <= from + 0.5 && bb.end(k) > end) end = bb.end(k); } catch(e){}
+        var end = 0; try { var bb = tcBuf(); for (var k = 0; k < bb.length; k++) if (bb.start(k) <= from + 0.5 && bb.end(k) > end) end = bb.end(k); } catch(e){}
         tc.next = end > from + 0.75 ? end - 0.25 : from + len; tc.warm = true;
         tcGapJump();
         var keep = tc.lan ? 15 : 50;
-        try { var b = tc.sb.buffered; if (b.length && b.start(0) < video.currentTime - keep - 20) await tcRemove(0, video.currentTime - keep); } catch(e){}
+        try { var b = tcBuf(); if (b.length && b.start(0) < video.currentTime - keep - 20) await tcRemove(0, video.currentTime - keep); } catch(e){}
       }
     } catch(e){
       if (tc === session && tc.gen === my){
@@ -7901,12 +7922,12 @@
   }
   function tcFinish(){
     if (!tc) return; tc.done = true;
-    (async function(){ var s = tc; try { while (s.sb && s.sb.updating) await tcWait(20); if (tc === s && s.ms.readyState === 'open') s.ms.endOfStream(); } catch(e){} })();
+    (async function(){ var s = tc; try { while ((s.sb && s.sb.updating) || (s.sbA && s.sbA.updating)) await tcWait(20); if (tc === s && s.ms.readyState === 'open') s.ms.endOfStream(); } catch(e){} })();
   }
   function tcOnSeeking(){
     if (!tc) return;
     var t = video.currentTime;
-    try { var b = tc.sb.buffered; for (var i = 0; i < b.length; i++) if (b.start(i) <= t && b.end(i) >= t + 1) return; } catch(e){}   // already here
+    try { var b = tcBuf(); for (var i = 0; i < b.length; i++) if (b.start(i) <= t && b.end(i) >= t + 1) return; } catch(e){}   // already here
     // the piece in flight starts at or just before the target: let it land rather than fetch the same seconds again
     if (tc.ctl && !tc.ctl.signal.aborted && t >= tc.pieceFrom && t < tc.pieceFrom + TC_LEN - 1){ tc.done = false; tcPump(); return; }
     tc.next = Math.max(0, Math.floor(t)); tc.done = false; tc.warm = false;
@@ -7918,6 +7939,7 @@
     if (!tc) return;
     if (tc.ctl){ try { tc.ctl.abort(); } catch(e){} }
     try { if (tc.sb && tc.ms.readyState === 'open') tc.sb.abort(); } catch(e){}
+    try { if (tc.sbA && tc.ms.readyState === 'open') tc.sbA.abort(); } catch(e){}
   }
   /** The element refused what the shell produced — said in its own words, so it is never mistaken for a refused source. */
   function tcConvertLine(detail){ return 'This file could not be converted for playback (' + (detail || 'media error') + '). Try another source.'; }
@@ -7948,7 +7970,11 @@
     await new Promise(function(ok){ ms.addEventListener('sourceopen', ok, { once: true }); });
     if (seq !== playSeq || tc !== session) return;
     try { ms.duration = info.duration || 0; } catch(e){}
-    tc.sb = ms.addSourceBuffer(tcMime()); tc.sb.mode = 'segments';
+    if (tc.lan){
+      // a TV's engine takes Dolby sound only in a buffer of its own: "hvc1…, ec-3" together is refused, apart they play (LG webOS 6, 10-14)
+      tc.sb = ms.addSourceBuffer('video/mp4; codecs="' + tcVideoCodec() + '"'); tc.sb.mode = 'segments';
+      tc.sbA = ms.addSourceBuffer('audio/mp4; codecs="' + tc.lan.sound + '"'); tc.sbA.mode = 'segments';
+    } else { tc.sb = ms.addSourceBuffer(tcMime()); tc.sb.mode = 'segments'; }
     video.addEventListener('seeking', tcOnSeeking);
     video.addEventListener('error', tcOnError);
     video.addEventListener('waiting', tcGapJump);
@@ -8929,9 +8955,9 @@
       var row = ctx.playRow || '';
       tcc.lan = tcCandidate(rawUrl, clearKeys) ? null : ctx.soundVia;
       if (tcc.lan){
-        // a TV: a row that names DTS is looked at before it plays (the probe says which track it would play); any other
-        // file plays at once, and the silence watch brings the computer in if the TV turns out to drop its sound
-        if (dtsNamed(row)){
+        // a TV: a row whose only named sound is DTS is looked at before it plays (the probe says what the file holds); any
+        // other file plays at once — DTS beside Dolby plays as it is — and the silence watch brings the computer in if needed
+        if (dtsNamed(row) && !RE_AUDIO_OTHER.test(row)){
           setStatus('Checking the sound…', 'info');
           tcInfo = await tcCheckProbe(tcc);
           if (seq !== playSeq) return;
@@ -11840,7 +11866,8 @@
           .then(function(r){ return r && r.ok ? r.json() : null; })
           .then(function(j){
             // what the computer makes for sound this TV cannot play (an older desktop says nothing: no conversion)
-            var snd = j && j.sound && /^[a-z0-9.-]{2,16}$/i.test(String(j.sound.codec || '')) ? String(j.sound.codec) : '';
+            // (picture and sound apart — `split` — is the only form an LG takes; a computer without it is no help here)
+            var snd = j && j.sound && j.sound.split === true && /^[a-z0-9.-]{2,16}$/i.test(String(j.sound.codec || '')) ? String(j.sound.codec) : '';
             if (j && j.ok) finish({ base: base, token: d.token, name: d.name || j.name || 'Your PC', at: Date.now(), sound: snd }); else miss();
           }, miss);
       });
