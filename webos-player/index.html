@@ -58,6 +58,9 @@
 
   #video { position:fixed; top:0; left:0; right:0; bottom:0; width:100%; height:100%; background:#000; z-index:1; display:none; }
   #mpvView { position:fixed; top:0; left:0; right:0; bottom:0; width:100%; height:100%; background:#000; z-index:1; display:none; }
+  /* picture size (fitApply): the element keeps the whole screen, so subtitles keep their place; only the picture inside it changes */
+  #video.fit-fill { object-fit:cover; }
+  #video.fit-stretch { object-fit:fill; }
 
   .view { position:fixed; top:var(--navh); left:0; right:0; bottom:0; z-index:2; overflow-y:auto; display:none;
     padding:26px var(--pad) 40px; scrollbar-width:none; }
@@ -1656,7 +1659,7 @@
   @media (max-width:700px), (max-height:480px){
     .pui-bar .pui-btn { padding:10px 12px; }
     .pui-bar .pui-btn svg { width:20px; height:20px; margin-right:0; }
-    .pui-bar .pui-btn .pl, #puiQualVal, #puiSpeedVal { display:none; }
+    .pui-bar .pui-btn .pl, #puiQualVal, #puiSpeedVal, #puiFitVal { display:none; }
   }
 
   /* ---- the Guide (TV only): a timeline of live and upcoming items. 1 hour = 300 px, lanes 92 px, the sport labels and the
@@ -2053,7 +2056,11 @@
   html.lite #view-home.kept { display:block; z-index:1; animation:none; }
   /* Back to Home is a cut: it is already drawn underneath, and its fade re-made every row's layer (repainted them all) */
   html.lite #view-home.active { animation:none; }
-  html.lite body.playing #view-home.kept { visibility:hidden; }
+  html.lite body.playing #view-home.kept { opacity:0; }
+  /* the page a play started from, kept laid out under the player (show()); back to it is a cut, like Home's */
+  html.lite .view.under { display:block; opacity:0; z-index:1; animation:none; }
+  html.lite .view.cols.under { display:flex; flex-direction:column; overflow:hidden; }
+  html.lite .view.active.was-under { animation:none; }
 
 </style>
 </head>
@@ -2145,6 +2152,7 @@
           <button id="puiAudio" class="focusable pui-btn" style="display:none" title="Audio (a)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5v5h3.2L12 18.5v-13L7.2 9.5z"/><path d="M15.5 8.8a4.5 4.5 0 0 1 0 6.4M18.3 6a8.3 8.3 0 0 1 0 12"/></svg><span class="pl">Audio</span></button>
           <button id="puiQual" class="focusable pui-btn" style="display:none" title="Quality (q)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M4 7h8.5M16.5 7H20M4 12h2.5M10.5 12H20M4 17h10.5M18.5 17H20"/><circle cx="14.5" cy="7" r="2"/><circle cx="8.5" cy="12" r="2"/><circle cx="16.5" cy="17" r="2"/></svg><span class="pl">Quality</span><span class="pv" id="puiQualVal"></span></button>
           <button id="puiSpeed" class="focusable pui-btn" title="Speed (&lt; and &gt;)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.2 18.2a9 9 0 1 1 13.6 0"/><path d="M12 13.5l4.2-4.7"/><circle cx="12" cy="13.5" r="1.4" fill="currentColor" stroke="none"/></svg><span class="pl">Speed</span><span class="pv" id="puiSpeedVal">1×</span></button>
+          <button id="puiFit" class="focusable pui-btn" title="Picture size (v)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M6.5 12h4M6.5 12l1.8-1.8M6.5 12l1.8 1.8M17.5 12h-4M17.5 12l-1.8-1.8M17.5 12l-1.8 1.8"/></svg><span class="pl">Picture</span><span class="pv" id="puiFitVal">Fit</span></button>
           <button id="puiSleep" class="focusable pui-btn" title="Sleep timer (z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 14.2A8 8 0 0 1 9.8 4.5a8 8 0 1 0 9.7 9.7z"/></svg><span class="pl">Sleep</span><span class="pv" id="puiSleepVal"></span></button>
           <button id="puiParty" class="focusable pui-btn" title="Watch party — watch together in sync"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.2 19a5.8 5.8 0 0 1 11.6 0"/><path d="M15.5 5.3a3.2 3.2 0 0 1 0 5.4M16.8 13.6a5.8 5.8 0 0 1 4 5.4"/></svg><span class="pl">Party</span></button>
         </div></div>
@@ -2744,7 +2752,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.10.14.1';
+  var PLAYER_VERSION = '2026.10.14.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -2785,6 +2793,17 @@
   var IS_LITE = !!(window.PalmSystem || window.WebOSServiceBridge || window.PalmServiceBridge) ||
     /web0s|webos|netcast/i.test(navigator.userAgent || '') || /[?&#]lite=1/.test(location.href);
   if (IS_LITE) document.documentElement.className += ' lite';
+  // While the player is up, the pages kept laid out under it (show(): Home, the page the play started from) are see-through
+  // (opacity), not hidden (visibility): un-hiding them re-styled every row on the way back, the bulk of a TV's dead seconds
+  // (rig tvperf/freeze68). A hidden element could never take the focus and these could, so a focus aimed into them while
+  // playing — a slow add-on's rows arriving, a list repainting itself — does nothing, as it always did.
+  if (IS_LITE && window.HTMLElement && HTMLElement.prototype.focus){
+    var nativeFocus = HTMLElement.prototype.focus;
+    HTMLElement.prototype.focus = function(){
+      if (this.closest && document.body && document.body.classList.contains('playing') && this.closest('.view.under, #view-home.kept')) return;
+      return nativeFocus.apply(this, arguments);
+    };
+  }
   // webOS proper (not the ?tv=1 preview): quirks that only exist on the TV itself
   var IS_WEBOS = !!(window.PalmSystem || window.WebOSServiceBridge || window.PalmServiceBridge) ||
     /web0s|webos|netcast/i.test(navigator.userAgent || '');
@@ -2833,6 +2852,18 @@
     // the player owns the screen. It never takes the leaving fade: that is display:none on a TV, and its pointer-events
     // (inherited) restyled all ~1800 boxes once on the way out and again 220 ms later.
     var keepHome = IS_LITE && name !== 'home';
+    // …and the page a play was started from (the streams list, a title page) stays laid out under the player the same way.
+    // Shown again from display:none, a TV restyled and laid out the whole list before it drew a frame or took a key: back from
+    // a film onto 200 stream rows was a 3 s dead screen on Chromium 68 at TV speed (rig tvperf/freeze68) — the reported
+    // "freezes on the streams list after watching". Anywhere else from the player, it goes as before.
+    var under = null, backUnder = false;
+    if (IS_LITE){
+      // back from the player is a cut, wherever it lands: a fade that stalls behind a busy TV leaves the page see-through over
+      // Home ("I can see the home page through it", 10-14)
+      backUnder = name !== 'player' && (wasPlaying || !!document.querySelector('#view-' + name + '.under'));
+      if (name === 'player'){ under = document.querySelector('.view.active'); if (under && under.id === 'view-home') under = null; }
+      document.querySelectorAll('.view.under').forEach(function(v){ if (v !== under) v.classList.remove('under'); });
+    }
     document.querySelectorAll('.view').forEach(function(v){
       // the view being left fades under the new one — not to or from the player, which owns the screen
       if (v.classList.contains('active') && !wasPlaying && name !== 'player' && v.id !== 'view-'+name && !(keepHome && v.id === 'view-home')){
@@ -2842,8 +2873,20 @@
       v.classList.remove('active');
     });
     if (IS_LITE){ var hv = document.getElementById('view-home'); if (hv) hv.classList.toggle('kept', keepHome); }
+    if (under) under.classList.add('under');
     var el = document.getElementById('view-'+name);
-    if (el){ el.classList.add('active'); if (!back) el.scrollTop = 0; }
+    if (el){
+      el.classList.add('active'); el.classList.toggle('was-under', backUnder); if (!back) el.scrollTop = 0;
+      // and a fade never outlives itself: a page still part see-through well after its 0.18 s is cut to whole
+      if (IS_LITE){
+        el.style.animation = '';
+        setTimeout(function(){
+          if (!el.classList.contains('active')) return;
+          var op = 1; try { op = Number(getComputedStyle(el).opacity); } catch(e){}
+          if (op < 0.99) el.style.animation = 'none';
+        }, 700);
+      }
+    }
     // cheap and synchronous — keeps Continue watching honest after playback
     if (name === 'home'){ try { renderContinue(); } catch(e){} }
     // Anywhere but Home is its own destination — a deep link or a resumed view
@@ -3211,6 +3254,7 @@
       [[['←','→']], function(){ return 'Skip ' + seekStepSecs() + ' seconds while the controls are hidden'; }],
       [['0 – 9'], 'Jump to a tenth of the way through'],
       [['<','>'], 'Slower or faster'],
+      [['V'], 'Picture size: Fit, Fill, Stretch'],
       [['M'], 'Mute'],
       [['Esc'], 'Close the menu, then hide the controls'],
       [['Backspace'], 'Close what is open, then stop and go back']
@@ -3312,6 +3356,28 @@
     var v = $id('puiSpeedVal'); if (v) v.textContent = rate + '×';
     setStatus('Speed: ' + rate + '×', 'ok'); puiShow();
   }
+  // ---- picture size: Fit (the whole picture, bars where the shapes differ), Fill (covers the screen, trims the edges),
+  // Stretch (fills it and changes the shape). Device-local like every pref here: a TV and a phone differ.
+  // The page's own engine: object-fit on #video (its box, and so the subtitles, never move). The desktop's full-format
+  // player draws its own picture, so it is told (panscan / keepaspect; a shell older than 1.97.0 ignores both).
+  var FIT_MODES = [['fit', 'Fit'], ['fill', 'Fill'], ['stretch', 'Stretch']];
+  var FIT_NOTES = { fit: 'The whole picture, with bars where its shape differs from the screen.',
+    fill: 'Covers the whole screen; the edges of the picture are trimmed.', stretch: 'Fills the whole screen; the picture changes shape.' };
+  function fitMode(){ var v = getPrefs().fit; return (v === 'fill' || v === 'stretch') ? v : 'fit'; }
+  function fitName(v){ for (var i = 0; i < FIT_MODES.length; i++) if (FIT_MODES[i][0] === v) return FIT_MODES[i][1]; return 'Fit'; }
+  function fitApply(){
+    var m = fitMode();
+    video.classList.remove('fit-fill'); video.classList.remove('fit-stretch');
+    if (m !== 'fit') video.classList.add('fit-' + m);
+    var v = $id('puiFitVal'); if (v) v.textContent = fitName(m);
+    if (mpvApi && mp){ try { mpvApi.set('panscan', m === 'fill' ? '1' : '0'); mpvApi.set('keepaspect', m === 'stretch' ? 'no' : 'yes'); } catch(e){} }
+  }
+  /** v: a mode, or 1 for the next one (the V key). Says the new size on screen either way. */
+  function fitSet(v){
+    if (v === 1){ var cur = fitMode(), i = 0; FIT_MODES.forEach(function(f, j){ if (f[0] === cur) i = j; }); v = FIT_MODES[(i + 1) % FIT_MODES.length][0]; }
+    notePref('fit', v); fitApply();
+    setStatus('Picture: ' + fitName(v), 'ok', 1600); puiShow();
+  }
 
   document.addEventListener('keydown', function(e){
     var k = e.keyCode, inInput = document.activeElement && document.activeElement.tagName==='INPUT';
@@ -3375,6 +3441,7 @@
         if (k===81){ puiKey('puiQual'); e.preventDefault(); return; }
         if (k===78){ puiKey('puiNext'); e.preventDefault(); return; }
         if (k===90){ puiKey('puiSleep'); e.preventDefault(); return; }
+        if (k===86 && document.body.classList.contains('playing')){ fitSet(1); e.preventDefault(); return; }
         if (k===80){ puiKey('puiPip'); e.preventDefault(); return; }
       }
       if (!inInput && !mod && e.shiftKey){
@@ -8479,7 +8546,7 @@
     video.style.display = 'block';
     $id('mpvView').style.display = 'block';
     if (!mpvApi.attach('mpvView')){ mpvStop(); throw { code: 'mpv', mpv: true, data: 'This computer could not draw the picture here.' }; }
-    mpvSubStyle();
+    mpvSubStyle(); fitApply();
     var opened = new Promise(function(ok, no){ session.wait = { ok: ok, no: no }; });
     var r = mpvApi.load(url, mpvLoadOpts(startAt));
     if (!r || !r.ok){ session.wait = null; throw { code: 'mpv', mpv: true, data: 'The player would not start (' + ((r && r.error) || 'unknown') + ').' }; }
@@ -11451,7 +11518,7 @@
     if (subPanelEl){ subPanelEl.classList.remove('open'); document.body.classList.remove('sp-on'); }
     puiMenuEl.innerHTML = '';
     var t=document.createElement('div'); t.className='qtitle';
-    t.textContent = { quality:'Quality', audio:'Audio', speed:'Speed', sleep:'Sleep timer' }[kind];
+    t.textContent = { quality:'Quality', audio:'Audio', speed:'Speed', sleep:'Sleep timer', fit:'Picture size' }[kind];
     puiMenuEl.appendChild(t);
     if (kind==='quality'){
       var tracks = videoTracks(), heights = distinctHeights(tracks);
@@ -11526,6 +11593,10 @@
           setStatus('Speed: '+rate+'×','ok'); closePuiMenu(true);
         });
       });
+    } else if (kind==='fit'){
+      var fm = fitMode();
+      FIT_MODES.forEach(function(f){ menuOpt(f[1], f[0] === fm, function(){ fitSet(f[0]); closePuiMenu(true); }); });
+      puiNote(FIT_NOTES[fm]);
     } else if (kind==='sleep'){
       menuOpt('Off', !sleepState.mode, function(){ sleepSet('', 0); });
       [15,30,45,60,90].forEach(function(m){
@@ -12080,6 +12151,7 @@
   $id('puiGoLive').onclick = function(){ var r = puiRange(); if (r.end > r.start){ video.currentTime = Math.max(r.start, r.end - 1); puiTick(); } puiShow(); };
   $id('puiAudio').onclick = function(){ if (puiState.menu==='audio') closePuiMenu(true); else openPuiMenu('audio', this); };
   $id('puiSpeed').onclick = function(){ if (puiState.menu==='speed') closePuiMenu(true); else openPuiMenu('speed', this); };
+  $id('puiFit').onclick = function(){ if (puiState.menu==='fit') closePuiMenu(true); else openPuiMenu('fit', this); };
   $id('puiSleep').onclick = function(){ if (puiState.menu==='sleep') closePuiMenu(true); else openPuiMenu('sleep', this); };
 
   // ---- fullscreen ----
@@ -14121,6 +14193,7 @@
   /** Everything a preference changes without a rebuild: tokens and flags on <html>, the console's mode, the skip labels. */
   function applyPrefs(){
     var pr = getPrefs(), root = document.documentElement, st = root.style, cl = root.classList;
+    fitApply();
     // a supporter colour left by a profile that signed out falls back to red; the choice itself is kept for its return
     var accNow = accentRank(pr.accent) > supRank() ? '#E50914' : (pr.accent || '#E50914');
     st.setProperty('--accent', accNow);

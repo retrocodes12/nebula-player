@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.14.1",
+  "version": "2026.10.14.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "On LG TVs, a film whose only sound is DTS — which those TVs cannot play — is marked before you pick it, and with Nebula open on a Windows or Linux computer that is sharing with the TV, its sound is converted to Dolby Digital Plus there while the picture, 4K and HDR included, passes through untouched. A film with DTS and a Dolby track plays as it is. Play through your PC also works with more kinds of files."
+  "notes": "Picture size: a Picture button in the player (or the V key) chooses Fit, Fill — covers the screen and trims the edges — or Stretch, and remembers it on this device. On an LG TV, going back from a film to a long list of streams no longer leaves the screen stuck half see-through over Home for seconds."
 }
