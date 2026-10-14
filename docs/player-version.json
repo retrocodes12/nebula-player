@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.12.1",
+  "version": "2026.10.14.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "A stream that will not play now says why — the file’s host refused it, sent a web page, or its format cannot play here — and offers the next source on one press. On LG TVs, a film whose audio the TV cannot play (DTS) says so instead of playing silently."
+  "notes": "On LG TVs, a film whose only sound is DTS — which those TVs cannot play — is marked before you pick it, and with Nebula open on a Windows or Linux computer that is sharing with the TV, its sound is converted to Dolby Digital Plus there while the picture, 4K and HDR included, passes through untouched. A film with DTS and a Dolby track plays as it is. Play through your PC also works with more kinds of files."
 }
