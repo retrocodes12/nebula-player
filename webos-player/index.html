@@ -7586,7 +7586,9 @@
       if (!wasSrc && d && d.severity === 1 && player){ try { retried = player.retryStreaming() !== false; } catch(e){ retried = false; } }
       if (retried) return;                           // the drop's own toast is the word here
       var at = 0; try { at = video.currentTime || 0; } catch(e){}
-      ctx.swapAt = (!wasLive && at > 1) ? at : 0;
+      // (a load that failed before playing has the element at 0: the second it was asked to start from stands — a film
+      // the TV's computer stopped converting at 0:30 started again at 0:00 when the relay went with it, his LG 10-14)
+      ctx.swapAt = wasLive ? 0 : at > 1 ? at : (ctx.playStartAt || 0);
       playUrl(lastPlay.url, lastPlay.keys, lastPlay.title, lastPlay.subs, lastPlay.mime || undefined);
       return;
     }
@@ -7869,7 +7871,9 @@
         if (tc.flush){ tc.flush = false; await tcRemove(0, 1e9); }
         if (tcAhead() > tcAheadGoal()){ await tcWait(800); continue; }
         var ctl = new AbortController(); tc.ctl = ctl; var pend = null;
-        var from = tc.next, len = tc.lan ? (tc.warm ? tvPieceLen() : Math.min(TC_LEN, tvPieceLen())) : (tc.warm ? TC_LEN_RUN : TC_LEN), got = 0, r = null;
+        // (a TV: full pieces from the first — a 10 s first piece stalled ~1.4 s at its end on his LG, the next piece's seeks
+        // over the internet taking 3–5 s; the picture still comes with the first fragment)
+        var from = tc.next, len = tc.lan ? tvPieceLen() : (tc.warm ? TC_LEN_RUN : TC_LEN), got = 0, r = null;
         tc.pieceFrom = from;
         try { r = await fetch(tcSegUrl(from, len), { signal: ctl.signal }); } catch(e){ if (ctl.signal.aborted) continue; throw e; }
         if (r.status === 503 && tc.lan && (tc.busy = (tc.busy || 0) + 1) < 20){ await tcWait(700); continue; }   // the computer is finishing the last piece (a seek)
@@ -8983,8 +8987,11 @@
         await tcStart(cleanUrl(rawUrl), tcInfo, startAt, seq);
       }
       // a blob: URL (local file) has no extension — the MIME type stands in
-      else if (startAt) await player.load(relayLoadUrl(cleanUrl(rawUrl), mimeType), startAt, mimeType || undefined);
-      else await player.load(relayLoadUrl(cleanUrl(rawUrl), mimeType), null, mimeType || undefined);
+      else {
+        var lu = relayLoadUrl(cleanUrl(rawUrl), mimeType);
+        ctx.playStartAt = startAt || 0;          // where this load meant to start (a relay that fails before a frame plays)
+        await player.load(lu, startAt || null, mimeType || (ctx.relaySrc ? relaySrcMime(rawUrl) : undefined));
+      }
       if (seq !== playSeq) return;
       loaded = true; playStarting = false;
       applyBufferPolicy();   // live is known only now (Auto keeps a bigger lead on live streams)
@@ -11908,6 +11915,14 @@
     if (!ctx.viaRelay || !/^https?:\/\//i.test(u) || !relayWorth(u)) return u;
     if ((mime && !/dash|mpegurl|mpd|m3u8/i.test(mime)) || /\.(mp4|m4v|webm|mkv|mov|ts|avi|mp3|aac|ogg|flac|wav)(\?|#|$)/i.test(u)){ ctx.relaySrc = true; return relayUrl(u); }
     return u;
+  }
+  /** A plain file loaded from the sharing computer has no extension of its own (/relay?u=…), so the engine would ask the
+      relay for its type — and an LG answers "cannot play" to video/x-matroska (canPlayType '') although its pipeline plays
+      MKV: every MKV through the relay was refused and the relay dropped (10-14, his TV). Typed by the file's own extension
+      instead, as an extension-less link is: the TV's pipeline sniffs the container itself. */
+  function relaySrcMime(u){
+    var m = /\.(mkv|mp4|m4v|mov|webm|avi)(\?|#|$)/i.exec(String(u || ''));
+    return !m ? undefined : m[1].toLowerCase() === 'webm' ? 'video/webm' : 'video/mp4';
   }
   /** The relay stopped answering: forget it for two minutes and say so once. */
   function relayDrop(){
