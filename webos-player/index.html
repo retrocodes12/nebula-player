@@ -1463,6 +1463,8 @@
     box-shadow:inset 0 0 0 1px var(--sep); color:var(--label2); font-size:calc(13px * var(--ts)); padding:7px 15px; }
   #streamFilters .chip:hover { background:var(--fill); color:var(--label); }
   #streamFilters .chip.on { background:var(--label); color:#000; font-weight:600; box-shadow:none; }
+  #streamFilters .chip-ico { display:inline-flex; align-items:center; justify-content:center; padding-left:12px; padding-right:12px; }
+  #streamFilters .chip-ico svg { width:1.2em; height:1.2em; display:block; }
   html.tv #streamFilters .chip.focusable:focus { box-shadow:0 0 0 3px #fff; }
   html.tv #streamFilters .chip.focusable:focus-visible { box-shadow:0 0 0 3px #fff; }
   html.tv #streamFilters .chip.on.focusable:focus { box-shadow:0 0 0 3px var(--bg), 0 0 0 6px #fff; }
@@ -1681,7 +1683,7 @@
     text-transform:uppercase; margin:2px 0 18px; }
   .g-wrap { flex:1 1 auto; min-height:0; overflow:auto; scrollbar-width:none; margin:0 calc(-1 * var(--pad)) 0 0; padding:0 0 24px; }
   .g-wrap::-webkit-scrollbar { display:none; }
-  .g-canvas { position:relative; }
+  .g-canvas { position:relative; z-index:0; }   /* (its own layer order: the now line sits under the blocks) */
   .g-ruler { position:-webkit-sticky; position:sticky; top:0; z-index:4; height:48px; background:var(--bg);
     border-bottom:1px solid var(--sep); }
   .g-corner { position:-webkit-sticky; position:sticky; left:0; z-index:1; width:220px; height:48px; background:var(--bg); }
@@ -1708,7 +1710,8 @@
   .gblock.focusable:focus { z-index:2; outline:0; background:var(--l3); box-shadow:0 0 0 3px #fff; }
   .gblock.live.focusable:focus { box-shadow:inset 3px 0 0 var(--red), 0 0 0 3px #fff; }
   .gblock.focusable:focus-visible { z-index:2; outline:0; background:var(--l3); box-shadow:0 0 0 3px #fff; }
-  .g-now { position:absolute; top:0; width:2px; margin-left:-1px; background:var(--red); z-index:1; pointer-events:none; }
+  /* under the blocks, never through their titles (his LG, 10-12): it shows in the gaps between them */
+  .g-now { position:absolute; top:0; width:2px; margin-left:-1px; background:var(--red); z-index:-1; pointer-events:none; }
   .g-empty { color:var(--label2); padding:40px 0; }
 
   /* ---- TV (webOS): 10-foot sizing + sidebar layout ---- */
@@ -3006,7 +3009,7 @@
   /** The view's first control a remote should land on: shown, not the topbar's Back, not a text field (on a TV
       focusing one throws the keyboard up) — those only when there is nothing else. */
   function firstFocusable(v){
-    var c = v.querySelectorAll('.focusable:not([data-back]):not(input)');
+    var c = v.querySelectorAll('.focusable:not([data-back]):not([data-noland]):not(input)');   // (data-noland: never where a remote lands — Search's Clear wiped the recents on one OK)
     for (var i = 0; i < c.length; i++) if (isShown(c[i])) return c[i];
     c = v.querySelectorAll('.focusable');
     for (var j = 0; j < c.length; j++) if (isShown(c[j])) return c[j];
@@ -3423,8 +3426,9 @@
         if (scrubState.on){ scrubCancel(); puiShow(); }    // a pending jump is its own layer; the controls stay
         else if (upnextState.open){ dismissUpNext(); }
         else if (puiState.menu){ closePuiMenu(true); }
-        // while a stream is still starting there is nothing to peel: Back means "not this one"
-        else if (pui.className !== 'idle' && !playStarting){ puiIdle(); }
+        // while a stream is still starting there is nothing to peel: Back means "not this one" — nor once it would not play
+        // (a black screen with the controls up: the first Back only hid them, and read as Back doing nothing, 10-15)
+        else if (pui.className !== 'idle' && !playStarting && !(stall.failSeq === playSeq && video.readyState < 2)){ puiIdle(); }
         else { goBack(); }
         e.preventDefault(); return;
       }
@@ -3738,15 +3742,22 @@
     }).then(function(r){ return !!(r && r.returnValue); });
     return db8Ready;
   }
+  // one save per key at a time: two in flight both found nothing and both put — his TV held four 'progress' records (10-15);
+  // a load reads the first, so a save keeps that one and drops the rest
+  var db8Busy = {};
   function db8Save(key, json){
-    db8Init().then(function(ok){
-      if (!ok) return;
-      lunaCall('com.webos.service.db/find', { query:{ from: DB8_KIND, where:[{ prop:'key', op:'=', val:key }] } }).then(function(r){
-        var hit = r && r.results && r.results[0];
-        if (hit) lunaCall('com.webos.service.db/merge', { objects:[{ _id: hit._id, value: json }] });
-        else lunaCall('com.webos.service.db/put', { objects:[{ _kind: DB8_KIND, key: key, value: json }] });
+    var run = function(){
+      return db8Init().then(function(ok){
+        if (!ok) return;
+        return lunaCall('com.webos.service.db/find', { query:{ from: DB8_KIND, where:[{ prop:'key', op:'=', val:key }] } }).then(function(r){
+          var rs = (r && r.results) || [], hit = rs[0];
+          if (rs.length > 1) lunaCall('com.webos.service.db/del', { ids: rs.slice(1).map(function(x){ return x._id; }) });
+          if (hit) return lunaCall('com.webos.service.db/merge', { objects:[{ _id: hit._id, value: json }] });
+          return lunaCall('com.webos.service.db/put', { objects:[{ _kind: DB8_KIND, key: key, value: json }] });
+        });
       });
-    });
+    };
+    db8Busy[key] = (db8Busy[key] || Promise.resolve()).then(run, run).catch(function(){});
   }
   function db8Load(key){
     return db8Init().then(function(ok){
@@ -4092,6 +4103,7 @@
     if (!player || !curPlay || !curPlay.id) return;
     try { if (puiIsLive()) return; } catch(e){ return; }
     if (mpvKeptPlace() && video.currentTime < mp.keepFrom) return;   // (a place this stream could not resume stays until passed)
+    if (sg.keepFrom && video.currentTime < sg.keepFrom) return;     // (and one the TV could not jump to)
     var r = puiRange(), dur = r.end - r.start, pos = video.currentTime - r.start;
     if (dur > 0 && isFinite(dur) && isFinite(pos)) noteProgress(pos, dur, false);
     if (mirror) saveProgress(true);
@@ -5612,7 +5624,7 @@
       var rec = document.createElement('div'); rec.className = 'recent';
       var rh = document.createElement('div'); rh.className = 'recent-head';
       rh.innerHTML = '<span class="lbl">Recent</span>';
-      var clr = document.createElement('button'); clr.className = 'textbtn focusable'; clr.id = 'recentClear';
+      var clr = document.createElement('button'); clr.className = 'textbtn focusable'; clr.id = 'recentClear'; clr.setAttribute('data-noland', '');
       clr.textContent = 'Clear';
       clr.onclick = function(){
         clearRecent(); searchIdle();
@@ -6162,7 +6174,13 @@
       b.title = i + ' star' + (i > 1 ? 's' : '');
       b.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
         '<path d="M12 2.6l2.94 5.96 6.58.96-4.76 4.64 1.12 6.55L12 17.62l-5.88 3.09 1.12-6.55L2.48 9.52l6.58-.96z"/></svg>';
-      b.onclick = function(){ setRating(type, m, i === cur ? 0 : i); detRateRender(); };
+      b.onclick = function(){
+        var had = document.activeElement === b;
+        setRating(type, m, i === cur ? 0 : i); detRateRender();
+        // the stars are drawn again: a remote's highlight stays on the one pressed (it fell to the page, 10-15)
+        var s = had && wrap.querySelectorAll('.star')[i - 1];
+        if (s){ try { s.focus({ preventScroll: true }); } catch(e){ s.focus(); } }
+      };
       wrap.appendChild(b);
     })(i);
     var lbl = document.createElement('span'); lbl.className = 'rate-lbl';
@@ -7433,7 +7451,10 @@
       bar.appendChild(b);
       return b;
     }
-    chip('↻', false, function(){ if (lastStreamsReq) openStreams(lastStreamsReq.type, lastStreamsReq.id, lastStreamsReq.title, ctx.startOver); });
+    // an icon, not the ↻ character: the TV's fonts have no glyph for it (a box on his LG, 10-12)
+    var rf = chip('', false, function(){ if (lastStreamsReq) openStreams(lastStreamsReq.type, lastStreamsReq.id, lastStreamsReq.title, ctx.startOver); });
+    rf.className += ' chip-ico'; rf.setAttribute('aria-label', 'Ask the add-ons again'); rf.title = 'Ask the add-ons again';
+    rf.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>';
     var cur = list.getAttribute('data-filter') || '';
     chip('All', !cur, function(){ list.setAttribute('data-filter', ''); applyStreamFilter(); });
     secs.forEach(function(b){
@@ -7781,6 +7802,7 @@
     closeUpNext();
     skipReset();
     stallReset();
+    sgReset();
     pauseBoardHide();
     pinfoSet(false);
     subOffsetReset();
@@ -13103,6 +13125,7 @@
     if (!skipState.segs || (party && !party.isHost)){ if (skipState.kind) skipHide(); return; }
     var hit = skipSegAt(t);
     if (!hit){ if (skipState.kind) skipHide(); return; }
+    if (sg.refused && !sgHeld(hit.seg.end)){ if (skipState.kind) skipHide(); return; }   // this file could not get past it
     if (skipMode() === 'auto' && !skipState.auto[hit.kind]){
       if (video.paused) return;             // a paused picture is not jumped about
       skipState.auto[hit.kind] = true;
@@ -13112,6 +13135,63 @@
     skipShow(hit.kind);
   }
   $id('skipBtn').onclick = function(){ skipNow(); };
+
+  // ---- a file this TV cannot jump about in (his LG, 10-15: an HdHub MKV whose index sits behind a second index at the file's
+  // end). A jump into what is loaded works; a jump past it is either ignored (the play goes on where it was — "Resumed from
+  // 1:58" playing from 0:06) or the clock sticks on the asked second while the picture plays on ("it gets stuck"). So a refused
+  // jump puts the clock back on the picture, says so, keeps a resume point it could not reach, and offers another row; after
+  // that a far jump stops at once at the edge of what is loaded. The TV's own player only (webOS, a plain file, not live).
+  var sg = { want: -1, wantAt: 0, from: 0, good: 0, goodAt: 0, timer: null, refused: false, keepFrom: 0, asked: 0, start: false, fixing: false, said: false };
+  function sgReset(){
+    clearTimeout(sg.timer);
+    sg.want = -1; sg.wantAt = 0; sg.from = 0; sg.good = 0; sg.goodAt = 0; sg.timer = null; sg.refused = false; sg.keepFrom = 0;
+    sg.asked = 0; sg.start = false; sg.fixing = false; sg.said = false;
+  }
+  function sgOn(){
+    if (!IS_WEBOS || tc || !player) return false;
+    try { return player.getLoadMode() === shaka.Player.LoadMode.SRC_EQUALS && !player.isLive(); } catch(e){ return false; }
+  }
+  function sgHeld(t){ var b = video.buffered; for (var i = 0; i < b.length; i++) if (b.start(i) - 1 <= t && t <= b.end(i) + 1) return true; return false; }
+  /** Where the picture is: the last second seen playing, plus the time since. */
+  function sgNow(){ return sg.good + ((video.paused || !sg.goodAt) ? 0 : (Date.now() - sg.goodAt) / 1000 * (video.playbackRate || 1)); }
+  /** The end of the loaded run the picture is in. */
+  function sgEdge(at){ var b = video.buffered, e = at; for (var i = 0; i < b.length; i++) if (b.start(i) <= at + 1 && b.end(i) > e) e = b.end(i); return e; }
+  function sgTick(){ if (sg.want >= 0 || sg.fixing || video.seeking || !sgHeld(video.currentTime)) return; sg.good = video.currentTime; sg.goodAt = Date.now(); }
+  function sgFix(t){ sg.fixing = true; try { video.currentTime = Math.max(0, t); } catch(e){} sg.good = Math.max(0, t); sg.goodAt = Date.now(); setTimeout(function(){ sg.fixing = false; }, 400); puiTick(); }
+  function sgOnSeeking(){
+    if (sg.fixing || !sgOn()) return;
+    var t = video.currentTime;
+    if (sgHeld(t)) return;                                   // into what is loaded: the TV does that
+    if (sg.refused){                                         // known now: stop at the edge of what is loaded, at once
+      var at = sgNow(), edge = sgEdge(at);
+      sgFix(t > at ? Math.max(at, edge - 2) : at);
+      setStatus('This file can only jump within what this TV has loaded' + (edge > at + 5 ? ' (up to ' + fmtT(edge) + ')' : '') + '.', 'info', 4000);
+      return;
+    }
+    if (sg.want < 0) sg.from = sgNow();                      // the picture's place when the jump was asked
+    sg.want = t; sg.wantAt = Date.now(); sg.start = !stall.playedAt;
+    clearTimeout(sg.timer); sg.timer = setTimeout(sgCheck, 4000);
+  }
+  function sgCheck(){
+    sg.timer = null;
+    if (sg.want < 0 || !sgOn()){ sg.want = -1; return; }
+    var t = sg.want, ct = video.currentTime, gone = (Date.now() - sg.wantAt) / 1000;
+    // still on its way (a slow host): the stall watch has that, not this
+    if (video.seeking || video.readyState < 3){ if (gone < 20) sg.timer = setTimeout(sgCheck, 2000); else sg.want = -1; return; }
+    if (sgHeld(ct) && Math.abs(ct - t) < gone + 5){ sg.want = -1; return; }   // it went there
+    var at = sg.from + (video.paused ? 0 : gone);
+    sg.want = -1; sg.refused = true; sg.asked = t;
+    if (sgHeld(ct)){ sg.good = ct; sg.goodAt = Date.now(); }
+    else sgFix(Math.min(at, sgEdge(sg.from) - 1));           // the clock had stuck on the asked second: back onto the picture
+    if (sg.start && t > 5){
+      sg.keepFrom = t;
+      setStatus('This file cannot start from ' + fmtT(t) + ' on this TV — it is playing from the beginning, and your place is kept.', 'info', 9000);
+    } else if (!sg.said){
+      setStatus('This TV cannot jump that far in this file — only within what it has loaded.', 'info', 7000);
+    }
+    sg.said = true;
+    if (!stall.offered && !stall.busy && curPlay && curPlay.id) stallOffer('seek');
+  }
 
   // ---- the stall watchdog: a source that keeps stopping is offered a sibling, mid-play ----
   // Three stalls inside ninety seconds — counted off the element itself, never a play's first buffering nor the one a jump
@@ -13179,7 +13259,7 @@
     }
     return null;
   }
-  /** why: '' = it keeps stalling, 'fail' = it would not play at all, 'sound' = it plays with no sound. */
+  /** why: '' = it keeps stalling, 'fail' = it would not play at all, 'sound' = it plays with no sound, 'seek' = this TV cannot jump in it. */
   async function stallOffer(why){
     if (party && !party.isHost) return;
     if (stall.busy) return;
@@ -13214,7 +13294,7 @@
   function srcShow(c, why){
     stall.sib = c; stall.shownAt = Date.now(); stall.why = why || '';
     var b = $id('srcBtn');
-    b.textContent = (why === 'fail' ? 'Won’t play' : why === 'sound' ? 'No sound' : 'Keeps stalling') + ' · Try ' + srcName(c);
+    b.textContent = (why === 'fail' ? 'Won’t play' : why === 'sound' ? 'No sound' : why === 'seek' ? 'Can’t jump' : 'Keeps stalling') + ' · Try ' + srcName(c);
     b.classList.add('show');
     // the pill takes focus unless the viewer is busy in the controls, so OK switches
     var ae = document.activeElement;
@@ -13234,6 +13314,7 @@
     try { flushProgress(true); } catch(e){}
     ctx.swapAt = 0;
     try { if (!puiIsLive()){ var r = puiRange(); ctx.swapAt = Math.max(0, video.currentTime - r.start); } } catch(e2){}
+    if (stall.why === 'seek' && (sg.keepFrom || sg.asked) > ctx.swapAt) ctx.swapAt = sg.keepFrom || sg.asked;   // the next row starts where this one would not go
     ctx.swapName = srcName(c);
     ctx.startOver = false; ctx.resumeChosen = true;
     ctx.pickedFrom = streamSig(c.s, c.a); savePick(ctx.pickedFrom); ctx.playSig = ctx.pickedFrom;
@@ -13623,6 +13704,8 @@
   // the stall watchdog reads the element itself, so a plain file and a converted one count the same as a segmented stream
   video.addEventListener('waiting', stallOnWaiting);
   video.addEventListener('seeking', stallOnSeeking);
+  video.addEventListener('seeking', sgOnSeeking);
+  video.addEventListener('timeupdate', sgTick);
   video.addEventListener('playing', stallOnPlaying);
 
   video.addEventListener('play', function(){ sleepState.fired = false; puiSyncPlayIcon(); puiShow(); });
