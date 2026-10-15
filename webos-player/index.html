@@ -2781,7 +2781,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.10.15.2';
+  var PLAYER_VERSION = '2026.10.15.3';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -2863,14 +2863,34 @@
   // A poster <img> that, when its URL 404s, swaps itself for the initials
   // placeholder instead of leaving a blank tile.
   function posterImg(url, name, cls){
-    var ph = phFor(name);
-    return '<img ' + (cls ? 'class="'+cls+'" ' : '') + 'loading="lazy" decoding="async" src="' + esc(url) +
-      '" onerror="this.outerHTML=\'<span class=&quot;thumb-ph&quot;>' + ph + '</span>\'">';
+    var ph = phFor(name), small = cardArtSmall(url);
+    // a smaller copy that is missing falls back to the full picture once, then to the initials
+    return '<img ' + (cls ? 'class="'+cls+'" ' : '') + 'loading="lazy" decoding="async" src="' + esc(small) + '"' +
+      (small !== url ? ' data-full="' + esc(url) + '"' : '') +
+      ' onerror="var f=this.getAttribute(\'data-full\');if(f){this.removeAttribute(\'data-full\');this.src=f;}else this.outerHTML=\'<span class=&quot;thumb-ph&quot;>' + ph + '</span>\'">';
+  }
+  /** A card's picture at the size a TV shows it. His LG decoded 1920×1080 and 2454×1380 backdrops for 400×225 cards —
+      90–130 ms each on its one raster thread, which the frame waited for (10-15). The hosts that offer smaller copies are
+      asked for one: metahub's small background (480×270), the film database's 780 wide (also through an add-on's cache). */
+  /** Before a block of cards is thrown away on a TV: a lazy picture that never loaded (a card off the side of its row) is
+      let go of first — Chromium 87 kept such pictures, and with them the whole discarded row, alive (his LG, 10-15). */
+  function imgsRelease(el){
+    if (!IS_TV || !el) return;
+    var ims = el.getElementsByTagName('img');
+    for (var i = 0; i < ims.length; i++){ var im = ims[i]; if (!im.complete){ im.removeAttribute('src'); im.removeAttribute('loading'); } }
+  }
+  function cardArtSmall(url){
+    if (!IS_TV || !url) return url;
+    var u = String(url);
+    if (/^https?:\/\/images\.metahub\.space\/background\/(medium|large)\//.test(u)) return u.replace(/\/background\/(medium|large)\//, '/background/small/');
+    if (/image\.tmdb\.org\/t\/p\/(original|w1280)\//.test(u)) return u.replace(/(image\.tmdb\.org\/t\/p\/)(original|w1280)\//, '$1w780/');
+    return u;
   }
 
   // ---------- view + focus ----------
   function show(name, push){
     var back = (push === false);
+    if (name === 'home' || name === 'library') cvSoon();   // rows drawn while their page was hidden are measured once it shows
     // transient toasts belong to the view that made them; errors stay sticky,
     // and one set moments ago (goBack's "Left the party.") is the new view's own
     if (statusEl.classList.contains('show') && !statusEl.classList.contains('err') &&
@@ -3054,7 +3074,41 @@
       var rail = document.getElementById('rail');
       if (rail) list = Array.prototype.slice.call(rail.querySelectorAll('.focusable')).concat(list);
     }
-    return list.filter(function(e){ return e.offsetParent !== null; });
+    // a card in a row the TV skips while it is off screen (cvSweep) takes its row's answer: asking each card forced the
+    // engine to lay every skipped row out again on every press (444 cards on his Home, 10-15)
+    var stamp = ++fsStamp;
+    return list.filter(function(e){
+      var p = e.parentNode;
+      if (p && p.__cvH){
+        if (p.__fsAt !== stamp){ p.__fsAt = stamp; p.__fsOn = p.offsetParent !== null; }
+        return p.__fsOn && !e.hidden && e.style.display !== 'none';
+      }
+      return e.offsetParent !== null;
+    });
+  }
+  var fsStamp = 0;
+  // ---- rows a TV skips while they are off screen (his LG, webOS 6, 10-15): Home held 32 rows as 100 compositor layers of
+  // 116 million pixels, and every frame of a glide re-checked all of them (70–97 ms a frame on a first visit). content-
+  // visibility lets the engine skip a row it cannot see; its height is kept by its measured size, so nothing moves. Chromium
+  // 85+ (webOS 6 and later); webOS 5's 68 does not have it and is left as it is.
+  var CV_OK = IS_TV && !!(window.CSS && CSS.supports && CSS.supports('content-visibility', 'auto'));
+  var cvTimer = null;
+  function cvSoon(){ if (!CV_OK) return; clearTimeout(cvTimer); cvTimer = setTimeout(cvSweep, 300); }
+  function cvSweep(){
+    cvTimer = null;
+    var rows = document.querySelectorAll('#view-home .hrow, #view-library .hrow'), todo = [], i;
+    for (i = 0; i < rows.length; i++){
+      var r = rows[i];
+      if (r.__cvH || r.style.display === 'none' || !r.firstElementChild || r.querySelector('.skel')) continue;
+      todo.push(r);
+    }
+    var sizes = todo.map(function(r){ return [r.offsetWidth, r.offsetHeight]; });   // every read first: one layout
+    todo.forEach(function(r, k){
+      if (!sizes[k][1]) return;
+      r.__cvH = sizes[k][1];
+      r.style.containIntrinsicSize = sizes[k][0] + 'px ' + sizes[k][1] + 'px';
+      r.style.contentVisibility = 'auto';
+    });
   }
   // ←/→ along a Home row on a TV: a held key moves one card a press for four presses, then two (Settings › Advanced ›
   // Fast row scrolling). Anywhere else, and on every other screen, it is the plain move.
@@ -5215,14 +5269,22 @@
     });
     return card;
   }
+  // The row is drawn again only when what it shows changed: every return to Home rebuilt it, and on his LG (Chromium 87)
+  // each discarded row stayed in memory — 20 cards, ~260 nodes and 220 listeners a title opened, measured 10-15.
+  var cwSig = '';
   function renderContinue(){
     var sec = document.getElementById('cwSection'); if (!sec) return;
     var items = getPrefs().cw === false ? [] : continueList();
+    var sig = (getPrefs().cwStyle || '') + '|' + JSON.stringify(items);
+    if (sig === cwSig && sec.__cwSig === sig) return;
+    cwSig = sig; sec.__cwSig = sig;
+    imgsRelease(sec);
     if (!items.length){ sec.innerHTML = ''; return; }
     sec.innerHTML = '<div class="rowhead"><span class="row-title">Continue Watching</span></div>';
     var row = document.createElement('div'); row.className = 'hrow';
     items.forEach(function(r){ row.appendChild(continueCard(r)); });
     sec.appendChild(row);
+    cvSoon();
   }
 
   // ---------- featured hero ----------
@@ -5455,6 +5517,7 @@
     }
     // Continue watching lives in its own section so the add-on rows (and their
     // unreachable-fallback) can be replaced without wiping it.
+    imgsRelease(wrap);
     wrap.innerHTML = '';
     var cwSec = document.createElement('div'); cwSec.id = 'cwSection'; wrap.appendChild(cwSec);
     var rowsWrap = document.createElement('div'); rowsWrap.id = 'addonRows'; wrap.appendChild(rowsWrap);
@@ -5512,6 +5575,7 @@
             if (!metas.length){ head.style.display='none'; row.style.display='none'; return; }
             rowsShown++;
             metas.forEach(function(meta){ row.appendChild(cardEl(meta, a, m, c)); });
+            cvSoon();
             if (rowsShown === 1){ bootReady(); foot.style.display = ''; }   // first real row on screen
             // boot on TV: give the first loaded row focus if nothing has it yet
             if (document.activeElement === document.body) focusFirst();
@@ -5534,6 +5598,7 @@
     var q = (input.value||'').trim();
     document.getElementById('globalSearchClear').style.display = q ? '' : 'none';
     var wrap = document.getElementById('searchResults');
+    imgsRelease(wrap);
     wrap.innerHTML = '';
     if (!q){ searchJump = false; searchIdle(); return; }
     var addons = activeAddons();
@@ -5979,7 +6044,7 @@
     var row = document.createElement('div'); row.className = 'hrow';
     items.slice(0, 15).forEach(function(it){ var c = friendItemCard(it, rated); if (c) row.appendChild(c); });
     if (!row.children.length) return;
-    wrap.appendChild(head); wrap.appendChild(row);
+    wrap.appendChild(head); wrap.appendChild(row); cvSoon();
   }
   /** After an ask is answered the Friends page is rebuilt (its lists arrive a moment later): the remote goes to the
       next ask, or to Add friend — never left on the page body, where the next press starts over from the top. */

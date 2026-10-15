@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.15.2",
+  "version": "2026.10.15.3",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Who's watching: an account can now hold two profiles, each with its own Continue Watching, resume points and My List (add-ons and settings stay shared). Add one in Settings › Profile; with two, Nebula asks who's watching when it opens."
+  "notes": "Smoother on LG TVs: Home skips the rows it cannot see and asks for card pictures at the size a TV shows them, and no longer keeps old rows in memory after each title or search. A file the TV cannot jump about in now says so, keeps your place and offers another source; Back leaves a stream that would not play; Search no longer lands on Clear."
 }
