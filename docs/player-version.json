@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.15.1",
+  "version": "2026.10.15.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "LG TVs: an Android phone can now convert a DTS film's sound for the TV (Nebula for Android › Settings › Playback › Convert sound for your TV) — the TV reads the picture itself and the phone sends the sound back."
+  "notes": "Who's watching: an account can now hold two profiles, each with its own Continue Watching, resume points and My List (add-ons and settings stay shared). Add one in Settings › Profile; with two, Nebula asks who's watching when it opens."
 }
