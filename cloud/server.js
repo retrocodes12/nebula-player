@@ -57,7 +57,7 @@ const GROUP_BURST = Number(process.env.GROUP_BURST || 6);   // per-IP burst for 
 // sign-up until the 400-day eviction; with it a fill takes hours of sustained effort (a real day brings a handful)
 const GROUP_ALL_PER_MIN = 10, GROUP_ALL_BURST = Number(process.env.GROUP_ALL_BURST || 300);
 const EMPTY_GROUP_MS = 7 * 24 * 3600_000;      // a group that never held anything (no data, profile, friends, devices) goes after a week
-const MAX_KEYS_PER_GROUP = 12;
+const MAX_KEYS_PER_GROUP = 20;                  // (12 until 10-15: two profiles add viewers, progress_b, library_b)
 const MAX_VALUE_BYTES = 300 * 1024;
 const MAX_GROUP_KV_BYTES = 1536 * 1024;        // every key of one group together (a heavy real one is ~300 KB)
 const IDLE_DROP_MS = 15 * 60_000;              // a group nobody asked for in this long leaves memory (its file stays)

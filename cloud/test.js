@@ -105,7 +105,7 @@ test('value and key caps hold', async () => {
   const token = g.body.gid + '.' + g.body.secret;
   const big = await api('PUT', '/v1/kv/big', { v: 'x'.repeat(301 * 1024) }, token);
   assert.equal(big.status, 413);
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 20; i++) {                    // 20 keys a group (12 until two profiles, 10-15)
     assert.equal((await api('PUT', '/v1/kv/k' + i, { v: '1' }, token)).status, 200);
   }
   assert.equal((await api('PUT', '/v1/kv/overflow', { v: '1' }, token)).status, 507);
