@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.14.2",
+  "version": "2026.10.15.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Picture size: a Picture button in the player (or the V key) chooses Fit, Fill — covers the screen and trims the edges — or Stretch, and remembers it on this device. On an LG TV, going back from a film to a long list of streams no longer leaves the screen stuck half see-through over Home for seconds."
+  "notes": "LG TVs: an Android phone can now convert a DTS film's sound for the TV (Nebula for Android › Settings › Playback › Convert sound for your TV) — the TV reads the picture itself and the phone sends the sound back."
 }
