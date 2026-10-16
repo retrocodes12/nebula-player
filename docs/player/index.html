@@ -4064,11 +4064,17 @@
     if (have !== null){ done(); return; }
     idbLoad(k).then(function(v){ if (v) return v; return db8Load(k); }).then(function(v){
       var arr = null; try { arr = v ? JSON.parse(v) : null; } catch(e){}
-      if (k === addonsKey()){
-        if (arr && arr.length){ try { LS.setItem(k, JSON.stringify(arr)); } catch(e){} }
-        else if (k === 'addons_b') profileAddonsSeed();
-      }
-      done();
+      if (k !== addonsKey()){ done(); return; }
+      if (arr && arr.length){ try { LS.setItem(k, JSON.stringify(arr)); } catch(e){} done(); return; }
+      if (k !== 'addons_b'){ done(); return; }
+      // the copy only when the account has no list for this profile yet: one another device keeps is pulled as it is
+      // (a copy merged into it brought the first profile's later add-ons along)
+      if (!cloudLinked()){ profileAddonsSeed(); done(); return; }
+      cloudApi('GET', '/v1/kv').then(function(res){
+        var keys = (res && res.keys) || {};
+        if (keys.addons_b){ try { LS.setItem('addons_b', '[]'); LS.setItem('addons_sync_b', '{}'); } catch(e){} addonsSyncMeta = null; }
+        else profileAddonsSeed();
+      }, function(){ profileAddonsSeed(); }).then(done);
     });
   }
   function switchViewer(id, quiet){
