@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.15.3",
+  "version": "2026.10.16.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Smoother on LG TVs: Home skips the rows it cannot see and asks for card pictures at the size a TV shows them, and no longer keeps old rows in memory after each title or search. A file the TV cannot jump about in now says so, keeps your place and offers another source; Back leaves a stream that would not play; Search no longer lands on Clear."
+  "notes": "Who's watching has a new look: big round profiles with their names, and Manage Profiles to edit a profile's name and colour, add a second profile or remove it. Settings opens the same picker."
 }
