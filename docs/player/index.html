@@ -1523,18 +1523,65 @@
     align-items:center; justify-content:center; font-weight:700; font-size:calc(21px * var(--ts)); flex:0 0 auto; margin-right:16px; }
   .pav.big { width:84px; height:84px; font-size:calc(34px * var(--ts)); margin-right:22px; }
   .pav.dim { color:var(--label2); }
-  /* who's watching (two profiles on one account): a quiet full-screen choice at launch */
-  #who { position:fixed; left:0; top:0; right:0; bottom:0; z-index:205; background:var(--bg); display:none; flex-direction:column; align-items:center; justify-content:center; }
+  /* who's watching (two profiles on one account; 10-16: the layout of the reference the Founder sent — the mark and the
+     question on top, two big round monograms, Manage Profiles; managing = a pencil on each, Add Profile, Done) */
+  #who { position:fixed; left:0; top:0; right:0; bottom:0; z-index:205; background:var(--bg); display:none; flex-direction:column;
+    align-items:center; padding:72px 16px 40px; overflow-y:auto; }
+  html.tv #who { padding:0 40px; justify-content:center; }
   #who.on { display:flex; }
-  #who h2 { font-size:calc(30px * var(--ts)); font-weight:600; letter-spacing:-.02em; margin:0 0 40px; color:var(--label); }
-  .who-row { display:flex; }
-  .who-tile { display:flex; flex-direction:column; align-items:center; background:none; border:0; color:var(--label2); cursor:pointer;
-    padding:16px 20px; margin:0 14px; border-radius:20px; font:inherit; outline:none; }
-  .who-tile .pav { width:116px; height:116px; margin:0 0 14px; font-size:calc(46px * var(--ts)); }
-  .who-tile .n { font-size:calc(18px * var(--ts)); }
-  .who-tile:hover, .who-tile:focus-visible, .who-tile:focus { background:var(--l1); color:var(--label); }
-  .who-tile:focus-visible .pav, .who-tile:focus .pav { box-shadow:0 0 0 4px #fff; }
-  html.tv .who-tile .pav { width:150px; height:150px; font-size:calc(60px * var(--ts)); }
+  .who-mark { display:flex; align-items:center; color:var(--label); font-size:calc(26px * var(--ts)); font-weight:700; letter-spacing:-.025em; }
+  .who-mark i { font-style:normal; color:var(--accent); font-size:calc(22px * var(--ts)); margin-right:8px; }
+  #who h2 { font-size:calc(32px * var(--ts)); font-weight:700; letter-spacing:-.025em; margin:22px 0 60px; color:var(--label); text-align:center; }
+  html.tv #who h2 { font-size:calc(46px * var(--ts)); margin:26px 0 56px; }
+  html.tv .who-mark { font-size:calc(34px * var(--ts)); }
+  .who-row { display:flex; flex-wrap:wrap; justify-content:center; max-width:460px; }
+  html.tv .who-row { max-width:700px; }
+  .who-tile { display:flex; flex-direction:column; align-items:center; width:180px; margin:0 20px 36px; padding:0; background:none; border:0;
+    color:var(--label); cursor:pointer; font:inherit; outline:none; }
+  html.tv .who-tile { width:250px; margin:0 50px 36px; }
+  .who-av { position:relative; width:162px; height:162px; border-radius:50%; border:5px solid transparent; display:flex; align-items:center; justify-content:center; }
+  html.tv .who-av { width:222px; height:222px; border-width:6px; }
+  .who-tile.cur .who-av { border-color:rgba(255,255,255,.2); }
+  .who-tile:hover .who-av, html.tv .who-tile:focus .who-av { border-color:#fff; }
+  .who-tile:focus-visible .who-av { border-color:#fff; }
+  .who-mono { width:150px; height:150px; border-radius:50%; border:2px solid; display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:calc(60px * var(--ts)); }
+  html.tv .who-mono { width:204px; height:204px; font-size:calc(84px * var(--ts)); }
+  html.tv .who-pen { width:54px; height:54px; } html.tv .who-pen svg { width:26px; height:26px; }
+  html.tv .who-tile .n { font-size:calc(24px * var(--ts)); margin-top:18px; }
+  html.tv .who-btn { font-size:calc(22px * var(--ts)); padding:16px 40px; }
+  .who-add .who-mono { background:var(--surface); border:1.5px solid var(--line2); color:var(--label2); }
+  .who-add .who-mono svg { width:46px; height:46px; }
+  .who-pen { position:absolute; right:-2px; bottom:4px; width:44px; height:44px; border-radius:50%; background:#F2F2F7; border:2px solid var(--bg);
+    display:none; align-items:center; justify-content:center; color:#000; }
+  .who-pen svg { width:20px; height:20px; }
+  #who.manage .who-pen { display:flex; }
+  .who-tile .n { margin-top:14px; font-size:calc(18px * var(--ts)); font-weight:600; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .who-add .n { color:var(--label2); }
+  .who-btn { margin-top:20px; padding:14px 34px; border-radius:999px; border:1px solid var(--line); background:none; color:var(--label2);
+    font:inherit; font-size:calc(18px * var(--ts)); font-weight:600; cursor:pointer; outline:none; }
+  #who.manage #whoManage { background:var(--surface2); border-color:var(--line2); color:var(--label); }
+  .who-btn.solid { background:#F2F2F7; border-color:#F2F2F7; color:#000; padding:14px 40px; }
+  .who-btn.danger { border-color:transparent; color:#FF453A; font-size:calc(16px * var(--ts)); font-weight:500; margin-top:10px; padding:10px 20px; }
+  .who-btn:hover { color:var(--label); }
+  .who-btn.solid:hover { color:#000; }
+  html.tv .who-btn:focus { box-shadow:0 0 0 3px var(--bg), 0 0 0 6px #fff; }
+  .who-btn:focus-visible { box-shadow:0 0 0 3px var(--bg), 0 0 0 6px #fff; }
+  #whoEdit { display:none; flex-direction:column; align-items:center; width:100%; max-width:360px; }
+  #who.editing #whoEdit { display:flex; }
+  #who.editing .who-pick { display:none; }
+  .who-pick { display:flex; flex-direction:column; align-items:center; }
+  #whoEdit .who-mono { margin:6px 0 26px; }
+  #whoEdName { width:100%; }
+  #whoEdAv { display:flex; flex-wrap:wrap; justify-content:center; margin:20px 0 16px; }
+  #whoEdAv .swatch { margin:4px 6px; width:32px; height:32px; }
+  @media (max-width:480px){
+    .who-tile { width:150px; margin:0 8px 30px; }
+    .who-av { width:134px; height:134px; }
+    .who-mono { width:122px; height:122px; font-size:calc(50px * var(--ts)); }
+    #who h2 { margin-bottom:44px; }
+  }
+  .who-note { color:var(--label2); font-size:calc(13px * var(--ts)); text-align:center; margin-top:22px; line-height:1.4; }
   .phead { display:flex; align-items:center; margin:6px 0 22px; }
   .pname { font-size:calc(28px * var(--ts)); font-weight:700; letter-spacing:-.026em; line-height:1.1; }
   .phandle { font-family:var(--mono); color:var(--label2); font-size:calc(13px * var(--ts)); margin-top:5px; letter-spacing:.02em; }
@@ -2082,7 +2129,7 @@
 <body>
   <!-- Boot screen. Static markup, above the script, so it paints on the first
        frame — the whole point is that nobody ever sees an empty Home. -->
-  <div id="who" role="dialog" aria-label="Who's watching?"><h2>Who's watching?</h2><div class="who-row" id="whoRow"></div></div>
+  <div id="who" role="dialog" aria-label="Who's watching?"><div class="who-pick"><div class="who-mark"><i>◆</i>Nebula</div><h2>Who's watching?</h2><div class="who-row" id="whoRow"></div><button type="button" id="whoManage" class="who-btn focusable">Manage Profiles</button></div><div id="whoEdit"><h2>Edit profile</h2><span id="whoEdMono" class="who-mono"></span><input id="whoEdName" class="focusable field" type="text" maxlength="24" autocomplete="off" /><div id="whoEdAv"></div><button type="button" id="whoEdSave" class="who-btn solid focusable">Save</button><button type="button" id="whoEdDel" class="who-btn danger focusable">Remove profile</button><p class="who-note">Each profile keeps its own Continue Watching, resume points and My List. Add-ons and settings are shared.</p></div></div>
   <div id="boot">
     <div class="boot-mark">
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6 21.4 12 12 21.4 2.6 12 12 2.6Z"/></svg>
@@ -2335,16 +2382,8 @@
         </button>
         <!-- who's watching: up to two profiles on one account, each with its own history (whoRender) -->
         <div class="setrow" id="setWhoRow">
-          <span class="setname">Who's watching<small>Each profile keeps its own Continue Watching, resume points and My List · Add-ons and settings are shared</small></span>
-          <span id="setWho" class="seg"></span>
-        </div>
-        <div class="setrow" id="setWhoNameRow" style="display:none">
-          <span class="setname">This profile's name<small>Shown when Nebula asks who's watching</small></span>
-          <input id="setWhoName" class="focusable field" type="text" maxlength="24" autocomplete="off" style="flex:0 1 240px" />
-        </div>
-        <div class="setrow" id="setWhoDelRow" style="display:none">
-          <span class="setname">Remove the second profile<small>Its history is kept, and comes back if a second profile is added again</small></span>
-          <button id="setWhoDel" class="textbtn focusable">Remove</button>
+          <span class="setname">Who's watching<small id="setWhoSub">Each profile keeps its own Continue Watching, resume points and My List · Add-ons and settings are shared</small></span>
+          <button id="setWhoOpen" class="textbtn focusable">Profiles</button>
         </div>
       </section>
       <section class="con-sec panel" data-sec="appearance">
@@ -3939,7 +3978,11 @@
     var n = v && String(v.name || '').trim(); if (n) return n;
     return v && v.id === 'b' ? 'Profile 2' : ((typeof profile !== 'undefined' && profile && profile.name) || 'You');
   }
-  function viewerAv(v){ return v && v.id === 'b' ? (v.av || '#0A84FF') : ((typeof profile !== 'undefined' && profile && profile.avatar) || '#636366'); }
+  // the first profile wears the account's colour until it is given one of its own (the picker's editor)
+  function viewerAv(v){
+    if (v && /^#[0-9a-f]{6}$/i.test(String(v.av || ''))) return v.av;
+    return v && v.id === 'b' ? '#0A84FF' : ((typeof profile !== 'undefined' && profile && profile.avatar) || '#636366');
+  }
   function viewerCur(){ var l = viewerList(); for (var i = 0; i < l.length; i++) if (l[i].id === viewer) return l[i]; return l[0]; }
   function viewerSetList(list){
     getViewers().list = list.map(function(v){ return { id: v.id, name: String(v.name || '').slice(0, 24), av: v.av || '' }; });
@@ -3974,75 +4017,160 @@
     if (ra > (local.at || 0)){
       viewersDoc = { at: ra, list: remote.list.slice(0, 2) }; saveViewers(false);
       if (viewer === 'b' && viewerList().length < 2) switchViewer('a', true);   // removed on another device
-      if (whoOpen && viewerList().length < 2) whoClose(viewer);                 // (no longer a choice)
+      if (whoOpen && !whoFrom && !whoEditing && viewerList().length < 2) whoClose(viewer);   // (no longer a choice at launch)
       whoRender();
       return { changed: true, localNewer: false };
     }
     return { changed: false, localNewer: (local.at || 0) > ra };
   }
-  /** Settings › Profile: the profiles as chips (pick = switch, + = add and switch to it), this one's name, removing the second. */
+  /** Settings › Profile: one row; its button opens the picker (switch, add, edit — all there). */
   function whoRender(){
-    var host = $id('setWho'); if (!host) return;
+    var sub = $id('setWhoSub'), btn = $id('setWhoOpen'); if (!sub || !btn) return;
     var l = viewerList();
-    segChips('setWho', l.map(function(v){ return [viewerName(v), v.id]; }).concat(l.length < 2 ? [['+ Add a profile', '+']] : []), viewer, function(id){
-      if (id === '+'){
-        viewerSetList(viewerList().concat([{ id: 'b', name: '', av: '#0A84FF' }]));
-        switchViewer('b', true);
-        setStatus('Added Profile 2 — it starts with an empty history. Give it a name below.', 'ok', 4000);
-        return;
-      }
-      switchViewer(id);
-    });
-    var cur = viewerCur(), nm = $id('setWhoName'), del = $id('setWhoDel');
-    if (nm && !nm.__wired){
-      nm.__wired = true;
-      nm.addEventListener('change', function(){
-        var l2 = viewerList(); l2.forEach(function(v){ if (v.id === viewer) v.name = nm.value.trim().slice(0, 24); });
-        viewerSetList(l2); whoRender();
-      });
-    }
-    if (nm && document.activeElement !== nm){ nm.value = cur.name || ''; nm.placeholder = viewerName(cur); }
-    if (del && !del.__wired){
-      del.__wired = true;
-      del.onclick = function(){
-        if (viewer === 'b') switchViewer('a', true);
-        viewerSetList(viewerList().filter(function(v){ return v.id !== 'b'; }));
-        whoRender(); setStatus('Removed the second profile. Its history is kept if you add it again.', 'ok', 3500);
-      };
-    }
-    $id('setWhoNameRow').style.display = l.length > 1 ? '' : 'none';
-    $id('setWhoDelRow').style.display = l.length > 1 ? '' : 'none';
+    sub.textContent = l.length < 2 ? 'Add a second profile for someone else in the house · Each keeps its own Continue Watching, resume points and My List'
+      : 'Watching as ' + viewerName(viewerCur()) + ' · Each profile keeps its own Continue Watching, resume points and My List';
+    if (!btn.__wired){ btn.__wired = true; btn.onclick = function(){ whoShow(btn); }; }
+    if (whoOpen && !whoEditing) whoDraw();
   }
-  /** At launch with two profiles: who's watching? (the remote's ←/→ and OK, Back keeps the one this device was on) */
-  function whoBoot(){
-    var l = viewerList(), box = $id('who'), row = $id('whoRow');
-    if (l.length < 2 || !box || !row) return;
-    row.innerHTML = '';
-    var first = null;
-    l.forEach(function(v){
-      var b = document.createElement('button'); b.type = 'button'; b.className = 'who-tile focusable';
-      b.innerHTML = '<span class="pav" style="' + avStyle(viewerAv(v)) + '">' + esc(avLetter(viewerName(v))) + '</span><span class="n">' + esc(viewerName(v)) + '</span>';
-      b.onclick = function(){ whoClose(v.id); };
-      row.appendChild(b);
-      if (v.id === viewer) first = b;
-    });
-    box.classList.add('on');
+  var WHO_PEN = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+  var WHO_PLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+  /** A colour as rgba (the monogram's tint and ring); anything that is not #rrggbb is the grey. */
+  function whoRgba(av, a){
+    av = /^#[0-9a-f]{6}$/i.test(String(av || '')) ? av : '#636366';
+    var n = parseInt(av.slice(1), 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+  /** The big monogram: the colour as a deep tint, a ring of it, the letter in it. */
+  function whoMonoStyle(av){
+    av = /^#[0-9a-f]{6}$/i.test(String(av || '')) ? av : '#636366';
+    return 'background:' + whoRgba(av, .2) + ';border-color:' + whoRgba(av, .6) + ';color:' + av;
+  }
+  var whoOpen = false, whoManaging = false, whoEditing = null, whoFrom = null, whoEdAv = '';
+  /** The picker: at launch with two profiles (whoBoot), and from Settings (from = the button to come back to). */
+  function whoShow(from){
+    whoFrom = from || null; whoManaging = false; whoEditing = null;
+    $id('who').classList.add('on'); $id('who').classList.remove('editing');
     whoOpen = true;
-    setTimeout(function(){ var f = first || row.firstChild; try { f.focus({ preventScroll: true }); } catch(e){ f.focus(); } }, 30);
+    whoDraw();
+    whoFocus($id('whoRow').querySelector('.who-tile.cur') || $id('whoRow').firstChild);
   }
-  var whoOpen = false;
+  // only under a remote or a keyboard: a finger or a mouse needs no lit control (and a phone no keyboard thrown up)
+  function whoFocus(el){
+    if (!el || !(IS_TV || kbUsed)) return;
+    var put = function(){ try { el.focus({ preventScroll: true }); } catch(e){ el.focus(); } };
+    setTimeout(put, 30);
+    // at launch the boot's own landing can take focus after this: put it back if it left the picker
+    setTimeout(function(){ var a = document.activeElement; if (whoOpen && !(a && a.closest && a.closest('#who'))) put(); }, 400);
+  }
+  function whoDraw(){
+    var l = viewerList(), box = $id('who'), row = $id('whoRow');
+    if (!box || !row) return;
+    if (whoManaging) box.classList.add('manage'); else box.classList.remove('manage');
+    // a redraw (a sync, the profile arriving) must not drop the remote's place: the lit tile is lit again after
+    var ae = document.activeElement, lit = ae && ae.parentNode === row ? (ae.getAttribute('data-who') || '+') : null;
+    row.innerHTML = '';
+    l.forEach(function(v){
+      var b = document.createElement('button'); b.type = 'button';
+      b.className = 'who-tile focusable' + (v.id === viewer ? ' cur' : '');
+      b.setAttribute('data-who', v.id);
+      b.innerHTML = '<span class="who-av"><span class="who-mono" style="' + whoMonoStyle(viewerAv(v)) + '">' + esc(avLetter(viewerName(v))) +
+        '</span><span class="who-pen" aria-hidden="true">' + WHO_PEN + '</span></span><span class="n">' + esc(viewerName(v)) + '</span>';
+      b.setAttribute('aria-label', whoManaging ? 'Edit ' + viewerName(v) : viewerName(v));
+      b.onclick = function(){ if (whoManaging) whoEdit(v.id); else whoClose(v.id); };
+      row.appendChild(b);
+    });
+    if (whoManaging && l.length < 2){
+      var a = document.createElement('button'); a.type = 'button'; a.className = 'who-tile who-add focusable';
+      a.innerHTML = '<span class="who-av"><span class="who-mono">' + WHO_PLUS + '</span></span><span class="n">Add Profile</span>';
+      a.onclick = function(){
+        viewerSetList(viewerList().concat([{ id: 'b', name: '', av: '#0A84FF' }]));
+        whoRender(); whoEdit('b');
+      };
+      row.appendChild(a);
+    }
+    if (lit){ var back = lit === '+' ? row.querySelector('.who-add') : row.querySelector('[data-who="' + lit + '"]'); if (back) try { back.focus({ preventScroll: true }); } catch(e){ back.focus(); } }
+    var m = $id('whoManage');
+    m.textContent = whoManaging ? 'Done' : 'Manage Profiles';
+    m.onclick = function(){ whoManaging = !whoManaging; whoDraw(); whoFocus(m); };
+  }
+  /** A pencil pressed: the profile's name and colour; the second can be removed (its history is kept). */
+  function whoEdit(id){
+    var v = null; viewerList().forEach(function(x){ if (x.id === id) v = x; });
+    if (!v) return;
+    whoEditing = id; whoEdAv = viewerAv(v);
+    $id('who').classList.add('editing');
+    var nm = $id('whoEdName'), mono = $id('whoEdMono'), avs = $id('whoEdAv');
+    nm.value = v.name || ''; nm.placeholder = viewerName({ id: id, name: '' });
+    var paint = function(){
+      mono.setAttribute('style', whoMonoStyle(whoEdAv));
+      mono.textContent = avLetter(nm.value.trim() || viewerName(v));
+      Array.prototype.forEach.call(avs.children, function(b){ b.className = 'swatch focusable' + (b.__av.toUpperCase() === whoEdAv.toUpperCase() ? ' on' : ''); });
+    };
+    avs.innerHTML = '';
+    AVATARS.forEach(function(a){
+      var b = document.createElement('button'); b.type = 'button'; b.__av = a; b.style.background = a; b.title = 'Colour';
+      b.onclick = function(){ whoEdAv = a; paint(); };
+      avs.appendChild(b);
+    });
+    nm.oninput = paint;
+    nm.onkeydown = function(e){ if (e.keyCode === 13){ e.preventDefault(); $id('whoEdSave').click(); } };
+    paint();
+    $id('whoEdSave').onclick = function(){
+      var l2 = viewerList(); l2.forEach(function(x){ if (x.id === id){ x.name = nm.value.trim().slice(0, 24); x.av = whoEdAv; } });
+      viewerSetList(l2); whoEditDone(id);
+    };
+    var del = $id('whoEdDel');
+    del.style.display = id === 'b' ? '' : 'none';
+    del.onclick = function(){
+      if (viewer === 'b') switchViewer('a', true);
+      viewerSetList(viewerList().filter(function(x){ return x.id !== 'b'; }));
+      setStatus('Removed the second profile. Its history is kept if you add it again.', 'ok', 3500);
+      whoEditDone('a');
+    };
+    // a TV's keyboard comes up on a focused field: land on Save there, in the field elsewhere
+    whoFocus(IS_TV ? $id('whoEdSave') : nm);
+  }
+  function whoEditDone(id){
+    whoEditing = null; $id('who').classList.remove('editing');
+    try { $id('whoEdName').blur(); } catch(e){}
+    whoRender(); whoDraw();
+    whoFocus($id('whoRow').querySelector('[data-who="' + id + '"]') || $id('whoManage'));
+  }
+  /** At launch with two profiles: who's watching? */
+  function whoBoot(){ if (viewerList().length === 2) whoShow(null); }
   function whoClose(id){
-    whoOpen = false; $id('who').classList.remove('on');
-    switchViewer(id, true);
-    try { focusFirst(); } catch(e){}
+    var from = whoFrom;
+    whoOpen = false; whoManaging = false; whoEditing = null; whoFrom = null;
+    $id('who').classList.remove('on', 'manage', 'editing');
+    if (id !== viewer) switchViewer(id, !from); else whoRender();
+    if (from) whoFocus(from); else { try { focusFirst(); } catch(e){} }
+  }
+  /** The remote inside the picker: arrows to the nearest control that way, OK presses it, Back steps out. */
+  function whoMove(k){
+    var cur = document.activeElement, all = Array.prototype.slice.call(document.querySelectorAll('#who .focusable')).filter(function(el){ return el.offsetParent !== null; });
+    if (all.indexOf(cur) < 0){ var c0 = $id('whoRow').querySelector('.who-tile.cur') || all[0]; if (c0) c0.focus(); return; }
+    var r = cur.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, best = null, bd = 1e9;
+    all.forEach(function(el){
+      if (el === cur) return;
+      var q = el.getBoundingClientRect(), x = q.left + q.width / 2 - cx, y = q.top + q.height / 2 - cy;
+      var along = k === 37 ? -x : k === 39 ? x : k === 38 ? -y : y, across = (k === 37 || k === 39) ? Math.abs(y) : Math.abs(x);
+      if (along <= 1) return;
+      var d = along + across * 2;
+      if (d < bd){ bd = d; best = el; }
+    });
+    if (best) best.focus();
   }
   window.addEventListener('keydown', function(e){
     if (!whoOpen) return;
-    var k = e.keyCode, tiles = Array.prototype.slice.call(document.querySelectorAll('#whoRow .who-tile')), i = tiles.indexOf(document.activeElement);
-    if (k === 37 || k === 39){ var n = tiles[Math.max(0, Math.min(tiles.length - 1, (i < 0 ? 0 : i) + (k === 39 ? 1 : -1)))]; if (n) n.focus(); }
-    else if (k === 13){ (tiles[i] || tiles[0]).click(); }
-    else if (k === 461 || k === 27 || k === 8){ whoClose(viewer); }
-    else if (k !== 38 && k !== 40) return;
+    var k = e.keyCode, ae = document.activeElement, typing = ae && ae.tagName === 'INPUT';
+    if (k >= 37 && k <= 40){ if (typing && (k === 37 || k === 39)) return; whoMove(k); }
+    else if (k === 13){ if (typing) return; if (ae && ae.closest && ae.closest('#who')) ae.click(); }
+    else if (k === 461 || k === 27 || (k === 8 && !typing)){
+      if (whoEditing) whoEditDone(whoEditing);
+      else if (whoManaging){ whoManaging = false; whoDraw(); whoFocus($id('whoManage')); }
+      else whoClose(viewer);
+    }
+    else return;
     e.preventDefault(); e.stopImmediatePropagation();
   }, true);
   // Watch progress rides the same mirrors — losing your place to an overnight
