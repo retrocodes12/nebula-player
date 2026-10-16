@@ -270,6 +270,8 @@
   .disc-pills .chip { margin:0 8px 8px 0; background:var(--l2); border-color:var(--line); color:var(--ink); font-weight:600; }
   .disc-pills .chip .dp-v { margin-right:6px; }
   .disc-pills .chip .dp-c { opacity:.55; font-size:.85em; }
+  .dp-c .chev { width:1em; height:1em; vertical-align:-.12em; display:inline-block; }
+  .chip .dp-c { opacity:.6; }
   .disc-src { color:var(--label2); font-size:calc(14px * var(--ts)); margin:0 0 14px; }
   .disc-status { color:var(--label2); font-size:calc(14px * var(--ts)); margin:0 0 12px; }
   .sheet-acts { max-height:60vh; overflow-y:auto; scrollbar-width:none; }
@@ -1798,6 +1800,36 @@
   html.tv .hf-info { left:var(--pad); right:auto; bottom:28px; max-width:840px; }
   html.tv .hf-facts { font-family:var(--mono); font-weight:500; letter-spacing:.14em; }
   html.tv .hf-dots { right:var(--pad); bottom:52px; }
+  /* the spotlight (10-16): the hero holds the top and the rows scroll in a box of their own under it, the lit row just
+     below the hero. Not a sticky hero over the page's own scroll: Chromium 68 repainted a sticky box on every frame of a
+     glide at 1x (+35 % a press, measured) */
+  html.tv #view-home { overflow:hidden; padding-bottom:0; }
+  html.tv #view-home.active, html.tv #view-home.kept { display:flex; flex-direction:column; }
+  html.tv #homeHero { flex:0 0 auto; }
+  html.tv #homeRows { flex:1 1 auto; min-height:0; overflow-x:hidden; overflow-y:auto; margin:0 calc(-1 * var(--pad));
+    padding:0 var(--pad) 40px; scrollbar-width:none; position:relative; z-index:0; background-color:var(--bg); }
+  html.tv #homeRows::-webkit-scrollbar { display:none; }
+  /* the side menu, open: the page behind it dims, and the profile watching heads it */
+  #railScrim, #railWho { display:none; }
+  html.tv #railScrim { display:block; position:fixed; top:0; left:0; right:0; bottom:0; z-index:19; background:rgba(0,0,0,.62);
+    opacity:0; pointer-events:none; transition:opacity .22s var(--ease); }
+  html.tv body.rail-open #railScrim { opacity:1; }
+  html.tv #railWho { display:flex; align-items:center; margin-bottom:30px; }
+  html.tv .rw-av { width:32px; height:32px; border-radius:50%; border:1.5px solid; flex:0 0 auto; margin:-1px 16px -1px -1px;
+    display:flex; align-items:center; justify-content:center; font-style:normal; font-weight:700; font-size:calc(15px * var(--ts)); }
+  /* the title page on a TV: the backdrop holds still behind the whole page and darkens as the page scrolls over it */
+  /* (lite TVs only: elsewhere the page's entrance slides with a transform, which makes it the frame of a fixed box) */
+  html.tv.lite #view-detail .det-back { position:fixed; top:0; left:var(--railw); right:0; height:100vh; }
+  html.tv.lite #view-detail .det-back::after { background:linear-gradient(180deg, rgba(0,0,0,.24) 0%, rgba(0,0,0,.04) 28%, rgba(0,0,0,.58) 62%, rgba(0,0,0,.86) 100%); }
+  .det-dim { display:none; }
+  html.tv .det-dim { display:block; position:absolute; top:0; left:0; right:0; bottom:0; z-index:2; background:var(--bg); opacity:0; }
+  /* cast as round monograms with the name under them */
+  .cast-av { display:none; }
+  html.tv .det-chips.cast { margin-top:14px; }
+  html.tv .det-chips.cast span { display:flex; flex-direction:column; align-items:center; width:150px; margin:0 18px 14px 0; padding:0;
+    border:0; background:none; text-align:center; white-space:normal; line-height:1.3; color:var(--label2); }
+  html.tv .cast-av { display:flex; align-items:center; justify-content:center; width:112px; height:112px; border-radius:50%; margin-bottom:12px;
+    background:var(--surface2); color:var(--label); font-style:normal; font-weight:700; font-size:calc(42px * var(--ts)); }
   html.tv .page-title { font-size:calc(52px * var(--ts)); }
   html.tv .topbar-title { font-size:calc(44px * var(--ts)); }
   html.tv .row-title { font-size:calc(26px * var(--ts)); }
@@ -2073,6 +2105,8 @@
   /* ---- lite (real TVs): identical layout, cheap rendering ---- */
   html.lite * { -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
   html.lite #rail { transition:none; box-shadow:none; }
+  html.lite #railScrim { transition:none; opacity:1; visibility:hidden; }
+  html.lite body.rail-open #railScrim { visibility:visible; }
   html.lite #rail.open { border-right:1px solid rgba(255,255,255,.14); }
   html.lite .rail-brand span, html.lite .navitem span { transition:none; }
   html.lite #homeHero { box-shadow:none; }
@@ -2116,6 +2150,7 @@
   html.lite .card.focusable:focus { z-index:auto; }
   /* Home under the page on top (show()) — never the leaving fade's display:none */
   html.lite #view-home.kept { display:block; z-index:1; animation:none; }
+  html.lite.tv #view-home.kept { display:flex; }    /* the same layout as when it shows: nothing is laid out again */
   /* Back to Home is a cut: it is already drawn underneath, and its fade re-made every row's layer (repainted them all) */
   html.lite #view-home.active { animation:none; }
   html.lite body.playing #view-home.kept { opacity:0; }
@@ -2267,8 +2302,10 @@
   </div>
 
   <!-- nav rail (Home / Search / Add-ons) -->
+  <div id="railScrim" aria-hidden="true"></div>
   <div id="rail">
     <div class="rail-brand"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6 21.4 12 12 21.4 2.6 12 12 2.6Z"/></svg><span>Nebula</span></div>
+    <button id="railWho" class="navitem focusable" title="Who's watching"><i class="rw-av" aria-hidden="true"></i><span></span></button>
     <button id="navHome" class="navitem focusable on" data-tab="home" title="Home">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
       <span>Home</span></button>
@@ -3083,6 +3120,7 @@
     if (preserveScroll){
       var t = viewFocusTake(v);
       if (t){
+        if (IS_TV && spotReveal(t)) return;     // a TV's Home: the row just under the hero, as the remote leaves it
         try { t.focus({ preventScroll: true }); } catch(e){ t.focus(); }
         try { t.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch(e2){}
         return;
@@ -3192,7 +3230,8 @@
   }
   function stepFrom(list, cur, dx, dy){
     var browsing = document.body.className.indexOf('playing') === -1;
-    var best = (IS_TV && browsing) ? tvBrowseStep(list, cur, dx, dy) : pickNearest(list, cur, dx, dy);
+    var sp = (IS_TV && browsing && dy && !dx && spotOn() && $id('homeRows').contains(cur)) ? spotStep(list, cur, dy) : undefined;
+    var best = sp !== undefined ? sp : (IS_TV && browsing) ? tvBrowseStep(list, cur, dx, dy) : pickNearest(list, cur, dx, dy);
     // a season row is entered on the season on screen, never on whichever chip happened to sit nearest
     if (best && dy && best.parentNode && (best.parentNode.id === 'detSeasonRow' || best.parentNode.id === 'seasonRow') && !best.parentNode.contains(cur)){
       var son = best.parentNode.querySelector('.chip.on');
@@ -3219,6 +3258,7 @@
       focus() itself does, Chromium's "centre if needed": a spot wholly out of its scroller is centred, any other is
       brought to the nearest edge. Everywhere else, exactly as before. */
   function focusReveal(el){
+    if (IS_TV && spotReveal(el)) return;
     if (!IS_LITE){ el.focus(); try { el.scrollIntoView({ block:'nearest', inline:'nearest' }); } catch(e){} return; }
     try { el.focus({ preventScroll: true }); } catch(e){ el.focus(); }
     var r = el.getBoundingClientRect();
@@ -3348,8 +3388,10 @@
     var v = $id('view-home');
     if (!IS_WEBOS || !v || !v.classList.contains('active')){ show('home', false); return; }
     var f = firstFocusable(v), ae = document.activeElement;
-    if (v.scrollTop > 4 || (f && ae !== f)){
-      try { v.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e){ v.scrollTop = 0; }
+    var sc = IS_TV ? $id('homeRows') : v;          // a TV's Home scrolls its rows box (the hero holds the top)
+    if (sc.scrollTop > 4 || v.scrollTop > 4 || (f && ae !== f)){
+      try { sc.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e){ sc.scrollTop = 0; }
+      v.scrollTop = 0;
       if (f){ try { f.focus({ preventScroll: true }); } catch(e2){ f.focus(); } }
       return;
     }
@@ -4024,7 +4066,17 @@
     return { changed: false, localNewer: (local.at || 0) > ra };
   }
   /** Settings › Profile: one row; its button opens the picker (switch, add, edit — all there). */
+  /** The TV's side menu: the profile watching, at its head (OK opens the picker). */
+  function railWhoRender(){
+    var b = $id('railWho'); if (!b || !IS_TV) return;
+    var v = viewerCur(), av = b.querySelector('.rw-av');
+    av.setAttribute('style', whoMonoStyle(viewerAv(v)));
+    av.textContent = avLetter(viewerName(v));
+    b.querySelector('span').textContent = viewerName(v);
+    if (!b.__wired){ b.__wired = true; b.onclick = function(){ whoShow(b); }; }
+  }
   function whoRender(){
+    railWhoRender();
     var sub = $id('setWhoSub'), btn = $id('setWhoOpen'); if (!sub || !btn) return;
     var l = viewerList();
     sub.textContent = l.length < 2 ? 'Add a second profile for someone else in the house · Each keeps its own Continue Watching, resume points and My List'
@@ -5061,6 +5113,7 @@
       if (a){ ctx.addon=a; ctx.manifest=m; ctx.catalogs=(m&&m.catalogs)||[]; ctx.catalog=c; }
       openItem(meta);
     };
+    card.__spot = { meta: meta, addon: a, manifest: m, catalog: c };   // the TV hero's spotlight (spotSoon)
     return card;
   }
   // Catalogs arrive a page at a time; `skip` walks them. Everything below the
@@ -5342,6 +5395,12 @@
     var card = document.createElement('button');
     var asPoster = getPrefs().cwStyle === 'poster';   // Settings › Continue Watching cards
     card.className = asPoster ? 'card cw cwp focusable shape-poster' : 'card cw focusable shape-landscape';
+    (function(){
+      var nm = String(r.name || '').split(' · '), epm = nm[1] && /^S(\d+)E(\d+)$/i.exec(nm[1].trim());
+      card.__spot = { card: card, ep: epm ? 'S' + epm[1] + ' E' + epm[2] : '', left: fmtLeft((r.dur || 0) - (r.pos || 0)) || 'In progress',
+        meta: { name: epm ? nm[0] : (r.name || ''), type: r.type, id: r.id, background: r.background || r.poster || '', poster: r.poster || '',
+                description: epm ? nm.slice(2).join(' · ') : '' } };
+    })();
     card.setAttribute('data-key', 'cw:' + (r.type || '') + ':' + (r.type === 'series' ? seriesIdOf(r.id) : r.id));
     var pct = r.dur > 0 ? Math.max(0, Math.min(100, (r.pos / r.dur) * 100)) : 0;
     var art = asPoster ? (r.poster || r.back) : (r.back || r.poster);
@@ -5424,6 +5483,7 @@
     clearInterval(heroState.timer); heroState.timer = null;
     var h = $id('homeHero'); if (h){ h.className = ''; h.innerHTML = ''; }
     var hs = $id('heroSide'); if (hs){ hs.className = ''; hs.innerHTML = ''; }
+    heroState.spot = null; clearTimeout(spotTimer);
   }
   /** A row's answer is offered to the carousel. Settings › Featured from decides which rows may feed it:
       the first to answer (default), every row (two titles each, up to eight), or one row by name. */
@@ -5456,6 +5516,7 @@
       var v = document.querySelector('.view.active');
       if (!v || v.id !== 'view-home' || !heroState.items.length) return;
       if (document.activeElement && $id('homeHero').contains(document.activeElement)) return; // don't rotate under the cursor
+      if (heroState.spot) return;                    // a card the remote was on holds the hero (TV spotlight)
       heroState.idx = (heroState.idx + 1) % heroState.items.length;
       heroRender();
       // pre-warm the next backdrop so the swap doesn't decode on-beat
@@ -5464,6 +5525,91 @@
     }, ms);
   }
   function heroRestart(){ if (heroState.items.length) heroStart(); }
+  /** TV spotlight: the hero shows the card the remote is on, once it rests there a moment (a held key that runs along a
+      row repaints nothing until it stops). A Continue Watching card shows what is left. */
+  // Measured on his LG (10-16): painting the hero while the rows glide stalled a press for seconds — the new backdrop
+  // decoded and rastered under a moving page. So it waits for the remote to rest AND the rows to stop.
+  var spotTimer = null, spotScrollAt = 0;
+  function spotSoon(card){
+    if (!IS_TV || !card || !card.__spot || getPrefs().hero === false) return;
+    clearTimeout(spotTimer);
+    (function wait(ms){
+      spotTimer = setTimeout(function(){
+        if (document.activeElement !== card || heroState.spot === card.__spot) return;
+        var still = Date.now() - spotScrollAt;
+        if (still < 250){ wait(260 - still); return; }
+        heroState.spot = card.__spot;
+        heroRender(card.__spot);
+      }, ms);
+    })(450);
+  }
+  function spotOn(){ return IS_TV && $id('homeHero').classList.contains('on') && $id('view-home').classList.contains('active'); }
+  (function(){
+    var hr = $id('homeRows');
+    if (hr && IS_TV){
+      hr.addEventListener('focusin', function(e){ if (e.target && e.target.__spot) spotSoon(e.target); });
+      // any scroll in the rows box, up/down or along a row
+      hr.addEventListener('scroll', function(){ spotScrollAt = Date.now(); }, { passive: true, capture: true });
+    }
+  })();
+  /** The Home rows as blocks: each row with the header above it (Continue Watching's has no See all). */
+  function homeBlocks(){
+    var out = [];
+    Array.prototype.forEach.call(document.querySelectorAll('#homeRows .hrow'), function(r){
+      if (!isShown(r)) return;
+      var h = r.previousElementSibling;
+      out.push({ row: r, head: (h && h.classList && h.classList.contains('rowhead')) ? h : null });
+    });
+    return out;
+  }
+  /** Up and Down on a TV's Home go row to row: the row above sits under the hero then, and the hero's own buttons were
+      nearer than the cards of the row above, so Up jumped to them. undefined = the usual rules (the first row's Up). */
+  function spotStep(list, cur, dy){
+    var bl = homeBlocks(), k = -1, inHead = false;
+    for (var i = 0; i < bl.length; i++){
+      if (bl[i].row.contains(cur)){ k = i; break; }
+      if (bl[i].head && bl[i].head.contains(cur)){ k = i; inHead = true; break; }
+    }
+    if (k < 0) return undefined;
+    // into the row above or below, onto its cards (its See all is a step right of its last card); a row with no cards yet
+    // lands on its header
+    var to = dy < 0 ? (inHead || k === 0 ? (inHead && k > 0 ? k - 1 : -1) : k - 1) : (inHead ? k : k + 1);
+    if (to < 0 || to >= bl.length) return undefined;
+    var cands = [];
+    list.forEach(function(x){ if (bl[to].row.contains(x)) cands.push(x); });
+    if (!cands.length && bl[to].head) list.forEach(function(x){ if (bl[to].head.contains(x)) cands.push(x); });
+    if (!cands.length) return undefined;
+    var near = pickNearest(cands, cur, 0, dy);
+    if (near) return near;
+    // a row the engine skipped (off screen) reports no boxes: the card nearest the same place across
+    var cx = cur.getBoundingClientRect().left, best = cands[0], bd = 1e9;
+    cands.forEach(function(x){ var d = Math.abs(x.getBoundingClientRect().left - cx); if (d < bd){ bd = d; best = x; } });
+    return best;
+  }
+  /** Where the remote's move scrolls on a TV's Home: the lit row's header just under the hero (which holds still at the
+      top), the hero's own buttons at the very top; sideways, the row brings the card in by its nearest edge. */
+  function spotReveal(el){
+    var hv = $id('view-home'), v = $id('homeRows'), hero = $id('homeHero');
+    if (!spotOn() || !hv.contains(el)) return false;
+    try { el.focus({ preventScroll: true }); } catch(e){ el.focus(); }
+    var beh = IS_LITE ? 'smooth' : 'auto';
+    if (hero.contains(el)){ try { v.scrollTo({ top: 0, behavior: beh }); } catch(e2){ v.scrollTop = 0; } return true; }
+    var row = el.parentNode && el.parentNode.classList && el.parentNode.classList.contains('hrow') ? el.parentNode : null;
+    var head = row ? row.previousElementSibling : null;
+    if (!(head && head.classList && head.classList.contains('rowhead'))) head = null;
+    if (!row){ for (var p = el.parentNode; p && p !== v; p = p.parentNode){ if (p.classList && p.classList.contains('rowhead')){ head = p; break; } } }
+    var anchor = head || row || el;
+    var vr = v.getBoundingClientRect(), ar = anchor.getBoundingClientRect();
+    var top = Math.max(0, v.scrollTop + (ar.top - vr.top) - 6);
+    if (Math.abs(top - v.scrollTop) > 2){ try { v.scrollTo({ top: top, behavior: beh }); } catch(e3){ v.scrollTop = top; } }
+    if (row){
+      var er = el.getBoundingClientRect(), rr = row.getBoundingClientRect(), pad = 24, left = row.scrollLeft;
+      if (er.left < rr.left + pad) left += er.left - rr.left - pad;
+      else if (er.right > rr.right - pad) left += er.right - rr.right + pad;
+      if (left !== row.scrollLeft){ try { row.scrollTo({ left: left, behavior: beh }); } catch(e4){ row.scrollLeft = left; } }
+    }
+    return true;
+  }
   /** "111 min" → "1h 51m"; anything that is not a plain minute count comes back as it was. */
   function runtimeShort(rt){
     var m = /^\s*(\d{1,4})\s*(min|mins|minutes|m)?\s*$/i.exec(String(rt || ''));
@@ -5473,19 +5619,25 @@
     if (n < 60) return n + ' min';
     return Math.floor(n / 60) + 'h' + (n % 60 ? ' ' + (n % 60) + 'm' : '');
   }
-  function heroRender(){
-    var h = $id('homeHero'); if (!h || !heroState.items.length) return;
-    var it = heroState.items[heroState.idx], meta = it.meta;
+  function heroRender(spot){
+    if (!spot && heroState.spot) spot = heroState.spot;   // a row answering later must not take the hero off the lit card
+    var h = $id('homeHero'); if (!h || (!spot && !heroState.items.length)) return;
+    var it = spot || heroState.items[heroState.idx], meta = it.meta;
     var facts = [];
     var y = metaYear(meta);
     var g = meta.genres || meta.genre;
-    if (IS_TV){
-      // the TV meta line reads "Movie · Crime · 1h 51m · 2026"
+    if (it.left){
+      // a Continue Watching card: what it is and how much is left ("S1 E4 · 42m left")
+      if (it.ep) facts.push(it.ep);
+      facts.push(it.left);
+    } else if (IS_TV){
+      // the TV meta line reads "Movie · Crime · 1h 51m · 2026" (+ "★ 6.2" for the card the remote is on)
       var kind = { movie:'Movie', series:'Series' }[meta.type] || typeLabel(meta.type);
       if (kind) facts.push(kind);
       if (g && g.length) facts.push(g.slice(0, 2).join(' · '));
       if (meta.runtime) facts.push(runtimeShort(meta.runtime));
       if (y) facts.push(y);
+      if (spot && meta.imdbRating && getPrefs().ratings !== false) facts.push('★ ' + meta.imdbRating);
     } else {
       if (y) facts.push(y);
       if (meta.runtime) facts.push(String(meta.runtime));
@@ -5493,13 +5645,14 @@
       if (g && g.length) facts.push(g.slice(0, 2).join(' · '));
     }
     var art = meta.background || meta.poster;
+    if (spot && IS_LITE) art = cardArtSmall(art);   // the spotlight swaps often: a TV-size picture, not the full one
     // the phone reads one line under the title: "Series · Drama · 2026–" (type · first genre · years)
     var kind2 = { movie:'Movie', series:'Series' }[meta.type] || typeLabel(meta.type);
     var metaLine = [kind2, g && g.length ? g[0] : '', y].filter(Boolean).join('  ·  ');
     var head = meta.logo
       ? '<img class="hf-logo" src="'+esc(meta.logo)+'" alt="'+esc(meta.name)+'">'
       : '<div class="hf-title">'+esc(meta.name)+'</div>';
-    var dots = heroState.items.map(function(_, i){
+    var dots = spot ? '' : heroState.items.map(function(_, i){
       return '<span class="hf-dot'+(i === heroState.idx ? ' on' : '')+'"></span>';
     }).join('');
     // the frame on screen stays under the new one while it fades in — a cross-fade, not a cut to black
@@ -5514,8 +5667,8 @@
         '<div class="hf-meta">'+esc(metaLine)+'</div>' +
         (meta.description ? '<p class="hf-desc">'+esc(meta.description)+'</p>' : '') +
         '<div class="row" style="margin-top:4px">' +
-          '<button id="hfOpen" class="focusable btn">Details</button>' +
-          '<button id="hfList" class="focusable btn ghost">'+(inLibrary(meta.type, meta.id) ? '✓ In My List' : '+ My List')+'</button>' +
+          '<button id="hfOpen" class="focusable btn">'+(it.left ? 'Resume' : 'Details')+'</button>' +
+          (it.left ? '' : '<button id="hfList" class="focusable btn ghost">'+(inLibrary(meta.type, meta.id) ? '✓ In My List' : '+ My List')+'</button>') +
         '</div>' +
       '</div>' +
       '<div class="hf-dots">'+dots+'</div>';
@@ -5527,11 +5680,12 @@
       lg.parentNode.replaceChild(d, lg);
     };
     $id('hfOpen').onclick = function(){
+      if (it.card){ it.card.click(); return; }       // a Continue Watching card: its own Resume
       ctx.addon = it.addon; ctx.manifest = it.manifest;
       ctx.catalogs = (it.manifest && it.manifest.catalogs) || []; ctx.catalog = it.catalog;
       openItem(meta);
     };
-    $id('hfList').onclick = function(){
+    if ($id('hfList')) $id('hfList').onclick = function(){
       toggleLibrary(meta.type || 'movie', meta, (it.addon && it.addon.url) || '');
       $id('hfList').textContent = inLibrary(meta.type, meta.id) ? '✓ In My List' : '+ My List';
     };
@@ -5886,9 +6040,11 @@
       }).catch(function(){ return []; });
     })).then(function(lists){ var out = []; lists.forEach(function(l){ out = out.concat(l); }); return out; });
   }
+  var CHEV_SVG = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
   function discPill(value, fn){
     var b = document.createElement('button'); b.className = 'chip focusable';
-    b.innerHTML = '<span class="dp-v">' + esc(value) + '</span><span class="dp-c">▾</span>';
+    // an SVG, not "▾": an LG's fonts have no such glyph and drew a box (10-16, on his TV)
+    b.innerHTML = '<span class="dp-v">' + esc(value) + '</span><span class="dp-c">' + CHEV_SVG + '</span>';
     b.onclick = fn; return b;
   }
   function discPicker(title, opts, cur, fn){
@@ -6973,7 +7129,9 @@
     $id('detGenres').innerHTML = g.slice(0, 6).map(function(x){ return '<span>' + esc(x) + '</span>'; }).join('');
     var cast = meta.cast || [];
     $id('detCastLbl').style.display = cast.length ? '' : 'none';
-    $id('detCastRow').innerHTML = cast.slice(0, 8).map(function(x){ return '<span>' + esc(x) + '</span>'; }).join('');
+    $id('detCastRow').innerHTML = cast.slice(0, 8).map(function(x){
+      return '<span><i class="cast-av" aria-hidden="true">' + esc(avLetter(String(x))) + '</i>' + esc(x) + '</span>';
+    }).join('');
     // Director · Writers from the catalogue (it sends them; the page used to drop them) — three names at most each
     function crew(v){ return (Array.isArray(v) ? v : (v ? String(v).split(/\s*,\s*/) : [])).filter(function(x){ return x && typeof x === 'string'; }); }
     var dir = crew(meta.director), wri = crew(meta.writer), cr = [];
@@ -7004,11 +7162,19 @@
     lastSurprise = v ? v.id : null;
     return v;
   }
+  /** A title whose videos are numbered is a show, whatever type its add-on gives it: one add-on lists everything as
+      "other", and its shows had a season count but no episodes on the title page (seen on his TV, 10-16). */
+  function episodic(type, meta){
+    if (type === 'series') return true;
+    if (type === 'movie' || !meta || !meta.videos || !meta.videos.length) return false;
+    for (var i = 0; i < meta.videos.length; i++){ var v = meta.videos[i]; if (v && (v.season != null || v.episode != null)) return true; }
+    return false;
+  }
   function renderDetailSeries(meta, type){
     var sRow = $id('detSeasonRow'), list = $id('detEpList'), sh = $id('detShuffle');
     detEp = null;
     sRow.style.display = 'none'; sRow.innerHTML = ''; list.innerHTML = ''; sh.style.display = 'none';
-    if (type !== 'series' || !meta.videos || !meta.videos.length) return;
+    if (!episodic(type, meta) || !meta.videos || !meta.videos.length) return;
     var grouped = groupEpisodes(meta.videos);
     var bySeason = grouped.bySeason, seasons = grouped.seasons, flat = grouped.flat;
     ctx.seriesType = type;
@@ -7061,11 +7227,20 @@
     renderCurrent();
     detEp = { refresh: renderCurrent, redraw: redrawHere };
   }
+  // TV: the page darkens over its backdrop as it scrolls (the backdrop holds still behind it there)
+  (function(){
+    var v = $id('view-detail'), raf = 0;
+    if (!v || !IS_TV) return;
+    v.addEventListener('scroll', function(){
+      if (raf) return;
+      raf = requestAnimationFrame(function(){ raf = 0; var d = $id('detDim'); if (d) d.style.opacity = String(Math.min(0.78, v.scrollTop / 560)); });
+    }, { passive: true });
+  })();
   function renderDetailArt(meta){
     // full-bleed: the backdrop carries the page, the title-art logo replaces
     // plain text whenever the catalogue provides one
     var img = meta.background || meta.poster || '';
-    $id('detBack').innerHTML = img ? '<img src="'+esc(img)+'" alt="" onerror="this.remove()">' : '';
+    $id('detBack').innerHTML = (img ? '<img src="'+esc(img)+'" alt="" onerror="this.remove()">' : '') + '<div class="det-dim" id="detDim"></div>';
     var logo = $id('detLogo'), nameEl = $id('detName');
     if (meta.logo){
       logo.src = meta.logo; logo.style.display = '';
@@ -7095,7 +7270,7 @@
     var meta = detCur.meta, type = detCur.type;
     var play = $id('detPlay'), lbl = $id('detPlayLbl'), eps = $id('detEpisodes');
     eps.style.display = 'none';
-    if (type === 'series'){
+    if (episodic(type, meta)){
       eps.onclick = function(){ openSeries(meta, type); };
       var r = seriesResume(type, meta.id);
       if (r){
@@ -7425,7 +7600,8 @@
     focusFirst();
   }
   function epLabel(seriesName, v){
-    return (seriesName ? seriesName + ' · ' : '') + epTag(v) + (v.name ? ' · ' + v.name : '');
+    var nm = v.name || v.title;          // (the protocol's own field is "title"; one add-on sends only that)
+    return (seriesName ? seriesName + ' · ' : '') + epTag(v) + (nm ? ' · ' + nm : '');
   }
   /** Resuming an episode from Continue watching bypasses the picker, so rebuild
       the series chain in the background — otherwise "next episode" is dead there.
@@ -7615,7 +7791,7 @@
     $id('streamsTitle').textContent = '';
     $id('shArt').innerHTML = '<img src="' + esc(art) + '" alt="" decoding="async" onerror="this.remove()">';
     var kick = '', title = titleText || 'Streams', sub = '';
-    if (type === 'series'){
+    if (type === 'series' || (ctx.seriesEpisodes && ctx.seriesType === type && ctx.epIndex >= 0)){
       kick = epKickFromId(id);
       // epLabel is "Series · SxEy · Episode name" — the tail is the headline
       var parts = String(titleText || '').split(' · ');
@@ -7909,6 +8085,10 @@
             box.innerHTML = '<div class="rowhead"><span class="row-title">'+esc(a.name||'Add-on')+'</span></div>';
           }
           var cards = streams.map(function(s){ total++; var c = streamCard(s, a); box.appendChild(c); return c; });
+          // rows that came in go above the add-ons still being asked: a slow add-on high in the list kept the rows
+          // that could already play below the fold (seen on his TV, 10-16) — and nothing above moves under the remote
+          var wt = list.querySelector('.streamsec .s-wait'), wb = wt && wt.parentNode;
+          if (wb && wb !== box && (wb.compareDocumentPosition(box) & 4)) list.insertBefore(box, wb);
           waitRender();                        // rows on screen now: the ones still asking are named above them
           updateStreamFilters();
           // the D-pad lands on the first row (not the topbar's Back button)
@@ -15240,7 +15420,9 @@
     var label = '';
     opts.forEach(function(o){ if (o[1] === cur) label = o[0]; });
     if (!label && opts.length) label = opts[0][0];
-    host.appendChild(prefChip(label + ' ▾', false, function(){ discPicker(title, opts, cur, fn); }));
+    var pc = prefChip(label, false, function(){ discPicker(title, opts, cur, fn); });
+    pc.insertAdjacentHTML('beforeend', ' <span class="dp-c">' + CHEV_SVG + '</span>');   // (no "▾": an LG draws a box)
+    host.appendChild(pc);
   }
   /** The rows the carousel may be fed from: first to answer, all of them, or one by name. */
   function heroSourceOpts(){
@@ -15555,8 +15737,8 @@
   syncPanelRender();
   (function(){
     var rail = document.getElementById('rail');
-    function open(){ rail.classList.add('open'); }
-    function close(){ rail.classList.remove('open'); }
+    function open(){ rail.classList.add('open'); document.body.classList.add('rail-open'); }
+    function close(){ rail.classList.remove('open'); document.body.classList.remove('rail-open'); }
     rail.addEventListener('focusin', open);
     rail.addEventListener('focusout', function(){
       // focusout fires before the new focus lands — close only if it left the rail
@@ -15641,7 +15823,7 @@
   document.getElementById('manualBtn').onclick = function(){ show('manual'); };
   document.getElementById('mPlay').onclick = playManual;
   document.querySelectorAll('[data-back]').forEach(function(b){ b.onclick=function(){ goBack(); }; });
-  document.querySelectorAll('.navitem').forEach(function(b){ b.onclick=function(){ setTab(b.getAttribute('data-tab')); }; });
+  document.querySelectorAll('.navitem[data-tab]').forEach(function(b){ b.onclick=function(){ setTab(b.getAttribute('data-tab')); }; });   // (not #railWho: it opens the picker)
   (function initGlobalSearch(){
     var i = document.getElementById('globalSearch'), c = document.getElementById('globalSearchClear');
     if (!i || !c) return;
