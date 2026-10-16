@@ -2164,7 +2164,7 @@
 <body>
   <!-- Boot screen. Static markup, above the script, so it paints on the first
        frame — the whole point is that nobody ever sees an empty Home. -->
-  <div id="who" role="dialog" aria-label="Who's watching?"><div class="who-pick"><div class="who-mark"><i>◆</i>Nebula</div><h2>Who's watching?</h2><div class="who-row" id="whoRow"></div><button type="button" id="whoManage" class="who-btn focusable">Manage Profiles</button></div><div id="whoEdit"><h2>Edit profile</h2><span id="whoEdMono" class="who-mono"></span><input id="whoEdName" class="focusable field" type="text" maxlength="24" autocomplete="off" /><div id="whoEdAv"></div><button type="button" id="whoEdSave" class="who-btn solid focusable">Save</button><button type="button" id="whoEdDel" class="who-btn danger focusable">Remove profile</button><p class="who-note">Each profile keeps its own Continue Watching, resume points and My List. Add-ons and settings are shared.</p></div></div>
+  <div id="who" role="dialog" aria-label="Who's watching?"><div class="who-pick"><div class="who-mark"><i>◆</i>Nebula</div><h2>Who's watching?</h2><div class="who-row" id="whoRow"></div><button type="button" id="whoManage" class="who-btn focusable">Manage Profiles</button></div><div id="whoEdit"><h2>Edit profile</h2><span id="whoEdMono" class="who-mono"></span><input id="whoEdName" class="focusable field" type="text" maxlength="24" autocomplete="off" /><div id="whoEdAv"></div><button type="button" id="whoEdSave" class="who-btn solid focusable">Save</button><button type="button" id="whoEdDel" class="who-btn danger focusable">Remove profile</button><p class="who-note">Each profile keeps its own Continue Watching, resume points, My List and add-ons. Settings are shared.</p></div></div>
   <div id="boot">
     <div class="boot-mark">
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6 21.4 12 12 21.4 2.6 12 12 2.6Z"/></svg>
@@ -2419,7 +2419,7 @@
         </button>
         <!-- who's watching: up to two profiles on one account, each with its own history (whoRender) -->
         <div class="setrow" id="setWhoRow">
-          <span class="setname">Who's watching<small id="setWhoSub">Each profile keeps its own Continue Watching, resume points and My List · Add-ons and settings are shared</small></span>
+          <span class="setname">Who's watching<small id="setWhoSub">Each profile keeps its own Continue Watching, resume points, My List and add-ons · Settings are shared</small></span>
           <button id="setWhoOpen" class="textbtn focusable">Profiles</button>
         </div>
       </section>
@@ -3801,13 +3801,22 @@
   // So every save is mirrored to IndexedDB AND to webOS's system database (DB8,
   // which lives outside the webkit profile), and boot restores from a mirror
   // whenever localStorage comes up empty. On web/desktop the DB8 calls no-op.
-  function getAddons(){ try { return JSON.parse(LS.getItem('addons')||'[]'); } catch(e){ return []; } }
+  /** Where this profile's add-ons live (10-16: each who's-watching profile has its own): the first profile's are the
+      account's list as it always was ('addons'), the second's sit beside them ('addons_b') — in storage, the mirrors and
+      the cloud. Read straight from storage too: boot code can ask before the profile block further down has run. */
+  function addonsKey(){
+    var v = (typeof viewer === 'string') ? viewer : null;
+    if (!v){ try { v = LS.getItem('viewer') === 'b' ? 'b' : 'a'; } catch(e){ v = 'a'; } }
+    return v === 'b' ? 'addons_b' : 'addons';
+  }
+  function addonsSyncKey(){ return addonsKey() === 'addons_b' ? 'addons_sync_b' : 'addons_sync'; }
+  function getAddons(){ try { return JSON.parse(LS.getItem(addonsKey())||'[]'); } catch(e){ return []; } }
   /** The add-ons that feed anything: one switched off (`off`) stays installed and ranked but is never asked. */
   function activeAddons(){ return getAddons().filter(function(a){ return a && !a.off; }); }
   function saveAddons(a){
     var prev = getAddons();                    // still the stored copy at this point
     var json = JSON.stringify(a);
-    try { LS.setItem('addons', json); } catch(e){}
+    try { LS.setItem(addonsKey(), json); } catch(e){}
     mirrorAddons(json);
     syncNoteAddonsDiff(prev, a);
     cloudPushSoon('addons');
@@ -3817,7 +3826,7 @@
     try { buildHomeRows(true); } catch(e){}   // any add-on change reshapes Home
   }
   function mirrorKv(key, json){ try { idbSave(key, json); } catch(e){} db8Save(key, json); }
-  function mirrorAddons(json){ mirrorKv('addons', json); }
+  function mirrorAddons(json){ mirrorKv(addonsKey(), json); }
 
   function idbOpen(){
     return new Promise(function(res){
@@ -3970,10 +3979,12 @@
   function initPersistentAddons(){
     var cur = getAddons();
     if (cur.length){ mirrorAddons(JSON.stringify(cur)); finishAddonRestore(); return; }  // seed mirrors from a healthy LS
-    idbLoad('addons')
-      .then(function(v){ if (v) return v; return db8Load('addons'); })
+    idbLoad(addonsKey())
+      .then(function(v){ if (v) return v; return db8Load(addonsKey()); })
       .then(function(v){
         var arr = null; try { arr = v ? JSON.parse(v) : null; } catch(e){}
+        // the second profile with nothing stored anywhere starts from a copy of the first's (profileAddonsSeed)
+        if ((!arr || !arr.length) && addonsKey() === 'addons_b' && profileAddonsSeed()){ finishAddonRestore(); return; }
         if (!arr || !arr.length){ seedDefaults(); finishAddonRestore(); return; }   // truly first run — not a wiped TV
         // union with whatever was added while the restore was in flight
         var now = getAddons(), merged = now.slice();
@@ -3989,10 +4000,10 @@
   }
   // ---------- who's watching (two profiles on one account, 2026-10-15) ----------
   // An account holds up to two profiles. Each keeps its own watch history — Continue Watching, resume points, ticks,
-  // My List; add-ons and settings stay the account's. The first profile's history IS the account's history as it always
+  // My List — and, since 10-16, its own add-ons; settings stay the account's. The first profile's history IS the account's history as it always
   // was ('progress', 'library'), so nothing moves for anyone; the second's sits beside it ('progress_b', 'library_b') —
   // in storage, in the mirrors and in the cloud. The list is synced (`viewers`); which profile this device is on is not.
-  var VIEW_KEYS = { progress: 1, library: 1 };
+  var VIEW_KEYS = { progress: 1, library: 1, addons: 1 };   // (add-ons per profile since 10-16)
   var viewer = 'a';
   try { if (LS.getItem('viewer') === 'b') viewer = 'b'; } catch(e){}
   function vkey(k){ return viewer === 'b' && VIEW_KEYS[k] ? k + '_b' : k; }
@@ -4032,18 +4043,56 @@
   }
   /** On to the other profile: what this one changed is kept and sent up under its own names first, then the other's
       history is read (storage, the mirrors after a wipe, the cloud) and everything showing a history is drawn again. */
+  /** The second profile, the first time it is used here with no add-ons stored: a copy of the first profile's list AND of
+      its add/remove stamps — the stamps as they were, not "now", so a removal another device made in this profile's own
+      synced list is newer and still wins. true when it seeded. */
+  function profileAddonsSeed(){
+    try {
+      if (LS.getItem('addons_b') !== null) return false;
+      var a = LS.getItem('addons'); if (!a || a === '[]') return false;
+      LS.setItem('addons_b', a);
+      LS.setItem('addons_sync_b', LS.getItem('addons_sync') || '{}');
+      addonsSyncMeta = null;
+      mirrorKv('addons_b', a);
+      return true;
+    } catch(e){ return false; }
+  }
+  /** This profile's add-ons on a switch: storage, else a mirror (a wiped TV), else the first profile's copy. */
+  function profileAddonsLoad(done){
+    var k = addonsKey(), have = null;
+    try { have = LS.getItem(k); } catch(e){}
+    if (have !== null){ done(); return; }
+    idbLoad(k).then(function(v){ if (v) return v; return db8Load(k); }).then(function(v){
+      var arr = null; try { arr = v ? JSON.parse(v) : null; } catch(e){}
+      if (k === addonsKey()){
+        if (arr && arr.length){ try { LS.setItem(k, JSON.stringify(arr)); } catch(e){} }
+        else if (k === 'addons_b') profileAddonsSeed();
+      }
+      done();
+    });
+  }
   function switchViewer(id, quiet){
     id = id === 'b' ? 'b' : 'a';
     if (id === viewer) return;
     try { if (progCache) mirrorKv(vkey('progress'), JSON.stringify(progCache)); } catch(e){}
-    ['progress', 'library'].forEach(function(k){
+    ['progress', 'library', 'addons'].forEach(function(k){
       clearTimeout(syncTimers[k]);
       if (cloudLinked() && cloudDirty[vkey(k)]) cloudPush(k);
     });
     viewer = id; try { LS.setItem('viewer', id); } catch(e){}
     progCache = null; libCache = null; upcomingCache = { at: 0, rows: null };
+    addonsSyncMeta = null;
     initPersistentProgress(); initPersistentLibrary();
-    if (cloudLinked()) cloudPullAll(true);
+    // this profile's add-ons first (restored or seeded), then the cloud's copy of them and of its history
+    profileAddonsLoad(function(){
+      if (viewer !== id) return;
+      manifestCache = {};
+      try { discInvalidate(); } catch(e){}
+      try { guideInvalidate(); } catch(e){}
+      try { renderAddons(); } catch(e){}
+      try { buildHomeRows(true); } catch(e){}
+      if (cloudLinked()) cloudPullAll(true);
+    });
     try { renderContinue(); } catch(e){}
     try { if (detEp && detEp.redraw) detEp.redraw(); } catch(e){}
     try { if (epView && epView.redraw) epView.redraw(); } catch(e){}
@@ -4079,8 +4128,8 @@
     railWhoRender();
     var sub = $id('setWhoSub'), btn = $id('setWhoOpen'); if (!sub || !btn) return;
     var l = viewerList();
-    sub.textContent = l.length < 2 ? 'Add a second profile for someone else in the house · Each keeps its own Continue Watching, resume points and My List'
-      : 'Watching as ' + viewerName(viewerCur()) + ' · Each profile keeps its own Continue Watching, resume points and My List';
+    sub.textContent = l.length < 2 ? 'Add a second profile for someone else in the house · Each keeps its own Continue Watching, resume points, My List and add-ons'
+      : 'Watching as ' + viewerName(viewerCur()) + ' · Each profile keeps its own Continue Watching, resume points, My List and add-ons';
     if (!btn.__wired){ btn.__wired = true; btn.onclick = function(){ whoShow(btn); }; }
     if (whoOpen && !whoEditing) whoDraw();
   }
@@ -14186,13 +14235,13 @@
   var addonsSyncMeta = null;
   function getAddonsSync(){
     if (addonsSyncMeta) return addonsSyncMeta;
-    try { addonsSyncMeta = JSON.parse(LS.getItem('addons_sync')||'{}') || {}; } catch(e){ addonsSyncMeta = {}; }
+    try { addonsSyncMeta = JSON.parse(LS.getItem(addonsSyncKey())||'{}') || {}; } catch(e){ addonsSyncMeta = {}; }
     addonsSyncMeta.at = addonsSyncMeta.at || {};
     addonsSyncMeta.removed = addonsSyncMeta.removed || {};
     addonsSyncMeta.orderAt = addonsSyncMeta.orderAt || 0;
     return addonsSyncMeta;
   }
-  function saveAddonsSync(){ try { LS.setItem('addons_sync', JSON.stringify(getAddonsSync())); } catch(e){} }
+  function saveAddonsSync(){ try { LS.setItem(addonsSyncKey(), JSON.stringify(getAddonsSync())); } catch(e){} }
   function syncNoteAddonsDiff(prev, next){
     var s = getAddonsSync(), now = Date.now(), pv = {}, nx = {};
     prev.forEach(function(a){ pv[a.url] = 1; });
@@ -14354,7 +14403,7 @@
     if (changed){
       saveAddonsSync();
       var json = JSON.stringify(arr);
-      try { LS.setItem('addons', json); } catch(e){}
+      try { LS.setItem(addonsKey(), json); } catch(e){}
       mirrorAddons(json);
       manifestCache = {};
       discInvalidate();
