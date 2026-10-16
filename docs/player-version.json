@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.16.1",
+  "version": "2026.10.16.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Who's watching has a new look: big round profiles with their names, and Manage Profiles to edit a profile's name and colour, add a second profile or remove it. Settings opens the same picker."
+  "notes": "Each profile now keeps its own add-ons. On a TV, Home's top shows the title you're on while the rows slide under it, the side menu dims the page and shows who's watching, and a title page sits over its full backdrop. Shows from add-ons that call them \"other\" list their episodes."
 }
