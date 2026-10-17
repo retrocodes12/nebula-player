@@ -7042,9 +7042,43 @@
     }
     return out;
   }
+  // A release's file name with the episode taken out: "Show.S01E03.Pilot.1080p.WEB.x265-GRP" and
+  // "Show.S01E04.Other.Name.1080p.WEB.x265-GRP" give the same key — the show part before the episode
+  // plus the release tail from its first quality word (episode names differ, so they never count).
+  // A film keeps its whole name. "" when the row names no file.
+  var RK_EXT = /\.(mkv|mp4|m4v|avi|webm|mov|ts|wmv|flv)$/;
+  var RK_EP = /(^|[^a-z0-9])(s\d{1,2}[ ._-]?e\d{1,3}(?:[-e]+\d{1,3})?|\d{1,2}x\d{2,3}|(?:ep|episode)[ ._-]?\d{1,3})(?=[^a-z0-9]|$)/;
+  var RK_Q = /^(2160p|1080p|720p|576p|480p|4k|uhd|web|webrip|webdl|web-dl|bluray|bdrip|brrip|hdtv|dvdrip|remux|hdr|hdr10|dv|x264|x265|h264|h265|hevc|avc|av1|10bit|amzn|nf|dsnp|hmax|atvp)$/;
+  function rkTokens(t){ return String(t || '').split(/[^a-z0-9]+/).filter(function(w){ return w; }); }
+  function releaseKey(name){
+    var n = String(name || '').toLowerCase().trim();
+    if (!n) return '';
+    n = n.replace(/^.*[\/\\]/, '').replace(RK_EXT, '');
+    var m = RK_EP.exec(n);
+    if (!m){ var all = rkTokens(n); return all.length >= 3 ? 'm:' + all.join('.') : ''; }
+    var at = m.index + m[1].length;
+    var head = rkTokens(n.slice(0, at)), tail = rkTokens(n.slice(at + m[2].length)), q = -1;
+    for (var i = 0; i < tail.length; i++) if (RK_Q.test(tail[i])){ q = i; break; }
+    tail = q >= 0 ? tail.slice(q) : tail.slice(-1);       // no quality word: the release group alone
+    if (!head.length || !tail.length) return '';
+    return 'e:' + head.join('.') + '|' + tail.join('.');
+  }
+  /** The file a row plays, by name: the add-on's own filename hint, else a title line that
+      reads like one (dots for spaces, or a video extension). */
+  function rowFileName(s){
+    var bh = (s && s.behaviorHints) || {};
+    if (bh.filename) return String(bh.filename);
+    var lines = String((s && (s.title || s.description)) || '').split('\n');
+    for (var i = 0; i < lines.length; i++){
+      var l = lines[i].trim();
+      if (RK_EXT.test(l.toLowerCase()) || (l.indexOf(' ') < 0 && l.split('.').length >= 4)) return l;
+    }
+    return '';
+  }
   /** The fingerprint of a stream row that survives to the next episode: the
       add-on it came from, its binge group when the add-on declares one, the
-      resolution plate, provider, fusion badges and the release words. */
+      resolution plate, provider, fusion badges, the release words, the file
+      name with the episode taken out, and the torrent it comes from. */
   function streamSig(s, addon){
     var text = (s.title || s.description || '');
     var raw = (s.name || '') + '\n' + text;
@@ -7062,6 +7096,7 @@
       provider: String(f.provider || '').toLowerCase(),
       providerName: String(f.provider || ''),   // as written, for the chrome's source line
       badges: badges,
+      file: releaseKey(rowFileName(s)), hash: String(s.infoHash || '').toLowerCase(),
       words: sigWords(cleanStreamName(s.name, addon && addon.name) + ' ' + (text.split('\n')[0] || ''))
     };
   }
@@ -7069,6 +7104,10 @@
   function streamScore(s, sig, addon){
     var c = streamSig(s, addon), sc = 0, i;
     if (sig.binge && c.binge && sig.binge === c.binge) sc += 100;
+    // the same file pattern is the same release, whatever the add-on calls its group; the same
+    // torrent (a season pack) even more so. A different named file is a different release.
+    if (sig.hash && c.hash && sig.hash === c.hash) sc += 200;
+    if (sig.file && c.file) sc += (sig.file === c.file) ? 150 : -20;
     if (sig.res){
       if (!c.res) sc -= 10;
       else sc += (sig.res === c.res) ? 40 : -15 * Math.abs(RES_RANK[sig.res] - RES_RANK[c.res]);
@@ -7087,7 +7126,11 @@
   function sigMax(sig){
     return (sig.binge ? 100 : 0) + (sig.res ? 40 : 0) + (sig.provider ? 30 : 0) + sig.badges.length * 6 + 12;
   }
-  function isTwin(s, sig, addon){ return streamScore(s, sig, addon) >= 0.6 * sigMax(sig); }
+  function isTwin(s, sig, addon){
+    // a row naming another file is another release, however alike the rest reads (one torrent aside)
+    if (sig.file){ var c = streamSig(s, addon); if (c.file && c.file !== sig.file && !(sig.hash && sig.hash === c.hash)) return false; }
+    return streamScore(s, sig, addon) >= 0.6 * sigMax(sig);
+  }
   /** The stream in `streams` closest to `sig` (the list's first when nothing was picked). */
   function matchStream(streams, sig, addon){
     if (!streams || !streams.length) return null;
@@ -13358,18 +13401,42 @@
     if (pf && pf.addonUrl){ for (var i = 0; i < list.length; i++) if (list[i].url === pf.addonUrl) return list[i]; }
     return ctx.addon || null;
   }
-  /** Ask `a` for the episode's streams; with none, ask the origin add-on too. */
+  function epStreams(a, type, id){
+    return getJson(a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json')
+      .then(function(d){ return (d.streams||[]).filter(function(x){ return x.url; }); });
+  }
+  /** Ask `a` for the episode's streams; with none, ask the origin add-on too. When the last pick named
+      its file and neither has that release, every other streaming add-on is asked for it (15 s each)
+      — the add-on it came from may be down, or may have renamed its group. */
   async function resolveEpisodeStreams(a, type, id){
-    var cands = [a];
+    var cands = [a], pf = ctx.pickedFrom, best = null;
     if (ctx.addon && ctx.addon.url !== a.url) cands.push(ctx.addon);
     for (var i = 0; i < cands.length; i++){
       try {
-        var d = await getJson(cands[i].base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json');
-        var streams = (d.streams||[]).filter(function(x){ return x.url; });
-        if (streams.length) return { addon: cands[i], streams: streams, pick: matchStream(streams, ctx.pickedFrom, cands[i]) };
+        var streams = await epStreams(cands[i], type, id);
+        if (!streams.length) continue;
+        var res = { addon: cands[i], streams: streams, pick: matchStream(streams, pf, cands[i]) };
+        if (!pf || !pf.file || isTwin(res.pick, pf, cands[i])) return res;
+        if (!best) best = res;
       } catch(e){}
     }
-    return { addon: a, streams: [], pick: null };
+    if (pf && pf.file){
+      var asked = cands.map(function(c){ return c.url; });
+      var others = activeAddons().filter(function(o){ return asked.indexOf(o.url) < 0; }).slice(0, 8);
+      var hits = await Promise.all(others.map(function(o){
+        var ask = getManifest(o.url).then(function(m){
+          if (!canStream(m, type, id)) return null;
+          return epStreams(o, type, id).then(function(streams){
+            for (var k = 0; k < streams.length; k++)
+              if (releaseKey(rowFileName(streams[k])) === pf.file) return { addon: o, streams: streams, pick: streams[k], moved: true };
+            return null;
+          });
+        }).catch(function(){ return null; });
+        return Promise.race([ask, new Promise(function(r){ setTimeout(function(){ r(null); }, 15000); })]);
+      }));
+      for (var j = 0; j < hits.length; j++) if (hits[j]) return hits[j];
+    }
+    return best || { addon: a, streams: [], pick: null };
   }
   function prefetchNext(){
     var nx = nextEpisode(); if (!nx) return;
@@ -13378,7 +13445,7 @@
     var rec = nextReady = { id: nx.ep.id, addon: a, streams: null, pick: null, failed: false, at: Date.now() };
     resolveEpisodeStreams(a, ctx.seriesType || 'series', nx.ep.id).then(function(res){
       if (nextReady !== rec) return;
-      rec.addon = res.addon; rec.streams = res.streams; rec.pick = res.pick; rec.failed = !res.pick;
+      rec.addon = res.addon; rec.streams = res.streams; rec.pick = res.pick; rec.moved = !!res.moved; rec.failed = !res.pick;
       upnextRenderSrc();
     });
   }
@@ -13451,9 +13518,11 @@
     }
     if (res){
       setPlayIdentity(type, v.id, label);
-      // an untouched series adopts the first auto-pick as its taste; a hand-pick is never overwritten
+      // an untouched series adopts the first auto-pick as its taste; a hand-pick is never overwritten —
+      // except when the same release was found at another add-on: the taste follows it there
       var sig = streamSig(res.pick, res.addon);
       if (!ctx.pickedFrom) ctx.pickedFrom = sig;
+      else if (res.moved){ ctx.pickedFrom = sig; savePick(sig); }
       ctx.playSig = sig;                       // feeds the source line under the title
       playStream(res.pick);
       return;
