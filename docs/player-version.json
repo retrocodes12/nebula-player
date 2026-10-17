@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.16.2",
+  "version": "2026.10.17.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Each profile now keeps its own add-ons. On a TV, Home's top shows the title you're on while the rows slide under it, the side menu dims the page and shows who's watching, and a title page sits over its full backdrop. Shows from add-ons that call them \"other\" list their episodes."
+  "notes": "A stream that stops mid-way is asked for again and goes on from the same second. Errors say what went wrong. The next episode keeps the same release by its file name, from another add-on if needed. Jumps made with the controls hidden show how far on the side they went, over a slim bar (two taps on a phone's side jump too). Subtitles can be dimmer over HDR video. On the desktop app: an audio delay in the Audio menu."
 }

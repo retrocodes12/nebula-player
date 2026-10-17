@@ -1155,6 +1155,24 @@
   .qmenu::-webkit-scrollbar { display:none; }
   .qmenu.open { display:block; animation:riseIn .16s var(--ease) both; }
   .qtitle { color:rgba(235,235,245,.6); font-size:calc(12px * var(--ts)); font-weight:600; padding:8px 12px 6px; }
+  .qsk { position:absolute; top:0; left:0; right:0; bottom:0; pointer-events:none; opacity:0; transition:opacity .18s var(--ease); z-index:3; }
+  .qsk.on { opacity:1; }
+  .qsk-side { position:absolute; top:50%; margin-top:-34px; height:68px; display:none; align-items:center; padding:0 22px; border-radius:34px;
+    background:rgba(20,20,22,.62); color:#fff; font-weight:700; font-size:calc(22px * var(--ts)); }
+  .qsk-side svg { width:26px; height:26px; }
+  .qsk-side b { margin:0 10px; font-variant-numeric:tabular-nums; }
+  .qsk-l { left:6%; } .qsk-r { right:6%; }
+  .qsk.left .qsk-l, .qsk.right .qsk-r { display:flex; }
+  .qsk-foot { position:absolute; left:5%; right:5%; bottom:40px; }
+  .qsk-t { display:block; margin:0 0 8px; color:#fff; font-size:calc(14px * var(--ts)); font-weight:600; font-variant-numeric:tabular-nums; text-shadow:0 1px 3px rgba(0,0,0,.8); }
+  .qsk-rail { position:relative; height:5px; border-radius:3px; background:rgba(255,255,255,.24); overflow:hidden; }
+  .qsk-buf { position:absolute; top:0; left:0; bottom:0; width:0; background:rgba(255,255,255,.38); }
+  .qsk-fill { position:absolute; top:0; left:0; bottom:0; width:0; background:var(--accent); }
+  #pui:not(.idle) .qsk { display:none; }
+  html.tv .qsk-side { height:84px; margin-top:-42px; padding:0 28px; border-radius:42px; font-size:calc(28px * var(--ts)); }
+  html.tv .qsk-side svg { width:32px; height:32px; }
+  html.tv .qsk-foot { bottom:56px; } html.tv .qsk-rail { height:7px; }
+  .qtitle.qsub { margin-top:6px; padding-top:10px; border-top:1px solid rgba(255,255,255,.12); }
   .qopt { display:block; width:100%; text-align:left; padding:9px 12px; border-radius:9px; border:0;
     background:transparent; color:#fff; font-family:var(--sans); font-size:calc(14.5px * var(--ts)); font-weight:500;
     cursor:pointer; white-space:nowrap; transition:background .15s var(--ease); }
@@ -2200,6 +2218,12 @@
   <!-- custom player controls (shown during playback) — Apple TV layout -->
   <div id="pui">
     <div class="pui-dim"></div>
+    <!-- a jump made with the controls hidden: how far, on the side it went, and a slim bar (Nuvio #2229/#875) -->
+    <div id="qsk" class="qsk" aria-hidden="true">
+      <div class="qsk-side qsk-l"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6 5 12l6 6M19 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><b id="qskL"></b></div>
+      <div class="qsk-side qsk-r"><b id="qskR"></b><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 6 6 6-6 6M5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="qsk-foot"><span id="qskT" class="qsk-t"></span><div class="qsk-rail"><div id="qskBuf" class="qsk-buf"></div><div id="qskFill" class="qsk-fill"></div></div></div>
+    </div>
     <div class="pui-shade pui-shade-top"></div>
     <div class="pui-shade pui-shade-bot"></div>
     <div class="pui-top pui-chrome">
@@ -2857,7 +2881,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.10.16.2';
+  var PLAYER_VERSION = '2026.10.17.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -3575,8 +3599,8 @@
         if (k===415 || mk==='MediaPlay'){ if (video.paused) togglePlay(); else puiShow(); e.preventDefault(); return; }
         if (k===19 || mk==='MediaPause'){ if (!video.paused) togglePlay(); else puiShow(); e.preventDefault(); return; }
         if (k===179 || k===10252 || mk==='MediaPlayPause'){ togglePlay(); e.preventDefault(); return; }
-        if (k===412 || mk==='MediaRewind'){ seekBy(-seekStepSecs()); puiShow(); e.preventDefault(); return; }
-        if (k===417 || mk==='MediaFastForward'){ seekBy(seekStepSecs()); puiShow(); e.preventDefault(); return; }
+        if (k===412 || mk==='MediaRewind'){ quickSeek(-seekStepSecs()); e.preventDefault(); return; }
+        if (k===417 || mk==='MediaFastForward'){ quickSeek(seekStepSecs()); e.preventDefault(); return; }
         if (k===413 || mk==='MediaStop'){ goBack(); e.preventDefault(); return; }
         if (k===457){ pinfoSet(!pinfoOn); puiShow(); e.preventDefault(); return; }   // a conventional remote's Info: the playback facts
         if (k===33 || k===34){ e.preventDefault(); return; }                        // CH+/− have nothing to scroll here
@@ -3598,8 +3622,8 @@
           e.preventDefault(); return;
         }
         if (k===75){ togglePlay(); e.preventDefault(); return; }
-        if (k===74){ seekBy(-seekStepSecs()); e.preventDefault(); return; }
-        if (k===76){ seekBy(seekStepSecs()); e.preventDefault(); return; }
+        if (k===74){ quickSeek(-seekStepSecs()); e.preventDefault(); return; }
+        if (k===76){ quickSeek(seekStepSecs()); e.preventDefault(); return; }
         if (k===77){ setMuted(!video.muted); e.preventDefault(); return; }
         if (k===83){ puiKey('puiSubs'); e.preventDefault(); return; }
         if (k===65){ puiKey('puiAudio'); e.preventDefault(); return; }
@@ -3644,8 +3668,9 @@
         e.preventDefault(); return;
       }
       if (pui.className === 'idle'){
-        // controls hidden: arrows seek straight away, anything else wakes the UI.
-        // On a TV ←/→ open the preview on the rail instead — the bubble moves, OK jumps, Back drops it
+        // controls hidden: arrows seek straight away (the jump says how far, the controls stay asleep), anything else wakes
+        // the UI. On a TV ←/→ open the preview on the rail instead — the bubble moves, OK jumps, Back drops it
+        if (!IS_TV && (k===37||k===39) && !puiIsLive()){ quickSeek(k===37 ? -seekStepSecs() : seekStepSecs()); e.preventDefault(); return; }
         puiShow();
         if ((k===37||k===39) && IS_TV && $id('puiSeek')){ $id('puiSeek').focus(); scrubStep(k===37?-1:1); }
         else if (k===37){ seekBy(-seekStepSecs()); }
@@ -7042,9 +7067,43 @@
     }
     return out;
   }
+  // A release's file name with the episode taken out: "Show.S01E03.Pilot.1080p.WEB.x265-GRP" and
+  // "Show.S01E04.Other.Name.1080p.WEB.x265-GRP" give the same key — the show part before the episode
+  // plus the release tail from its first quality word (episode names differ, so they never count).
+  // A film keeps its whole name. "" when the row names no file.
+  var RK_EXT = /\.(mkv|mp4|m4v|avi|webm|mov|ts|wmv|flv)$/;
+  var RK_EP = /(^|[^a-z0-9])(s\d{1,2}[ ._-]?e\d{1,3}(?:[-e]+\d{1,3})?|\d{1,2}x\d{2,3}|(?:ep|episode)[ ._-]?\d{1,3})(?=[^a-z0-9]|$)/;
+  var RK_Q = /^(2160p|1080p|720p|576p|480p|4k|uhd|web|webrip|webdl|web-dl|bluray|bdrip|brrip|hdtv|dvdrip|remux|hdr|hdr10|dv|x264|x265|h264|h265|hevc|avc|av1|10bit|amzn|nf|dsnp|hmax|atvp)$/;
+  function rkTokens(t){ return String(t || '').split(/[^a-z0-9]+/).filter(function(w){ return w; }); }
+  function releaseKey(name){
+    var n = String(name || '').toLowerCase().trim();
+    if (!n) return '';
+    n = n.replace(/^.*[\/\\]/, '').replace(RK_EXT, '');
+    var m = RK_EP.exec(n);
+    if (!m){ var all = rkTokens(n); return all.length >= 3 ? 'm:' + all.join('.') : ''; }
+    var at = m.index + m[1].length;
+    var head = rkTokens(n.slice(0, at)), tail = rkTokens(n.slice(at + m[2].length)), q = -1;
+    for (var i = 0; i < tail.length; i++) if (RK_Q.test(tail[i])){ q = i; break; }
+    tail = q >= 0 ? tail.slice(q) : tail.slice(-1);       // no quality word: the release group alone
+    if (!head.length || !tail.length) return '';
+    return 'e:' + head.join('.') + '|' + tail.join('.');
+  }
+  /** The file a row plays, by name: the add-on's own filename hint, else a title line that
+      reads like one (dots for spaces, or a video extension). */
+  function rowFileName(s){
+    var bh = (s && s.behaviorHints) || {};
+    if (bh.filename) return String(bh.filename);
+    var lines = String((s && (s.title || s.description)) || '').split('\n');
+    for (var i = 0; i < lines.length; i++){
+      var l = lines[i].trim();
+      if (RK_EXT.test(l.toLowerCase()) || (l.indexOf(' ') < 0 && l.split('.').length >= 4)) return l;
+    }
+    return '';
+  }
   /** The fingerprint of a stream row that survives to the next episode: the
       add-on it came from, its binge group when the add-on declares one, the
-      resolution plate, provider, fusion badges and the release words. */
+      resolution plate, provider, fusion badges, the release words, the file
+      name with the episode taken out, and the torrent it comes from. */
   function streamSig(s, addon){
     var text = (s.title || s.description || '');
     var raw = (s.name || '') + '\n' + text;
@@ -7062,6 +7121,7 @@
       provider: String(f.provider || '').toLowerCase(),
       providerName: String(f.provider || ''),   // as written, for the chrome's source line
       badges: badges,
+      file: releaseKey(rowFileName(s)), hash: String(s.infoHash || '').toLowerCase(),
       words: sigWords(cleanStreamName(s.name, addon && addon.name) + ' ' + (text.split('\n')[0] || ''))
     };
   }
@@ -7069,6 +7129,10 @@
   function streamScore(s, sig, addon){
     var c = streamSig(s, addon), sc = 0, i;
     if (sig.binge && c.binge && sig.binge === c.binge) sc += 100;
+    // the same file pattern is the same release, whatever the add-on calls its group; the same
+    // torrent (a season pack) even more so. A different named file is a different release.
+    if (sig.hash && c.hash && sig.hash === c.hash) sc += 200;
+    if (sig.file && c.file) sc += (sig.file === c.file) ? 150 : -20;
     if (sig.res){
       if (!c.res) sc -= 10;
       else sc += (sig.res === c.res) ? 40 : -15 * Math.abs(RES_RANK[sig.res] - RES_RANK[c.res]);
@@ -7087,7 +7151,11 @@
   function sigMax(sig){
     return (sig.binge ? 100 : 0) + (sig.res ? 40 : 0) + (sig.provider ? 30 : 0) + sig.badges.length * 6 + 12;
   }
-  function isTwin(s, sig, addon){ return streamScore(s, sig, addon) >= 0.6 * sigMax(sig); }
+  function isTwin(s, sig, addon){
+    // a row naming another file is another release, however alike the rest reads (one torrent aside)
+    if (sig.file){ var c = streamSig(s, addon); if (c.file && c.file !== sig.file && !(sig.hash && sig.hash === c.hash)) return false; }
+    return streamScore(s, sig, addon) >= 0.6 * sigMax(sig);
+  }
   /** The stream in `streams` closest to `sig` (the list's first when nothing was picked). */
   function matchStream(streams, sig, addon){
     if (!streams || !streams.length) return null;
@@ -8230,6 +8298,7 @@
     closeUpNext();
     skipReset();
     stallReset();
+    subHdrReset();
     sgReset();
     pauseBoardHide();
     pinfoSet(false);
@@ -8292,6 +8361,9 @@
     if (mpvRescueTry(seq, code)) return;
     // a plain file the desktop shell could convert: the shell looks at it before anything is said
     if (tcRefused(seq, code)) return;
+    // a stream that WAS playing and then died (a signed link that ran out, a host that dropped the session — "it starts,
+    // then says the source did not answer"): the add-ons are asked again and the same row plays on from this second
+    if (midPlayRescue(seq, code)) return;
     var detail = d ? playErrDetail(d.data) : '';
     setStatus(playErrorLine(code, detail), 'err');
     try { $id('puiSpin').style.display = 'none'; } catch(e){}
@@ -9546,6 +9618,7 @@
     mp.reconnecting = false; mp.subs = []; mp.cut = false;
     mpvSubStyle();
     mpvApi.set('sub-delay', String(subOffset || 0)); mpvApi.set('sub-speed', subScale.toFixed(6));
+    audDelayApply();
     if (mp.st.vol >= 0) mpvApi.set('volume', String(Math.round(mp.st.vol)));
     mpvApi.set('mute', mp.st.mute ? 'yes' : 'no');
     // and what was asked for while it reopened: a pause (held, so an older state cannot undo it), a speed, a seek
@@ -9648,6 +9721,7 @@
     } finally { clearTimeout(timer); if (session.wait) session.wait = null; }
     if (seq !== playSeq || mp !== session) return;
     mpvApi.set('sub-delay', String(subOffset || 0)); mpvApi.set('sub-speed', subScale.toFixed(6));
+    audDelayApply();
     mpvMedia(true);
   }
   function mpvStop(){
@@ -9795,7 +9869,7 @@
     if (!mp) return;
     var s = subStyle, set = function(k, v){ mpvApi.set(k, String(v)); };
     set('sub-scale', MPV_SUB.size[s.size] || 1);
-    set('sub-color', MPV_SUB.color[s.color] || '#FFFFFF');
+    set('sub-color', subHdrOn() ? dimHex(MPV_SUB.color[s.color] || '#FFFFFF', Number(subVal('hdr', s.hdr)[2])).toUpperCase() : (MPV_SUB.color[s.color] || '#FFFFFF'));
     set('sub-font', s.font === 'serif' ? 'serif' : (s.font === 'mono' ? 'monospace' : 'sans-serif'));
     set('sub-bold', s.bold === 'on' ? 'yes' : 'no');
     var box = !!MPV_SUB.bg[s.bg] && s.bg !== 'none', vm = /(\d+)\.(\d+)/.exec(mp.ver || ''), newer = !!vm && (+vm[1] > 0 || +vm[2] >= 39);
@@ -9909,7 +9983,15 @@
     if (code === 3016) return 'This stream would not start — its host may have refused it, or its format cannot play on this device. Try another source. (3016)';
     if (code === 1001) return 'The source did not answer with a stream — it may be down or expired. Try another source. (1001' + detail + ')';
     if (code === 1002) return 'The source would not let this player read it. Try another source. (1002)';
-    return 'Failed to load (' + code + detail + ')';
+    // the rest used to read "Failed to load (NNNN)" — a reason nobody could act on (his "reason unknown" errors, 10-17)
+    if (code === 1003) return 'The source took too long to answer — it may be busy. Try again or another source. (1003)';
+    if (code === 4000 || code === 4001 || code === 4005) return 'The source answered with something that is not a video. Try another source. (' + code + detail + ')';
+    if (code === 4032 || code === 4040) return 'This stream’s format cannot play on this ' + (IS_TV ? 'TV' : 'device') + '. Try another source. (' + code + detail + ')';
+    if (code >= 3014 && code <= 3019) return 'This ' + (IS_TV ? 'TV' : 'device') + '’s player could not take a piece of this stream. Try another source. (' + code + detail + ')';
+    if (code >= 6000 && code < 7000) return 'This stream is protected in a way this ' + (IS_TV ? 'TV' : 'device') + ' cannot unlock. Try another source. (' + code + detail + ')';
+    if (code >= 1000 && code < 2000) return 'The source stopped answering. Try another source. (' + code + detail + ')';
+    if (code >= 4000 && code < 5000) return 'The stream’s list of pieces could not be read. Try another source. (' + code + detail + ')';
+    return 'This stream could not be played. Try another source. (' + code + detail + ')';
   }
   /** An error's detail cut to what diagnoses it, as " · …" for playErrorLine: the host's answer ("HTTP 404") and the engine's
       own short words. The raw detail used to follow the sentence — the stream's address (some add-ons put the viewer's token
@@ -9983,7 +10065,7 @@
     didRetry = false;
     // what a stream row said (Dolby in its name, the add-on's headers) belongs to that row's address: a pasted link, a
     // local file or a party's stream played after it must not inherit it
-    if (ctx.rowFor !== rawUrl){ ctx.playRow = ''; ctx.playHeaders = null; ctx.rowFor = ''; }
+    if (ctx.rowFor !== rawUrl){ ctx.playRow = ''; ctx.playHeaders = null; ctx.playAudHint = null; ctx.rowFor = ''; }
     lastPlay = { url: rawUrl, keys: clearKeys || null, title: title || '', subs: subtitles || [], mime: mimeType || '' };
     // a party host changing streams takes the whole room along — but not to a file from this computer, which the room cannot
     // open: they stay where they are, no longer steered, until the host plays a stream again (told once the play has begun)
@@ -10161,7 +10243,8 @@
       }
       if (seq !== playSeq) return;
       loaded = true; playStarting = false;
-      applyBufferPolicy();   // live is known only now (Auto keeps a bigger lead on live streams)
+      applyBufferPolicy();
+      subHdrDetect();                    // Settings › Subtitles › In HDR video   // live is known only now (Auto keeps a bigger lead on live streams)
       // the safety net: a file that looked ordinary but Chromium cannot voice restarts through the shell
       if (tcLater) tcCheckProbe(tcc).then(function(){ tcDecide(tcc, seq); });
       setStatus(swapName ? ('Switched to ' + swapName + '.') : startAt ? (mpvKeptPlace() ? 'This source can only play from the beginning — your place is kept.' : 'Resumed from ' + fmtT(startAt) + '.') : (fresh ? 'Starting from the beginning.' : 'Playing.'), 'ok');
@@ -10242,6 +10325,7 @@
     ctx.playRow = (s.name || '') + '\n' + (s.title || s.description || '') + '\n' + (bh.filename || '');
     // the add-on's own request headers for this file (a host that wants its Referer): the page cannot send them, the desktop shell's FFmpeg does
     ctx.playHeaders = (ph && typeof ph === 'object' && !Array.isArray(ph)) ? ph : null;
+    ctx.playAudHint = audHintOf(bh);
     ctx.rowFor = s.url;
     playUrl(s.url, extractClearKeys(s), ctx.streamTitle || (ctx.item && ctx.item.name) || s.name || 'Nebula', s.subtitles || []);
   }
@@ -10979,15 +11063,44 @@
                                        ['none','None','none']] },
     font:  { label:'Font',       vals:[['sans','Sans-serif','sans-serif'], ['serif','Serif','serif'], ['mono','Monospace','monospace']] },
     pos:   { label:'Position',   vals:[['bottom','Bottom','0vh'], ['raised','Raised','8vh'], ['high','High','18vh'], ['centre','Centre','40vh']] },
-    bold:  { label:'Bold',       vals:[['off','Off','400'], ['on','On','700']] }
+    bold:  { label:'Bold',       vals:[['off','Off','400'], ['on','On','700']] },
+    // over HDR / Dolby Vision pictures a white line can glare: its own brightness there (Nuvio #4073), 1 = as above
+    hdr:   { label:'In HDR video', vals:[['same','Same','1'], ['dim','Dimmer','0.8'], ['dimmer','Dim','0.62'], ['dimmest','Dimmest','0.45']] }
   };
-  var SUB_ORDER = ['size','color','bg','edge','font','pos','bold'];
-  var SUB_DEFAULT = { size:'normal', color:'white', bg:'dark', edge:'shadow', font:'sans', pos:'bottom', bold:'off' };
+  var SUB_ORDER = ['size','color','bg','edge','font','pos','bold','hdr'];
+  var SUB_DEFAULT = { size:'normal', color:'white', bg:'dark', edge:'shadow', font:'sans', pos:'bottom', bold:'off', hdr:'same' };
   function subVal(k, key){ var v = SUB_OPTS[k].vals; for (var i=0;i<v.length;i++) if (v[i][0]===key) return v[i]; return null; }
   function normSubStyle(o){ var out={}; SUB_ORDER.forEach(function(k){ out[k] = (o && subVal(k, o[k])) ? o[k] : SUB_DEFAULT[k]; }); return out; }
   function loadSubStyle(){ var o=null; try { o = JSON.parse(LS.getItem('sub_style')||'null'); } catch(e){} return normSubStyle(o); }
   var subStyle = loadSubStyle(), subStyleEl = null;
-  function subCss(k){ return subVal(k, subStyle[k])[2]; }
+  function subCss(k){
+    var v = subVal(k, subStyle[k])[2];
+    return (k === 'color' && subHdrOn()) ? dimHex(v, Number(subVal('hdr', subStyle.hdr)[2])) : v;
+  }
+  // what plays is HDR: the engine's own word for the variant (PQ / HLG) or, for a plain file, what its row says
+  var subHdr = false;
+  var RE_HDR_ROW = /(^|[^a-z0-9])(hdr10\+?|hdr|dv|dovi|dolby[ ._-]?vision|hlg)(?=[^a-z0-9]|$)/i;
+  function subHdrOn(){ return subHdr && subStyle.hdr !== 'same'; }
+  function subHdrDetect(){
+    var on = false;
+    try { (player && player.getVariantTracks ? player.getVariantTracks() : []).forEach(function(v){ if (v.active && v.hdr && v.hdr !== 'SDR') on = true; }); } catch(e){}
+    if (!on && RE_HDR_ROW.test(ctx.playRow || '')) on = true;
+    // the full-format player knows the file's own transfer (its picture parameters arrive a moment after it opens)
+    if (!on && mp){ try { if (/^(pq|hlg)$/i.test(String(mpvApi.get('video-params/gamma') || ''))) on = true; } catch(e){} }
+    if (on !== subHdr){ subHdr = on; applySubStyle(); }
+    if (!on && mp && (subHdrDetect.tries || 0) < 2){ subHdrDetect.tries = (subHdrDetect.tries || 0) + 1; var sq = playSeq; setTimeout(function(){ if (mp && sq === playSeq) subHdrDetect(); }, 3000); }
+  }
+  function subHdrReset(){ subHdrDetect.tries = 0; if (subHdr){ subHdr = false; applySubStyle(); } }
+  /** '#ffe600' at f of its brightness, as '#rrggbb'. */
+  function dimHex(hex, f){
+    if (!(f > 0 && f < 1)) return hex;
+    var h = String(hex).replace('#', '');
+    if (h.length === 3) h = h.charAt(0) + h.charAt(0) + h.charAt(1) + h.charAt(1) + h.charAt(2) + h.charAt(2);
+    if (!/^[0-9a-f]{6}$/i.test(h)) return hex;
+    var out = '#';
+    for (var i = 0; i < 6; i += 2){ var c = Math.round(parseInt(h.substr(i, 2), 16) * f); out += (c < 16 ? '0' : '') + c.toString(16); }
+    return out;
+  }
   function saveSubStyle(){
     var json = JSON.stringify(subStyle);
     try { LS.setItem('sub_style', json); LS.setItem('sub_style_at', String(Date.now())); } catch(e){}
@@ -11117,6 +11230,38 @@
     var d = video.duration; return { start:0, end:(isFinite(d)&&d>0)?d:0 };
   }
   function puiIsLive(){ try { return !!(player && player.isLive()); } catch(e){ return false; } }
+  /** Where what is in hand ends, from the playhead: the buffered range holding it (after a jump the last range is
+      often one far from here — the bar showed that one), else the playhead itself. */
+  function bufEndAt(t){
+    try { var b = video.buffered; for (var i = 0; b && i < b.length; i++) if (b.start(i) <= t + 0.5 && b.end(i) >= t) return b.end(i); } catch(e){}
+    return t;
+  }
+  // ---- quick seek: a jump made while the controls are hidden says how far on its own side, adding up while the presses
+  // keep coming, over a slim bar with what is in hand — and leaves the controls asleep (Nuvio #2229/#875) ----
+  var qsk = { sum: 0, at: 0, timer: null };
+  function quickSeek(delta){
+    if (pui.className !== 'idle' || puiIsLive()){ seekBy(delta); return; }
+    var r = puiRange(); if (r.end <= r.start) return;
+    var now = Date.now();
+    if (now - qsk.at > 1200 || (qsk.sum > 0) !== (delta > 0)) qsk.sum = 0;
+    var before = video.currentTime, t = before + delta;
+    if (t < r.start) t = r.start; if (t > r.end) t = r.end;
+    video.currentTime = t;
+    qsk.sum += t - before; qsk.at = now;
+    qskPaint(t, r);
+    clearTimeout(qsk.timer);
+    qsk.timer = setTimeout(function(){ $id('qsk').classList.remove('on'); qsk.sum = 0; }, 1100);
+  }
+  function qskPaint(t, r){
+    var el = $id('qsk'), span = r.end - r.start, s = Math.round(qsk.sum);
+    var txt = (s < 0 ? '−' : '+') + (Math.abs(s) >= 60 ? fmtT(Math.abs(s)) : Math.abs(s) + ' s');
+    el.className = 'qsk on ' + (qsk.sum < 0 ? 'left' : 'right');
+    $id(qsk.sum < 0 ? 'qskL' : 'qskR').textContent = txt;
+    var pct = Math.max(0, Math.min(1, (t - r.start) / span)), buf = Math.max(pct, Math.min(1, (bufEndAt(t) - r.start) / span));
+    $id('qskFill').style.width = (pct * 100) + '%';
+    $id('qskBuf').style.width = (buf * 100) + '%';
+    $id('qskT').textContent = fmtT(t - r.start) + ' / ' + fmtT(span);
+  }
   function seekBy(delta){
     var r = puiRange(); if (r.end <= r.start) return;
     var t = video.currentTime + delta;
@@ -11991,8 +12136,8 @@
     $id('puiFill').style.width = (pct*100)+'%';
     $id('puiKnob').style.left = (pct*100)+'%';
     var buf = 0;
-    try { var b = video.buffered; if (b && b.length && span>0) buf = (b.end(b.length-1)-r.start)/span; } catch(e){}
-    if (buf<0) buf=0; if (buf>1) buf=1;
+    if (span>0) buf = (bufEndAt(t)-r.start)/span;
+    if (buf<pct) buf=pct; if (buf>1) buf=1;
     $id('puiBuf').style.width = (buf*100)+'%';
     var live = puiIsLive();
     $id('puiLiveBadge').style.display = live ? '' : 'none';
@@ -12212,6 +12357,53 @@
       html += '<div class="pi-row"><span class="pi-k">' + r[0] + '</span><span class="pi-v' + (r[2] ? ' warn' : '') + '">' + esc(r[1]) + '</span></div>';
     });
     rows.innerHTML = html;
+  }
+
+  // ---- audio delay (the full-format player only: no browser or TV engine can move a video's sound) ----
+  // The viewer's delay is device-local (Settings pref `audDelay`, seconds; a TV and a laptop drift differently). An add-on
+  // may say a row's sound sits off by a fixed amount — behaviorHints.audioDelayMs, and with audioDelayLanguage only for
+  // the track in that language (a dub muxed over another release; Nuvio's draft hint, NuvioTV #3781/#4027): it is added
+  // while such a track plays and never saved. "es" matches es/spa/Spanish; "es-419" only itself.
+  function audHintOf(bh){
+    var ms = Number(bh && bh.audioDelayMs);
+    if (!isFinite(ms) || !ms) return null;
+    ms = Math.max(-60000, Math.min(60000, Math.round(ms)));
+    return { ms: ms, lang: String((bh && bh.audioDelayLanguage) || '').toLowerCase() };
+  }
+  function audHintFits(h, lang){
+    if (!h) return false;
+    if (!h.lang) return true;
+    var l = String(lang || '').toLowerCase().replace(/_/g, '-');
+    if (h.lang.indexOf('-') > 0) return l === h.lang;
+    return !!l && l.indexOf('-') < 0 && subKey(l) === subKey(h.lang);
+  }
+  function audDelayUser(){ var v = Number(getPrefs().audDelay); return isFinite(v) ? Math.max(-10, Math.min(10, v)) : 0; }
+  /** The language of the sound track playing: the one just picked, else the one mpv says is selected. */
+  function audLangNow(){
+    if (!mp) return '';
+    if (mp.audLang != null) return mp.audLang;
+    var t = mpvTracksNow().filter(function(x){ return x.type === 'audio' && x.selected; })[0];
+    return t ? (t.lang || '') : '';
+  }
+  function audDelayNow(){ var h = ctx.playAudHint; return audDelayUser() + (mp && audHintFits(h, audLangNow()) ? h.ms / 1000 : 0); }
+  function audDelayApply(){ if (mp) { try { mpvApi.set('audio-delay', audDelayNow().toFixed(3)); } catch(e){} } }
+  function audDelaySet(v){
+    v = Math.round(v * 10) / 10; if (Math.abs(v) < 0.05) v = 0;
+    notePref('audDelay', Math.max(-10, Math.min(10, v)));
+    audDelayApply();
+    setStatus('Audio delay: ' + audDelayLabel(), 'ok');
+  }
+  function audDelayLabel(){
+    var u = audDelayUser(), h = ctx.playAudHint, on = !!(mp && audHintFits(h, audLangNow()));
+    var txt = !u ? 'None' : (u > 0 ? '+' : '−') + Math.abs(u).toFixed(1) + ' s (sound ' + (u > 0 ? 'later' : 'earlier') + ')';
+    return on ? txt + ' · add-on adds ' + (h.ms > 0 ? '+' : '−') + (Math.abs(h.ms) / 1000).toFixed(2) + ' s' : txt;
+  }
+  /** The menu again with the same row lit, so a remote can press a nudge several times. */
+  function audMenuAgain(){
+    var opts = Array.prototype.slice.call(puiMenuEl.querySelectorAll('.qopt')), at = opts.indexOf(document.activeElement);
+    openPuiMenu('audio', puiState.opener);
+    var now = puiMenuEl.querySelectorAll('.qopt');
+    if (at >= 0 && now[Math.min(at, now.length - 1)]) setTimeout(function(){ now[Math.min(at, now.length - 1)].focus(); }, 20);
   }
 
   // ---- subtitle timing ----
@@ -12651,9 +12843,15 @@
         var mat = mpvTracksNow().filter(function(t){ return t.type === 'audio'; });
         mat.forEach(function(a, i){
           var label = mpvAudioLabel(a, i);
-          menuOpt(label, !!a.selected, function(){ mpvApi.set('aid', String(a.id)); setStatus('Audio: ' + label, 'ok'); closePuiMenu(true); });
+          menuOpt(label, !!a.selected, function(){ mpvApi.set('aid', String(a.id)); mp.audLang = a.lang || ''; audDelayApply(); setStatus('Audio: ' + label, 'ok'); closePuiMenu(true); });
         });
         puiNote(mat.length > 1 ? 'Every sound track this file carries.' : (mat.length ? 'This file carries one sound track.' : 'This stream has no sound track.'));
+        // Audio delay: the viewer's own (kept on this device) on top of what the add-on says of this row's dub
+        var dt = document.createElement('div'); dt.className = 'qtitle qsub'; dt.textContent = 'Audio delay · ' + audDelayLabel(); puiMenuEl.appendChild(dt);
+        [[0.1, 'Sound 0.1 s later'], [-0.1, 'Sound 0.1 s earlier'], [0.5, 'Sound 0.5 s later'], [-0.5, 'Sound 0.5 s earlier']].forEach(function(st){
+          menuOpt(st[1], false, function(){ audDelaySet(audDelayUser() + st[0]); audMenuAgain(); });
+        });
+        if (audDelayUser()) menuOpt('Back to 0', false, function(){ audDelaySet(0); audMenuAgain(); });
       } else if (langs.length >= 2){
         var curLang=''; try { (player.getVariantTracks()||[]).forEach(function(v){ if(v.active) curLang=v.language; }); } catch(e){}
         langs.forEach(function(l, li){
@@ -13358,18 +13556,42 @@
     if (pf && pf.addonUrl){ for (var i = 0; i < list.length; i++) if (list[i].url === pf.addonUrl) return list[i]; }
     return ctx.addon || null;
   }
-  /** Ask `a` for the episode's streams; with none, ask the origin add-on too. */
+  function epStreams(a, type, id){
+    return getJson(a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json')
+      .then(function(d){ return (d.streams||[]).filter(function(x){ return x.url; }); });
+  }
+  /** Ask `a` for the episode's streams; with none, ask the origin add-on too. When the last pick named
+      its file and neither has that release, every other streaming add-on is asked for it (15 s each)
+      — the add-on it came from may be down, or may have renamed its group. */
   async function resolveEpisodeStreams(a, type, id){
-    var cands = [a];
+    var cands = [a], pf = ctx.pickedFrom, best = null;
     if (ctx.addon && ctx.addon.url !== a.url) cands.push(ctx.addon);
     for (var i = 0; i < cands.length; i++){
       try {
-        var d = await getJson(cands[i].base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json');
-        var streams = (d.streams||[]).filter(function(x){ return x.url; });
-        if (streams.length) return { addon: cands[i], streams: streams, pick: matchStream(streams, ctx.pickedFrom, cands[i]) };
+        var streams = await epStreams(cands[i], type, id);
+        if (!streams.length) continue;
+        var res = { addon: cands[i], streams: streams, pick: matchStream(streams, pf, cands[i]) };
+        if (!pf || !pf.file || isTwin(res.pick, pf, cands[i])) return res;
+        if (!best) best = res;
       } catch(e){}
     }
-    return { addon: a, streams: [], pick: null };
+    if (pf && pf.file){
+      var asked = cands.map(function(c){ return c.url; });
+      var others = activeAddons().filter(function(o){ return asked.indexOf(o.url) < 0; }).slice(0, 8);
+      var hits = await Promise.all(others.map(function(o){
+        var ask = getManifest(o.url).then(function(m){
+          if (!canStream(m, type, id)) return null;
+          return epStreams(o, type, id).then(function(streams){
+            for (var k = 0; k < streams.length; k++)
+              if (releaseKey(rowFileName(streams[k])) === pf.file) return { addon: o, streams: streams, pick: streams[k], moved: true };
+            return null;
+          });
+        }).catch(function(){ return null; });
+        return Promise.race([ask, new Promise(function(r){ setTimeout(function(){ r(null); }, 15000); })]);
+      }));
+      for (var j = 0; j < hits.length; j++) if (hits[j]) return hits[j];
+    }
+    return best || { addon: a, streams: [], pick: null };
   }
   function prefetchNext(){
     var nx = nextEpisode(); if (!nx) return;
@@ -13378,7 +13600,7 @@
     var rec = nextReady = { id: nx.ep.id, addon: a, streams: null, pick: null, failed: false, at: Date.now() };
     resolveEpisodeStreams(a, ctx.seriesType || 'series', nx.ep.id).then(function(res){
       if (nextReady !== rec) return;
-      rec.addon = res.addon; rec.streams = res.streams; rec.pick = res.pick; rec.failed = !res.pick;
+      rec.addon = res.addon; rec.streams = res.streams; rec.pick = res.pick; rec.moved = !!res.moved; rec.failed = !res.pick;
       upnextRenderSrc();
     });
   }
@@ -13451,9 +13673,11 @@
     }
     if (res){
       setPlayIdentity(type, v.id, label);
-      // an untouched series adopts the first auto-pick as its taste; a hand-pick is never overwritten
+      // an untouched series adopts the first auto-pick as its taste; a hand-pick is never overwritten —
+      // except when the same release was found at another add-on: the taste follows it there
       var sig = streamSig(res.pick, res.addon);
       if (!ctx.pickedFrom) ctx.pickedFrom = sig;
+      else if (res.moved){ ctx.pickedFrom = sig; savePick(sig); }
       ctx.playSig = sig;                       // feeds the source line under the title
       playStream(res.pick);
       return;
@@ -13662,6 +13886,48 @@
       } catch(e){}
     }));
     return out;
+  }
+  // ---- a stream that played and then died is fetched again: the add-ons' fresh answer for the same row, from the same
+  // second. Twice per title in five minutes at most; after that the error and the "Won't play · Try X" pill. (Android has
+  // done this since 1.91.0 — StallWatch.fresh.) ----
+  var rescue = { key: '', n: 0, at: 0 };
+  /** The same row in a fresh answer: the very address when it is still listed, else the closest twin of what was playing
+      from its own add-on. Never another release — that is the pill's business, and the viewer's to accept. */
+  function freshPick(cands, curUrl, sig){
+    var i, best = null, bestSc = -1e9;
+    for (i = 0; i < cands.length; i++) if (cands[i].s.url === curUrl) return cands[i];
+    if (!sig) return null;
+    for (i = 0; i < cands.length; i++){
+      var c = cands[i];
+      if (!c.a || c.a.url !== sig.addonUrl || !isTwin(c.s, sig, c.a)) continue;
+      var sc = streamScore(c.s, sig, c.a);
+      if (sc > bestSc){ best = c; bestSc = sc; }
+    }
+    return best;
+  }
+  function midPlayRescue(seq, code){
+    if (seq !== playSeq || !lastPlay || !curPlay || !curPlay.id || !stall.playedAt || tc) return false;
+    if (party && !party.isHost) return false;                     // a party viewer follows the host
+    if (code === 7000 || code === 7001 || code === 7003) return false;
+    if (!/^https?:\/\//i.test(lastPlay.url || '')) return false;   // a file from this computer has nobody to ask
+    var key = curPlay.type + ':' + curPlay.id, now = Date.now();
+    if (rescue.key !== key || now - rescue.at > 300000) rescue = { key: key, n: 0, at: now };
+    if (rescue.n >= 2) return false;
+    rescue.n++; rescue.at = now;
+    var cur = { type: curPlay.type, id: curPlay.id }, url = lastPlay.url, sig = ctx.playSig || null, at = 0;
+    try { if (!puiIsLive()){ var r = puiRange(); at = Math.max(0, video.currentTime - r.start); } } catch(e){}
+    var again = lastPlay;
+    try { flushProgress(true); } catch(e){}
+    setStatus('The stream dropped — reconnecting…', 'info');
+    try { $id('puiSpin').style.display = ''; } catch(e){}
+    fetchSiblings(cur.type, cur.id).catch(function(){ return []; }).then(function(cands){
+      if (seq !== playSeq) return;                               // the viewer moved on meanwhile
+      var c = freshPick(cands, url, sig);
+      ctx.swapAt = at; ctx.swapName = ''; ctx.startOver = false; ctx.resumeChosen = true;
+      if (c){ ctx.playSig = sig || streamSig(c.s, c.a); playStream(c.s); }
+      else playUrl(again.url, again.keys, again.title, again.subs, again.mime || undefined);   // nobody lists it now: the same address once more
+    });
+    return true;
   }
   function stallCurSig(cands, curUrl){
     for (var i = 0; i < cands.length; i++) if (cands[i].s.url === curUrl) return streamSig(cands[i].s, cands[i].a);
@@ -14143,12 +14409,29 @@
   pui.addEventListener('click', function(e){
     var cls = e.target && e.target.className ? String(e.target.className) : '';
     if (e.target === pui || cls.indexOf('pui-shade') !== -1){
-      if (pui.className === 'idle') puiShow(); else togglePlay();
+      if (pui.className === 'idle') puiShow(); else { togglePlay(); tapSeek.toggledAt = Date.now(); }
     }
   });
   pui.addEventListener('dblclick', function(e){
     var cls = e.target && e.target.className ? String(e.target.className) : '';
+    if (Date.now() - tapSeek.at < 900) return;          // a phone's side taps seek, they do not go fullscreen
     if (e.target === pui || cls.indexOf('pui-shade') !== -1) toggleFullscreen();
+  });
+  // a phone: two taps on the left or right third jump back or on; every further tap on that side within 0.9 s jumps again
+  var tapSeek = { at: 0, side: 0, lastTap: 0, lastSide: 0 };
+  pui.addEventListener('touchend', function(e){
+    var cls = e.target && e.target.className ? String(e.target.className) : '';
+    if (!(e.target === pui || cls.indexOf('pui-shade') !== -1) || puiIsLive() || !e.changedTouches || !e.changedTouches[0]) return;
+    var x = e.changedTouches[0].clientX / (window.innerWidth || 1), side = x < 0.34 ? -1 : (x > 0.66 ? 1 : 0), now = Date.now();
+    if (!side){ tapSeek.lastTap = 0; return; }
+    var going = tapSeek.side === side && now - tapSeek.at < 900, second = tapSeek.lastSide === side && now - tapSeek.lastTap < 350;
+    tapSeek.lastTap = now; tapSeek.lastSide = side;
+    if (!going && !second) return;
+    e.preventDefault();                                   // no click: the controls stay as they are
+    if (!going && now - (tapSeek.toggledAt || 0) < 400){ togglePlay(); tapSeek.toggledAt = 0; }   // the first tap paused: that was half a double tap
+    tapSeek.side = side; tapSeek.at = now;
+    if (pui.className !== 'idle') puiIdle();
+    quickSeek(side * seekStepSecs());
   });
   // seek bar: click + drag (mouse and touch). The pointer also previews: hovering shows the card
   // without seeking, a drag seeks live with the card following, a finger keeps it 600 ms after lifting
