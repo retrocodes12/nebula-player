@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.17.1",
+  "version": "2026.10.22.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "A stream that stops mid-way is asked for again and goes on from the same second. Errors say what went wrong. The next episode keeps the same release by its file name, from another add-on if needed. Jumps made with the controls hidden show how far on the side they went, over a slim bar (two taps on a phone's side jump too). Subtitles can be dimmer over HDR video. On the desktop app: an audio delay in the Audio menu."
+  "notes": "The app moves with you now: a page you open slides in from the side and Back slides it away, tabs fade through, cards and buttons give when pressed, posters fade in as they load, a row's posters rise in one after another, and a title page's picture settles as it lands. Motion: Reduced keeps the cuts; the TV app is unchanged."
 }

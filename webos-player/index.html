@@ -39,7 +39,7 @@
     --r-card:12px; --r-tile:18px; --r-ctl:12px; --r-pill:980px;
     --ts:1;          /* the text scale (Settings › Text size): every px font-size in this sheet is calc(N * var(--ts)) */
     --cardw:150px;   /* a poster's width in a Home row; landscape and square derive from it */
-    --ease:cubic-bezier(.22,.61,.36,1);
+    --ease:cubic-bezier(.22,.61,.36,1); --decel:cubic-bezier(.05,.7,.1,1); --accel:cubic-bezier(.3,0,.8,.15);
     --navh:62px; --pad:40px;
     --sans:'Geist',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --mono:'GeistMono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -2080,6 +2080,39 @@
   html.rm .qmenu.open, html.rm #subPanel.open .sp-cols, html.rm .hf-art img, html.rm .hf-info { animation:none; }
   html.rm #upnext.show, html.rm #skipBtn.show, html.rm #srcBtn.show, html.rm #pui.pb-on #pauseBoard { animation:none; }
   html.rm .hf-dot, html.rm .con-item, html.rm .navitem, html.rm .chip, html.rm .stream, html.rm .addon { transition:none; }
+  /* Motion that flows (10-22, Android 1.98.0's pass; html.mv = not a TV, not lite; Motion: Reduced and the system's
+     reduced-motion setting turn it off). A page opened slides in from the side it came from and Back sends it the other
+     way (show() sets data-in / data-out: f forward, b back, t a tab), a tab fades through, a pressed card or button
+     gives under the pointer, pictures fade in as they arrive (the load listener beside MV), a row's cards rise in one
+     after another, and a title page's picture settles as it lands. A TV keeps its cuts: two pages moving at once is what
+     its chip cannot draw. */
+  @media (prefers-reduced-motion: no-preference){
+    html.mv:not(.rm) .view.active[data-in="f"] { animation:mvInF .36s var(--decel) both; }
+    html.mv:not(.rm) .view.active[data-in="b"] { animation:mvInB .36s var(--decel) both; }
+    html.mv:not(.rm) .view.active[data-in="t"] { animation:mvInT .32s var(--decel) both; }
+    html.mv:not(.rm) .view.leaving[data-out="f"] { animation:mvOutF .2s var(--accel) both; }
+    html.mv:not(.rm) .view.leaving[data-out="b"] { animation:mvOutB .2s var(--accel) both; }
+    html.mv:not(.rm) .view.leaving[data-out="t"] { animation:viewOut .1s var(--accel) both; }
+    html.mv:not(.rm) .card:active { transform:scale(.955); transition-duration:.1s; }
+    html.mv:not(.rm) .btn:active, html.mv:not(.rm) .chip:active, html.mv:not(.rm) .navitem:active,
+    html.mv:not(.rm) .iconbtn:active, html.mv:not(.rm) .seeall:active { transform:scale(.94); transition:transform .1s var(--ease); }
+    html.mv:not(.rm) .stream:active { transform:scale(.985); transition:transform .1s var(--ease); }
+    html.mv:not(.rm) .thumb img.ld { animation:fadeIn .26s var(--ease) both; }
+    html.mv:not(.rm) .det-back img.ld { animation:mvSettle 1.1s var(--decel) both; }
+    html.mv:not(.rm) .hrow.rin > .card { animation:riseIn .42s var(--decel) backwards; }   /* backwards: a held transform would beat :active and the focus zoom */
+    html.mv:not(.rm) .hrow.rin > .card:nth-child(2) { animation-delay:.035s; }
+    html.mv:not(.rm) .hrow.rin > .card:nth-child(3) { animation-delay:.07s; }
+    html.mv:not(.rm) .hrow.rin > .card:nth-child(4) { animation-delay:.105s; }
+    html.mv:not(.rm) .hrow.rin > .card:nth-child(5) { animation-delay:.14s; }
+    html.mv:not(.rm) .hrow.rin > .card:nth-child(6) { animation-delay:.175s; }
+    html.mv:not(.rm) .hrow.rin > .card:nth-child(n+7) { animation-delay:.21s; }
+  }
+  @keyframes mvInF { 0% { opacity:0; transform:translateX(44px); } 65% { opacity:1; } 100% { opacity:1; transform:none; } }
+  @keyframes mvInB { 0% { opacity:0; transform:translateX(-44px); } 65% { opacity:1; } 100% { opacity:1; transform:none; } }
+  @keyframes mvInT { 0% { opacity:0; transform:scale(.985); } 25% { opacity:0; } 100% { opacity:1; transform:none; } }
+  @keyframes mvOutF { from { opacity:1; transform:none; } to { opacity:0; transform:translateX(-22px); } }
+  @keyframes mvOutB { from { opacity:1; transform:none; } to { opacity:0; transform:translateX(22px); } }
+  @keyframes mvSettle { from { opacity:0; transform:scale(1.06); } to { opacity:1; transform:none; } }
   /* the Settings console: Essential hides the rows (and whole sections) marked for Everything */
   #setConsole.ess [data-lvl="all"] { display:none; }
   .con-mode { display:flex; align-items:center; flex-wrap:wrap; padding:6px 0 14px; margin:18px 0 0; max-width:860px; border-bottom:1px solid var(--sep); }
@@ -2881,7 +2914,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.10.17.1';
+  var PLAYER_VERSION = '2026.10.22.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -2922,6 +2955,15 @@
   var IS_LITE = !!(window.PalmSystem || window.WebOSServiceBridge || window.PalmServiceBridge) ||
     /web0s|webos|netcast/i.test(navigator.userAgent || '') || /[?&#]lite=1/.test(location.href);
   if (IS_LITE) document.documentElement.className += ' lite';
+  // motion that flows (the CSS beside html.rm): everywhere but a TV
+  var MV = !IS_LITE && !IS_TV;
+  if (MV) document.documentElement.className += ' mv';
+  // a picture that has arrived fades in (html.mv): load does not bubble, so one listener catches every card and backdrop (the hero cross-fades itself)
+  if (MV) document.addEventListener('load', function(e){
+    var t = e.target;
+    if (t && t.tagName === 'IMG' && t.parentNode && typeof t.parentNode.className === 'string' &&
+        /(^| )(thumb|det-back)( |$)/.test(t.parentNode.className)) t.classList.add('ld');
+  }, true);
   // While the player is up, the pages kept laid out under it (show(): Home, the page the play started from) are see-through
   // (opacity), not hidden (visibility): un-hiding them re-styled every row on the way back, the bulk of a TV's dead seconds
   // (rig tvperf/freeze68). A hidden element could never take the focus and these could, so a focus aimed into them while
@@ -2990,6 +3032,8 @@
   // ---------- view + focus ----------
   function show(name, push){
     var back = (push === false);
+    // which way this move goes, for html.mv's slides: a tab (setTab), Back, or a page opened on top
+    var mvDir = navTabNext ? 't' : (back ? 'b' : 'f'); navTabNext = false;
     if (name === 'home' || name === 'library') cvSoon();   // rows drawn while their page was hidden are measured once it shows
     // transient toasts belong to the view that made them; errors stay sticky,
     // and one set moments ago (goBack's "Left the party.") is the new view's own
@@ -3017,6 +3061,7 @@
       // the view being left fades under the new one — not to or from the player, which owns the screen
       if (v.classList.contains('active') && !wasPlaying && name !== 'player' && v.id !== 'view-'+name && !(keepHome && v.id === 'view-home')){
         v.classList.add('leaving');
+        if (MV) v.setAttribute('data-out', mvDir);
         setTimeout(function(){ v.classList.remove('leaving'); }, 220);
       }
       v.classList.remove('active');
@@ -3026,6 +3071,7 @@
     var el = document.getElementById('view-'+name);
     if (el){
       el.classList.add('active'); el.classList.toggle('was-under', backUnder); if (!back) el.scrollTop = 0;
+      if (MV){ if (name !== 'player' && !wasPlaying) el.setAttribute('data-in', mvDir); else el.removeAttribute('data-in'); }
       // and a fade never outlives itself: a page still part see-through well after its 0.18 s is cut to whole
       if (IS_LITE){
         el.style.animation = '';
@@ -3425,9 +3471,10 @@
       else window.close();
     } catch(e3){}
   }
+  var navTabNext = false;     // setTab → show(): this move is a tab, it fades through
   function setTab(t){
     stopPairing(); pfTvStop();
-    viewStack = [t]; detTrail = [];
+    viewStack = [t]; detTrail = []; navTabNext = true;
     show(t, false);
     if (t === 'home') buildHomeRows(false);
   }
@@ -5936,6 +5983,7 @@
             row.innerHTML = '';
             if (!metas.length){ head.style.display='none'; row.style.display='none'; return; }
             rowsShown++;
+            if (MV) row.classList.add('rin');      // its cards rise in one after another (html.mv)
             metas.forEach(function(meta){ row.appendChild(cardEl(meta, a, m, c)); });
             cvSoon();
             if (rowsShown === 1){ bootReady(); foot.style.display = ''; }   // first real row on screen
