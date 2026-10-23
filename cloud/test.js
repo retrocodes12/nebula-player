@@ -553,6 +553,20 @@ test('profile: create → sign in elsewhere → devices → edit → remove devi
   assert.equal((await api('GET', '/v1/profile/me', undefined, tok(a))).status, 401);
 });
 
+test('profile: the password check that resets a forgotten PIN', async () => {
+  const a = await mkProfile('pin_reset', 'P', 'right password');
+  assert.deepEqual((await api('POST', '/v1/profile/check', { password: 'right password' }, tok(a))).body, { ok: true });
+  assert.equal((await api('POST', '/v1/profile/check', { password: 'wrong password' }, tok(a))).status, 403);
+  assert.equal((await api('POST', '/v1/profile/check', {}, tok(a))).status, 403);
+  assert.equal((await api('POST', '/v1/profile/check', { password: 'right password' })).status, 401);
+  // a wrong answer signs nobody out
+  assert.equal((await api('GET', '/v1/profile/me', undefined, tok(a))).status, 200);
+  // six in a row on one account, then the account's bucket says wait
+  let last = 0;
+  for (let i = 0; i < 8; i++) last = (await api('POST', '/v1/profile/check', { password: 'x' }, tok(a))).status;
+  assert.equal(last, 429);
+});
+
 test('profile: handle and password rules', async () => {
   await mkProfile('taken_one', 'T', 'password1');
   assert.equal((await api('POST', '/v1/profile', { handle: 'Taken_One', password: 'password1' })).status, 409);

@@ -337,6 +337,14 @@ module.exports = function attach(core) {
       persistSoon(gid);
       return json(res, 200, { profile: pub(g) });
     }
+    // the account's password, checked and nothing else: a forgotten who's-watching PIN is reset with it (the PIN
+    // lives in the synced profile list on the devices; this server never sees it)
+    if (p === '/v1/profile/check' && m === 'POST') {
+      if (!allow('pwcheck', ip, 2, 6) || !allow('pwcheck_g', gid, 1, 6)) return json(res, 429, { error: 'rate limited' });
+      const b = await body(req);
+      if (!(await checkHash(String((b && b.password) || ''), prof.pass))) return json(res, 403, { error: 'wrong password' });
+      return json(res, 200, { ok: true });
+    }
     if (p === '/v1/profile/password' && m === 'POST') {
       if (!allow('pw', ip, 2, 6)) return json(res, 429, { error: 'rate limited' });
       const b = await body(req);

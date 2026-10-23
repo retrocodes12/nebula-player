@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.22.1",
+  "version": "2026.10.23.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "The app moves with you now: a page you open slides in from the side and Back slides it away, tabs fade through, cards and buttons give when pressed, posters fade in as they load, a row's posters rise in one after another, and a title page's picture settles as it lands. Motion: Reduced keeps the cuts; the TV app is unchanged."
+  "notes": "A profile can have a PIN now: in Manage Profiles, open a profile and choose Add a PIN. Picking a profile with a PIN asks for its four digits, at launch too; Forgot PIN? removes it with your account's password."
 }

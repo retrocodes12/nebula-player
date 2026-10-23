@@ -1602,6 +1602,38 @@
     #who h2 { margin-bottom:44px; }
   }
   .who-note { color:var(--label2); font-size:calc(13px * var(--ts)); text-align:center; margin-top:22px; line-height:1.4; }
+  /* the profile PIN (2026-10-23): a lock under a locked tile's name, and the PIN screen over the picker */
+  .who-lk { display:block; height:18px; margin-top:6px; color:var(--label2); }
+  .who-lk svg { width:16px; height:16px; }
+  html.tv .who-lk { height:24px; } html.tv .who-lk svg { width:22px; height:22px; }
+  #whoPin { display:none; flex-direction:column; align-items:center; width:100%; max-width:360px; }
+  #who.pin #whoPin { display:flex; }
+  #who.pin .who-pick, #who.pin #whoEdit { display:none; }
+  #whoPin .who-mono { width:84px; height:84px; font-size:calc(34px * var(--ts)); }
+  #who #whoPin h2 { font-size:calc(24px * var(--ts)); margin:18px 0 20px; }
+  html.tv #who #whoPin h2 { font-size:calc(32px * var(--ts)); margin:20px 0 22px; }
+  .who-dots { display:flex; justify-content:center; }
+  .who-dots i { width:16px; height:16px; margin:0 10px; border-radius:50%; border:2px solid var(--label2); }
+  .who-dots i.on { background:var(--label); border-color:var(--label); }
+  html.tv .who-dots i { width:20px; height:20px; margin:0 13px; }
+  .who-msg { min-height:20px; margin:14px 0 10px; color:#FF453A; font-size:calc(14px * var(--ts)); text-align:center; }
+  .who-msg.ok { color:var(--label2); }
+  .who-keys { display:flex; flex-wrap:wrap; justify-content:center; width:276px; }
+  html.tv .who-keys { width:330px; }
+  .who-key { width:72px; height:72px; margin:8px; border-radius:50%; border:1px solid var(--line); background:var(--surface); color:var(--label);
+    font:inherit; font-size:calc(26px * var(--ts)); font-weight:600; cursor:pointer; outline:none; display:flex; align-items:center; justify-content:center; padding:0; }
+  html.tv .who-key { width:88px; height:88px; margin:9px; font-size:calc(32px * var(--ts)); }
+  .who-key svg { width:28px; height:28px; }
+  .who-key.blank { visibility:hidden; }
+  .who-key:hover { background:var(--surface2); }
+  html.tv .who-key:focus { border-color:#fff; box-shadow:0 0 0 3px var(--bg), 0 0 0 6px #fff; }
+  .who-key:focus-visible { border-color:#fff; box-shadow:0 0 0 3px var(--bg), 0 0 0 6px #fff; }
+  #whoPinPw { width:100%; }
+  #whoPinPw p { color:var(--label2); font-size:calc(14px * var(--ts)); text-align:center; line-height:1.4; margin:6px 0 14px; }
+  html.tv #whoPinPw p { font-size:calc(19px * var(--ts)); }
+  #whoPinPw .field { width:100%; }
+  #whoPinPw .who-btn { display:block; margin:16px auto 0; }
+  #whoPinForgot { margin-top:16px; }
   .phead { display:flex; align-items:center; margin:6px 0 22px; }
   .pname { font-size:calc(28px * var(--ts)); font-weight:700; letter-spacing:-.026em; line-height:1.1; }
   .phandle { font-family:var(--mono); color:var(--label2); font-size:calc(13px * var(--ts)); margin-top:5px; letter-spacing:.02em; }
@@ -2215,7 +2247,7 @@
 <body>
   <!-- Boot screen. Static markup, above the script, so it paints on the first
        frame — the whole point is that nobody ever sees an empty Home. -->
-  <div id="who" role="dialog" aria-label="Who's watching?"><div class="who-pick"><div class="who-mark"><i>◆</i>Nebula</div><h2>Who's watching?</h2><div class="who-row" id="whoRow"></div><button type="button" id="whoManage" class="who-btn focusable">Manage Profiles</button></div><div id="whoEdit"><h2>Edit profile</h2><span id="whoEdMono" class="who-mono"></span><input id="whoEdName" class="focusable field" type="text" maxlength="24" autocomplete="off" /><div id="whoEdAv"></div><button type="button" id="whoEdSave" class="who-btn solid focusable">Save</button><button type="button" id="whoEdDel" class="who-btn danger focusable">Remove profile</button><p class="who-note">Each profile keeps its own Continue Watching, resume points, My List and add-ons. Settings are shared.</p></div></div>
+  <div id="who" role="dialog" aria-label="Who's watching?"><div class="who-pick"><div class="who-mark"><i>◆</i>Nebula</div><h2>Who's watching?</h2><div class="who-row" id="whoRow"></div><button type="button" id="whoManage" class="who-btn focusable">Manage Profiles</button></div><div id="whoEdit"><h2>Edit profile</h2><span id="whoEdMono" class="who-mono"></span><input id="whoEdName" class="focusable field" type="text" maxlength="24" autocomplete="off" /><div id="whoEdAv"></div><button type="button" id="whoEdPin" class="who-btn focusable">Add a PIN</button><button type="button" id="whoEdSave" class="who-btn solid focusable">Save</button><button type="button" id="whoEdPinOff" class="who-btn danger focusable">Remove PIN</button><button type="button" id="whoEdDel" class="who-btn danger focusable">Remove profile</button><p class="who-note">Each profile keeps its own Continue Watching, resume points, My List and add-ons. Settings are shared.</p></div><div id="whoPin"><span id="whoPinMono" class="who-mono"></span><h2 id="whoPinH">Enter the PIN</h2><div class="who-dots" id="whoPinDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div><p class="who-msg" id="whoPinMsg" role="status"></p><div class="who-keys" id="whoPinKeys"></div><div id="whoPinPw"></div><button type="button" id="whoPinForgot" class="textbtn focusable">Forgot PIN?</button><button type="button" id="whoPinCancel" class="who-btn focusable">Cancel</button></div></div>
   <div id="boot">
     <div class="boot-mark">
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6 21.4 12 12 21.4 2.6 12 12 2.6Z"/></svg>
@@ -2914,7 +2946,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.10.22.1';
+  var PLAYER_VERSION = '2026.10.23.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -4110,8 +4142,37 @@
   }
   function viewerCur(){ var l = viewerList(); for (var i = 0; i < l.length; i++) if (l[i].id === viewer) return l[i]; return l[0]; }
   function viewerSetList(list){
-    getViewers().list = list.map(function(v){ return { id: v.id, name: String(v.name || '').slice(0, 24), av: v.av || '' }; });
+    getViewers().list = list.map(function(v){
+      var o = { id: v.id, name: String(v.name || '').slice(0, 24), av: v.av || '' };
+      if (viewerLocked(v)) o.lock = { s: v.lock.s, h: v.lock.h };   // (an older app drops this when it rewrites the list)
+      return o;
+    });
     saveViewers(true);
+  }
+  // ---- the profile PIN (2026-10-23): four digits in front of a profile, a lock for the household, not security —
+  // `lock` {s: salt, h: hash} rides in the synced list; the same hash on every app (brief pin-2026-10-23.md). A
+  // four-digit PIN cannot be hidden by any hash; this one only keeps it out of plain sight.
+  function viewerLocked(v){ return !!(v && v.lock && /^[0-9a-f]{8}$/.test(String(v.lock.s)) && /^[0-9a-f]{8}$/.test(String(v.lock.h))); }
+  function pinHash(salt, pin){
+    var s = salt + ':' + pin, h = 2166136261;
+    for (var r = 0; r < 1000; r++) for (var i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return ('0000000' + h.toString(16)).slice(-8);
+  }
+  function pinSalt(){
+    var out = '';
+    try { var a = new Uint8Array(4); crypto.getRandomValues(a); for (var i = 0; i < 4; i++) out += ('0' + a[i].toString(16)).slice(-2); } catch(e){}
+    while (out.length < 8) out += Math.floor(Math.random() * 16).toString(16);
+    return out.slice(0, 8);
+  }
+  function viewerById(id){ var l = viewerList(); for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
+  /** Profiles let in on this run (their PIN typed, or locked here): memory only, so every launch asks again. */
+  var whoUnlocked = {};
+  function whoNeedsPin(id){ return viewerLocked(viewerById(id)) && !whoUnlocked[id]; }
+  function viewerSetLock(id, lock){
+    var l = viewerList();
+    l.forEach(function(x){ if (x.id === id){ if (lock) x.lock = lock; else delete x.lock; } });
+    viewerSetList(l);
+    whoUnlocked[id] = true;
   }
   /** On to the other profile: what this one changed is kept and sent up under its own names first, then the other's
       history is read (storage, the mirrors after a wipe, the cloud) and everything showing a history is drawn again. */
@@ -4186,7 +4247,7 @@
     if (ra > (local.at || 0)){
       viewersDoc = { at: ra, list: remote.list.slice(0, 2) }; saveViewers(false);
       if (viewer === 'b' && viewerList().length < 2) switchViewer('a', true);   // removed on another device
-      if (whoOpen && !whoFrom && !whoEditing && viewerList().length < 2) whoClose(viewer);   // (no longer a choice at launch)
+      if (whoOpen && !whoFrom && !whoEditing && !whoPinOn && viewerList().length < 2 && !whoNeedsPin(viewer)) whoClose(viewer);   // (no longer a choice at launch)
       whoRender();
       return { changed: true, localNewer: false };
     }
@@ -4212,6 +4273,8 @@
     if (whoOpen && !whoEditing) whoDraw();
   }
   var WHO_PEN = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+  var WHO_LOCK = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 9h-1V7a4 4 0 0 0-8 0v2H7a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2zm-7-2a2 2 0 0 1 4 0v2h-4V7zm2 10.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>';
+  var WHO_DEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z"/><path d="M17 9.5l-5 5M12 9.5l5 5"/></svg>';
   var WHO_PLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
   /** A colour as rgba (the monogram's tint and ring); anything that is not #rrggbb is the grey. */
   function whoRgba(av, a){
@@ -4227,8 +4290,8 @@
   var whoOpen = false, whoManaging = false, whoEditing = null, whoFrom = null, whoEdAv = '';
   /** The picker: at launch with two profiles (whoBoot), and from Settings (from = the button to come back to). */
   function whoShow(from){
-    whoFrom = from || null; whoManaging = false; whoEditing = null;
-    $id('who').classList.add('on'); $id('who').classList.remove('editing');
+    whoFrom = from || null; whoManaging = false; whoEditing = null; whoPinOn = null;
+    $id('who').classList.add('on'); $id('who').classList.remove('editing', 'pin');
     whoOpen = true;
     whoDraw();
     whoFocus($id('whoRow').querySelector('.who-tile.cur') || $id('whoRow').firstChild);
@@ -4253,9 +4316,13 @@
       b.className = 'who-tile focusable' + (v.id === viewer ? ' cur' : '');
       b.setAttribute('data-who', v.id);
       b.innerHTML = '<span class="who-av"><span class="who-mono" style="' + whoMonoStyle(viewerAv(v)) + '">' + esc(avLetter(viewerName(v))) +
-        '</span><span class="who-pen" aria-hidden="true">' + WHO_PEN + '</span></span><span class="n">' + esc(viewerName(v)) + '</span>';
-      b.setAttribute('aria-label', whoManaging ? 'Edit ' + viewerName(v) : viewerName(v));
-      b.onclick = function(){ if (whoManaging) whoEdit(v.id); else whoClose(v.id); };
+        '</span><span class="who-pen" aria-hidden="true">' + WHO_PEN + '</span></span><span class="n">' + esc(viewerName(v)) + '</span>' +
+        (viewerLocked(v) ? '<span class="who-lk" aria-hidden="true">' + WHO_LOCK + '</span>' : '');
+      b.setAttribute('aria-label', (whoManaging ? 'Edit ' + viewerName(v) : viewerName(v)) + (viewerLocked(v) ? ', PIN' : ''));
+      b.onclick = function(){
+        var go = function(){ if (whoManaging) whoEdit(v.id); else whoClose(v.id); };
+        if (whoNeedsPin(v.id)) whoPinAsk(v.id, 'check', go); else go();
+      };
       row.appendChild(b);
     });
     if (whoManaging && l.length < 2){
@@ -4298,6 +4365,25 @@
       var l2 = viewerList(); l2.forEach(function(x){ if (x.id === id){ x.name = nm.value.trim().slice(0, 24); x.av = whoEdAv; } });
       viewerSetList(l2); whoEditDone(id);
     };
+    var pinPaint = function(){
+      var on = viewerLocked(viewerById(id));
+      $id('whoEdPin').textContent = on ? 'Change PIN' : 'Add a PIN';
+      $id('whoEdPinOff').style.display = on ? '' : 'none';
+    };
+    pinPaint();
+    $id('whoEdPin').onclick = function(){
+      whoPinAsk(id, 'set', function(pin){
+        var s = pinSalt();
+        viewerSetLock(id, { s: s, h: pinHash(s, pin) });
+        pinPaint();
+        setStatus('PIN set for ' + viewerName(viewerById(id)) + '.', 'ok', 3000);
+      });
+    };
+    $id('whoEdPinOff').onclick = function(){
+      viewerSetLock(id, null); pinPaint();
+      setStatus('PIN removed.', 'ok', 2500);
+      whoFocus($id('whoEdPin'));
+    };
     var del = $id('whoEdDel');
     del.style.display = id === 'b' ? '' : 'none';
     del.onclick = function(){
@@ -4315,12 +4401,121 @@
     whoRender(); whoDraw();
     whoFocus($id('whoRow').querySelector('[data-who="' + id + '"]') || $id('whoManage'));
   }
-  /** At launch with two profiles: who's watching? */
-  function whoBoot(){ if (viewerList().length === 2) whoShow(null); }
+  /** The PIN screen, over the picker or the editor. mode 'check': the profile's PIN, then done(); 'set': a new PIN
+      typed twice, then done(pin). back(): after Cancel (default: the remote back on what opened it). */
+  var whoPinOn = null, WHO_PIN_KEYS = ['1','2','3','4','5','6','7','8','9','','0','del'];
+  function whoPinAsk(id, mode, done, back){
+    var ae = document.activeElement;
+    whoPinOn = { id: id, mode: mode, done: done, back: back, typed: '', first: null, from: ae && ae.closest && ae.closest('#who') ? ae : null, pw: false };
+    $id('who').classList.add('pin');
+    var v = viewerById(id) || { id: id };
+    var mono = $id('whoPinMono');
+    mono.setAttribute('style', whoMonoStyle(viewerAv(v))); mono.textContent = avLetter(viewerName(v));
+    var keys = $id('whoPinKeys');
+    if (!keys.firstChild){
+      WHO_PIN_KEYS.forEach(function(k){
+        var b = document.createElement('button'); b.type = 'button';
+        b.className = 'who-key' + (k ? ' focusable' : ' blank');
+        if (k === 'del'){ b.innerHTML = WHO_DEL; b.setAttribute('aria-label', 'Delete'); } else b.textContent = k;
+        b.setAttribute('data-k', k);
+        if (k) b.onclick = function(){ whoPinKey(k); }; else b.tabIndex = -1;
+        keys.appendChild(b);
+      });
+    }
+    $id('whoPinCancel').onclick = whoPinCancel;
+    $id('whoPinForgot').onclick = whoPinForgot;
+    whoPinMsg('', false);
+    whoPinDraw();
+    whoFocus(keys.firstChild);
+  }
+  var whoPinFails = 0, whoPinWaitUntil = 0;
+  function whoPinMsg(t, ok){ var m = $id('whoPinMsg'); m.textContent = t; m.className = 'who-msg' + (ok ? ' ok' : ''); }
+  function whoPinDraw(){
+    var p = whoPinOn; if (!p) return;
+    var name = viewerName(viewerById(p.id) || { id: p.id });
+    $id('whoPinH').textContent = p.pw ? 'Forgot the PIN?' : p.mode === 'check' ? 'Enter the PIN for ' + name
+      : p.first === null ? 'Choose a 4-digit PIN for ' + name : 'Enter the same PIN again';
+    Array.prototype.forEach.call($id('whoPinDots').children, function(d, i){ d.className = i < p.typed.length ? 'on' : ''; });
+    $id('whoPinDots').style.display = p.pw ? 'none' : '';
+    $id('whoPinKeys').style.display = p.pw ? 'none' : '';
+    $id('whoPinForgot').style.display = p.mode === 'check' && !p.pw ? '' : 'none';
+    if (!p.pw) $id('whoPinPw').innerHTML = '';
+  }
+  function whoPinKey(k){
+    var p = whoPinOn; if (!p || p.pw) return;
+    if (p.mode === 'check' && Date.now() < whoPinWaitUntil){ whoPinMsg('Too many tries — wait 30 seconds.'); return; }
+    if (k === 'del'){ p.typed = p.typed.slice(0, -1); whoPinDraw(); return; }
+    if (!/^[0-9]$/.test(k) || p.typed.length >= 4) return;
+    p.typed += k; whoPinDraw();
+    if (p.typed.length < 4) return;
+    var pin = p.typed;
+    // the fourth dot shows filled for a moment before the answer
+    setTimeout(function(){
+      if (whoPinOn !== p) return;
+      if (p.mode === 'check'){
+        var v = viewerById(p.id);
+        if (v && viewerLocked(v) && pinHash(v.lock.s, pin) === v.lock.h){ whoPinFails = 0; whoUnlocked[p.id] = true; whoPinEnd(); p.done(); return; }
+        if (!viewerLocked(v)){ whoPinEnd(); p.done(); return; }   // (its PIN was removed elsewhere meanwhile)
+        p.typed = ''; whoPinFails++;
+        if (whoPinFails >= 5){ whoPinFails = 0; whoPinWaitUntil = Date.now() + 30000; whoPinMsg('Too many tries — wait 30 seconds.'); }
+        else whoPinMsg('Wrong PIN.');
+        whoPinDraw(); return;
+      }
+      if (p.first === null){ p.first = pin; p.typed = ''; whoPinMsg('', false); whoPinDraw(); return; }
+      if (pin !== p.first){ p.first = null; p.typed = ''; whoPinMsg("The PINs didn't match — try again."); whoPinDraw(); return; }
+      whoPinEnd(); p.done(pin);
+    }, 140);
+  }
+  /** Out of the PIN screen: what was under it shows again (the editor keeps what was typed in it). */
+  function whoPinEnd(){
+    var p = whoPinOn; whoPinOn = null;
+    $id('who').classList.remove('pin');
+    $id('whoPinPw').innerHTML = '';
+    if (p && p.from && p.from.offsetParent !== null) whoFocus(p.from);
+    else if (p) whoFocus($id('whoRow').querySelector('[data-who="' + p.id + '"]') || $id('whoEdPin'));
+  }
+  function whoPinCancel(){
+    var p = whoPinOn; if (!p) return;
+    if (p.pw){ p.pw = false; whoPinMsg('', false); whoPinDraw(); whoFocus($id('whoPinKeys').firstChild); return; }
+    whoPinEnd(); if (p.back) p.back();
+  }
+  /** Forgot PIN?: the account's password removes it (checked by the server; the PIN never leaves the devices). */
+  function whoPinForgot(){
+    var p = whoPinOn; if (!p) return;
+    p.pw = true; p.typed = ''; whoPinMsg('', false); whoPinDraw();
+    var box = $id('whoPinPw');
+    if (!(cloudLinked() && profile)){
+      box.innerHTML = '<p>Sign in to your Nebula account on this device first — its password resets the PIN.</p>';
+      whoFocus($id('whoPinCancel')); return;
+    }
+    box.innerHTML = '<p>Enter the password of your Nebula account (@' + esc(profile.handle || '') + ') to remove this profile’s PIN.</p>' +
+      '<input id="whoPinPass" class="focusable field" type="password" autocomplete="current-password" placeholder="Password" />' +
+      '<button type="button" id="whoPinGo" class="who-btn solid focusable">Remove the PIN</button>';
+    var f = $id('whoPinPass'), go = $id('whoPinGo');
+    f.onkeydown = function(e){ if (e.keyCode === 13){ e.preventDefault(); go.click(); } };
+    go.onclick = function(){
+      if (go.disabled) return;
+      go.disabled = true; go.textContent = 'Checking…';
+      cloudApi('POST', '/v1/profile/check', { password: f.value }).then(function(){
+        if (whoPinOn !== p) return;
+        viewerSetLock(p.id, null);
+        setStatus('PIN removed — add a new one from Manage Profiles.', 'ok', 4000);
+        whoPinEnd(); p.done();
+      }, function(e){
+        if (whoPinOn !== p) return;
+        go.disabled = false; go.textContent = 'Remove the PIN';
+        whoPinMsg(e && e.status === 403 ? 'Wrong password.' : e && e.status === 429 ? 'Too many tries — wait a minute.' : 'Could not reach Nebula. Try again.');
+        if (e && e.status === 403){ f.value = ''; }
+      });
+    };
+    whoFocus(IS_TV ? go : f);
+  }
+  /** At launch: who's watching? — with two profiles, or when the one this device was on has a PIN. */
+  function whoBoot(){ if (viewerList().length === 2 || whoNeedsPin(viewer)) whoShow(null); }
   function whoClose(id){
     var from = whoFrom;
-    whoOpen = false; whoManaging = false; whoEditing = null; whoFrom = null;
-    $id('who').classList.remove('on', 'manage', 'editing');
+    whoOpen = false; whoManaging = false; whoEditing = null; whoFrom = null; whoPinOn = null;
+    $id('who').classList.remove('on', 'manage', 'editing', 'pin');
     if (id !== viewer) switchViewer(id, !from); else whoRender();
     if (from) whoFocus(from); else { try { focusFirst(); } catch(e){} }
   }
@@ -4342,11 +4537,17 @@
   window.addEventListener('keydown', function(e){
     if (!whoOpen) return;
     var k = e.keyCode, ae = document.activeElement, typing = ae && ae.tagName === 'INPUT';
-    if (k >= 37 && k <= 40){ if (typing && (k === 37 || k === 39)) return; whoMove(k); }
+    // the PIN screen: a keyboard's or a remote's digits type, Backspace takes one back
+    var digit = k >= 48 && k <= 57 ? k - 48 : k >= 96 && k <= 105 ? k - 96 : -1;
+    if (whoPinOn && !typing && digit >= 0 && !e.shiftKey){ whoPinKey(String(digit)); }
+    else if (whoPinOn && !typing && k === 8 && whoPinOn.typed){ whoPinKey('del'); }
+    else if (k >= 37 && k <= 40){ if (typing && (k === 37 || k === 39)) return; whoMove(k); }
     else if (k === 13){ if (typing) return; if (ae && ae.closest && ae.closest('#who')) ae.click(); }
     else if (k === 461 || k === 27 || (k === 8 && !typing)){
-      if (whoEditing) whoEditDone(whoEditing);
+      if (whoPinOn) whoPinCancel();
+      else if (whoEditing) whoEditDone(whoEditing);
       else if (whoManaging){ whoManaging = false; whoDraw(); whoFocus($id('whoManage')); }
+      else if (!whoFrom && whoNeedsPin(viewer)){}   // at launch a profile with a PIN is not kept by stepping out: pick one
       else whoClose(viewer);
     }
     else return;
