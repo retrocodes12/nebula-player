@@ -1,5 +1,5 @@
 {
-  "version": "2026.10.23.1",
+  "version": "2026.10.23.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
   "notes": "A profile can have a PIN now: in Manage Profiles, open a profile and choose Add a PIN. Picking a profile with a PIN asks for its four digits, at launch too; Forgot PIN? removes it with your account's password."

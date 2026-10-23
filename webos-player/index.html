@@ -2946,7 +2946,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.10.23.1';
+  var PLAYER_VERSION = '2026.10.23.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -4246,7 +4246,7 @@
     if (!remote || Object.prototype.toString.call(remote.list) !== '[object Array]') return { changed: false, localNewer: (local.at || 0) > 0 };
     if (ra > (local.at || 0)){
       viewersDoc = { at: ra, list: remote.list.slice(0, 2) }; saveViewers(false);
-      if (viewer === 'b' && viewerList().length < 2) switchViewer('a', true);   // removed on another device
+      if (viewer === 'b' && viewerList().length < 2){ switchViewer('a', true); whoForcedPin(); }   // removed on another device
       if (whoOpen && !whoFrom && !whoEditing && !whoPinOn && viewerList().length < 2 && !whoNeedsPin(viewer)) whoClose(viewer);   // (no longer a choice at launch)
       whoRender();
       return { changed: true, localNewer: false };
@@ -4391,6 +4391,7 @@
       viewerSetList(viewerList().filter(function(x){ return x.id !== 'b'; }));
       setStatus('Removed the second profile. Its history is kept if you add it again.', 'ok', 3500);
       whoEditDone('a');
+      whoForcedPin();
     };
     // a TV's keyboard comes up on a focused field: land on Save there, in the field elsewhere
     whoFocus(IS_TV ? $id('whoEdSave') : nm);
@@ -4509,6 +4510,12 @@
       });
     };
     whoFocus(IS_TV ? go : f);
+  }
+  /** Moved onto the first profile without choosing it (the second removed, here or on another device): with a PIN
+      it must be picked like at launch — the picker stays, Back does not keep it. */
+  function whoForcedPin(){
+    if (!whoNeedsPin(viewer)) return;
+    if (!whoOpen) whoShow(null); else whoFrom = null;
   }
   /** At launch: who's watching? — with two profiles, or when the one this device was on has a PIN. */
   function whoBoot(){ if (viewerList().length === 2 || whoNeedsPin(viewer)) whoShow(null); }
