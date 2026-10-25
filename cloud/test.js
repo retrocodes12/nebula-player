@@ -1192,8 +1192,13 @@ test('support: checkout — a signed-in buyer is raised on the webhook, a strang
   const claim = (await api('GET', '/v1/support/claim?sid=' + s3.body.sid)).body;
   assert.equal(claim.state, 'code');
   assert.match(claim.code, /^NEB-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+  assert.equal(claim.codeUsed, undefined);
   const b = await mkProfile('pay_bob', 'Bob P', 'password1');
-  assert.equal((await api('POST', '/v1/support/redeem', { code: claim.code }, tok(b), '10.9.9.2')).body.supporter.tier, 'founder');
+  const red = (await api('POST', '/v1/support/redeem', { code: claim.code }, tok(b), '10.9.9.2')).body.supporter;
+  assert.equal(red.tier, 'founder');
+  // a Founder who bought without a profile lands on the Founders list by redeeming (the thank-you page offers it)
+  assert.equal(red.wall, true);
+  assert.equal((await api('GET', '/v1/support/claim?sid=' + s3.body.sid)).body.codeUsed, true);
   assert.deepEqual((await api('GET', '/v1/support/claim?sid=000000000000000000000000')).body, { state: 'unknown' });
   // other events are acknowledged and ignored; a purchase with no session still mints a code for the admin list
   assert.equal((await hook({ event: 'order.refunded', order: { id: 'o3' } })).body.ignored, 'order.refunded');

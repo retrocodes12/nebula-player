@@ -194,7 +194,7 @@ module.exports = function attach(deps) {
       return sportsOut(sub, out, sports);
     }
     if (p.state !== 'waiting' && p.state !== 'failed') await ensureSportsKey(p, sports);
-    if (p.state === 'code') out.code = p.code;
+    if (p.state === 'code') { out.code = p.code; if (codeUsedBy(p.code)) out.codeUsed = true; }
     return p.state === 'waiting' ? out : sportsOut(p, out, sports);
   }
 

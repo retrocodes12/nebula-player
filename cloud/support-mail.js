@@ -68,7 +68,14 @@ module.exports = function attach(deps) {
         p('The ' + name + ' thank-you is already on your Nebula Player profile' + (used === 'your profile' ? '' : ' (@' + used + ')') + '.');
       } else if (rec.code) {
         mono(rec.code);
-        p('Use Nebula Player too? Type this code into Settings › Support on any device you are signed in to. It puts the ' + name + ' thank-you on your profile.');
+        // a Founder's place on the Founders list needs a name, and the name lives on a profile (2026-10-25: four of the
+        // five Founders so far bought from the add-on, never redeemed, and so were on no list)
+        if (rec.tier === 'founder') {
+          p('Your name on the Founders list, the gold ring and the player perks live on a Nebula profile. Open your thank-you page and add this code to a profile there — no app needed, it takes a minute — or type it into Settings › Support in Nebula Player.');
+          if (page) button('Add it to a profile', page);
+        } else {
+          p('Use Nebula Player too? Type this code into Settings › Support on any device you are signed in to — or add it to a profile from your thank-you page. It puts the ' + name + ' thank-you on your profile.');
+        }
       }
     }
     p('Keep this e-mail: it is your copy of ' + (hasKey && rec.code && !used ? 'the key and the code' : hasKey ? 'the key' : 'the code') + '.');

@@ -159,9 +159,9 @@
   <div class="for" id="forBox" hidden>Buying for <b id="forHandle"></b> — the thank-you lands on that Nebula Player profile the moment the payment clears.</div>
 
   <section class="profile-box" id="profileBox" hidden>
-    <div class="profile-kick">Monthly support</div>
+    <div class="profile-kick" id="profileKick">Monthly support</div>
     <h2>Use a Nebula profile</h2>
-    <p class="note">Monthly support can be started here. Sign in to an existing profile, or create one without opening Nebula Player.</p>
+    <p class="note" id="profileNote">Monthly support can be started here. Sign in to an existing profile, or create one without opening Nebula Player.</p>
     <form class="profile-form" id="profileCreateForm">
       <div class="profile-fields">
         <div class="profile-field"><label for="profileHandle">Handle</label><input id="profileHandle" name="handle" minlength="3" maxlength="20" pattern="[a-zA-Z0-9_]{3,20}" autocomplete="username" required></div>
@@ -200,6 +200,8 @@
     </div>
     <div class="code" id="thanksCode" hidden></div>
     <p class="note" id="thanksNote" hidden></p>
+    <div class="acts" id="redeemBox" hidden><button class="btn primary" id="redeemGo" type="button">Add it to a Nebula profile</button></div>
+    <p class="note" id="redeemMsg" aria-live="polite" hidden></p>
     <div class="acts" id="manageBox" hidden><a class="btn" id="manageLink" href="#" rel="noopener">Manage or cancel your subscription</a></div>
   </section>
 
@@ -297,6 +299,8 @@
   var profileRecovery = document.getElementById("profileRecovery");
   var profileRecoveryKey = document.getElementById("profileRecoveryKey");
   var pendingTier = "";
+  var profilePurpose = "monthly";   // "monthly" = sign in, then the checkout · "redeem" = sign in, then this order's code onto the profile
+  var redeemCode = "", redeemTier = "", redeemDone = false;
   var profileLink = null;
   try { profileLink = JSON.parse(localStorage.getItem("cloud_link") || "null"); } catch (e) { profileLink = null; }
   var TIER_NAMES = { supporter: "Supporter", monthly: "Monthly Supporter", plus: "Supporter Plus", founder: "Founder" };
@@ -331,6 +335,9 @@
     profileSay("");
   }
   function showProfileForMonthly() {
+    profilePurpose = "monthly";
+    document.getElementById("profileKick").textContent = "Monthly support";
+    document.getElementById("profileNote").textContent = "Monthly support can be started here. Sign in to an existing profile, or create one without opening Nebula Player.";
     profileBox.hidden = false;
     setProfileMode(false);
     profileBox.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -342,10 +349,11 @@
     if (created && r.recovery) {
       profileRecoveryKey.textContent = r.recovery;
       profileRecovery.hidden = false;
-      profileSay("Profile created. Save the recovery key, then checkout is opening.");
+      profileSay(profilePurpose === "redeem" ? "Profile created. Save the recovery key above." : "Profile created. Save the recovery key, then checkout is opening.");
     } else {
-      profileSay("Signed in. Checkout is opening.");
+      profileSay(profilePurpose === "redeem" ? "Signed in." : "Signed in. Checkout is opening.");
     }
+    if (profilePurpose === "redeem") { redeemNow(); return; }
     var b = document.querySelector('[data-buy="' + pendingTier + '"]');
     profileBox.hidden = true;
     runCheckout(b, pendingTier);
@@ -432,6 +440,10 @@
       if (t.checkout === false && b) { b.closest("button").disabled = true; b.closest("button").textContent = "Not open yet"; }
     });
     if (!s.checkout) buttons.forEach(function (b) { b.disabled = true; b.textContent = "Not open yet"; });
+    fillWall(s);
+  }).catch(function () {});
+  function fillWall(s) {
+    ["founders", "wall"].forEach(function (id) { document.getElementById(id).innerHTML = ""; });
     var founders = [], others = [];
     (s.wall || []).forEach(function (w) {
       var name = String(w && w.name || "").slice(0, 40);
@@ -452,7 +464,62 @@
     }
     fill("founders", "foundersHead", founders);
     fill("wall", "wallHead", others);
-  }).catch(function () {});
+  }
+  function reloadWall() { api("GET", "/v1/support").then(function (r) { if (r.body) fillWall(r.body); }).catch(function () {}); }
+
+  // A one-time order bought without a profile (most add-on buyers) carries a code. A Founder's place on the Founders
+  // list needs a name, which lives on a profile — so the thank-you page can put the code on one, no app needed.
+  function redeemSay(t) { var m = document.getElementById("redeemMsg"); m.textContent = t || ""; m.hidden = !t; }
+  function offerRedeem(code, tier) {
+    redeemCode = code; redeemTier = tier;
+    document.getElementById("redeemBox").hidden = false;
+    document.getElementById("redeemGo").onclick = function () {
+      if (hasProfile()) { redeemNow(); return; }
+      profilePurpose = "redeem";
+      document.getElementById("profileKick").textContent = TIER_NAMES[tier] || "Supporter";
+      document.getElementById("profileNote").textContent = tier === "founder"
+        ? "Sign in to your Nebula profile, or create one here — no app needed. Its name is the one on the Founders list, and the gold ring and player perks come with it."
+        : "Sign in to your Nebula profile, or create one here — no app needed. The " + (TIER_NAMES[tier] || "Supporter") + " thank-you goes on it.";
+      profileBox.hidden = false;
+      setProfileMode(false);
+      profileBox.scrollIntoView({ behavior: "smooth", block: "center" });
+      document.getElementById("profileHandle").focus();
+    };
+  }
+  function redeemNow() {
+    var go = document.getElementById("redeemGo");
+    go.disabled = true;
+    redeemSay("Adding it to your profile…");
+    api("POST", "/v1/support/redeem", { code: redeemCode }).then(function (r) {
+      go.disabled = false;
+      if (r.status === 200) {
+        redeemDone = true;
+        // a profile made here a moment ago: its recovery key sits in this box and must stay on screen
+        if (profileRecovery.hidden) profileBox.hidden = true;
+        else { profileCreateForm.hidden = true; profileSigninForm.hidden = true; }
+        document.getElementById("redeemBox").hidden = true;
+        document.getElementById("thanksCode").hidden = true;
+        document.getElementById("thanksNote").hidden = true;
+        redeemSay(redeemTier === "founder"
+          ? "Done — the Founder thank-you is on your profile, and your name is on the Founders list below. The gold ring and the player perks are in Nebula Player › Settings › Support whenever you sign in there; you can take your name off the list there too."
+          : "Done — the " + (TIER_NAMES[redeemTier] || "Supporter") + " thank-you is on your profile. It shows in Nebula Player › Settings › Support whenever you sign in there.");
+        reloadWall();
+      } else if (r.status === 401) {
+        clearProfile();
+        redeemSay("");
+        document.getElementById("redeemGo").click();
+        profileSay("Sign in or create a profile to add the code.");
+      } else if (r.status === 400) {
+        clearProfile();
+        redeemSay("");
+        document.getElementById("redeemGo").click();
+        profileSay("This sign-in has no profile yet — create one, or sign in to the one you have.");
+      } else if (r.status === 409) redeemSay("That profile already holds this tier or a higher one — the code is kept, so it can go to someone else.");
+      else if (r.status === 404) redeemSay("This code has already been used.");
+      else if (r.status === 429) redeemSay("Too many tries — give it a minute.");
+      else redeemSay("Could not add it just now — try again in a minute.");
+    }).catch(function () { go.disabled = false; redeemSay("Could not reach the server."); });
+  }
 
   buttons.forEach(function (b) {
     b.addEventListener("click", function () {
@@ -561,11 +628,21 @@
           } else if (s.state === "granted") {
             text.textContent = "The " + name + " thank-you is already on your Nebula Player profile: the mark, the colours and the wall switch are in Settings › Support.";
           } else {
-            text.textContent = "Below is your key for the add-on. Use Nebula Player as well? The one-time code further down puts the " + name + " thank-you on your profile there.";
             code.textContent = s.code;
-            code.hidden = false;
-            note.textContent = "Type the code into Settings › Support on any device you are signed in to. It is shown here only.";
-            note.hidden = false;
+            code.hidden = redeemDone;
+            if (redeemDone) {
+              // redeemed on this page a moment ago: the poll is still out for the key, keep the "Done" view
+            } else if (s.codeUsed) {
+              text.textContent = "Below is your key for the add-on. The " + name + " thank-you has been added to a Nebula profile with the code.";
+              note.textContent = "This code has been used.";
+            } else {
+              text.textContent = s.tier === "founder"
+                ? "Below is your key for the add-on. Your name on the Founders list, the gold ring and the player perks live on a Nebula profile — add the code further down to one, here, in a minute."
+                : "Below is your key for the add-on. Use Nebula Player as well? The one-time code further down puts the " + name + " thank-you on your profile there.";
+              note.textContent = "Add it to a profile with the button, or type the code into Nebula Player › Settings › Support on any device you are signed in to.";
+              offerRedeem(s.code, s.tier);
+            }
+            note.hidden = redeemDone;
           }
           if (s.sportsKey || s.sportsPending) {
             var ready = showKey(s);
