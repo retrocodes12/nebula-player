@@ -52,7 +52,7 @@ module.exports = function attach(deps) {
       head('Your key');
       p('No sponsor prompt, on every device you add it to.');
       if (rec.sportsExpiresAt) p('Channel access ends on ' + String(rec.sportsExpiresAt).slice(0, 10) + ' (UTC).');
-      else if (rec.sportsLifetime) p('Your existing lifetime key keeps its access.');
+      else if (rec.sportsLifetime) p('Your key never expires.');
       if (page) button('Install it', page);
       p(page ? 'Or paste this link into your add-ons list on any device:' : 'Paste this link into your add-ons list on any device:');
       mono(rec.sportsManifest);

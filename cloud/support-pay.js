@@ -12,9 +12,9 @@
 // GET /v1/support/claim?sid= and shows. Orders are remembered by id so a
 // re-delivered webhook does nothing twice.
 //
-// Every donor offer also earns a Nebula Sports install key. New one-time
-// offers grant 1 / 2 / 12 months; monthly keys follow subscription state,
-// including its free trial. Previously issued lifetime keys keep their grant.
+// Every donor offer also earns a Nebula Sports install key. One-time offers
+// grant a lifetime key (1 / 2 / 12 months until 2026-10-25); monthly keys
+// follow subscription state, including its free trial.
 // The key is minted by the sports backend
 // over loopback (`sports` block: {url, token}); the success page shows it with
 // a one-tap install. A backend that was down when the webhook came is asked

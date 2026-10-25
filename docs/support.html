@@ -136,7 +136,7 @@
 <main class="wrap">
   <h1>Help keep this project alive.</h1>
   <p class="lede">Browse every channel for free. Donate from $1.50 to play channel streams with your own supporter key, or use the star-and-screenshot option below.</p>
-  <p class="note">$1.50/month includes access during the seven-day trial. $2 once gives one month, $5 once gives two months, and $20 once gives one year. Existing lifetime keys keep their access.</p>
+  <p class="note">$1.50/month includes access during the seven-day trial and while you stay subscribed. Any one-time donation — $2, $5 or $20 — gives a key that never expires.</p>
 
   <section class="for goal" id="donationGoal" aria-labelledby="goalTitle">
     <div class="goal-head"><h2 id="goalTitle">Donation goal</h2><span class="goal-month" id="goalMonth"></span></div>
@@ -225,7 +225,7 @@
       <h2>Supporter</h2>
       <div class="price">$2<small>once</small></div>
       <ul>
-        <li class="key">Your own key — one month of channel streams</li>
+        <li class="key">Your own key — channel streams for life</li>
         <li>Works on every device you use the add-on on: phone, TV, computer</li>
         <li class="app">In Nebula Player: a mark beside your name, three more colours, the wall</li>
       </ul>
@@ -236,7 +236,7 @@
       <h2>Supporter Plus</h2>
       <div class="price">$5<small>once</small></div>
       <ul>
-        <li class="key">Your own key — two months of channel streams</li>
+        <li class="key">Your own key — channel streams for life</li>
         <li>A vote on what Nebula builds next — every round</li>
         <li>Early builds of Nebula Player, days before everyone else</li>
         <li>Your month on Nebula: a private recap of what you watched</li>
@@ -249,7 +249,7 @@
       <h2>Founder</h2>
       <div class="price">$20<small>once</small></div>
       <ul>
-        <li class="key">Your own key — one year of channel streams</li>
+        <li class="key">Your own key — channel streams for life</li>
         <li class="inc">The player perks in Supporter Plus</li>
         <li>Your name on the Founders list, permanently, right here</li>
         <li class="app">In Nebula Player: a gold ring on your avatar</li>
@@ -268,7 +268,7 @@
 
   <div class="faq">
     <h3>Questions</h3>
-    <p><b>Does it expire?</b> New $2 keys last one month, $5 keys two months, and $20 keys one year from confirmation. Monthly Supporter includes the key during the free trial and while the subscription is active; access stops when the subscription ends or payment is overdue. Existing lifetime keys keep their access. Player thank-yous from one-time donations stay on your profile.</p>
+    <p><b>Does it expire?</b> Keys from a one-time donation ($2, $5 or $20) never expire. Monthly Supporter includes the key during the free trial and while the subscription is active; access stops when the subscription ends or payment is overdue. Player thank-yous from one-time donations stay on your profile.</p>
     <p><b>What are early builds, the vote and the recap?</b> Early builds are the next version of Nebula Player — tested, just newer — a few days before everyone else: on Android from the app's update card once you switch them on in Settings › Support, and on the web at play.rifflehq.in/player/beta. The vote is how the next feature is chosen: a short list in Settings › Support, one vote each, and the winner gets built. The recap is your month on Nebula — hours watched, your top titles, your busiest day — worked out on your own device from what it played, and never sent anywhere.</p>
     <p><b>Can I use the key on more than one device?</b> Yes — install it on your phone, your TV and your computer. It is meant for you and your household, not for passing around.</p>
     <p><b>Where do the Nebula Player thank-yous show?</b> On your Nebula profile, so on every device you sign in to. The wall is opt-in: your name appears only if you switch it on in Settings › Support. Founders are named on the Founders list from the start — switch it off there if you would rather not be.</p>
@@ -594,7 +594,7 @@
         keyInstall.style.display = "";
         keyCopy.style.display = "";
         keyLink.textContent = s.sportsManifest;
-        if (s.sportsLifetime) document.getElementById("keyNote").textContent = "Your existing lifetime key keeps its access. Keep this page's address to find it again.";
+        if (s.sportsLifetime) document.getElementById("keyNote").textContent = "Your key never expires. Keep this page's address to find it again.";
         else if (s.sportsExpiresAt && !isNaN(Date.parse(s.sportsExpiresAt))) document.getElementById("keyNote").textContent = "Channel access ends on " + new Date(s.sportsExpiresAt).toLocaleDateString() + ". Keep this page's address to find your key again.";
         else if (s.tier === "monthly") document.getElementById("keyNote").textContent = "Channel access follows your subscription, including the free trial. Keep this page's address to find your key again.";
         keyCopy.onclick = function () {
