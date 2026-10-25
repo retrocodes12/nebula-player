@@ -21,6 +21,7 @@
 //   node support-admin.js vote                    the supporters' vote: the open round with its counts, and the last ones
 //   node support-admin.js vote open [--days N] [--title "…"] "Option|note" "Option|note" …   open a round (2–6 options, 30 days)
 //   node support-admin.js vote close              close it now (the most votes wins; a tie goes to the first listed)
+//   node support-admin.js name hide <order>       take a profile-less buyer's name off the wall (name show <order> = put it back)
 //
 // Env: DATA_DIR (default ./data), CLOUD_BASE (default http://127.0.0.1:3342).
 
@@ -231,6 +232,10 @@ async function main() {
       return;
     }
     console.error('vote | vote open [--days N] [--title "…"] "Option|note" … | vote close'); process.exit(2);
+  }
+  if (cmd === 'name' && (rest[0] === 'hide' || rest[0] === 'show') && rest[1]) {
+    console.log(JSON.stringify(await call('POST', '/v1/support/name/hide', { order: rest[1], hide: rest[0] === 'hide' })));
+    return;
   }
   if (cmd === 'drop') {
     if (!rest[0]) { console.error('Which code?'); process.exit(2); }

@@ -1193,12 +1193,26 @@ test('support: checkout — a signed-in buyer is raised on the webhook, a strang
   assert.equal(claim.state, 'code');
   assert.match(claim.code, /^NEB-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
   assert.equal(claim.codeUsed, undefined);
+  // with no profile, the thank-you page can still put a name on the Founders list (support-names.js)
+  assert.equal(claim.wallName, '');
+  assert.equal((await api('POST', '/v1/support/name', { sid: s3.body.sid, name: 'see www.spam.example' }, undefined, '10.9.9.3')).status, 400);
+  assert.equal((await api('POST', '/v1/support/name', { sid: '000000000000000000000000', name: 'Nobody' }, undefined, '10.9.9.3')).status, 404);
+  assert.equal((await api('POST', '/v1/support/name', { sid: s3.body.sid, name: '  Kim   Lee ' }, undefined, '10.9.9.3')).body.wallName, 'Kim Lee');
+  assert.equal((await api('GET', '/v1/support/claim?sid=' + s3.body.sid)).body.wallName, 'Kim Lee');
+  assert.ok((await api('GET', '/v1/support')).body.wall.some((w) => w.name === 'Kim Lee' && w.tier === 'founder'));
+  assert.equal((await admin('POST', '/v1/support/name/hide', { order: 'o3' })).body.hidden, true);
+  assert.ok(!(await api('GET', '/v1/support')).body.wall.some((w) => w.name === 'Kim Lee'));
+  assert.equal((await admin('POST', '/v1/support/name/hide', { order: 'o3', hide: false })).body.hidden, false);
   const b = await mkProfile('pay_bob', 'Bob P', 'password1');
   const red = (await api('POST', '/v1/support/redeem', { code: claim.code }, tok(b), '10.9.9.2')).body.supporter;
   assert.equal(red.tier, 'founder');
   // a Founder who bought without a profile lands on the Founders list by redeeming (the thank-you page offers it)
   assert.equal(red.wall, true);
   assert.equal((await api('GET', '/v1/support/claim?sid=' + s3.body.sid)).body.codeUsed, true);
+  // redeemed: the profile's own name takes over, the order's name leaves the wall and can no longer be set
+  const wallNow = (await api('GET', '/v1/support')).body.wall;
+  assert.ok(!wallNow.some((w) => w.name === 'Kim Lee') && wallNow.some((w) => w.name === 'Bob P'));
+  assert.equal((await api('POST', '/v1/support/name', { sid: s3.body.sid, name: 'Kim' }, undefined, '10.9.9.3')).status, 409);
   assert.deepEqual((await api('GET', '/v1/support/claim?sid=000000000000000000000000')).body, { state: 'unknown' });
   // other events are acknowledged and ignored; a purchase with no session still mints a code for the admin list
   assert.equal((await hook({ event: 'order.refunded', order: { id: 'o3' } })).body.ignored, 'order.refunded');

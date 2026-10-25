@@ -315,6 +315,7 @@ module.exports = function attach(core) {
         rows.push({ name: g.profile.name || '@' + g.profile.handle, avatar: g.profile.avatar || null, since: g.supporter.since, tier: cleanTier(g.supporter.tier), mark: markOf(g.supporter) });
       }
     }
+    for (const r of names.rows()) rows.push(r);           // named one-time orders with no profile (support-names.js)
     // founders first, then by when they chipped in
     rows.sort((a, b) => (rankOf(b.tier) - rankOf(a.tier)) || (a.since - b.since));
     wallCache = { count, wall: rows.slice(0, WALL_MAX).map((r) => ({ name: r.name, avatar: r.avatar, tier: r.tier, mark: r.mark })) };
@@ -394,6 +395,9 @@ module.exports = function attach(core) {
   });
   const vote = require('./support-vote.js')({ store, persistStore, json, body, allow, auth, isAdmin, rankOf });
   const goal = require('./support-goal.js')({ config });
+  const names = require('./support-names.js')({ store, persistStore, json, body, allow, isAdmin, TIERS,
+    codeUsedBy(code) { const r = store.codes[normCode(code)]; return r && r.used ? r.used.handle || 'your profile' : null; },
+    changed() { wallAt = 0; } });
   function redirect(res, to) {
     try { res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' }); res.end(); } catch (e) {}
   }
@@ -407,6 +411,8 @@ module.exports = function attach(core) {
     }
     // the supporters' vote on what gets built next (support-vote.js)
     if (p === '/v1/support/vote' || p.startsWith('/v1/support/vote/')) { const v = await vote.route(p, req, res, ip); if (v !== false) return v; }
+    // a name on the wall for an order bought without a profile (support-names.js)
+    if (p === '/v1/support/name' || p === '/v1/support/name/hide') { const v = await names.route(p, req, res, ip); if (v !== false) return v; }
 
     if (p === '/v1/support' && m === 'GET') {
       if (!allow('support', ip, 120, 60)) return json(res, 429, { error: 'rate limited' });
@@ -463,7 +469,10 @@ module.exports = function attach(core) {
     if (p === '/v1/support/claim' && m === 'GET') {
       if (!allow('sclaim', ip, 30, 30)) return json(res, 429, { error: 'rate limited' });
       const sid = new URL(req.url, 'http://x').searchParams.get('sid') || '';
-      return json(res, 200, await pay.claim(sid, config().sports));
+      const out = await pay.claim(sid, config().sports);
+      const named = names.of(sid);
+      if (named) Object.assign(out, named);
+      return json(res, 200, out);
     }
 
     // ---- admin: the Founder issuing and listing codes, granting and revoking by handle, the receipt e-mails

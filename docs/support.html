@@ -55,6 +55,11 @@
   .profile-field { display:grid; gap:5px; }
   .profile-field.full { grid-column:1 / -1; }
   .profile-field label { color:var(--muted); font-size:.82rem; }
+  .namebox { margin:14px 0 0; display:grid; gap:6px; max-width:420px; }
+  .namebox[hidden] { display:none; }
+  .namebox label { color:var(--muted); font-size:.82rem; }
+  .namebox .row { display:flex; gap:8px; }
+  .namebox input { flex:1; min-width:0; border:1px solid #3a3a44; border-radius:9px; background:#101015; color:#fff; padding:10px 12px; font:inherit; }
   .profile-field input { width:100%; border:1px solid #3a3a44; border-radius:9px; background:#101015; color:#fff; padding:10px 12px; font:inherit; }
   .profile-field input:focus { outline:none; border-color:#78adff; }
   .profile-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
@@ -202,6 +207,11 @@
     <p class="note" id="thanksNote" hidden></p>
     <div class="acts" id="redeemBox" hidden><button class="btn primary" id="redeemGo" type="button">Add it to a Nebula profile</button></div>
     <p class="note" id="redeemMsg" aria-live="polite" hidden></p>
+    <div class="namebox" id="nameBox" hidden>
+      <label for="wallNameIn" id="nameLabel">Your name on the wall</label>
+      <div class="row"><input id="wallNameIn" maxlength="24" autocomplete="nickname" placeholder="A name or nickname"><button class="btn" id="nameSave" type="button">Save</button></div>
+      <p class="note" id="nameMsg" aria-live="polite">Shown publicly on this page. Leave it empty to stay off.</p>
+    </div>
     <div class="acts" id="manageBox" hidden><a class="btn" id="manageLink" href="#" rel="noopener">Manage or cancel your subscription</a></div>
   </section>
 
@@ -271,7 +281,7 @@
     <p><b>Does it expire?</b> Keys from a one-time donation ($2, $5 or $20) never expire. Monthly Supporter includes the key during the free trial and while the subscription is active; access stops when the subscription ends or payment is overdue. Player thank-yous from one-time donations stay on your profile.</p>
     <p><b>What are early builds, the vote and the recap?</b> Early builds are the next version of Nebula Player — tested, just newer — a few days before everyone else: on Android from the app's update card once you switch them on in Settings › Support, and on the web at play.rifflehq.in/player/beta. The vote is how the next feature is chosen: a short list in Settings › Support, one vote each, and the winner gets built. The recap is your month on Nebula — hours watched, your top titles, your busiest day — worked out on your own device from what it played, and never sent anywhere.</p>
     <p><b>Can I use the key on more than one device?</b> Yes — install it on your phone, your TV and your computer. It is meant for you and your household, not for passing around.</p>
-    <p><b>Where do the Nebula Player thank-yous show?</b> On your Nebula profile, so on every device you sign in to. The wall is opt-in: your name appears only if you switch it on in Settings › Support. Founders are named on the Founders list from the start — switch it off there if you would rather not be.</p>
+    <p><b>Where do the Nebula Player thank-yous show?</b> On your Nebula profile, so on every device you sign in to. The wall is opt-in: your name appears only if you switch it on in Settings › Support — or, if you bought without a profile, if you add a name on your thank-you page. Founders are named on the Founders list from the start — switch it off there if you would rather not be.</p>
     <p><b>I lost my key.</b> The page you landed on after paying shows it — keep that address. Otherwise open an issue on the Nebula repository with the order number from your receipt and it will be sent to you.</p>
     <p><b>Something wrong with a purchase?</b> Open an issue on the Nebula repository with the order number from your receipt — never your card details.</p>
   </div>
@@ -465,6 +475,32 @@
     fill("founders", "foundersHead", founders);
     fill("wall", "wallHead", others);
   }
+  // No profile, still a name on the wall (2026-10-25): the order itself carries it, until its code goes on a profile.
+  var nameShown = false;
+  function offerName(s) {
+    if (nameShown) return;
+    nameShown = true;
+    var box = document.getElementById("nameBox"), input = document.getElementById("wallNameIn"), msg = document.getElementById("nameMsg");
+    document.getElementById("nameLabel").textContent = s.tier === "founder" ? "Your name on the Founders list" : "Your name on the wall";
+    input.value = s.wallName || "";
+    if (s.wallHidden) msg.textContent = "This name has been taken off the wall. Reply to your receipt e-mail if that looks wrong.";
+    box.hidden = false;
+    document.getElementById("nameSave").onclick = function () {
+      var btn = this;
+      btn.disabled = true;
+      api("POST", "/v1/support/name", { sid: sid, name: input.value }).then(function (r) {
+        btn.disabled = false;
+        if (r.status === 200) {
+          input.value = r.body.wallName;
+          msg.textContent = r.body.wallName ? "Saved — thank you. Your name is on the list below." : "Removed. You are off the wall.";
+          reloadWall();
+        } else if (r.status === 400) msg.textContent = "Use 2 to 24 letters, numbers and spaces (. _ ' - are fine; no links).";
+        else if (r.status === 409) { msg.textContent = "Your code is on a Nebula profile now, so the wall uses that profile's name."; box.hidden = true; }
+        else if (r.status === 429) msg.textContent = "Too many tries. Wait a minute, then save again.";
+        else msg.textContent = "That did not save. Try again in a moment.";
+      }).catch(function () { btn.disabled = false; msg.textContent = "That did not save. Check your connection and try again."; });
+    };
+  }
   function reloadWall() { api("GET", "/v1/support").then(function (r) { if (r.body) fillWall(r.body); }).catch(function () {}); }
 
   // A one-time order bought without a profile (most add-on buyers) carries a code. A Founder's place on the Founders
@@ -498,6 +534,7 @@
         if (profileRecovery.hidden) profileBox.hidden = true;
         else { profileCreateForm.hidden = true; profileSigninForm.hidden = true; }
         document.getElementById("redeemBox").hidden = true;
+        document.getElementById("nameBox").hidden = true;          // the profile's own name is on the wall now
         document.getElementById("thanksCode").hidden = true;
         document.getElementById("thanksNote").hidden = true;
         redeemSay(redeemTier === "founder"
@@ -637,10 +674,11 @@
               note.textContent = "This code has been used.";
             } else {
               text.textContent = s.tier === "founder"
-                ? "Below is your key for the add-on. Your name on the Founders list, the gold ring and the player perks live on a Nebula profile — add the code further down to one, here, in a minute."
+                ? "Below is your key for the add-on. Put your name on the Founders list right here — or add the code further down to a Nebula profile for the gold ring and the player perks too."
                 : "Below is your key for the add-on. Use Nebula Player as well? The one-time code further down puts the " + name + " thank-you on your profile there.";
               note.textContent = "Add it to a profile with the button, or type the code into Nebula Player › Settings › Support on any device you are signed in to.";
               offerRedeem(s.code, s.tier);
+              offerName(s);
             }
             note.hidden = redeemDone;
           }

@@ -71,10 +71,10 @@ module.exports = function attach(deps) {
         // a Founder's place on the Founders list needs a name, and the name lives on a profile (2026-10-25: four of the
         // five Founders so far bought from the add-on, never redeemed, and so were on no list)
         if (rec.tier === 'founder') {
-          p('Your name on the Founders list, the gold ring and the player perks live on a Nebula profile. Open your thank-you page and add this code to a profile there — no app needed, it takes a minute — or type it into Settings › Support in Nebula Player.');
+          p('Put your name on the Founders list from your thank-you page — no profile needed. The gold ring and the player perks live on a Nebula profile: add this code to one from the same page, or type it into Settings › Support in Nebula Player.');
           if (page) button('Add it to a profile', page);
         } else {
-          p('Use Nebula Player too? Type this code into Settings › Support on any device you are signed in to — or add it to a profile from your thank-you page. It puts the ' + name + ' thank-you on your profile.');
+          p('Want your name on the wall? Add it from your thank-you page. Use Nebula Player too? Type this code into Settings › Support on any device you are signed in to — or add it to a profile from your thank-you page. It puts the ' + name + ' thank-you on your profile.');
         }
       }
     }
