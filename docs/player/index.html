@@ -2185,6 +2185,42 @@
   .addon.off .addon-tog { color:var(--label3); }
   html.tv .addon-tog.focusable:focus { background:var(--label); color:#000; border-color:var(--label); }
   .addon-tog.focusable:focus-visible { background:var(--label); color:#000; border-color:var(--label); }
+  /* ---- a title another app asked to play (10-26): its picture, its name, and who is still being asked, until it plays ---- */
+  #launchCard { position:fixed; left:0; top:0; right:0; bottom:0; z-index:50; background:#000; opacity:0; visibility:hidden;
+    transition:opacity .45s var(--ease), visibility 0s .45s; overflow:hidden; }
+  #launchCard.on { opacity:1; visibility:visible; transition:opacity .3s var(--ease); }
+  .lc-back { position:absolute; left:0; top:0; right:0; bottom:0; background:#000 center 25%/cover no-repeat; opacity:0; transition:opacity .9s ease; }
+  .lc-back.in { opacity:1; }
+  #launchCard.on .lc-back.in { animation:lcdrift 30s linear both; }
+  @keyframes lcdrift { from { transform:scale(1.02); } to { transform:scale(1.1); } }
+  .lc-shade { position:absolute; left:0; top:0; right:0; bottom:0;
+    background:linear-gradient(to top, rgba(0,0,0,.94) 0%, rgba(0,0,0,.72) 32%, rgba(0,0,0,.18) 62%, rgba(0,0,0,.35) 100%),
+               linear-gradient(to right, rgba(0,0,0,.6) 0%, rgba(0,0,0,0) 60%); }
+  .lc-body { position:absolute; left:7vh; right:7vh; bottom:9vh; }
+  .lc-logo { display:block; max-width:44vh; max-height:15vh; margin-bottom:3.2vh; }
+  .lc-title { font-size:7.4vh; font-weight:700; letter-spacing:-.02em; line-height:1.02; margin-bottom:3vh; color:#fff; max-width:120vh; }
+  .lc-line { display:flex; align-items:center; font-size:3.1vh; font-weight:500; color:#fff; min-height:4vh; }
+  .lc-ring { flex:0 0 auto; width:3.4vh; height:3.4vh; margin-right:1.8vh; border-radius:50%; border:.42vh solid rgba(255,255,255,.18);
+    border-top-color:#fff; animation:puispin .8s linear infinite; }
+  #launchCard.picked .lc-ring { border-color:var(--accent); border-top-color:#fff; }
+  .lc-bar { position:relative; height:.42vh; max-width:62vh; margin:2.6vh 0 2.4vh; border-radius:1vh; background:rgba(255,255,255,.14); overflow:hidden; }
+  .lc-bar i { position:absolute; left:0; top:0; bottom:0; width:34%; border-radius:1vh; background:linear-gradient(90deg, rgba(255,255,255,0), #fff, rgba(255,255,255,0));
+    animation:lcsweep 1.5s cubic-bezier(.45,.05,.55,.95) infinite; }
+  #launchCard.picked .lc-bar i { width:100%; background:var(--accent); animation:none; transition:width .4s; }
+  @keyframes lcsweep { from { transform:translateX(-110%); } to { transform:translateX(300%); } }
+  .lc-who { display:flex; flex-wrap:wrap; }
+  .lc-who span { display:inline-flex; align-items:center; margin:0 1.2vh 1.2vh 0; padding:.7vh 1.6vh; border-radius:3vh; font-size:2.1vh; font-weight:500;
+    color:rgba(255,255,255,.7); background:rgba(255,255,255,.1); transition:background .3s, color .3s; }
+  .lc-who span.done { color:#fff; background:rgba(255,255,255,.2); }
+  .lc-who span.none { color:rgba(255,255,255,.4); }
+  .lc-who span em { font-style:normal; margin-left:1vh; font-family:var(--mono); font-size:1.8vh; opacity:.85; }
+  .lc-who span .s-dot { width:.9vh; height:.9vh; border-radius:50%; margin-right:1vh; background:rgba(255,255,255,.5); animation:lcpulse 1.2s ease-in-out infinite; }
+  .lc-who span.done .s-dot, .lc-who span.none .s-dot { animation:none; background:#fff; }
+  .lc-who span.none .s-dot { background:rgba(255,255,255,.35); }
+  @keyframes lcpulse { 50% { opacity:.25; transform:scale(.7); } }
+  .lc-hint { margin-top:1.6vh; font-size:1.9vh; color:rgba(255,255,255,.5); }
+  html.lite #launchCard.on .lc-back.in { animation:none; }
+  @media (prefers-reduced-motion: reduce){ #launchCard.on .lc-back.in { animation:none; } }
   /* ---- lite (real TVs): identical layout, cheap rendering ---- */
   html.lite * { -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
   html.lite #rail { transition:none; box-shadow:none; }
@@ -2340,6 +2376,7 @@
           <button id="puiQual" class="focusable pui-btn" style="display:none" title="Quality (q)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M4 7h8.5M16.5 7H20M4 12h2.5M10.5 12H20M4 17h10.5M18.5 17H20"/><circle cx="14.5" cy="7" r="2"/><circle cx="8.5" cy="12" r="2"/><circle cx="16.5" cy="17" r="2"/></svg><span class="pl">Quality</span><span class="pv" id="puiQualVal"></span></button>
           <button id="puiSpeed" class="focusable pui-btn" title="Speed (&lt; and &gt;)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.2 18.2a9 9 0 1 1 13.6 0"/><path d="M12 13.5l4.2-4.7"/><circle cx="12" cy="13.5" r="1.4" fill="currentColor" stroke="none"/></svg><span class="pl">Speed</span><span class="pv" id="puiSpeedVal">1×</span></button>
           <button id="puiFit" class="focusable pui-btn" title="Picture size (v)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M6.5 12h4M6.5 12l1.8-1.8M6.5 12l1.8 1.8M17.5 12h-4M17.5 12l-1.8-1.8M17.5 12l-1.8 1.8"/></svg><span class="pl">Picture</span><span class="pv" id="puiFitVal">Fit</span></button>
+          <button id="puiStreams" class="focusable pui-btn" title="Another stream for this title" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h11M4 12h11M4 18h7"/><path d="M17 15l3 3-3 3M20 18h-5"/></svg><span class="pl">Streams</span><span class="pv" id="puiStreamsVal"></span></button>
           <button id="puiSleep" class="focusable pui-btn" title="Sleep timer (z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 14.2A8 8 0 0 1 9.8 4.5a8 8 0 1 0 9.7 9.7z"/></svg><span class="pl">Sleep</span><span class="pv" id="puiSleepVal"></span></button>
           <button id="puiParty" class="focusable pui-btn" title="Watch party — watch together in sync"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.2 19a5.8 5.8 0 0 1 11.6 0"/><path d="M15.5 5.3a3.2 3.2 0 0 1 0 5.4M16.8 13.6a5.8 5.8 0 0 1 4 5.4"/></svg><span class="pl">Party</span></button>
         </div></div>
@@ -2938,6 +2975,17 @@
     </div>
   </div>
 
+  <div id="launchCard" role="status" aria-live="polite">
+    <div class="lc-back" id="lcBack"></div><div class="lc-shade"></div>
+    <div class="lc-body">
+      <img class="lc-logo" id="lcLogo" alt="" style="display:none">
+      <div class="lc-title" id="lcTitle"></div>
+      <div class="lc-line"><span class="lc-ring"></span><span id="lcText">Finding the best stream…</span></div>
+      <div class="lc-bar"><i></i></div>
+      <div class="lc-who" id="lcWho"></div>
+      <div class="lc-hint">Press any button to choose a stream yourself</div>
+    </div>
+  </div>
   <div id="status" class="info">Ready.</div>
 
 <script>
@@ -3014,6 +3062,7 @@
   var statusTimer = null;
   var statusAt = 0;
   function setStatus(m, k, ms){
+    if (k === 'error') lcHide();                   // a launch's card never covers what went wrong
     statusAt = Date.now();
     statusEl.textContent = m; statusEl.className = (k||'info') + ' show';
     clearTimeout(statusTimer);
@@ -3467,6 +3516,11 @@
     if (viewStack.length > 1){
       var popped = viewStack.pop();
       var top = viewStack[viewStack.length-1];
+      // a best pick (shelf mode, a launch) never showed its list: Back from the player goes where Play was pressed
+      if (popped === 'player' && top === 'streams' && was && ctx.bestFor && lastStreamsReq && ctx.bestFor === lastStreamsReq.id && viewStack.length > 1){
+        viewStack.pop(); top = viewStack[viewStack.length-1];
+        show(top, false); return;
+      }
       // a title page opened from another's Universe row: Back redraws the one it was opened from
       if (popped === 'detail' && top === 'detail' && detTrail.length){
         var prev = detTrail.pop();
@@ -8340,8 +8394,11 @@
         { icon:'restart', label:'Start over', fn: function(){ ctx.startOver = true; ctx.resumeChosen = true; go(); } }
       ] });
   }
-  function openStreams(type, id, titleText, fresh, noAuto){
+  function openStreams(type, id, titleText, fresh, noAuto, pick){
+    // the TV's Shelf home screen asked for Netflix-style play: a film or an episode starts on its best stream, no list
+    if (!pick && !noAuto && shelfMode() && (type === 'movie' || type === 'series')) pick = 'best';
     var seq = ++openSeq, openedAt = Date.now(), pr = getPrefs();
+    if (pick === 'best'){ ctx.bestFor = id; ctx.bestQueue = null; ctx.bestTries = 0; } else ctx.bestFor = '';
     // the title this list plays under is the one it was opened for — a film resumed from Continue watching wore the
     // previous play's title on the player and in the party
     if (titleText) ctx.streamTitle = titleText;
@@ -8369,20 +8426,34 @@
     // the player choosing for you (Settings › Streams): the twin of the last pick, or the first row, once every
     // add-on has answered or the wait runs out — never once the remote or the pointer has moved on the list
     // (never on the way BACK to a list: Back is the viewer choosing, and the pick would replay what they just left)
-    var apMode = (!noAuto && (pr.autoPick === 'same' || pr.autoPick === 'first')) ? pr.autoPick : '', apTimer = null, apDone = false;
-    function autoPickNow(){
+    var apMode = pick === 'best' ? 'best' : (!noAuto && (pr.autoPick === 'same' || pr.autoPick === 'first')) ? pr.autoPick : '', apTimer = null, apDone = false;
+    function autoPickNow(final){
       if (apDone || seq !== openSeq) return;
+      // a launch's pick with nothing on the list yet keeps waiting for the add-ons still asked (to 90 s), card up
+      if (apMode === 'best' && !final && !list.querySelector('.stream:not(.skel)')) return;
       apDone = true; clearTimeout(apTimer);
-      if (lastKeyAt > openedAt || lastPointerAt > openedAt) return;
-      var sv = document.querySelector('.view.active'); if (!sv || sv.id !== 'view-streams') return;
+      // (a pick another app asked for minds only the keys: an LG remote's pointer wakes when the remote is merely picked up)
+      if (lastKeyAt > openedAt || (apMode !== 'best' && lastPointerAt > openedAt)){ lcHide(); return; }
+      var sv = document.querySelector('.view.active'); if (!sv || sv.id !== 'view-streams'){ lcHide(); return; }
       var row = apMode === 'same' ? list.querySelector('.stream.usual') : null;
+      if (apMode === 'best'){
+        var ranked = bestStreamRows(list);
+        ctx.bestQueue = ranked.map(function(r){ return { s: r.__s, a: r.__a }; });
+        row = ranked[0] || null;
+      }
       // never a row this connection cannot carry, nor one the add-on says will not play here, while another is there
       if (!row) row = list.querySelector('.stream:not(.skel):not(.slow):not(.nwr):not(.nosnd)') || list.querySelector('.stream:not(.skel):not(.nosnd)') || list.querySelector('.stream:not(.skel)');
-      if (!row) return;
-      setStatus('Playing the best stream for you.', 'info');
+      if (!row){ lcHide(); return; }
+      if (apMode === 'best') lcPick(row); else setStatus('Playing the best stream for you.', 'info');
       row.click();
     }
-    if (apMode) apTimer = setTimeout(autoPickNow, pickWaitSecs() * 1000);
+    // 'best' waits for every add-on (its pick is the best of all of them), but not for ever
+    if (apMode) apTimer = setTimeout(autoPickNow, apMode === 'best' ? 25000 : pickWaitSecs() * 1000);
+    if (apMode === 'best') setTimeout(function(){ autoPickNow(true); }, 90000);
+    if (apMode === 'best'){
+      var lim = ctx.item && (ctx.item.id === id || ctx.item.id === seriesIdOf(id)) ? ctx.item : null;
+      lcShow({ id: seriesIdOf(id), name: titleText || (lim && lim.name) || '', background: lim && lim.background });
+    }
     if (!order.length){
       list.innerHTML = '';
       list.appendChild(esBlock('addons', 'No add-ons yet', 'Add an add-on and its streams show up here.',
@@ -8419,6 +8490,7 @@
       if (pending) return;
       removeLoading();
       if (!total){
+        lcHide();                                  // nothing to pick: the page says why
         var req = lastStreamsReq, live = /^(tv|channel|events?)$/.test(type);
         var retry = function(){ if (req) openStreams(req.type, req.id, req.title, ctx.startOver); };
         list.innerHTML = '';
@@ -8444,7 +8516,7 @@
         var cnt = $id('shCount');
         if ($id('view-streams').classList.contains('hero')){ cnt.textContent = summary; clearStatus(); }
         else setStatus(summary, 'ok');
-        if (apMode) setTimeout(autoPickNow, 700);   // everyone has answered: a beat to see the list, then the pick
+        if (apMode) setTimeout(function(){ autoPickNow(true); }, 700);   // everyone has answered: a beat to see the list, then the pick
       }
     }
     // one placeholder per add-on, filled as answers arrive, so order is stable
@@ -8466,7 +8538,7 @@
         // rows, so a slow add-on — one takes a minute — was indistinguishable from a stuck page)
         box.innerHTML = canStream(m, type, id) ? streamWait(a) : '';
         waitName = canStream(m, type, id) ? ((a && a.name) || 'Add-on') : null;
-        if (waitName){ waiting.push(waitName); waitRender(); }
+        if (waitName){ waiting.push(waitName); waitRender(); if (apMode === 'best') lcAsk(waitName); }
         var slowT = setTimeout(function(){
           var w = boxPending && box.querySelector('.s-wait small');
           if (w) w.textContent = 'Still looking — some add-ons take up to a minute';
@@ -8478,6 +8550,7 @@
           if (declares) answered++;
           if (seq !== openSeq) return;
           var streams = streamsForList((d.streams||[]).filter(function(s){ return s.url; }));
+          if (apMode === 'best' && declares) lcAnswered((a && a.name) || 'Add-on', streams.length);
           box.innerHTML = '';
           boxPending = false;
           if (!streams.length) return;
@@ -8517,10 +8590,151 @@
       }).catch(function(){
         if (!known || declares) lost++;
         if (boxPending){ box.innerHTML = ''; boxPending = false; }   // never leave it shimmering
-        if (waitName){ waitDone(waitName); waitName = null; }
+        if (waitName){ if (apMode === 'best') lcAnswered(waitName, 0); waitDone(waitName); waitName = null; }
       }).then(done);
     });
   }
+
+  /** The row a launch asked to play by itself (openStreams' 'best'): one this TV plays with sound first, then one this
+      connection carries, then 4K over 1080p over the rest, then one the add-on says plays here, then the add-on's own order. */
+  function bestKey(s){
+    return [(streamNoSound(s) && !soundHelper()) ? 0 : 1, streamSlow(s) ? 0 : 1, streamRank(s),
+      (s.behaviorHints && s.behaviorHints.notWebReady) ? 0 : 1];
+  }
+  function bestCmp(x, y){ for (var j = 0; j < x.k.length; j++) if (x.k[j] !== y.k[j]) return y.k[j] - x.k[j]; return x.i - y.i; }
+  /** Rows (or {s, a} candidates) in that order, the add-on's own order breaking ties. */
+  function bestRank(list, get){
+    return list.map(function(x, i){ return { x: x, i: i, k: bestKey(get(x)) }; }).sort(bestCmp).map(function(o){ return o.x; });
+  }
+  function bestStreamRows(list){
+    var rows = Array.prototype.slice.call(list.querySelectorAll('.stream:not(.skel)')).filter(function(r){ return r.__s; });
+    return bestRank(rows, function(r){ return r.__s; });
+  }
+  function bestStreamRow(list){ return bestStreamRows(list)[0] || null; }
+  // ---- Netflix-style play (shelf mode): the best stream that actually starts ----
+  /** True on a TV whose home screen is Shelf (it starts Nebula with {shelf:1}); never anywhere else. */
+  function shelfMode(){ try { return IS_WEBOS && LS.getItem('shelf_mode') === '1'; } catch(e){ return false; } }
+  function shelfModeApply(){ var b = $id('puiStreams'); if (b) b.style.display = shelfMode() ? '' : 'none'; }
+  /** A best pick that would not start: the next one on the ranked list plays instead (five tries), the card says so. */
+  function bestNext(seq, why){
+    if (seq !== playSeq || !curPlay || ctx.bestFor !== curPlay.id || !ctx.bestQueue || stall.playedAt) return false;
+    if (ctx.bestTries >= 5) return false;
+    var cur = lastPlay ? lastPlay.url : '', c = null;
+    srcFailedNote(cur);
+    for (var i = 0; i < ctx.bestQueue.length; i++){
+      var q = ctx.bestQueue[i];
+      if (q.s.url !== cur && !srcFailed.urls[q.s.url]){ c = q; break; }
+    }
+    if (!c) return false;
+    ctx.bestTries++;
+    clearStatus();
+    lcRetry(c, why);
+    ctx.swapAt = 0; ctx.swapName = '';
+    ctx.pickedFrom = streamSig(c.s, c.a); savePick(ctx.pickedFrom); ctx.playSig = ctx.pickedFrom;
+    playStream(c.s);
+    return true;
+  }
+  /** The player's Streams menu (shelf mode): every row of this title, best first; the one playing is lit. */
+  function streamsMenuFill(){
+    var cur = curPlay; if (!cur) return;
+    var draw = function(cands, late){
+      if (late && puiState.menu !== 'streams') return;   // (a late answer after the menu closed)
+      Array.prototype.slice.call(puiMenuEl.querySelectorAll('.qopt, .qnote')).forEach(function(n){ n.parentNode.removeChild(n); });
+      var ranked = bestRank(cands, function(c){ return c.s; }).slice(0, 15), now = lastPlay ? lastPlay.url : '';
+      if (!ranked.length){ puiNote('No other streams for this title.'); return; }
+      ranked.forEach(function(c){
+        var pl = plateFor((c.s.name || '') + '\n' + (c.s.title || c.s.description || '')), b = streamSizeBytes(c.s);
+        var bits = [pl ? (pl.r === '1080' || pl.r === '720' ? pl.r + 'p' : pl.r) : '', srcName(c),
+          b ? (b >= 1e9 ? (b / 1e9).toFixed(1) + ' GB' : Math.round(b / 1e6) + ' MB') : ''].filter(Boolean);
+        var label = bits.join(' · ') + (srcFailed.urls[c.s.url] && c.s.url !== now ? ' — did not play'
+          : (streamNoSound(c.s) && !soundHelper()) ? ' — no sound on this TV' : '');
+        menuOpt(label, c.s.url === now, function(){
+          closePuiMenu(false);
+          if (c.s.url === now) return;
+          stall.sib = c; stall.why = ''; srcSwap();
+        });
+      });
+      var on = puiMenuEl.querySelector('.qopt.on') || puiMenuEl.querySelector('.qopt');
+      if (on) setTimeout(function(){ on.focus(); }, 10);
+    };
+    var cands = stallCandidates(cur);
+    if (cands.length) draw(cands);
+    else { puiNote('Looking for streams…'); fetchSiblings(cur.type, cur.id).then(function(c){ draw(c, true); }).catch(function(){ draw([], true); }); }
+  }
+
+  // ---- the launch card: the title's picture and who is still being asked, while a launch's best pick is found, until it plays ----
+  var lc = { on: false, n: 0, asked: 0, answered: 0, hideT: null };
+  function lcShow(meta){
+    var el = $id('launchCard'), back = $id('lcBack'), t = $id('lcTitle'), lg = $id('lcLogo');
+    lc.on = true; lc.n = 0; lc.asked = 0; lc.answered = 0; clearTimeout(lc.hideT);
+    el.classList.remove('picked');
+    $id('lcText').textContent = 'Finding the best stream…';
+    $id('lcWho').innerHTML = '';
+    back.classList.remove('in'); back.style.backgroundImage = '';
+    t.textContent = (meta && meta.name) || ''; t.style.display = ''; lg.style.display = 'none';
+    var id = String((meta && meta.id) || ''), ok = /^tt\d{5,10}$/.test(id);
+    var bg = (meta && meta.background) || (ok ? 'https://images.metahub.space/background/large/' + id + '/img' : '');
+    if (bg){ var im = new Image(); im.onload = function(){ if (!lc.on) return; back.style.backgroundImage = 'url("' + bg + '")'; back.classList.add('in'); }; im.src = bg; }
+    if (ok){
+      var li = new Image();
+      li.onload = function(){ if (!lc.on || li.naturalWidth / li.naturalHeight < 1.6) return; lg.src = li.src; lg.style.display = ''; t.style.display = 'none'; };
+      li.src = 'https://images.metahub.space/logo/medium/' + id + '/img';
+    }
+    el.classList.add('on');
+  }
+  function lcText(){
+    if (!lc.on || $id('launchCard').classList.contains('picked')) return;
+    var left = lc.asked - lc.answered, names = [], all = $id('lcWho').children;
+    for (var i = 0; i < all.length; i++) if (!all[i].className) names.push(all[i].getAttribute('data-n'));
+    var who = names.length === 1 ? names[0] : names.length === 2 ? names[0] + ' and ' + names[1] : left + ' add-ons';
+    $id('lcText').textContent = lc.n
+      ? 'Found ' + lc.n + ' stream' + (lc.n > 1 ? 's' : '') + (left ? ' · still asking ' + who : ' · picking the best')
+      : left ? 'Asking ' + who + ' for streams…' : 'Finding the best stream…';
+  }
+  function lcChip(name){
+    var all = $id('lcWho').children;
+    for (var i = 0; i < all.length; i++) if (all[i].getAttribute('data-n') === name) return all[i];
+    return null;
+  }
+  function lcAsk(name){
+    if (!lc.on || lcChip(name)) return;
+    var s = document.createElement('span'); s.setAttribute('data-n', name);
+    s.innerHTML = '<i class="s-dot"></i>' + esc(name);
+    $id('lcWho').appendChild(s); lc.asked++; lcText();
+  }
+  function lcAnswered(name, n){
+    if (!lc.on) return;
+    var s = lcChip(name); if (!s){ lcAsk(name); s = lcChip(name); }
+    if (!s || s.className) return;
+    s.className = n ? 'done' : 'none';
+    s.innerHTML = '<i class="s-dot"></i>' + esc(name) + '<em>' + (n || 'none') + '</em>';
+    lc.answered++; lc.n += n; lcText();
+  }
+  function lcStarting(s, a, lead){
+    var pl = plateFor((s.name || '') + '\n' + (s.title || s.description || '')), r = pl ? pl.r : '', an = (a && a.name) || '';
+    if (r === '1080' || r === '720') r += 'p';
+    $id('lcText').textContent = (lead || 'Starting') + (r ? ' ' + r : '') + (an ? ' · ' + an : '');
+    $id('launchCard').classList.add('picked');
+    // a start that shows no picture in 45 s gives way to the next best (shelf mode), else the card steps aside
+    clearTimeout(lc.hideT); lc.hideT = setTimeout(function(){ if (lc.on && !bestNext(playSeq, 'slow')) lcHide(); }, 45000);
+  }
+  function lcPick(row){ if (lc.on && row.__s) lcStarting(row.__s, row.__a); }
+  function lcRetry(c, why){
+    if (!lc.on){
+      var cp = curPlay || {}, el = $id('launchCard');
+      lc.on = true; el.classList.add('on');
+      if (!$id('lcBack').style.backgroundImage && cp.back){ $id('lcBack').style.backgroundImage = 'url("' + cp.back + '")'; $id('lcBack').classList.add('in'); }
+    }
+    lcStarting(c.s, c.a, why === 'slow' ? 'That one was slow to start · trying' : 'That one didn\u2019t play · trying');
+  }
+  function lcHide(){
+    if (!lc || !lc.on) return;                     // (setStatus runs before this block has, at boot)
+    lc.on = false; clearTimeout(lc.hideT);
+    $id('launchCard').classList.remove('on');
+  }
+  video.addEventListener('playing', function(){ lcHide(); });
+  // any key is the viewer taking over: the list underneath is theirs (Back still steps out as ever)
+  window.addEventListener('keydown', function(){ lcHide(); }, true);
 
   // ---------- playback ----------
   function extractClearKeys(stream){
@@ -10322,6 +10536,7 @@
     if (seq !== playSeq || stall.failSeq === seq) return;
     stall.failSeq = seq;
     srcFailedNote(url);
+    if (bestNext(seq, 'fail')) return;            // shelf mode / a launch: the next best plays instead of the error
     if (code === 3016 && /^https?:\/\//i.test(url || '') && !/\.(mpd|m3u8)(\?|#|$)/i.test(url) && !(lastPlay && lastPlay.keys)){
       var host = ''; try { host = new URL(url).hostname.replace(/^www\./, ''); } catch(e){}
       var a = await hostAnswer(cleanUrl(url));
@@ -13090,7 +13305,7 @@
     if (subPanelEl){ subPanelEl.classList.remove('open'); document.body.classList.remove('sp-on'); }
     puiMenuEl.innerHTML = '';
     var t=document.createElement('div'); t.className='qtitle';
-    t.textContent = { quality:'Quality', audio:'Audio', speed:'Speed', sleep:'Sleep timer', fit:'Picture size' }[kind];
+    t.textContent = { quality:'Quality', audio:'Audio', speed:'Speed', sleep:'Sleep timer', fit:'Picture size', streams:'Streams' }[kind];
     puiMenuEl.appendChild(t);
     if (kind==='quality'){
       var tracks = videoTracks(), heights = distinctHeights(tracks);
@@ -13175,6 +13390,8 @@
       var fm = fitMode();
       FIT_MODES.forEach(function(f){ menuOpt(f[1], f[0] === fm, function(){ fitSet(f[0]); closePuiMenu(true); }); });
       puiNote(FIT_NOTES[fm]);
+    } else if (kind==='streams'){
+      streamsMenuFill();
     } else if (kind==='sleep'){
       menuOpt('Off', !sleepState.mode, function(){ sleepSet('', 0); });
       [15,30,45,60,90].forEach(function(m){
@@ -13781,6 +13998,7 @@
   $id('puiSpeed').onclick = function(){ if (puiState.menu==='speed') closePuiMenu(true); else openPuiMenu('speed', this); };
   $id('puiFit').onclick = function(){ if (puiState.menu==='fit') closePuiMenu(true); else openPuiMenu('fit', this); };
   $id('puiSleep').onclick = function(){ if (puiState.menu==='sleep') closePuiMenu(true); else openPuiMenu('sleep', this); };
+  $id('puiStreams').onclick = function(){ if (puiState.menu==='streams') closePuiMenu(true); else openPuiMenu('streams', this); };
 
   // ---- fullscreen ----
   // Hidden on webOS, where the app already owns the whole screen.
@@ -16523,6 +16741,41 @@
     });
   }
 
+  // ---- a title another app on this TV asked for (Shelf, the home screen, 10-26): launch params
+  // {play:{type, id, name, poster, background}} → a film's streams, and the best one plays by itself; a series opens its page.
+  // Waits for the add-ons to come back from storage and for who's watching to be answered.
+  var launchAsk = null;
+  function launchImg(u){ u = String(u || ''); return /^https:\/\/[^\s"'()<>\\]{1,500}$/.test(u) ? u : ''; }
+  function launchParse(raw){
+    var p = raw;
+    if (typeof p === 'string'){ try { p = JSON.parse(p || '{}'); } catch(e){ p = null; } }
+    var q = p && p.play;
+    if (!q || !/^tt\d{5,10}$/.test(String(q.id || '')) || (q.type !== 'movie' && q.type !== 'series')) return null;
+    return { type: q.type, id: String(q.id), name: String(q.name || '').slice(0, 200),
+      poster: launchImg(q.poster), background: launchImg(q.background), at: Date.now() };
+  }
+  function launchAskFrom(raw){ shelfNote(raw); var a = launchParse(raw); if (!a) return; launchAsk = a; launchAskRun(); }
+  /** Started by Shelf (any launch carries {shelf:1}): this TV plays Netflix-style from now on (kept on the device only). */
+  function shelfNote(raw){
+    var p = raw; if (typeof p === 'string'){ try { p = JSON.parse(p || '{}'); } catch(e){ p = null; } }
+    if (p && p.shelf){ try { LS.setItem('shelf_mode', '1'); } catch(e){} shelfModeApply(); }
+  }
+  function launchAskRun(){
+    var a = launchAsk; if (!a) return;
+    if (!addonsReady || whoOpen){ if (Date.now() - a.at < 120000) setTimeout(launchAskRun, 300); else launchAsk = null; return; }
+    launchAsk = null;
+    if (video.style.display === 'block'){                     // something is playing: this replaces it
+      playSeq++; stopPlayer(); sleepClear();
+      if (party && !party.isHost) endParty('Left the party.');
+    }
+    var meta = { id: a.id, type: a.type, name: a.name, poster: a.poster, background: a.background };
+    ctx.addon = null; ctx.catalog = null; ctx.seriesId = ''; ctx.seriesEpisodes = null; ctx.epIndex = -1;
+    setTab('home');
+    if (a.type === 'series'){ openItem(meta); return; }
+    ctx.item = meta; ctx.streamTitle = null;
+    openStreams('movie', a.id, a.name, false, false, 'best');
+  }
+
   renderAddons();
   initPersistentAddons();
   // invite links: play.rifflehq.in/?party=CODE asks, then joins — the host picks what plays on this device from then on and
@@ -16543,7 +16796,16 @@
   initPersistentRatings();
   initPersistentSeekr();
   buildHomeRows(true);
-  whoBoot();                               // two profiles: who's watching?
+  // two profiles: who's watching? — not when another app started us to play a title (it plays on the profile this TV
+  // was on), unless that profile has a PIN
+  var bootAsk = null; try { if (window.PalmSystem){ shelfNote(window.PalmSystem.launchParams); bootAsk = launchParse(window.PalmSystem.launchParams); } } catch(e){}
+  shelfModeApply();
+  if (!bootAsk || whoNeedsPin(viewer)) whoBoot();
+  if (bootAsk){ launchAsk = bootAsk; launchAskRun(); }
+  // launched again while running (another title from the home screen): webOS hands the new params over here
+  document.addEventListener('webOSRelaunch', function(e){
+    try { launchAskFrom((e && e.detail) || (window.PalmSystem && window.PalmSystem.launchParams)); } catch(err){}
+  });
   // installs from before 10-26 never wrote which account their data belongs to: the one they are signed into
   try { if (cloudLinked() && !LS.getItem('sync_gid')) LS.setItem('sync_gid', cloudLink.gid); } catch(e){}
   if (cloudLinked()) setTimeout(function(){ cloudPullAll(true); profileBoot(); }, 900);
