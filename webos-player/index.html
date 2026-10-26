@@ -636,7 +636,7 @@
   .s-spec b { display:block; color:var(--label); font-size:calc(14px * var(--ts)); font-weight:600; letter-spacing:-.01em; }
   .s-spec .s-nwr, .s-spec .s-slow { display:block; font-style:normal; color:var(--label3); font-size:calc(11px * var(--ts)); letter-spacing:.04em; margin-top:2px; }
   .stream.nwr .s-plate, .stream.nwr .stream-name { opacity:.7; }
-  .s-spec .s-nosnd, .s-spec .s-snd { display:block; font-style:normal; color:var(--label3); font-size:calc(11px * var(--ts)); letter-spacing:.04em; margin-top:2px; }
+  .s-spec .s-nosnd, .s-spec .s-snd, .s-spec .s-inst { display:block; font-style:normal; color:var(--label3); font-size:calc(11px * var(--ts)); letter-spacing:.04em; margin-top:2px; }
   .stream.nosnd .s-plate, .stream.nosnd .stream-name { opacity:.7; }
   .stream.slow .s-plate, .stream.slow .stream-name { opacity:.8; }
   html.tv .s-plate { width:84px; padding:14px 0; }
@@ -4724,6 +4724,8 @@
   var curPlay = null;
   function noteProgress(pos, dur, done){
     var c = curPlay; if (!c || !c.id) return;
+    if (briefClip()) return;                    // a debrid add-on's 8-second message is not the film
+
     var k = progKey(c.type, c.id), p = getProgress();
     if (done || (dur > 0 && pos > dur - PROG_END_GAP)){
       p[k] = { type: c.type, id: c.id, done: true, at: Date.now() };
@@ -7298,6 +7300,8 @@
     return { size: size, bitrate: bitrate, seeds: seeds, langs: langs, provider: provider,
              desc: desc.join(' · ') };
   }
+  // a debrid service's tag in a row's name: "[TB⚡]", "[TB⬇️]", "[TB+]", "[RD download]", "[TB🔄]" (streamCard says it in words)
+  var RE_DEB_TAG = /\[[A-Za-z]{2,3} ?(?:\u26A1|\+|\u2B07|\u23F3|download|\uD83D\uDD04)[^\]]*\]/gi;
   var RE_EMOJI = /[\u2190-\u21FF\u2300-\u27BF\u2B00-\u2BFF\uFE0F\u200D]|[\uD83C-\uDBFF][\uDC00-\uDFFF]/g;
   var RE_RES = /\b(4k|2160p|uhd|1080p|fhd|720p|480p|360p)\b/ig;
   function plateFor(raw){
@@ -7311,7 +7315,7 @@
       name only has to say which RELEASE this is — strip everything the row
       already shows elsewhere. */
   function cleanStreamName(raw, addonName){
-    var t = String(raw || '').replace(/\n/g, ' ').replace(RE_EMOJI, ' ');
+    var t = String(raw || '').replace(/\n/g, ' ').replace(RE_DEB_TAG, ' ').replace(RE_EMOJI, ' ');
     if (addonName) t = t.replace(new RegExp('\\b' + addonName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'ig'), ' ');
     t = t.replace(RE_RES, ' ')
          .replace(/\s*[·•|]\s*/g, ' · ')
@@ -7363,6 +7367,9 @@
     // faster than this device has measured its connection to be (Settings › Streams): no buffer saves such a row
     if (streamSlow(s, f)){ spec += '<i class="s-slow">may stall here</i>'; card.className += ' slow'; }
     if (s.behaviorHints && s.behaviorHints.notWebReady){ spec += '<i class="s-nwr">may not play here</i>'; card.className += ' nwr'; }
+    // a debrid row: ready in the service's cloud (starts at once) or not yet (it would have to fetch the file first)
+    if (streamInstant(s)) spec += '<i class="s-inst">instant</i>';
+    else if (debridState(s) === 'wait') spec += '<i class="s-inst">not ready yet</i>';
     // an LG plays a DTS film's picture in silence: said before it is picked — or, with a computer converting sound for this TV, who will
     if (streamNoSound(s)){
       var hp = soundHelper();
@@ -8442,7 +8449,8 @@
         row = ranked[0] || null;
       }
       // never a row this connection cannot carry, nor one the add-on says will not play here, while another is there
-      if (!row) row = list.querySelector('.stream:not(.skel):not(.slow):not(.nwr):not(.nosnd)') || list.querySelector('.stream:not(.skel):not(.nosnd)') || list.querySelector('.stream:not(.skel)');
+      // (a launch's pick with only not-ready debrid rows leaves the list to the viewer)
+      if (!row && apMode !== 'best') row = list.querySelector('.stream:not(.skel):not(.slow):not(.nwr):not(.nosnd)') || list.querySelector('.stream:not(.skel):not(.nosnd)') || list.querySelector('.stream:not(.skel)');
       if (!row){ lcHide(); return; }
       if (apMode === 'best') lcPick(row); else setStatus('Playing the best stream for you.', 'info');
       row.click();
@@ -8561,6 +8569,8 @@
             box.innerHTML = '<div class="rowhead"><span class="row-title">'+esc(a.name||'Add-on')+'</span></div>';
           }
           var cards = streams.map(function(s){ total++; var c = streamCard(s, a); box.appendChild(c); return c; });
+          // a row ready in TorBox (Comet's "[TB⚡]") plays as soon as it is here — slower add-ons are not waited for
+          if (apMode === 'best' && !apDone && streams.some(bestInstantNow)) setTimeout(function(){ autoPickNow(true); }, 300);
           // rows that came in go above the add-ons still being asked: a slow add-on high in the list kept the rows
           // that could already play below the fold (seen on his TV, 10-16) — and nothing above moves under the remote
           var wt = list.querySelector('.streamsec .s-wait'), wb = wt && wt.parentNode;
@@ -8595,11 +8605,40 @@
     });
   }
 
-  /** The row a launch asked to play by itself (openStreams' 'best'): one this TV plays with sound first, then one this
-      connection carries, then 4K over 1080p over the rest, then one the add-on says plays here, then the add-on's own order. */
+  // ---- rows from a debrid service (TorBox and the like): the row's name says whether the file is already in its cloud ----
+  // Comet names a file TorBox already holds "[TB⚡] Comet 2160p" and one it would first have to fetch "[TB⬇️] …";
+  // Torrentio-style add-ons write "[TB+]" and "[TB download]". A ready one starts at once, like a file on a fast server;
+  // one that is not ready plays an 8-second clip saying so. "[TB🔄] Comet Sync" is a button for the account, not a film.
+  var RE_DEB = /\[[A-Za-z]{2,3} ?(⚡|\+|⬇|⏳|download)/i;
+  /** 'ready', 'wait' (not in the service's cloud yet), 'action' (a service button) or '' for any other row. */
+  function debridState(s){
+    var n = String((s && s.name) || '');
+    if (/🔄/.test(n) || /\/debrid-sync\//.test(String((s && s.url) || ''))) return 'action';
+    var m = RE_DEB.exec(n); if (!m) return '';
+    return (m[1] === '⚡' || m[1] === '+') ? 'ready' : 'wait';
+  }
+  function debridHeld(s){ var d = debridState(s); return d === 'wait' || d === 'action'; }
+  /** 2 = a TorBox file ready to play at once (his own service, 10-26: "give it the most priority"), 1 = another service's, 0 = the rest. */
+  function streamInstant(s){
+    if (debridState(s) !== 'ready') return 0;
+    return /^\s*\[TB\b|torbox/i.test(String(s.name || '')) ? 2 : 1;
+  }
+  /** A row a launch's pick takes the moment it arrives, without waiting for slower add-ons: ready in a debrid cloud,
+      with sound on this TV, within this connection. */
+  function bestInstantNow(s){ return streamInstant(s) > 0 && !(streamNoSound(s) && !soundHelper()) && !streamSlow(s); }
+  /** A debrid row that sent a few seconds of video instead of the film: Comet answers a file TorBox cannot hand over (not
+      cached yet, a limit reached, the service down) with an 8-second clip that says so, and the TV plays it like the film.
+      Such a play is a failed start: it never ticks the title off, never opens Up next. */
+  function briefClip(){
+    var c = curPlay, d = video.duration;
+    return !!(c && c.deb && /^(movie|series|anime)$/.test(c.type || '') && isFinite(d) && d > 0 && d < 30);
+  }
+  /** The row a launch asked to play by itself (openStreams' 'best'): never a debrid row that is not ready, then one this TV
+      plays with sound, then one this connection carries, then one ready in TorBox (another debrid cloud next), then 4K over
+      1080p over the rest, then one the add-on says plays here, then the add-on's own order. */
   function bestKey(s){
-    return [(streamNoSound(s) && !soundHelper()) ? 0 : 1, streamSlow(s) ? 0 : 1, streamRank(s),
-      (s.behaviorHints && s.behaviorHints.notWebReady) ? 0 : 1];
+    return [debridHeld(s) ? 0 : 1, (streamNoSound(s) && !soundHelper()) ? 0 : 1, streamSlow(s) ? 0 : 1, streamInstant(s),
+      streamRank(s), (s.behaviorHints && s.behaviorHints.notWebReady) ? 0 : 1];
   }
   function bestCmp(x, y){ for (var j = 0; j < x.k.length; j++) if (x.k[j] !== y.k[j]) return y.k[j] - x.k[j]; return x.i - y.i; }
   /** Rows (or {s, a} candidates) in that order, the add-on's own order breaking ties. */
@@ -8607,7 +8646,7 @@
     return list.map(function(x, i){ return { x: x, i: i, k: bestKey(get(x)) }; }).sort(bestCmp).map(function(o){ return o.x; });
   }
   function bestStreamRows(list){
-    var rows = Array.prototype.slice.call(list.querySelectorAll('.stream:not(.skel)')).filter(function(r){ return r.__s; });
+    var rows = Array.prototype.slice.call(list.querySelectorAll('.stream:not(.skel)')).filter(function(r){ return r.__s && !debridHeld(r.__s); });
     return bestRank(rows, function(r){ return r.__s; });
   }
   function bestStreamRow(list){ return bestStreamRows(list)[0] || null; }
@@ -8617,10 +8656,17 @@
   function shelfModeApply(){ var b = $id('puiStreams'); if (b) b.style.display = shelfMode() ? '' : 'none'; }
   /** A best pick that would not start: the next one on the ranked list plays instead (five tries), the card says so. */
   function bestNext(seq, why){
-    if (seq !== playSeq || !curPlay || ctx.bestFor !== curPlay.id || !ctx.bestQueue || stall.playedAt) return false;
+    // (a debrid clip in place of the film has "played" — 'brief' — and still counts as a start that failed)
+    if (seq !== playSeq || !curPlay || ctx.bestFor !== curPlay.id || !ctx.bestQueue || (stall.playedAt && why !== 'brief')) return false;
     if (ctx.bestTries >= 5) return false;
     var cur = lastPlay ? lastPlay.url : '', c = null;
     srcFailedNote(cur);
+    // rows from add-ons that answered after the pick (a TorBox row starts before the slow ones are in) count too
+    var sl = $id('streamList');
+    if (sl && lastStreamsReq && lastStreamsReq.id === curPlay.id){
+      var fresh = bestStreamRows(sl);
+      if (fresh.length) ctx.bestQueue = fresh.map(function(r){ return { s: r.__s, a: r.__a }; });
+    }
     for (var i = 0; i < ctx.bestQueue.length; i++){
       var q = ctx.bestQueue[i];
       if (q.s.url !== cur && !srcFailed.urls[q.s.url]){ c = q; break; }
@@ -8643,13 +8689,16 @@
       var ranked = bestRank(cands, function(c){ return c.s; }).slice(0, 15), now = lastPlay ? lastPlay.url : '';
       if (!ranked.length){ puiNote('No other streams for this title.'); return; }
       var seen = {}, host = function(u){ try { return new URL(u).hostname.replace(/^www\./, ''); } catch(e){ return ''; } };
-      ranked.forEach(function(c){ var k = srcName(c) + '|' + streamRank(c.s); seen[k] = (seen[k] || 0) + 1; });
+      var lk = function(c){ return srcName(c) + '|' + streamRank(c.s) + '|' + debridState(c.s); };
+      ranked.forEach(function(c){ var k = lk(c); seen[k] = (seen[k] || 0) + 1; });
       ranked.forEach(function(c){
+        if (debridState(c.s) === 'action') return;        // a service button ("Comet Sync"), not a film
         var pl = plateFor((c.s.name || '') + '\n' + (c.s.title || c.s.description || '')), b = streamSizeBytes(c.s);
-        var bits = [pl ? (pl.r === '1080' || pl.r === '720' ? pl.r + 'p' : pl.r) : '', srcName(c),
+        var bits = [pl ? (pl.r === '1080' || pl.r === '720' ? pl.r + 'p' : pl.r) : '', srcName(c), streamInstant(c.s) ? 'Instant' : '',
           b ? (b >= 1e9 ? (b / 1e9).toFixed(1) + ' GB' : Math.round(b / 1e6) + ' MB') : '',
-          seen[srcName(c) + '|' + streamRank(c.s)] > 1 ? host(c.s.url) : ''].filter(Boolean);   // look-alikes say where they come from
+          seen[lk(c)] > 1 ? host(c.s.url) : ''].filter(Boolean);   // look-alikes say where they come from
         var label = bits.join(' · ') + (srcFailed.urls[c.s.url] && c.s.url !== now ? ' — did not play'
+          : debridState(c.s) === 'wait' ? ' — not ready yet'
           : (streamNoSound(c.s) && !soundHelper()) ? ' — no sound on this TV' : '');
         menuOpt(label, c.s.url === now, function(){
           closePuiMenu(false);
@@ -8716,7 +8765,7 @@
   function lcStarting(s, a, lead){
     var pl = plateFor((s.name || '') + '\n' + (s.title || s.description || '')), r = pl ? pl.r : '', an = (a && a.name) || '';
     if (r === '1080' || r === '720') r += 'p';
-    $id('lcText').textContent = (lead || 'Starting') + (r ? ' ' + r : '') + (an ? ' · ' + an : '');
+    $id('lcText').textContent = (lead || 'Starting') + (r ? ' ' + r : '') + (an ? ' · ' + an : '') + (streamInstant(s) ? ' · instant' : '');
     $id('launchCard').classList.add('picked');
     // a start that shows no picture in 45 s gives way to the next best (shelf mode), else the card steps aside
     clearTimeout(lc.hideT); lc.hideT = setTimeout(function(){ if (lc.on && !bestNext(playSeq, 'slow')) lcHide(); }, 45000);
@@ -8728,7 +8777,8 @@
       lc.on = true; el.classList.add('on');
       if (!$id('lcBack').style.backgroundImage && cp.back){ $id('lcBack').style.backgroundImage = 'url("' + cp.back + '")'; $id('lcBack').classList.add('in'); }
     }
-    lcStarting(c.s, c.a, why === 'slow' ? 'That one was slow to start · trying' : 'That one didn\u2019t play · trying');
+    lcStarting(c.s, c.a, why === 'slow' ? 'That one was slow to start · trying' : why === 'brief' ? 'That one wasn\u2019t ready · trying'
+      : 'That one didn\u2019t play · trying');
   }
   function lcHide(){
     if (!lc || !lc.on) return;                     // (setStatus runs before this block has, at boot)
@@ -8736,6 +8786,18 @@
     $id('launchCard').classList.remove('on');
   }
   video.addEventListener('playing', function(){ lcHide(); });
+  // a debrid clip in place of the film: the next best plays (a launch's pick), else the pill offers another row
+  var briefSeq = 0;
+  function briefCheck(){
+    if (briefSeq === playSeq || !briefClip()) return;
+    briefSeq = playSeq;
+    srcFailedNote(lastPlay ? lastPlay.url : '');
+    if (bestNext(playSeq, 'brief')) return;
+    setStatus('This source sent a short message instead of the film — its service could not hand the file over. Try another stream.', 'err');
+    stallOffer('fail');
+  }
+  video.addEventListener('loadedmetadata', briefCheck);
+  video.addEventListener('durationchange', briefCheck);
   // any key is the viewer taking over: the list underneath is theirs (Back still steps out as ever)
   window.addEventListener('keydown', function(){ lcHide(); }, true);
 
@@ -10579,7 +10641,8 @@
     curPlay = ctx.playId ? {
       type: ctx.playType, id: ctx.playId, name: ctx.playTitle || title || '',
       poster: ctx.playPoster || '', shape: ctx.playShape || 'poster', back: ctx.playBack || '',
-      addonUrl: ctx.playAddonUrl || ''
+      addonUrl: ctx.playAddonUrl || '',
+      deb: ctx.rowFor === rawUrl && RE_DEB.test(String(ctx.playRow || '').split('\n')[0])   // a debrid row (briefClip)
     } : null;
     show('player');
     puiReset(title || '');
@@ -10745,7 +10808,7 @@
       subHdrDetect();                    // Settings › Subtitles › In HDR video   // live is known only now (Auto keeps a bigger lead on live streams)
       // the safety net: a file that looked ordinary but Chromium cannot voice restarts through the shell
       if (tcLater) tcCheckProbe(tcc).then(function(){ tcDecide(tcc, seq); });
-      setStatus(swapName ? ('Switched to ' + swapName + '.') : startAt ? (mpvKeptPlace() ? 'This source can only play from the beginning — your place is kept.' : 'Resumed from ' + fmtT(startAt) + '.') : (fresh ? 'Starting from the beginning.' : 'Playing.'), 'ok');
+      if (briefSeq !== seq) setStatus(swapName ? ('Switched to ' + swapName + '.') : startAt ? (mpvKeptPlace() ? 'This source can only play from the beginning — your place is kept.' : 'Resumed from ' + fmtT(startAt) + '.') : (fresh ? 'Starting from the beginning.' : 'Playing.'), 'ok');
       if (tc && tc.lan) setStatus('Sound converted by ' + soundHelperName(tc.lan) + (startAt > 1 ? ' · from ' + fmtT(startAt) : '') + '.', 'ok', 6000);
       try { await video.play(); } catch(e){}
       $id('puiSpin').style.display = 'none';
@@ -14195,6 +14258,7 @@
   $id('puiNext').onclick = function(){ autoRun = 0; var nx = nextEpisode(); if (nx) playEpisodeAt(nx.index); };
   video.addEventListener('ended', function(){
     if (puiIsLive()) return;
+    if (briefClip()){ puiShow(); return; }   // (a debrid clip saying the file is not ready: no tick, no Up next)
     noteProgress(0, 0, true);          // finished — ticks it off the episode list
     try { renderContinue(); } catch(e){}
     puiShow();
@@ -14444,7 +14508,7 @@
     for (pass = 0; pass < (loose ? 3 : 2); pass++){
       for (k = 0; k < n; k++){
         var c = cands[(start + k) % n];
-        if (c.s.url === curUrl || srcFailed.urls[c.s.url]) continue;
+        if (c.s.url === curUrl || srcFailed.urls[c.s.url] || debridHeld(c.s)) continue;
         if (pass < 2 && c.s.behaviorHints && c.s.behaviorHints.notWebReady) continue;
         if (pass < 2 && streamNoSound(c.s) && !soundHelper()) continue;      // an LG plays it in silence (DTS)
         if (pass < 2 && curSig && isTwin(c.s, curSig, c.a)) continue;
