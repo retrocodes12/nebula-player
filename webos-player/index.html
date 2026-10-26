@@ -8642,10 +8642,13 @@
       Array.prototype.slice.call(puiMenuEl.querySelectorAll('.qopt, .qnote')).forEach(function(n){ n.parentNode.removeChild(n); });
       var ranked = bestRank(cands, function(c){ return c.s; }).slice(0, 15), now = lastPlay ? lastPlay.url : '';
       if (!ranked.length){ puiNote('No other streams for this title.'); return; }
+      var seen = {}, host = function(u){ try { return new URL(u).hostname.replace(/^www\./, ''); } catch(e){ return ''; } };
+      ranked.forEach(function(c){ var k = srcName(c) + '|' + streamRank(c.s); seen[k] = (seen[k] || 0) + 1; });
       ranked.forEach(function(c){
         var pl = plateFor((c.s.name || '') + '\n' + (c.s.title || c.s.description || '')), b = streamSizeBytes(c.s);
         var bits = [pl ? (pl.r === '1080' || pl.r === '720' ? pl.r + 'p' : pl.r) : '', srcName(c),
-          b ? (b >= 1e9 ? (b / 1e9).toFixed(1) + ' GB' : Math.round(b / 1e6) + ' MB') : ''].filter(Boolean);
+          b ? (b >= 1e9 ? (b / 1e9).toFixed(1) + ' GB' : Math.round(b / 1e6) + ' MB') : '',
+          seen[srcName(c) + '|' + streamRank(c.s)] > 1 ? host(c.s.url) : ''].filter(Boolean);   // look-alikes say where they come from
         var label = bits.join(' · ') + (srcFailed.urls[c.s.url] && c.s.url !== now ? ' — did not play'
           : (streamNoSound(c.s) && !soundHelper()) ? ' — no sound on this TV' : '');
         menuOpt(label, c.s.url === now, function(){
