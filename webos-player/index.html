@@ -3922,6 +3922,7 @@
     var json = JSON.stringify(a);
     try { LS.setItem(addonsKey(), json); } catch(e){}
     mirrorAddons(json);
+    if (!syncApplying && addonsKey() === 'addons_b') addonsSeedDrop();   // a change by hand: the list is this profile's own now, not a stand-in
     syncNoteAddonsDiff(prev, a);
     cloudPushSoon('addons');
     manifestCache = {};                        // a changed add-on list invalidates cached manifests
@@ -4088,7 +4089,7 @@
       .then(function(v){
         var arr = null; try { arr = v ? JSON.parse(v) : null; } catch(e){}
         // the second profile with nothing stored anywhere starts from a copy of the first's (profileAddonsSeed)
-        if ((!arr || !arr.length) && addonsKey() === 'addons_b' && profileAddonsSeed()){ finishAddonRestore(); return; }
+        if ((!arr || !arr.length) && addonsKey() === 'addons_b' && profileAddonsSeed(false)){ finishAddonRestore(); return; }
         if (!arr || !arr.length){ seedDefaults(); finishAddonRestore(); return; }   // truly first run — not a wiped TV
         // union with whatever was added while the restore was in flight
         var now = getAddons(), merged = now.slice();
@@ -4178,17 +4179,40 @@
       history is read (storage, the mirrors after a wipe, the cloud) and everything showing a history is drawn again. */
   /** The second profile, the first time it is used here with no add-ons stored: a copy of the first profile's list AND of
       its add/remove stamps — the stamps as they were, not "now", so a removal another device made in this profile's own
-      synced list is newer and still wins. true when it seeded. */
-  function profileAddonsSeed(){
+      synced list is newer and still wins. true when it seeded.
+      `sure`: the account was asked and holds no list for this profile. Without that (signed out, no answer, a launch)
+      the copy is only a stand-in (`addons_b_seed`, this device only): the account's own list, when a pull finds one,
+      replaces it whole — merged, the first profile's add-ons went up into the second's (10-26). */
+  function profileAddonsSeed(sure){
     try {
       if (LS.getItem('addons_b') !== null) return false;
       var a = LS.getItem('addons'); if (!a || a === '[]') return false;
       LS.setItem('addons_b', a);
       LS.setItem('addons_sync_b', LS.getItem('addons_sync') || '{}');
+      if (sure) LS.removeItem('addons_b_seed'); else LS.setItem('addons_b_seed', '1');
       addonsSyncMeta = null;
       mirrorKv('addons_b', a);
       return true;
     } catch(e){ return false; }
+  }
+  function addonsSeedHeld(){ try { return addonsKey() === 'addons_b' && !!LS.getItem('addons_b_seed'); } catch(e){ return false; } }
+  function addonsSeedDrop(){ try { LS.removeItem('addons_b_seed'); } catch(e){} }
+  /** This device's data now belongs to another account (signed into a different one): the second profile — its name,
+      PIN, history and add-ons — was the old account's and must not go up into the new one. Back on the first profile,
+      the list empty until the new account's arrives. The first profile's own data merges as it always has. */
+  function profilesReset(){
+    if (viewer === 'b') switchViewer('a', true);   // (still signed into the old account: its unsent changes go there first)
+    ['progress_b', 'library_b', 'addons_b'].forEach(function(k){
+      try { LS.removeItem(k); } catch(e){}
+      mirrorKv(k, k === 'addons_b' ? '[]' : '{}');
+    });
+    try { LS.removeItem('addons_sync_b'); } catch(e){}
+    addonsSeedDrop();
+    Object.keys(cloudDirty).forEach(function(k){ if (/_b$/.test(k)) delete cloudDirty[k]; });
+    saveCloudDirty();
+    viewersDoc = { at: 0, list: [] }; saveViewers(false);
+    whoUnlocked = {};
+    whoRender();
   }
   /** This profile's add-ons on a switch: storage, else a mirror (a wiped TV), else the first profile's copy. */
   function profileAddonsLoad(done){
@@ -4202,12 +4226,12 @@
       if (k !== 'addons_b'){ done(); return; }
       // the copy only when the account has no list for this profile yet: one another device keeps is pulled as it is
       // (a copy merged into it brought the first profile's later add-ons along)
-      if (!cloudLinked()){ profileAddonsSeed(); done(); return; }
+      if (!cloudLinked()){ profileAddonsSeed(false); done(); return; }
       cloudApi('GET', '/v1/kv').then(function(res){
         var keys = (res && res.keys) || {};
-        if (keys.addons_b){ try { LS.setItem('addons_b', '[]'); LS.setItem('addons_sync_b', '{}'); } catch(e){} addonsSyncMeta = null; }
-        else profileAddonsSeed();
-      }, function(){ profileAddonsSeed(); }).then(done);
+        if (keys.addons_b){ try { LS.setItem('addons_b', '[]'); LS.setItem('addons_sync_b', '{}'); } catch(e){} addonsSeedDrop(); addonsSyncMeta = null; delete cloudRevs.addons_b; }
+        else profileAddonsSeed(true);
+      }, function(){ profileAddonsSeed(false); }).then(done);
     });
   }
   function switchViewer(id, quiet){
@@ -14898,9 +14922,12 @@
     return { changed: changed, localNewer: localNewer };
   }
   function mergeAddons(remote){
+    // the second profile's stand-in copy of the first's list meets the account's own: that one is taken as it is
+    var seed = addonsSeedHeld();
+    if (seed){ addonsSyncMeta = { at: {}, removed: {}, orderAt: 0 }; addonsSeedDrop(); }
     var s = getAddonsSync();
-    var arr = getAddons();
-    var changed = false, localNewer = false;
+    var arr = seed ? [] : getAddons();
+    var changed = seed, localNewer = false;
     var rl = remote.list || {}, rr = remote.removed || {};
     var have = {}; arr.forEach(function(a){ have[a.url] = 1; });
     Object.keys(rl).forEach(function(u){
@@ -14992,9 +15019,11 @@
       var work = [];
       // a link-code group learns here that a profile was added to it from another device
       if (!profile && cloudLink.token) profileRefresh();
-      SYNC_KEYS.forEach(function(key){
+      var one = function(key){
         var wk = vkey(key), remoteMeta = keys[wk];          // this profile's copy of a per-profile key
         if (!remoteMeta){
+          // the account holds no list for the second profile: the stand-in copy becomes it
+          if (key === 'addons' && addonsSeedHeld()) addonsSeedDrop();
           if (syncDocHasContent(key)) work.push(cloudPush(key));
           return;
         }
@@ -15003,7 +15032,7 @@
           if (cloudDirty[wk]) work.push(cloudPush(key));
           return;
         }
-        work.push(cloudApi('GET', '/v1/kv/' + wk).then(function(rec){
+        var job = cloudApi('GET', '/v1/kv/' + wk).then(function(rec){
           var remote = null; try { remote = JSON.parse(rec.v); } catch(e){}
           if (remote == null || wk !== vkey(key)) return;   // (the profile changed while this was asked)
           var out;
@@ -15011,9 +15040,16 @@
           try { out = mergeKey(key, remote); } finally { syncApplying = false; }
           cloudRevs[wk] = rec.rev; saveCloudRevs();
           if (out && out.localNewer) return cloudPush(key);
-        }).catch(function(){}));
+        }).catch(function(){});
+        work.push(job);
+        return job;
+      };
+      // the list of profiles first: a second profile removed elsewhere moves this device to the first before the
+      // per-profile names below are worked out (else the first's docs waited for the next pull)
+      return Promise.resolve(one('viewers')).then(function(){
+        SYNC_KEYS.forEach(function(key){ if (key !== 'viewers') one(key); });
+        return Promise.all(work);
       });
-      return Promise.all(work);
     }).catch(function(){});
   }
   // ---------- profile (Nebula Profile: @handle + password, no email) ----------
@@ -15042,6 +15078,10 @@
   }
   /** Take a credential set {gid, token, profile} as this device's identity. */
   function cloudAdopt(c, fresh){
+    // which account this device's synced data belongs to (`sync_gid`): another one's second profile stays behind
+    var was = null; try { was = LS.getItem('sync_gid'); } catch(e){}
+    if (was && was !== c.gid) profilesReset();
+    try { LS.setItem('sync_gid', c.gid); } catch(e){}
     cloudLink = { gid: c.gid, token: c.token }; saveCloudLink();
     cloudRevs = {}; saveCloudRevs();
     profile = c.profile || null; profileSave();
@@ -15050,7 +15090,9 @@
       // a brand-new profile: what this device holds IS the profile's data
       SYNC_KEYS.forEach(function(k){ if (syncDocHasContent(k)) cloudPush(k); });
     } else {
-      cloudPullAll(true);                      // merge; newer local records push back on their own
+      // merge; newer local records push back on their own. Then who's watching, as at a launch: the account may hold two
+      // profiles, or a PIN on the one this device is on
+      cloudPullAll(true).then(function(){ if (!whoOpen && (viewerList().length === 2 || whoNeedsPin(viewer))) whoShow(null); });
       socialRefresh();
     }
     profileCardRender(); syncPanelRender();
@@ -16502,6 +16544,8 @@
   initPersistentSeekr();
   buildHomeRows(true);
   whoBoot();                               // two profiles: who's watching?
+  // installs from before 10-26 never wrote which account their data belongs to: the one they are signed into
+  try { if (cloudLinked() && !LS.getItem('sync_gid')) LS.setItem('sync_gid', cloudLink.gid); } catch(e){}
   if (cloudLinked()) setTimeout(function(){ cloudPullAll(true); profileBoot(); }, 900);
   setTimeout(function(){ supportLoad(false); }, 1400);   // the support link + wall, for everyone (no credential)
   // a TV's sign-in QR: play.rifflehq.in/player/?link=CODE opens Profile with the code filled in.
