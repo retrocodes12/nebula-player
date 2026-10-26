@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.23.2",
+  "version": "2026.10.26.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "A profile can have a PIN now: in Manage Profiles, open a profile and choose Add a PIN. Picking a profile with a PIN asks for its four digits, at launch too; Forgot PIN? removes it with your account's password."
+  "notes": "Profiles keep to themselves across devices: a second profile no longer picks up the first profile's add-ons when the connection drops, signing into another account no longer brings your second profile along, and signing in asks who's watching."
 }
