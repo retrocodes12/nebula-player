@@ -8488,6 +8488,15 @@
       waitEl.className = 's-waitline on';
     }
     function waitDone(name){ var i = waiting.indexOf(name); if (i >= 0) waiting.splice(i, 1); waitRender(); }
+    // a launch's pick stops waiting for slower add-ons once its best row so far is ready in TorBox (Comet's "[TB⚡]") with
+    // sound, and is 4K — or is the best the debrid add-ons will give (none of them is still being asked)
+    function bestEarly(){
+      if (apMode !== 'best' || apDone || seq !== openSeq) return;
+      var top = bestStreamRows(list)[0], s = top && top.__s;
+      if (!s || !streamInstant(s) || (streamNoSound(s) && !soundHelper())) return;
+      if (streamRank(s) < RES_RANK['4K'] && waiting.some(debridAddonName)) return;
+      setTimeout(function(){ autoPickNow(true); }, 300);
+    }
     function removeLoading(){
       var el = document.getElementById('streamsLoading');
       if (el && el.parentNode) el.parentNode.removeChild(el);
@@ -8561,7 +8570,7 @@
           if (apMode === 'best' && declares) lcAnswered((a && a.name) || 'Add-on', streams.length);
           box.innerHTML = '';
           boxPending = false;
-          if (!streams.length) return;
+          if (!streams.length){ bestEarly(); return; }
           removeLoading();
           sections++;
           box.setAttribute('data-an', a.name || 'Add-on');
@@ -8569,8 +8578,7 @@
             box.innerHTML = '<div class="rowhead"><span class="row-title">'+esc(a.name||'Add-on')+'</span></div>';
           }
           var cards = streams.map(function(s){ total++; var c = streamCard(s, a); box.appendChild(c); return c; });
-          // a row ready in TorBox (Comet's "[TB⚡]") plays as soon as it is here — slower add-ons are not waited for
-          if (apMode === 'best' && !apDone && streams.some(bestInstantNow)) setTimeout(function(){ autoPickNow(true); }, 300);
+          bestEarly();
           // rows that came in go above the add-ons still being asked: a slow add-on high in the list kept the rows
           // that could already play below the fold (seen on his TV, 10-16) — and nothing above moves under the remote
           var wt = list.querySelector('.streamsec .s-wait'), wb = wt && wt.parentNode;
@@ -8600,7 +8608,7 @@
       }).catch(function(){
         if (!known || declares) lost++;
         if (boxPending){ box.innerHTML = ''; boxPending = false; }   // never leave it shimmering
-        if (waitName){ if (apMode === 'best') lcAnswered(waitName, 0); waitDone(waitName); waitName = null; }
+        if (waitName){ if (apMode === 'best') lcAnswered(waitName, 0); waitDone(waitName); waitName = null; bestEarly(); }
       }).then(done);
     });
   }
@@ -8623,9 +8631,8 @@
     if (debridState(s) !== 'ready') return 0;
     return /^\s*\[TB\b|torbox/i.test(String(s.name || '')) ? 2 : 1;
   }
-  /** A row a launch's pick takes the moment it arrives, without waiting for slower add-ons: ready in a debrid cloud,
-      with sound on this TV, within this connection. */
-  function bestInstantNow(s){ return streamInstant(s) > 0 && !(streamNoSound(s) && !soundHelper()) && !streamSlow(s); }
+  /** A debrid add-on by its name ("Comet | ElfHosted | TB", "Torrentio TB", "… RD"): one still being asked may yet have a 4K. */
+  function debridAddonName(n){ return /\b(TB|RD|AD|PM)\b/.test(String(n || '')) || /torbox|debrid|premiumize/i.test(String(n || '')); }
   /** A debrid row that sent a few seconds of video instead of the film: Comet answers a file TorBox cannot hand over (not
       cached yet, a limit reached, the service down) with an 8-second clip that says so, and the TV plays it like the film.
       Such a play is a failed start: it never ticks the title off, never opens Up next. */
@@ -8634,11 +8641,12 @@
     return !!(c && c.deb && /^(movie|series|anime)$/.test(c.type || '') && isFinite(d) && d > 0 && d < 30);
   }
   /** The row a launch asked to play by itself (openStreams' 'best'): never a debrid row that is not ready, then one this TV
-      plays with sound, then one this connection carries, then one ready in TorBox (another debrid cloud next), then 4K over
-      1080p over the rest, then one the add-on says plays here, then the add-on's own order. */
+      plays with sound, then one ready in TorBox (another debrid cloud next), then 4K over 1080p over the rest, then one this
+      connection carries, then one the add-on says plays here, then the add-on's own order. TorBox and 4K come before the
+      connection ("always prefer tb addon and 4k over normal addons and qualities", 10-27); a silent film does not. */
   function bestKey(s){
-    return [debridHeld(s) ? 0 : 1, (streamNoSound(s) && !soundHelper()) ? 0 : 1, streamSlow(s) ? 0 : 1, streamInstant(s),
-      streamRank(s), (s.behaviorHints && s.behaviorHints.notWebReady) ? 0 : 1];
+    return [debridHeld(s) ? 0 : 1, (streamNoSound(s) && !soundHelper()) ? 0 : 1, streamInstant(s), streamRank(s),
+      streamSlow(s) ? 0 : 1, (s.behaviorHints && s.behaviorHints.notWebReady) ? 0 : 1];
   }
   function bestCmp(x, y){ for (var j = 0; j < x.k.length; j++) if (x.k[j] !== y.k[j]) return y.k[j] - x.k[j]; return x.i - y.i; }
   /** Rows (or {s, a} candidates) in that order, the add-on's own order breaking ties. */
