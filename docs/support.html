@@ -140,7 +140,7 @@
 
 <main class="wrap">
   <h1>Help keep this project alive.</h1>
-  <p class="lede">Browse every channel for free. Donate from $1.50 to play channel streams with your own supporter key, or use the star-and-screenshot option below.</p>
+  <p class="lede">Browse every channel for free. Donate from $1.50 to play channels with your own supporter key, or use the star-and-screenshot option below.</p>
   <p class="note">$1.50/month includes access during the seven-day trial and while you stay subscribed. Any one-time donation — $2, $5 or $20 — gives a key that never expires.</p>
 
   <section class="for goal" id="donationGoal" aria-labelledby="goalTitle">
@@ -199,7 +199,7 @@
       <ol class="steps">
         <li>Tap <b>Install the add-on</b> — or paste the link into your add-ons list on any device.</li>
         <li>Remove the free add-on, so you do not see two of everything.</li>
-        <li>Channel streams are available on every device you install it on while your access is active.</li>
+        <li>Channels are available on every device you install it on while your access is active.</li>
       </ol>
       <p class="note" id="keyNote">Keep this page's address: it shows your key whenever you come back.</p>
     </div>
@@ -221,7 +221,7 @@
       <h2>Monthly Supporter</h2>
       <div class="price">$1.50<small>per month</small></div>
       <ul>
-        <li class="key">Your own key — channel streams while subscribed, including the free trial</li>
+        <li class="key">Your own key — channels while subscribed, including the free trial</li>
         <li>A vote on what Nebula builds next — every round</li>
         <li>Early builds of Nebula Player, days before everyone else</li>
         <li>Your month on Nebula: a private recap of what you watched</li>
@@ -235,7 +235,7 @@
       <h2>Supporter</h2>
       <div class="price">$2<small>once</small></div>
       <ul>
-        <li class="key">Your own key — channel streams for life</li>
+        <li class="key">Your own key — channels for life</li>
         <li>Works on every device you use the add-on on: phone, TV, computer</li>
         <li class="app">In Nebula Player: a mark beside your name, three more colours, the wall</li>
       </ul>
@@ -246,7 +246,7 @@
       <h2>Supporter Plus</h2>
       <div class="price">$5<small>once</small></div>
       <ul>
-        <li class="key">Your own key — channel streams for life</li>
+        <li class="key">Your own key — channels for life</li>
         <li>A vote on what Nebula builds next — every round</li>
         <li>Early builds of Nebula Player, days before everyone else</li>
         <li>Your month on Nebula: a private recap of what you watched</li>
@@ -259,7 +259,7 @@
       <h2>Founder</h2>
       <div class="price">$20<small>once</small></div>
       <ul>
-        <li class="key">Your own key — channel streams for life</li>
+        <li class="key">Your own key — channels for life</li>
         <li class="inc">The player perks in Supporter Plus</li>
         <li>Your name on the Founders list, permanently, right here</li>
         <li class="app">In Nebula Player: a gold ring on your avatar</li>
@@ -686,12 +686,12 @@
             var ready = showKey(s);
             if (!ready) { keyTries++; setTimeout(poll, 3000); }
           }
-          if (s.sportsUnavailable) text.textContent = "Thank you for supporting Nebula. Channel streams need a confirmed donation of at least $1.50 USD before tax; this order does not qualify.";
+          if (s.sportsUnavailable) text.textContent = "Thank you for supporting Nebula. Channels need a confirmed donation of at least $1.50 USD before tax; this order does not qualify.";
           return;
         }
         if (s.state === "inactive") {
           title.textContent = "Your subscription is not active.";
-          text.textContent = "Channel streams need an active subscription. Use the management link to check your payment or restart support.";
+          text.textContent = "Channels need an active subscription. Use the management link to check your payment or restart support.";
           keyBox.hidden = true;
           if (/^https:\/\//.test(s.manage || "")) { document.getElementById("manageLink").href = s.manage; document.getElementById("manageBox").hidden = false; }
           return;
