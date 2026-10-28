@@ -2784,6 +2784,35 @@
           <span class="setname">Add-on on each row<small>Its initial in a ring, its name, or nothing</small></span>
           <span id="setAddonMark" class="seg"></span>
         </div>
+        <!-- autoplay the best stream (TVs): Play on a film or episode starts its best stream; the rows under it show only when it is on -->
+        <div class="setrow tvonly" id="rowBestPlay">
+          <span class="setname">Autoplay the best stream<small>Play on a film or episode starts its best stream — no list</small></span>
+          <span id="setBestPlay" class="seg"></span>
+        </div>
+        <div class="setrow tvonly ap-sub">
+          <span class="setname">Aim for<small>The best quality it reaches for · Higher rows rank just below it</small></span>
+          <span id="setApMax" class="seg"></span>
+        </div>
+        <div class="setrow tvonly ap-sub">
+          <span class="setname">Instant debrid first<small>Debrid rows that are ready play before higher quality</small></span>
+          <span id="setApInstant" class="seg"></span>
+        </div>
+        <div class="setrow tvonly ap-sub">
+          <span class="setname">Wait for add-ons<small>Quick: the first good row · Balanced: up to 25 s · All: every add-on</small></span>
+          <span id="setApWait" class="seg"></span>
+        </div>
+        <div class="setrow tvonly ap-sub">
+          <span class="setname">If it won't start<small>Plays the next best stream instead</small></span>
+          <span id="setApRetry" class="seg"></span>
+        </div>
+        <div class="setrow tvonly ap-sub">
+          <span class="setname">Give a start<small>A stream with no picture by then counts as not starting</small></span>
+          <span id="setApStart" class="seg"></span>
+        </div>
+        <div class="setrow tvonly ap-sub">
+          <span class="setname">Back from the player<small>Where Back goes after a stream it picked</small></span>
+          <span id="setApBack" class="seg"></span>
+        </div>
         <div class="setrow">
           <span class="setname">Play the best stream by itself<small>Skips the list</small></span>
           <span id="setAutoPick" class="seg"></span>
@@ -2994,7 +3023,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.10.26.1';
+  var PLAYER_VERSION = '2026.10.29.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -3517,7 +3546,8 @@
       var popped = viewStack.pop();
       var top = viewStack[viewStack.length-1];
       // a best pick (shelf mode, a launch) never showed its list: Back from the player goes where Play was pressed
-      if (popped === 'player' && top === 'streams' && was && ctx.bestFor && lastStreamsReq && ctx.bestFor === lastStreamsReq.id && viewStack.length > 1){
+      // (Settings › Back from the player: Streams list keeps it)
+      if (popped === 'player' && top === 'streams' && was && ctx.bestFor && lastStreamsReq && ctx.bestFor === lastStreamsReq.id && viewStack.length > 1 && apPrefs().back === 'title'){
         viewStack.pop(); top = viewStack[viewStack.length-1];
         show(top, false); return;
       }
@@ -8402,7 +8432,7 @@
       ] });
   }
   function openStreams(type, id, titleText, fresh, noAuto, pick){
-    // the TV's Shelf home screen asked for Netflix-style play: a film or an episode starts on its best stream, no list
+    // Autoplay the best stream (Settings › Streams, TVs; on by itself under Shelf): a film or an episode starts on its best stream, no list
     if (!pick && !noAuto && shelfMode() && (type === 'movie' || type === 'series')) pick = 'best';
     var seq = ++openSeq, openedAt = Date.now(), pr = getPrefs();
     if (pick === 'best'){ ctx.bestFor = id; ctx.bestQueue = null; ctx.bestTries = 0; } else ctx.bestFor = '';
@@ -8456,7 +8486,9 @@
       row.click();
     }
     // 'best' waits for every add-on (its pick is the best of all of them), but not for ever
-    if (apMode) apTimer = setTimeout(autoPickNow, apMode === 'best' ? 25000 : pickWaitSecs() * 1000);
+    // (Settings › Wait for add-ons: Quick picks at 8 s, Balanced at 25 s, All once everyone has answered — 90 s at most)
+    var apw = apMode === 'best' ? apPrefs().wait : '';
+    if (apMode && apw !== 'all') apTimer = setTimeout(autoPickNow, apMode === 'best' ? (apw === 'quick' ? 8000 : 25000) : pickWaitSecs() * 1000);
     if (apMode === 'best') setTimeout(function(){ autoPickNow(true); }, 90000);
     if (apMode === 'best'){
       var lim = ctx.item && (ctx.item.id === id || ctx.item.id === seriesIdOf(id)) ? ctx.item : null;
@@ -8489,12 +8521,18 @@
     }
     function waitDone(name){ var i = waiting.indexOf(name); if (i >= 0) waiting.splice(i, 1); waitRender(); }
     // a launch's pick stops waiting for slower add-ons once its best row so far is ready in TorBox (Comet's "[TB⚡]") with
-    // sound, and is 4K — or is the best the debrid add-ons will give (none of them is still being asked)
+    // sound, and is the quality it aims for (4K) — or is the best the debrid add-ons will give (none of them is still being
+    // asked). Quick takes the first row with sound that is ready or at that quality; All waits for every add-on.
     function bestEarly(){
-      if (apMode !== 'best' || apDone || seq !== openSeq) return;
-      var top = bestStreamRows(list)[0], s = top && top.__s;
-      if (!s || !streamInstant(s) || (streamNoSound(s) && !soundHelper())) return;
-      if (streamRank(s) < RES_RANK['4K'] && waiting.some(debridAddonName)) return;
+      if (apMode !== 'best' || apDone || seq !== openSeq || apw === 'all') return;
+      var top = bestStreamRows(list)[0], s = top && top.__s, ap = apPrefs();
+      if (!s || (streamNoSound(s) && !soundHelper())) return;
+      var at = streamRank(s) >= ap.max;
+      if (apw === 'quick'){ if (!at && !streamInstant(s)) return; }
+      else {
+        if (!streamInstant(s)) return;
+        if (!at && waiting.some(debridAddonName)) return;
+      }
       setTimeout(function(){ autoPickNow(true); }, 300);
     }
     function removeLoading(){
@@ -8644,14 +8682,18 @@
       plays with sound, then one ready in TorBox (another debrid cloud next), then 4K over 1080p over the rest, then one this
       connection carries, then one the add-on says plays here, then the add-on's own order. TorBox and 4K come before the
       connection ("always prefer tb addon and 4k over normal addons and qualities", 10-27); a silent film does not. */
-  function bestKey(s){
-    return [debridHeld(s) ? 0 : 1, (streamNoSound(s) && !soundHelper()) ? 0 : 1, streamInstant(s), streamRank(s),
+  function bestKey(s, ap){
+    ap = ap || apPrefs();
+    return [debridHeld(s) ? 0 : 1, (streamNoSound(s) && !soundHelper()) ? 0 : 1, ap.instant ? streamInstant(s) : 0, apRankOf(s, ap),
       streamSlow(s) ? 0 : 1, (s.behaviorHints && s.behaviorHints.notWebReady) ? 0 : 1];
   }
+  /** Quality as the pick sees it: a row above "Aim for" ranks just under the rows at it (and over the lower ones). */
+  function apRankOf(s, ap){ var r = streamRank(s); return r > ap.max ? ap.max - 0.5 : r; }
   function bestCmp(x, y){ for (var j = 0; j < x.k.length; j++) if (x.k[j] !== y.k[j]) return y.k[j] - x.k[j]; return x.i - y.i; }
   /** Rows (or {s, a} candidates) in that order, the add-on's own order breaking ties. */
   function bestRank(list, get){
-    return list.map(function(x, i){ return { x: x, i: i, k: bestKey(get(x)) }; }).sort(bestCmp).map(function(o){ return o.x; });
+    var ap = apPrefs();
+    return list.map(function(x, i){ return { x: x, i: i, k: bestKey(get(x), ap) }; }).sort(bestCmp).map(function(o){ return o.x; });
   }
   function bestStreamRows(list){
     var rows = Array.prototype.slice.call(list.querySelectorAll('.stream:not(.skel)')).filter(function(r){ return r.__s && !debridHeld(r.__s); });
@@ -8659,14 +8701,28 @@
   }
   function bestStreamRow(list){ return bestStreamRows(list)[0] || null; }
   // ---- Netflix-style play (shelf mode): the best stream that actually starts ----
-  /** True on a TV whose home screen is Shelf (it starts Nebula with {shelf:1}); never anywhere else. */
-  function shelfMode(){ try { return IS_WEBOS && LS.getItem('shelf_mode') === '1'; } catch(e){ return false; } }
+  /** Settings › Streams › Autoplay the best stream, on a TV only (off by default). A TV whose home screen is Shelf — it
+      starts Nebula with {shelf:1} — had it on before the setting existed and keeps it until the viewer chooses. */
+  function shelfMode(){
+    if (!IS_TV) return false;
+    var v = getPrefs().bestPlay; if (v === true || v === false) return v;
+    try { return LS.getItem('shelf_mode') === '1'; } catch(e){ return false; }
+  }
+  /** The autoplay's own settings, with their defaults. max = the RES_RANK it aims for. */
+  function apPrefs(){
+    var pr = getPrefs();
+    return { max: pr.apMax === '1080' ? 3 : pr.apMax === '720' ? 2 : 4, instant: pr.apInstant !== false,
+      wait: pr.apWait === 'quick' || pr.apWait === 'all' ? pr.apWait : 'balanced',
+      retry: pr.apRetry === 0 || pr.apRetry === 3 ? pr.apRetry : 5,
+      start: pr.apStart === 20 || pr.apStart === 90 ? pr.apStart : 45,
+      back: pr.apBack === 'list' ? 'list' : 'title' };
+  }
   function shelfModeApply(){ var b = $id('puiStreams'); if (b) b.style.display = shelfMode() ? '' : 'none'; }
   /** A best pick that would not start: the next one on the ranked list plays instead (five tries), the card says so. */
   function bestNext(seq, why){
     // (a debrid clip in place of the film has "played" — 'brief' — and still counts as a start that failed)
     if (seq !== playSeq || !curPlay || ctx.bestFor !== curPlay.id || !ctx.bestQueue || (stall.playedAt && why !== 'brief')) return false;
-    if (ctx.bestTries >= 5) return false;
+    if (ctx.bestTries >= apPrefs().retry) return false;
     var cur = lastPlay ? lastPlay.url : '', c = null;
     srcFailedNote(cur);
     // rows from add-ons that answered after the pick (a TorBox row starts before the slow ones are in) count too
@@ -8775,8 +8831,8 @@
     if (r === '1080' || r === '720') r += 'p';
     $id('lcText').textContent = (lead || 'Starting') + (r ? ' ' + r : '') + (an ? ' · ' + an : '') + (streamInstant(s) ? ' · instant' : '');
     $id('launchCard').classList.add('picked');
-    // a start that shows no picture in 45 s gives way to the next best (shelf mode), else the card steps aside
-    clearTimeout(lc.hideT); lc.hideT = setTimeout(function(){ if (lc.on && !bestNext(playSeq, 'slow')) lcHide(); }, 45000);
+    // a start that shows no picture in time ("Give a start", 45 s) gives way to the next best, else the card steps aside
+    clearTimeout(lc.hideT); lc.hideT = setTimeout(function(){ if (lc.on && !bestNext(playSeq, 'slow')) lcHide(); }, apPrefs().start * 1000);
   }
   function lcPick(row){ if (lc.on && row.__s) lcStarting(row.__s, row.__a); }
   function lcRetry(c, why){
@@ -16529,6 +16585,15 @@
     segChips('setAddonMark', [['Initial','initial'], ['Name','name'], ['Hidden','hidden']], pr.addonMark === 'name' || pr.addonMark === 'hidden' ? pr.addonMark : 'initial', function(v){ setPref('addonMark', v); });
     segChips('setAutoPick', [['Off','off'], ['Same as last time','same'], ['First stream','first']], pr.autoPick === 'same' || pr.autoPick === 'first' ? pr.autoPick : 'off', function(v){ setPref('autoPick', v); });
     segChips('setPickWait', [['3 s',3], ['6 s',6], ['10 s',10]], pickWaitSecs(), function(v){ setPref('pickWait', v); });
+    var bp = shelfMode(), ap = apPrefs();
+    segChips('setBestPlay', [['On', true], ['Off', false]], bp, function(v){ setPref('bestPlay', v); shelfModeApply(); });
+    segChips('setApMax', [['4K','2160'], ['1080p','1080'], ['720p','720']], ap.max === 3 ? '1080' : ap.max === 2 ? '720' : '2160', function(v){ setPref('apMax', v); });
+    segChips('setApInstant', [['On', true], ['Off', false]], ap.instant, function(v){ setPref('apInstant', v); });
+    segChips('setApWait', [['Quick','quick'], ['Balanced','balanced'], ['All','all']], ap.wait, function(v){ setPref('apWait', v); });
+    segChips('setApRetry', [['Off',0], ['Next 3',3], ['Next 5',5]], ap.retry, function(v){ setPref('apRetry', v); });
+    segChips('setApStart', [['20 s',20], ['45 s',45], ['90 s',90]], ap.start, function(v){ setPref('apStart', v); });
+    segChips('setApBack', [['Title page','title'], ['Streams list','list']], ap.back, function(v){ setPref('apBack', v); });
+    Array.prototype.slice.call(document.querySelectorAll('#setConsole .ap-sub')).forEach(function(r){ r.style.display = bp ? '' : 'none'; });
     segChips('setSlowMark', [['Mark and move down','move'], ['Mark only','mark'], ['Ignore','off']], slowMarkMode(), function(v){ setPref('slowMark', v); });
     // ---- advanced ----
     segChips('setFastRows', [['On', true], ['Off', false]], pr.fastRows !== false, function(v){ setPref('fastRows', v); });
