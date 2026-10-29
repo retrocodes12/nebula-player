@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.29.1",
+  "version": "2026.10.29.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "On a TV, Autoplay the best stream (Settings › Streams): Play on a film or episode starts its best stream with no list — debrid rows that are ready first, then the quality you aim for — and tries the next one by itself if it will not start. Choose the quality to aim for, how long to wait for add-ons, how many tries, and where Back goes. A Streams button in the player switches rows."
+  "notes": "Back on a paused film leaves the player in one press. A stream list that fails once is asked again before the add-on counts as failed. On a TV, Essential settings now reach Autoplay the best stream (Settings › Streams). On the desktop's full-format player, Night mode in the Audio menu makes loud moments quieter and quiet voices clearer."
 }
