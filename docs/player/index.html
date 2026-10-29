@@ -2156,6 +2156,10 @@
   .setrow.tvonly { display:none; }
   html.tv .setrow.tvonly { display:flex; }
   html.tv #setConsole.ess .setrow.tvonly[data-lvl="all"] { display:none; }
+  /* Essential on a TV keeps Streams for Autoplay the best stream alone — the list's own rows stay Everything */
+  html.tv #setConsole.ess .con-item[data-sec="streams"] { display:flex; }
+  html.tv #setConsole.ess .con-sec.on[data-sec="streams"] { display:block; }
+  html.tv #setConsole.ess .con-sec[data-sec="streams"] .setrow:not(.tvonly) { display:none; }
   /* a stepper: ‹ value › for long lists (languages, the row that feeds the carousel) */
   .pstep { display:inline-flex; align-items:center; padding:3px; border-radius:var(--r-pill); border:1px solid var(--sep); }
   .pstep .chip, .setrow .pstep .chip { margin:0; border-color:transparent; padding:6px 13px; min-width:38px; text-align:center; }
@@ -3750,7 +3754,9 @@
         else if (puiState.menu){ closePuiMenu(true); }
         // while a stream is still starting there is nothing to peel: Back means "not this one" — nor once it would not play
         // (a black screen with the controls up: the first Back only hid them, and read as Back doing nothing, 10-15)
-        else if (pui.className !== 'idle' && !playStarting && !(stall.failSeq === playSeq && video.readyState < 2)){ puiIdle(); }
+        // with the pause board up Back leaves: peeling the chrome only re-armed the board 1.6 s later, so Back slower than
+        // that never left a paused film (10-27, his TV: six presses)
+        else if (!pui.classList.contains('idle') && !pui.classList.contains('pb-on') && !playStarting && !(stall.failSeq === playSeq && video.readyState < 2)){ puiIdle(); }
         else { goBack(); }
         e.preventDefault(); return;
       }
@@ -5003,6 +5009,16 @@
       }
       return r;
     } finally { pxDone(); }
+  }
+  /** A stream list, asked once more 2 s after a failure that may pass (no answer, a 5xx, 408, 429, a broken body) —
+      an add-on dropping one request in a while cost the viewer that add-on's rows ("Could not reach your add-ons").
+      A 404 or another 4xx is the add-on's answer and stands. */
+  function streamJson(u){
+    return getJson(u).catch(function(e){
+      var m = /^HTTP (\d+)/.exec((e && e.message) || ''), c = m ? +m[1] : 0;
+      if (c && c < 500 && c !== 408 && c !== 429) throw e;
+      return new Promise(function(ok){ setTimeout(ok, 2000); }).then(function(){ return getJson(u); });
+    });
   }
   function canProxy(u){ return /^https?:\/\//i.test(u||'') && String(u).indexOf(CLOUD_BASE) !== 0; }
   async function getJson(url){
@@ -8599,7 +8615,7 @@
           if (w) w.textContent = 'Still looking — some add-ons take up to a minute';
         }, 12000);
         var u = a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json';
-        return getJson(u).then(function(d){
+        return streamJson(u).then(function(d){
           clearTimeout(slowT);
           if (waitName){ waitDone(waitName); waitName = null; }
           if (declares) answered++;
@@ -10241,7 +10257,7 @@
     mp.reconnecting = false; mp.subs = []; mp.cut = false;
     mpvSubStyle();
     mpvApi.set('sub-delay', String(subOffset || 0)); mpvApi.set('sub-speed', subScale.toFixed(6));
-    audDelayApply();
+    audDelayApply(); nightApply();
     if (mp.st.vol >= 0) mpvApi.set('volume', String(Math.round(mp.st.vol)));
     mpvApi.set('mute', mp.st.mute ? 'yes' : 'no');
     // and what was asked for while it reopened: a pause (held, so an older state cannot undo it), a speed, a seek
@@ -10344,7 +10360,7 @@
     } finally { clearTimeout(timer); if (session.wait) session.wait = null; }
     if (seq !== playSeq || mp !== session) return;
     mpvApi.set('sub-delay', String(subOffset || 0)); mpvApi.set('sub-speed', subScale.toFixed(6));
-    audDelayApply();
+    audDelayApply(); nightApply();
     mpvMedia(true);
   }
   function mpvStop(){
@@ -13023,6 +13039,11 @@
     var txt = !u ? 'None' : (u > 0 ? '+' : '−') + Math.abs(u).toFixed(1) + ' s (sound ' + (u > 0 ? 'later' : 'earlier') + ')';
     return on ? txt + ' · add-on adds ' + (h.ms > 0 ? '+' : '−') + (Math.abs(h.ms) / 1000).toFixed(2) + ' s' : txt;
   }
+  // Night mode (the full-format player only, like the delay): louder parts down, quieter ones up — the shell holds the
+  // filter and takes yes/no alone. Device-local pref `night`; an older shell refuses the set silently.
+  function nightOn(){ return getPrefs().night === true; }
+  function nightApply(){ if (mp) { try { mpvApi.set('night', nightOn() ? 'yes' : 'no'); } catch(e){} } }
+  function nightSet(v){ notePref('night', !!v); nightApply(); setStatus(v ? 'Night mode on: loud parts quieter, quiet ones clearer' : 'Night mode off', 'ok'); }
   /** The menu again with the same row lit, so a remote can press a nudge several times. */
   function audMenuAgain(){
     var opts = Array.prototype.slice.call(puiMenuEl.querySelectorAll('.qopt')), at = opts.indexOf(document.activeElement);
@@ -13477,6 +13498,8 @@
           menuOpt(st[1], false, function(){ audDelaySet(audDelayUser() + st[0]); audMenuAgain(); });
         });
         if (audDelayUser()) menuOpt('Back to 0', false, function(){ audDelaySet(0); audMenuAgain(); });
+        var nt = document.createElement('div'); nt.className = 'qtitle qsub'; nt.textContent = 'Night mode'; puiMenuEl.appendChild(nt);
+        menuOpt(nightOn() ? 'On · loud parts quieter, quiet ones clearer' : 'Off', nightOn(), function(){ nightSet(!nightOn()); audMenuAgain(); });
       } else if (langs.length >= 2){
         var curLang=''; try { (player.getVariantTracks()||[]).forEach(function(v){ if(v.active) curLang=v.language; }); } catch(e){}
         langs.forEach(function(l, li){
@@ -14185,7 +14208,7 @@
     return ctx.addon || null;
   }
   function epStreams(a, type, id){
-    return getJson(a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json')
+    return streamJson(a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json')
       .then(function(d){ return (d.streams||[]).filter(function(x){ return x.url; }); });
   }
   /** Ask `a` for the episode's streams; with none, ask the origin add-on too. When the last pick named
@@ -14510,7 +14533,7 @@
       try {
         var m = await getManifest(a.url);
         if (!(origin && a.url === origin.url) && !canStream(m, type, id)) return;
-        var d = await getJson(a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json');
+        var d = await streamJson(a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json');
         streamsForList((d.streams || []).filter(function(s){ return s.url; })).forEach(function(s){ out.push({ s: s, a: a }); });
       } catch(e){}
     }));
