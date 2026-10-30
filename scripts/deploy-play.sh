@@ -26,7 +26,10 @@ node --check "$TMP/player.js"
 echo "player syntax OK"
 
 # 3. cloud service tests must pass locally before the code moves
-( cd cloud && node --test test.js > /dev/null 2>&1 ) || { echo "cloud tests FAILED"; exit 1; }
+# --test-force-exit: a test that fails before it closes its stub server must not hold the run open (the 10-25…10-30
+# stalls were a 429 in test 34 leaving its payment stub listening until the 300 s cap)
+( cd cloud && node --test --test-force-exit --test-reporter=tap test.js > /tmp/nebula-cloud-test.tap 2>&1 ) ||
+  { echo "cloud tests FAILED:"; grep -A6 "^not ok" /tmp/nebula-cloud-test.tap | grep -E "^not ok|error:" | head -20; exit 1; }
 echo "cloud tests OK"
 
 # 4. ship
@@ -37,7 +40,8 @@ ssh -o BatchMode=yes "$VPS" 'set -e
   # a failing test stops the reload (a bare `a && b` never trips set -e, so this used to reload regardless)
   cd ~/apps/nebula-cloud
   # a failed test can leave a stub server open and the run never ends (2026-10-25: a 19-minute stall), so cap it
-  timeout 300 node --test test.js > /dev/null 2>&1 || { echo "cloud tests FAILED (or timed out) on the VPS - NOT reloading"; exit 1; }
+  timeout 300 node --test --test-force-exit --test-reporter=tap test.js > /tmp/nebula-cloud-test.tap 2>&1 ||
+    { echo "cloud tests FAILED (or timed out) on the VPS - NOT reloading:"; grep -A6 "^not ok" /tmp/nebula-cloud-test.tap | grep -E "^not ok|error:" | head -20; exit 1; }
   echo "cloud tests OK on VPS"
   pm2 reload nebula-cloud --update-env > /dev/null 2>&1 && echo "nebula-cloud reloaded"
   # party.json on the VPS always points at the VPS relay, whatever docs/ says

@@ -4,6 +4,7 @@
 
 process.env.GROUP_BURST = '64';           // one more profile since the sports-key test (09-20), two more for the receipt e-mail (09-27)
 process.env.SIGNIN_BURST = '100';       // the per-IP limiter would ration the suite; the per-handle one is tested
+process.env.PROFILE_BURST = '1000';      // every profile call here comes from 127.0.0.1: a fast machine ran the suite past 40 (the VPS, 10-25…10-30)
 process.env.SUPPORT_CONFIG_CHECK_MS = '0';
 process.env.SOCIAL_BURST = '200';        // friends are mutual since 09-23: two adds per friendship
 process.env.SFRIEND_BURST = '100';

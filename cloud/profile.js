@@ -40,6 +40,7 @@ const AVATARS = ['#636366', '#E50914', '#0A84FF', '#30D158', '#BF5AF2', '#FF9F0A
 const MAX_DEVICES = 20;
 const TV_TTL_MS = 10 * 60_000;
 const SIGNIN_BURST = Number(process.env.SIGNIN_BURST || 10);
+const PROFILE_BURST = Number(process.env.PROFILE_BURST || 40);   // per IP across every profile call; the test suite raises it
 const DUMMY_HASH = { salt: '0'.repeat(32), hash: '0'.repeat(64) };   // burns the same scrypt time as a real check
 
 module.exports = function attach(core) {
@@ -178,7 +179,7 @@ module.exports = function attach(core) {
 
     // ---- legacy exchange: a device holding the master secret trades it for its own token
     if (p === '/v1/device' && m === 'POST') {
-      if (!allow('prof', ip, 60, 40)) return json(res, 429, { error: 'rate limited' });
+      if (!allow('prof', ip, 60, PROFILE_BURST)) return json(res, 429, { error: 'rate limited' });
       const a = auth(req);
       if (!a) return json(res, 401, { error: 'unauthorized' });
       const b = await body(req);
@@ -295,7 +296,7 @@ module.exports = function attach(core) {
 
     // ---- everything below is a signed-in device talking about its own profile
     if (!/^\/v1\/profile(\/|$)/.test(p)) return false;
-    if (!allow('prof', ip, 60, 40)) return json(res, 429, { error: 'rate limited' });
+    if (!allow('prof', ip, 60, PROFILE_BURST)) return json(res, 429, { error: 'rate limited' });
     const a = auth(req);
     if (!a) return json(res, 401, { error: 'unauthorized' });
     const g = a.g, gid = a.gid, prof = g.profile;
