@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.29.2",
+  "version": "2026.10.30.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Back on a paused film leaves the player in one press. A stream list that fails once is asked again before the add-on counts as failed. On a TV, Essential settings now reach Autoplay the best stream (Settings › Streams). On the desktop's full-format player, Night mode in the Audio menu makes loud moments quieter and quiet voices clearer."
+  "notes": "A film from a debrid service (TorBox, Real-Debrid and others) is read only by the device playing it. Reading its built-in subtitles through our server could make the service drop the film mid-play."
 }
