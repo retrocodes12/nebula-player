@@ -10666,6 +10666,7 @@
       try { if (r.body && r.body.cancel) r.body.cancel(); } catch(e){}
     } catch(e){}
     if (own >= 200 && own < 300) return /text\/html/i.test(ct) ? 'page' : 'serves';
+    if (debridLink(url)) return own >= 400 && own !== 429 ? 'refused' : '';   // never asked from our server (debridLink)
     try {
       var r2 = await ask(CLOUD_BASE + '/v1/ranges?u=' + encodeURIComponent(url) + '&r=0-15', {}, 15000);
       if (r2.ok) return 'serves';
@@ -11387,12 +11388,18 @@
     if (!out.replace(/<\/?[ibu]>/g, '').replace(/[\s\u00A0]/g, '')) out = '';
     return out;
   }
+  /** A debrid service's link (TorBox, Real-Debrid… handed out through Comet, Torrentio, MediaFusion): the service gives it to
+      ONE viewer, so only this device reads it — never our server as well. His LG 10-30: the built-in subtitle reader asked
+      the cloud for pieces of a Comet/TorBox 4K file, the server's second address hit the link every 3 s, and the film died
+      within a minute of each burst (3016 at 4:38, then again on the retry); the server's reads were refused anyway. */
+  var RE_DEB_URL = /\/playback\/|\/resolve\/(torbox|realdebrid|alldebrid|premiumize|debridlink|offcloud|easydebrid|putio)\/|\/streaming_provider\/|torbox|real-?debrid|alldebrid|premiumize|debrid-?link|tb-cdn/i;
+  function debridLink(url){ return !!(curPlay && curPlay.deb) || RE_DEB_URL.test(String(url || '')); }
   /** Reads [s, e) of a file: straight from the host (through the sharing computer when the TV plays through one), else
       through the cloud's /v1/ranges — decided on the first read and kept. A host that redirects is followed once: every
       later piece asks the address it redirected to (PenguPlay's hop to its file store cost ~0.8 s a piece, measured
       from the Founder's network — most of the minute a built-in track took to come on). */
   function innerReader(url){
-    var rd = { via: 'direct', target: url, base: url };
+    var rd = { via: 'direct', target: url, base: url, own: debridLink(url) };
     if (ctx.viaRelay && relayLive === ctx.viaRelay && relayWorth(url)) rd.target = rd.base = relayUrl(url);
     async function one(s, e, again){
       var at = rd.target, ctl = new AbortController(), timer = setTimeout(function(){ ctl.abort(); }, 15000);
@@ -11409,6 +11416,7 @@
       return null;
     }
     async function cloud(list, tries){
+      if (rd.own) throw new Error('debrid');              // a debrid link is read by this device alone (debridLink)
       var q = list.map(function(x){ return x[0] + '-' + (x[1] - 1); }).join(',');
       var ctl = new AbortController(), timer = setTimeout(function(){ ctl.abort(); }, 30000), r = null, b = null;
       try {
