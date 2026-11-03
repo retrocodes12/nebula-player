@@ -42,7 +42,7 @@ node -e "require('fs').writeFileSync(process.argv[1], JSON.stringify({ version: 
 
 # up beside the old one, then swapped in, so nobody loads half a player
 ssh -o BatchMode=yes "$VPS" "rm -rf '$DEST.new' && mkdir -p '$DEST.new'"
-scp -q -r "$TMP/beta/." "$VPS:$DEST.new/"
+scp -q -r "$TMP"/beta/* "$VPS:$DEST.new/"   # (newer OpenSSH refuses a "dir/." source)
 ssh -o BatchMode=yes "$VPS" "rm -rf '$DEST.old'; [ -d '$DEST' ] && mv '$DEST' '$DEST.old'; mv '$DEST.new' '$DEST' && rm -rf '$DEST.old'"
 
 GOT=$(curl -s https://play.rifflehq.in/player/beta/ | grep -o "var PLAYER_VERSION = '[^']*'" | head -1)
