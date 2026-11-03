@@ -3194,8 +3194,24 @@
           <span id="setBestPlay" class="seg"></span>
         </div>
         <div class="setrow tvonly ap-sub">
-          <span class="setname">Aim for<small>The best quality it reaches for · Higher rows rank just below it</small></span>
+          <span class="setname">Aim for<small>The highest quality it picks · Auto: what this TV shows · Higher rows rank just below it</small></span>
           <span id="setApMax" class="seg"></span>
+        </div>
+        <div class="setrow tvonly ap-sub">
+          <span class="setname">Prioritise<small>Quality: the best picture first · Balanced: up to your connection speed · Smooth: well under it</small></span>
+          <span id="setApPrio" class="seg"></span>
+        </div>
+        <div class="setrow tvonly ap-sub">
+          <span class="setname">Lowest quality<small>Rows below it are never picked · With none above it, the list stays up</small></span>
+          <span id="setApMin" class="seg"></span>
+        </div>
+        <div class="setrow tvonly ap-sub">
+          <span class="setname">This TV<small>What the pick plays here · Rows it cannot show go last</small></span>
+          <span id="setApDev" class="seg"></span>
+        </div>
+        <div class="setrow tvonly ap-sub">
+          <span class="setname">Connection speed<small>Tested on this TV now and then while it picks</small></span>
+          <span id="setApSpeed" class="seg"></span>
         </div>
         <div class="setrow tvonly ap-sub">
           <span class="setname">Instant debrid first<small>Debrid rows that are ready play before higher quality</small></span>
@@ -9727,7 +9743,47 @@
   // ---- what this connection carries: measured while something plays, remembered per device ----
   var BW_KEY = 'bw_v1';
   /** Bits per second this device has measured, or 0 when nothing recent was measured (30 days). */
-  function bwGet(){ try { var b = JSON.parse(LS.getItem(BW_KEY) || 'null'); return (b && b.bps > 0 && Date.now() - b.at < 30 * 864e5) ? b.bps : 0; } catch(e){ return 0; } }
+  function bwGet(){
+    var t = bwTested(); if (t && Date.now() - t.at < 7 * 864e5) return t.bps;   // a test reads the line, not one stream's own rate
+    try { var b = JSON.parse(LS.getItem(BW_KEY) || 'null'); return (b && b.bps > 0 && Date.now() - b.at < 30 * 864e5) ? b.bps : 0; } catch(e){ return 0; }
+  }
+  // ---- the line itself, tested: one download for ~6 s, the first half second left out (a TV plays a file over ONE connection,
+  //      so one connection is what counts). The playing estimate above is bounded by the stream it watched — his LG had 10.4 Mbps
+  //      saved while the same TV read 18 Mbps from this test (10-30). ----
+  var BWT_KEY = 'bwt_v1', BWT_URL = 'https://speed.cloudflare.com/__down?bytes=60000000', bwTesting = null;
+  function bwTested(){ try { var b = JSON.parse(LS.getItem(BWT_KEY) || 'null'); return (b && b.bps > 0) ? b : null; } catch(e){ return null; } }
+  function bwTest(){
+    if (bwTesting) return bwTesting;
+    if (!window.fetch || !window.ReadableStream) return Promise.resolve(0);
+    bwTesting = fetch(BWT_URL, { cache: 'no-store' }).then(function(r){
+      if (!r.ok || !r.body) return 0;
+      var rd = r.body.getReader(), t0 = performance.now(), tA = 0, n = 0, nA = 0;
+      return new Promise(function(res){
+        function pump(){
+          rd.read().then(function(x){
+            var now = performance.now();
+            if (!x.done){ n += x.value.length; if (!tA && now - t0 >= 500){ tA = now; nA = n; } }
+            if (x.done || now - t0 > 6500){
+              if (!x.done) try { rd.cancel(); } catch(e){}
+              var secs = tA ? (now - tA) / 1000 : 0;
+              res(secs > 1 ? Math.round((n - nA) * 8 / secs) : now > t0 ? Math.round(n * 8 / ((now - t0) / 1000)) : 0);
+              return;
+            }
+            pump();
+          }, function(){ res(0); });
+        }
+        pump();
+      });
+    }).catch(function(){ return 0; }).then(function(bps){
+      bwTesting = null;
+      if (bps > 0) try { LS.setItem(BWT_KEY, JSON.stringify({ bps: bps, at: Date.now() })); } catch(e){}
+      return bps;
+    });
+    return bwTesting;
+  }
+  /** A pick about to be made tests the line when the last test is over 12 hours old (it runs beside the add-ons' answers). */
+  function bwEnsure(){ var t = bwTested(); if (!t || Date.now() - t.at > 12 * 36e5) bwTest(); }
+  function fmtMbps(bps){ var m = bps / 1e6; return (m >= 10 ? Math.round(m) : Math.round(m * 10) / 10) + ' Mbps'; }
   function bwNote(bps){
     var old = bwGet(), v = Math.round(old ? old * 0.6 + bps * 0.4 : bps);   // weighted toward the newest play, never one sample
     try { LS.setItem(BW_KEY, JSON.stringify({ bps: v, at: Date.now() })); } catch(e){}
@@ -9820,7 +9876,11 @@
       // never a row this connection cannot carry, nor one the add-on says will not play here, while another is there
       // (a launch's pick with only not-ready debrid rows leaves the list to the viewer)
       if (!row && apMode !== 'best') row = list.querySelector('.stream:not(.skel):not(.slow):not(.nwr):not(.nosnd)') || list.querySelector('.stream:not(.skel):not(.nosnd)') || list.querySelector('.stream:not(.skel)');
-      if (!row){ lcHide(); return; }
+      if (!row){
+        lcHide();
+        if (apMode === 'best' && apPrefs().min && list.querySelector('.stream:not(.skel)')) setStatus('No stream here reaches your lowest quality — pick one from the list.', 'info', 6000);
+        return;
+      }
       if (apMode === 'best') lcPick(row); else setStatus('Playing the best stream for you.', 'info');
       row.click();
     }
@@ -9829,6 +9889,7 @@
     var apw = apMode === 'best' ? apPrefs().wait : '';
     if (apMode && apw !== 'all') apTimer = setTimeout(autoPickNow, apMode === 'best' ? (apw === 'quick' ? 8000 : 25000) : pickWaitSecs() * 1000);
     if (apMode === 'best') setTimeout(function(){ autoPickNow(true); }, 90000);
+    if (apMode === 'best' && apPrefs().prio !== 'quality') bwEnsure();   // the speed this pick weighs rows by, tested beside the add-ons' answers
     if (apMode === 'best'){
       var lim = ctx.item && (ctx.item.id === id || ctx.item.id === seriesIdOf(id)) ? ctx.item : null;
       lcShow({ id: seriesIdOf(id), name: titleText || (lim && lim.name) || '', background: lim && lim.background });
@@ -10024,8 +10085,71 @@
       connection ("always prefer tb addon and 4k over normal addons and qualities", 10-27); a silent film does not. */
   function bestKey(s, ap){
     ap = ap || apPrefs();
-    return [debridHeld(s) ? 0 : 1, (streamNoSound(s) && !soundHelper()) ? 0 : 1, ap.instant ? streamInstant(s) : 0, apRankOf(s, ap),
-      streamSlow(s) ? 0 : 1, (s.behaviorHints && s.behaviorHints.notWebReady) ? 0 : 1];
+    var bps = apBps(s), fit = streamFit(s, bps);
+    // Prioritise (11-04): Balanced / Smooth — the rows this connection carries come before the quality ("choose … the highest
+    // playable bitrate stream", 10-30); Quality — the quality first, the connection after (the 10-27 order: "always prefer … 4k").
+    // Inside a quality the highest bitrate wins either way.
+    var cf = ap.prio !== 'quality';
+    return [debridHeld(s) ? 0 : 1, (streamNoSound(s) && !soundHelper()) ? 0 : 1, devPlays(s) ? 1 : 0, ap.instant ? streamInstant(s) : 0,
+      cf ? fit : 0, apRankOf(s, ap), cf ? 0 : (fit ? 1 : 0), Math.round(bps / 1e5),
+      (s.behaviorHints && s.behaviorHints.notWebReady) ? 0 : 1];
+  }
+  /** A row's rate for the pick: its own, else its size over the title's running time — a film taken as 2 h and an episode
+      as 50 min when the meta does not say (inside one title every row shares the length, so the order is right either way). */
+  function apBps(s){
+    var b = streamBps(s); if (b) return b;
+    var bytes = streamSizeBytes(s); if (!(bytes > 0)) return 0;
+    var mv = (lastStreamsReq && lastStreamsReq.type) === 'movie';
+    return bytes * 8 / (mv ? 7200 : 3000);
+  }
+  /** 2 = this connection carries the row, 1 = cannot tell (no speed, or the row says neither its rate nor its size), 0 = faster than it.
+      Balanced lets a row's average rate reach the measured speed (his 27 GB / 2 h 15 min 4K files ≈ 27 Mbps play on a ~29 Mbps line:
+      the buffer takes the peaks); Smooth keeps a fifth spare. */
+  function streamFit(s, bps){
+    var bw = bwGet(); if (bps === undefined) bps = streamBps(s);
+    if (!bw || !(bps > 0)) return 1;
+    return bps > bw * (apPrefs().prio === 'smooth' ? 0.8 : 1) ? 0 : 2;
+  }
+  // ---- what this device shows: its panel (webOS names it; the UI layer is 1920 wide on a 4K LG) and its decoders ----
+  var devCapsC = null;
+  function devCaps(){
+    if (devCapsC) return devCapsC;
+    var mse = function(t){ try { return !!(window.MediaSource && MediaSource.isTypeSupported(t)); } catch(e){ return false; } };
+    var w = 0, h = 0;
+    try { var d = JSON.parse(window.PalmSystem && PalmSystem.deviceInfo || 'null'); if (d){ w = +d.screenWidth || 0; h = +d.screenHeight || 0; } } catch(e){}
+    // no panel report (a TV browser's screen is its UI layer, 1920 on most 4K sets): no cap — a picture larger than the
+    // screen is only scaled down, and the connection still decides
+    var known = h > 0;
+    var hdr = false; try { hdr = matchMedia('(dynamic-range: high)').matches; } catch(e){}
+    devCapsC = { w: w, h: h, known: known, rank: !known || h >= 2000 ? 4 : h >= 1000 ? 3 : h >= 700 ? 2 : 1,
+      hevc: mse('video/mp4; codecs="hvc1.2.4.L153.B0"') || mse('video/mp4; codecs="hev1.1.6.L93.B0"'),
+      av1: mse('video/mp4; codecs="av01.0.08M.08"'),
+      dv: mse('video/mp4; codecs="dvh1.05.06"') || mse('video/mp4; codecs="dvhe.05.06"'), hdr: hdr };
+    // an LG says whether its panel takes HDR (Chromium 87 has no dynamic-range query); measured on his: true, Dolby Vision false
+    if (IS_WEBOS) lunaCall('com.webos.service.config/getConfigs', { configNames: ['tv.model.supportHDR', 'tv.model.supportDolbyVisionHDR'] }).then(function(r){
+      var c = r && r.configs; if (!c) return;
+      if (c['tv.model.supportHDR'] === true) devCapsC.hdr = true;
+      if (c['tv.model.supportDolbyVisionHDR'] === true) devCapsC.dv = true;
+    });
+    return devCapsC;
+  }
+  var RE_ROW_HEVC = /(^|[^a-z0-9])(hevc|h[ ._-]?265|x265)(?=[^a-z0-9]|$)/i, RE_ROW_AV1 = /(^|[^a-z0-9])av1(?=[^a-z0-9]|$)/i;
+  var RE_ROW_DV = /(^|[^a-z0-9])(dv|dovi|dolby[ ._-]?vision)(?=[^a-z0-9]|$)/i, RE_ROW_HDR10 = /(^|[^a-z0-9])(hdr10\+?|hdr)(?=[^a-z0-9]|$)/i;
+  /** False for a row this device cannot show right: a codec it has no decoder for, or Dolby Vision with no HDR10 beside it
+      (profile 5 — green and purple on a TV without Dolby Vision). Rows that name nothing play. */
+  function devPlays(s){
+    var t = (s.name || '') + '\n' + (s.title || s.description || '') + '\n' + ((s.behaviorHints && s.behaviorHints.filename) || ''), c = devCaps();
+    if (!c.hevc && RE_ROW_HEVC.test(t)) return false;
+    if (!c.av1 && RE_ROW_AV1.test(t)) return false;
+    if (!c.dv && RE_ROW_DV.test(t) && !RE_ROW_HDR10.test(t)) return false;
+    return true;
+  }
+  function devCapsLine(){
+    var c = devCaps(), r = !c.known ? 'Screen size not reported' : c.rank === 4 ? '4K' : c.rank === 3 ? '1080p' : c.rank === 2 ? '720p' : 'SD';
+    // what it has, then what it lacks that sends rows down (HDR is only named when it is there)
+    var has = [r].concat(c.hdr ? ['HDR'] : [], c.dv ? ['Dolby Vision'] : [], c.hevc ? ['HEVC'] : [], c.av1 ? ['AV1'] : []);
+    var lacks = [].concat(c.dv ? [] : ['Dolby Vision'], c.hevc ? [] : ['HEVC'], c.av1 ? [] : ['AV1']);
+    return has.join(' · ') + (lacks.length ? ' · no ' + lacks.join(', ') : '');
   }
   /** Quality as the pick sees it: a row above "Aim for" ranks just under the rows at it (and over the lower ones). */
   function apRankOf(s, ap){ var r = streamRank(s); return r > ap.max ? ap.max - 0.5 : r; }
@@ -10035,8 +10159,11 @@
     var ap = apPrefs();
     return list.map(function(x, i){ return { x: x, i: i, k: bestKey(get(x), ap) }; }).sort(bestCmp).map(function(o){ return o.x; });
   }
+  /** Settings › Lowest quality: a row that names a quality under it is never a pick (one that names none stays). */
+  function apFloorOk(s, ap){ var r = streamRank(s); return !ap.min || !r || r >= ap.min; }
   function bestStreamRows(list){
-    var rows = Array.prototype.slice.call(list.querySelectorAll('.stream:not(.skel)')).filter(function(r){ return r.__s && !debridHeld(r.__s); });
+    var ap = apPrefs();
+    var rows = Array.prototype.slice.call(list.querySelectorAll('.stream:not(.skel)')).filter(function(r){ return r.__s && !debridHeld(r.__s) && apFloorOk(r.__s, ap); });
     return bestRank(rows, function(r){ return r.__s; });
   }
   function bestStreamRow(list){ return bestStreamRows(list)[0] || null; }
@@ -10051,7 +10178,10 @@
   /** The autoplay's own settings, with their defaults. max = the RES_RANK it aims for. */
   function apPrefs(){
     var pr = getPrefs();
-    return { max: pr.apMax === '1080' ? 3 : pr.apMax === '720' ? 2 : 4, instant: pr.apInstant !== false,
+    // apAim (10-30) replaces apMax: everyone starts on Auto = this device's panel, the connection deciding below it
+    var aim = pr.apAim === '2160' || pr.apAim === '1080' || pr.apAim === '720' ? pr.apAim : 'auto';
+    return { aim: aim, auto: aim === 'auto', prio: pr.apPrio === 'quality' || pr.apPrio === 'smooth' ? pr.apPrio : 'balanced', max: aim === 'auto' ? devCaps().rank : aim === '1080' ? 3 : aim === '720' ? 2 : 4,
+      min: RES_MIN[pr.apMin] || 0, instant: pr.apInstant !== false,
       wait: pr.apWait === 'quick' || pr.apWait === 'all' ? pr.apWait : 'balanced',
       retry: pr.apRetry === 0 || pr.apRetry === 3 ? pr.apRetry : 5,
       start: pr.apStart === 20 || pr.apStart === 90 ? pr.apStart : 45,
@@ -10169,7 +10299,8 @@
   function lcStarting(s, a, lead){
     var pl = plateFor((s.name || '') + '\n' + (s.title || s.description || '')), r = pl ? pl.r : '', an = (a && a.name) || '';
     if (r === '1080' || r === '720') r += 'p';
-    $id('lcText').textContent = (lead || 'Starting') + (r ? ' ' + r : '') + (an ? ' · ' + an : '') + (streamInstant(s) ? ' · instant' : '');
+    var bps = apBps(s);
+    $id('lcText').textContent = (lead || 'Starting') + (r ? ' ' + r : '') + (bps ? ' · ' + fmtMbps(bps) : '') + (an ? ' · ' + an : '') + (streamInstant(s) ? ' · instant' : '');
     $id('launchCard').classList.add('picked');
     // a start that shows no picture in time ("Give a start", 45 s) gives way to the next best, else the card steps aside
     clearTimeout(lc.hideT); lc.hideT = setTimeout(function(){ if (lc.on && !bestNext(playSeq, 'slow')) lcHide(); }, apPrefs().start * 1000);
@@ -18582,6 +18713,24 @@
     host.innerHTML = '';
     opts.forEach(function(o){ host.appendChild(prefChip(o[0], cur === o[1], function(){ fn(o[1]); })); });
   }
+  /** Settings › Connection speed: the last test (else the playing estimate) and Test now. */
+  function apSpeedRender(testing){
+    var host = $id('setApSpeed'); if (!host) return;
+    var t = bwTested(), bw = bwGet(), ago = t ? Math.round((Date.now() - t.at) / 60000) : 0;
+    var txt = testing ? 'Testing…' : t ? fmtMbps(t.bps) + ' · ' + (ago < 2 ? 'just now' : ago < 60 ? ago + ' min ago' : ago < 2880 ? Math.round(ago / 60) + ' h ago' : Math.round(ago / 1440) + ' days ago')
+      : bw ? fmtMbps(bw) + ' · while playing' : 'Not tested yet';
+    var had = host.contains(document.activeElement);
+    host.innerHTML = '';
+    var v = document.createElement('span'); v.className = 'pstep-v'; v.textContent = txt; host.appendChild(v);
+    var b = prefChip('Test now', false, function(){
+      if (bwTesting) return;
+      apSpeedRender(true);
+      bwTest().then(function(bps){ apSpeedRender(); if (!bps) setStatus('Could not test the connection.', 'error'); });
+    });
+    if (testing) b.setAttribute('aria-disabled', 'true');
+    host.appendChild(b);
+    if (had) try { b.focus(); } catch(e){}
+  }
   /** A stepper — ‹ value › — for lists too long to lay out as chips. */
   function stepper(id, opts, cur, fn){
     var host = $id(id); if (!host) return;
@@ -18845,7 +18994,11 @@
     segChips('setPickWait', [['3 s',3], ['6 s',6], ['10 s',10]], pickWaitSecs(), function(v){ setPref('pickWait', v); });
     var bp = shelfMode(), ap = apPrefs();
     segChips('setBestPlay', [['On', true], ['Off', false]], bp, function(v){ setPref('bestPlay', v); shelfModeApply(); });
-    segChips('setApMax', [['4K','2160'], ['1080p','1080'], ['720p','720']], ap.max === 3 ? '1080' : ap.max === 2 ? '720' : '2160', function(v){ setPref('apMax', v); });
+    segChips('setApMax', [['Auto','auto'], ['4K','2160'], ['1080p','1080'], ['720p','720']], ap.aim, function(v){ setPref('apAim', v); });
+    segChips('setApPrio', [['Quality','quality'], ['Balanced','balanced'], ['Smooth','smooth']], ap.prio, function(v){ setPref('apPrio', v); });
+    segChips('setApMin', [['Any','any'], ['720p','720'], ['1080p','1080'], ['4K','2160']], ap.min === 4 ? '2160' : ap.min === 3 ? '1080' : ap.min === 2 ? '720' : 'any', function(v){ setPref('apMin', v); });
+    var apDev = $id('setApDev'); if (apDev) apDev.innerHTML = '<span class="pstep-v">' + esc(devCapsLine()) + '</span>';
+    apSpeedRender();
     segChips('setApInstant', [['On', true], ['Off', false]], ap.instant, function(v){ setPref('apInstant', v); });
     segChips('setApWait', [['Quick','quick'], ['Balanced','balanced'], ['All','all']], ap.wait, function(v){ setPref('apWait', v); });
     segChips('setApRetry', [['Off',0], ['Next 3',3], ['Next 5',5]], ap.retry, function(v){ setPref('apRetry', v); });
