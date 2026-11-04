@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.04.3",
+  "version": "2026.11.04.4",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "The stream list is smooth on TVs: a long list (500 streams) opens in about 2 seconds instead of freezing, and the remote moves through it without stutter. Up and Down now always go to the card above or below."
+  "notes": "On a phone, a video turns the screen sideways and full screen as it starts (Settings › Playback › Sideways when a video starts). In the Windows and Linux app: Downloads — keep a film, an episode or a whole season to watch with no connection."
 }
