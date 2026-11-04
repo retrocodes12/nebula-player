@@ -1926,6 +1926,68 @@
   html.tv .stream-play { width:54px; height:54px; margin:0 15px; }
   html.tv .stream-play svg { width:20px; height:20px; }
   html.tv .streams { max-width:1600px; }
+  /* ---- the release card (Settings › Streams › Stream cards: Release, the default): title · source · codec and the size on top,
+     the resolution chip + picture/sound marks + languages, the add-on and service pills beside a white play disc, the file's name in mono ---- */
+  .stream.rc { display:block; padding:18px 20px 16px; border-radius:18px; }
+  .stream.rc > * + * { margin-left:0; }
+  .rc-top { display:flex; align-items:flex-start; }
+  .rc-head { flex:1 1 auto; min-width:0; font-size:calc(17px * var(--ts)); line-height:1.32; letter-spacing:-.015em; }
+  .stream.rc .stream-name { display:inline; white-space:normal; overflow:visible; font-size:inherit; font-weight:700; letter-spacing:inherit; }
+  .rc-tags { color:var(--label2); font-weight:500; }
+  .stream.rc .s-spec { margin-left:16px; padding-top:2px; }
+  .stream.rc .s-spec b { font-size:calc(15px * var(--ts)); }
+  .rc-seeds { display:block; }
+  .rc-marks { display:block; margin-top:10px; line-height:0; }
+  .stream.rc .s-plate { display:inline-block; vertical-align:middle; width:auto; padding:4px 7px; margin:3px 12px 3px 0; border-radius:6px;
+    background:#fff; color:#000; line-height:1; }
+  .stream.rc .s-plate b { display:inline; font-size:calc(13px * var(--ts)); font-weight:700; letter-spacing:-.01em; }
+  .stream.rc .s-plate i { display:inline; margin:0; font-size:calc(13px * var(--ts)); font-weight:700; letter-spacing:-.01em; color:inherit; }
+  .stream.rc:hover .s-plate { background:#fff; }
+  html.tv .stream.rc.focusable:focus .s-plate { background:#fff; color:#000; }
+  .stream.rc.focusable:focus-visible .s-plate { background:#fff; color:#000; }
+  html.tv .stream.rc.focusable:focus .s-plate i { color:#000; }
+  .stream.rc.focusable:focus-visible .s-plate i { color:#000; }
+  .stream.rc .sbadges { display:inline; margin:0; white-space:normal; -webkit-mask-image:none; mask-image:none; }
+  /* the pack's logos come in brand colours; the card draws them white, as the marks on a disc box are */
+  .stream.rc .sbadges img { height:20px; margin:3px 12px 3px 0; -webkit-filter:grayscale(1) brightness(1.9); filter:grayscale(1) brightness(1.9); }
+  .rc-lang { display:inline-block; vertical-align:middle; line-height:1; padding:5px 7px; margin:3px 6px 3px 0; border-radius:6px;
+    background:var(--fill); color:var(--label2); font-family:var(--mono); font-size:calc(11.5px * var(--ts)); font-weight:600; letter-spacing:.04em; }
+  .rc-foot { display:flex; align-items:center; margin-top:10px; }
+  .rc-pills { flex:1 1 auto; min-width:0; line-height:0; }
+  .rc-pill { display:inline-block; vertical-align:middle; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    line-height:1.2; padding:8px 14px; margin:3px 8px 3px 0; border-radius:var(--r-pill); background:var(--fill); color:var(--label);
+    font-size:calc(13.5px * var(--ts)); font-weight:600; letter-spacing:-.005em; }
+  .rc-play { flex:0 0 auto; width:46px; height:46px; margin-left:12px; border-radius:50%; background:#fff; color:#000;
+    display:flex; align-items:center; justify-content:center; transition:background .18s var(--ease); }
+  .rc-play svg { width:18px; height:18px; margin-left:2px; }
+  @media (hover:hover){ .stream.rc:hover .rc-play { background:var(--accent); color:var(--on-accent); } }   /* a finger's hover would stay lit */
+  html.tv .stream.rc.focusable:focus .rc-play { background:var(--accent); color:var(--on-accent); }
+  .stream.rc.focusable:focus-visible .rc-play { background:var(--accent); color:var(--on-accent); }
+  .rc-file, .rc-desc { display:block; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden;
+    margin-top:14px; padding-top:12px; border-top:1px solid var(--sep); color:var(--label3); font-size:calc(12.5px * var(--ts)); line-height:1.5; }
+  .rc-file { font-family:var(--mono); word-break:break-all; }
+  .rc-desc { word-break:break-word; color:var(--label2); font-size:calc(13px * var(--ts)); }
+  html.nofile .rc-file { display:none; }
+  html.sc-rel .streamsec .rowhead { display:none; }   /* the add-on is a pill on every card */
+  .stream.rc.nwr .rc-head, .stream.rc.nosnd .rc-head { opacity:.7; }
+  .stream.rc.slow .rc-head { opacity:.8; }
+  html.tv #streamList .stream.rc { padding:24px 28px 20px; border-radius:20px; }
+  html.tv .rc-head { font-size:calc(23px * var(--ts)); }
+  html.tv .stream.rc .s-spec b { font-size:calc(19px * var(--ts)); }
+  html.tv .stream.rc .s-plate { padding:5px 9px; border-radius:7px; }
+  html.tv .stream.rc .s-plate b, html.tv .stream.rc .s-plate i { font-size:calc(17px * var(--ts)); }
+  html.tv .stream.rc .sbadges img { height:26px; margin-right:14px; }
+  html.tv .rc-lang { font-size:calc(15px * var(--ts)); padding:6px 9px; }
+  html.tv .rc-pill { font-size:calc(17px * var(--ts)); padding:10px 18px; margin-right:10px; }
+  html.tv .rc-play { width:60px; height:60px; }
+  html.tv .rc-play svg { width:24px; height:24px; }
+  html.tv .rc-file, html.tv .rc-desc { font-size:calc(15.5px * var(--ts)); }
+  @media (max-width:700px){
+    .stream.rc { padding:16px 16px 14px; }
+    .rc-head { font-size:calc(16px * var(--ts)); }
+    .rc-pill { padding:7px 12px; font-size:calc(13px * var(--ts)); }
+    .rc-play { width:42px; height:42px; }
+  }
   html.tv .privacy-link { display:none; }   /* a TV app can't open external pages */
   html.tv .ep-sub { font-size:calc(16px * var(--ts)); }
   html.tv .empty { font-size:calc(19px * var(--ts)); }
@@ -2769,6 +2831,14 @@
         <h2 class="con-title">Streams</h2>
         <p class="con-sub">How the list of streams is ordered and trimmed, and whether the player picks one for you.</p>
         <div class="setrow">
+          <span class="setname">Stream cards<small>Release: what the file is, its marks, who has it · Classic: the quality plate in front</small></span>
+          <span id="setStreamStyle" class="seg"></span>
+        </div>
+        <div class="setrow">
+          <span class="setname">File name<small>The file's own name at the foot of each release card</small></span>
+          <span id="setStreamFile" class="seg"></span>
+        </div>
+        <div class="setrow">
           <span class="setname">Order streams<small>Within each add-on</small></span>
           <span id="setStreamSort" class="seg"></span>
         </div>
@@ -2785,7 +2855,7 @@
           <span id="setStreamBadges" class="seg"></span>
         </div>
         <div class="setrow">
-          <span class="setname">Add-on on each row<small>Its initial in a ring, its name, or nothing</small></span>
+          <span class="setname">Add-on on each row<small>Its initial in a ring, its name, or nothing · Release cards show its name unless Hidden</small></span>
           <span id="setAddonMark" class="seg"></span>
         </div>
         <!-- autoplay the best stream (TVs): Play on a film or episode starts its best stream; the rows under it show only when it is on -->
@@ -7247,8 +7317,10 @@
     ['audio-channels', "\\b(5\\.1|5-1|6ch|6\\s*channel)\\b", "5_1_audio.png"],
   ];
   var badgeRe = null;
-  function streamBadges(raw, skipGroup){
+  // skipGroup: one group's name, or a map of groups shown elsewhere ({resolution:1, source:1, …}); cap: badges at most (6)
+  function streamBadges(raw, skipGroup, cap){
     var i;
+    if (!cap) cap = 6;
     if (!badgeRe){
       badgeRe = [];
       for (i=0;i<BADGE_PACK.length;i++){
@@ -7260,8 +7332,8 @@
       if (!badgeRe[i] || !badgeRe[i].test(raw)) continue;
       fired.push(badgeRe[i]);               // every match cleans the text line
       var g = BADGE_PACK[i][0];
-      if (g === skipGroup) continue;        // shown elsewhere (resolution plate)
-      if (seen[g] || shown >= 6) continue;  // but only the group's first becomes a badge
+      if (g === skipGroup || (skipGroup && typeof skipGroup === 'object' && skipGroup[g])) continue;   // shown elsewhere (resolution plate, the card's tags)
+      if (seen[g] || shown >= cap) continue;  // but only the group's first becomes a badge
       seen[g] = 1; shown++;
       out += '<img alt="" src="' + BADGE_IMG_BASE + BADGE_PACK[i][2] +
         '" onerror="this.style.display=\'none\'">';
@@ -7280,21 +7352,30 @@
     'Polish','Portuguese','Russian','Japanese','Korean','Chinese','Arabic','Turkish','Dutch','Latino','Multi'];
   var LANG_RE = new RegExp('\\b(' + LANG_NAMES.join('|') + '|Dual\\s*Audio)\\b', 'ig');
   var FLAG_LANGS = { '🇬🇧':'English','🇺🇸':'English','🇫🇷':'French','🇮🇹':'Italian','🇪🇸':'Spanish','🇩🇪':'German',
-    '🇮🇳':'Hindi','🇵🇱':'Polish','🇧🇷':'Portuguese','🇵🇹':'Portuguese','🇷🇺':'Russian','🇯🇵':'Japanese','🇰🇷':'Korean' };
-  function streamLangs(raw){
+    '🇮🇳':'Hindi','🇵🇱':'Polish','🇧🇷':'Portuguese','🇵🇹':'Portuguese','🇷🇺':'Russian','🇯🇵':'Japanese','🇰🇷':'Korean',
+    '🇳🇱':'Dutch','🇨🇳':'Chinese','🇹🇼':'Chinese','🇸🇦':'Arabic','🇹🇷':'Turkish','🇲🇽':'Latino' };
+  function streamLangList(raw, max){
     var seen = {}, out = [], m;
     LANG_RE.lastIndex = 0;
-    while ((m = LANG_RE.exec(raw)) && out.length < 4){
+    while ((m = LANG_RE.exec(raw)) && out.length < max){
       var n = m[1].replace(/\s+/g, ' ');
       n = n.charAt(0).toUpperCase() + n.slice(1).toLowerCase();
       if (n === 'Dual audio') n = 'Dual Audio';
       if (!seen[n]){ seen[n] = 1; out.push(n); }
     }
     Object.keys(FLAG_LANGS).forEach(function(f){
-      if (out.length < 4 && raw.indexOf(f) >= 0 && !seen[FLAG_LANGS[f]]){ seen[FLAG_LANGS[f]] = 1; out.push(FLAG_LANGS[f]); }
+      if (out.length < max && raw.indexOf(f) >= 0 && !seen[FLAG_LANGS[f]]){ seen[FLAG_LANGS[f]] = 1; out.push(FLAG_LANGS[f]); }
     });
+    return out;
+  }
+  function streamLangs(raw){
+    var out = streamLangList(raw, 4);
     return out.slice(0, 3).join(' + ') + (out.length > 3 ? ' +' + (out.length - 3) : '');
   }
+  // the release card's language chips: two letters, as the files and the add-ons write them
+  var LANG_CODES = { English:'EN', French:'FR', Italian:'IT', Spanish:'ES', German:'DE', Hindi:'HI', Tamil:'TA', Telugu:'TE',
+    Malayalam:'ML', Kannada:'KN', Polish:'PL', Portuguese:'PT', Russian:'RU', Japanese:'JA', Korean:'KO', Chinese:'ZH',
+    Arabic:'AR', Turkish:'TR', Dutch:'NL', Latino:'LAT', Multi:'MULTI', 'Dual Audio':'DUAL' };
   var RE_SIZE = /(\d+(?:[.,]\d+)?)\s*(GB|GiB|MB|MiB)\b/i;
   var RE_BITRATE = /~?\s*(\d+(?:\.\d+)?)\s*Mbps\b/i;
   var RE_SOURCE = /\bsource\s*:?\s+(.+)$/i;
@@ -7395,6 +7476,82 @@
     var s = String(name || '').replace(/^[^A-Za-z0-9]+/, '');
     return (s || String(name || '')).charAt(0).toUpperCase();
   }
+  // ---- the release card (the default since 11-04): what the file IS on top, its marks, who has it, the file's own name ----
+  var RC_EXT = /\.(mkv|mp4|m4v|avi|webm|mov|ts|wmv|flv)$/i;
+  var RC_STOP = /^(2160p|1080p|1080i|720p|576p|480p|360p|4k|uhd|web|webrip|webdl|web-dl|bluray|blu-ray|bdrip|brrip|bdremux|hdtv|dvdrip|remux|hdr|hdr10|dv|dovi|x264|x265|h264|h265|hevc|avc|av1|10bit|8bit|amzn|nf|dsnp|hmax|atvp|imax|hybrid|multi|dual|repack|proper|extended|unrated|uncut|complete|internal|limited|webm|ddp|dd|aac|truehd|atmos|dts)$/;
+  /** "The.Dark.Knight.2008.UHD.BluRay.2160p…mkv" → "The Dark Knight 2008": the words before the year (kept) or the first release word. */
+  function relTitle(file){
+    var n = String(file || '').replace(/^.*[\/\\]/, '').replace(RC_EXT, '').replace(/[._]+/g, ' ').replace(/\s+/g, ' ').trim()
+      .replace(/^(\[[^\]]*\]\s*)+/, '');   // a leading "[Group]"
+    var toks = n.split(' '), out = [], yi = -1, i;
+    for (i = 1; i < toks.length; i++) if (/^\(?(19|20)\d\d\)?$/.test(toks[i])){ yi = i; break; }
+    if (yi > 0){   // a year: everything before it is the title ("Charlotte's Web 2006" keeps its Web)
+      out = toks.slice(0, yi); out.push(toks[yi].replace(/[()]/g, ''));
+      toks = [];
+    }
+    for (i = 0; i < toks.length; i++){
+      var t = toks[i], tl = t.toLowerCase().replace(/[()]/g, '');
+      if (i > 0 && (RC_STOP.test(tl) || /^s\d{1,2}(e\d{1,3})?$/.test(tl) || /^s\d{1,2}e\d/.test(tl) || /^[\[{]/.test(t))) break;
+      out.push(t);
+    }
+    var r = out.join(' ').replace(/[\s\-–:]+$/, '');
+    return r.length >= 2 ? r.slice(0, 80) : '';
+  }
+  /** The source and the picture codec, said in words beside the title: "BDRemux · HEVC". */
+  function relTags(raw){
+    var out = [], r = String(raw || '');
+    if (/remux/i.test(r)) out.push(/\b(bd|blu[\s._-]?ray|bluray|uhd)/i.test(r) || /bdremux/i.test(r) ? 'BDRemux' : 'Remux');
+    else if (/\b(blu[\s._-]?ray|bluray)\b/i.test(r)) out.push('BluRay');
+    else if (/\b(bdrip|brrip)\b/i.test(r)) out.push('BDRip');
+    else if (/\b(web[\s._-]?dl|webdl)\b/i.test(r)) out.push('WEB-DL');
+    else if (/\b(web[\s._-]?rip|webrip)\b/i.test(r)) out.push('WEBRip');
+    else if (/\bweb\b/i.test(r)) out.push('WEB');
+    else if (/\bhdtv\b/i.test(r)) out.push('HDTV');
+    else if (/\b(dvd[\s._-]?rip|dvdrip)\b/i.test(r)) out.push('DVDRip');
+    else if (/\b(hdcam|camrip|cam)\b/i.test(r)) out.push('CAM');
+    if (/\bav1\b/i.test(r)) out.push('AV1');
+    else if (/\b(hevc|h[\s._-]?265|x265)\b/i.test(r)) out.push('HEVC');
+    else if (/\b(avc|h[\s._-]?264|x264)\b/i.test(r)) out.push('AVC');
+    return out;
+  }
+  var RC_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+  function releaseCardHtml(s, raw, text, plate, f, name, spec, addonName){
+    var file = rowFileName(s);
+    // no file name: a first line that reads like a release ("The Dark Knight 2008 1080p BluRay x264") stands in for one
+    var line1 = String(text || '').split('\n')[0].replace(RE_EMOJI, ' ').replace(/\s+/g, ' ').trim();
+    if (!file && line1){ var lt = relTitle(line1); if (lt && lt.length < line1.length - 4) file = line1; }
+    var title = relTitle(file) || name;
+    var tags = relTags(raw);
+    var bg = streamBadges(raw, { resolution:1, source:1, 'video-codec':1, 'bit-depth':1, 'audio-channels':1 }, 4);
+    var marks = bg.html;
+    var langs = streamLangList(raw, 5).map(function(n){
+      return '<span class="rc-lang">' + esc(LANG_CODES[n] || n.slice(0, 2).toUpperCase()) + '</span>';
+    }).join('');
+    var res = plate ? '<span class="s-plate"><b>' + plate.r + '</b>' + (/^\d+$/.test(plate.r) ? '<i>p</i>' : '') + '</span>' : '';
+    // who has it: the add-on, then the service or site inside it — each a pill (Settings › Streams › Add-on on each row: Hidden drops the add-on's)
+    var pills = [], am = getPrefs().addonMark;
+    if (addonName && am !== 'hidden') pills.push(addonName);
+    // the add-on's own label for the row ("4KHDHub | Direct" → "Direct"), less what the marks, the plate and the title already say
+    var low = title.toLowerCase(), label = cleanStreamName(s.name, addonName).split(' · ').filter(function(tk){
+      tk = tk.trim(); if (!tk) return false;
+      for (var b = 0; b < bg.fired.length; b++) if (bg.fired[b].test(tk)) return false;
+      if (RC_STOP.test(tk.toLowerCase()) || low.indexOf(tk.toLowerCase()) >= 0) return false;
+      return !(f.provider && tk === f.provider);
+    }).join(' · ');
+    if (label && label.length <= 40) pills.push(label);
+    if (f.provider && f.provider !== addonName) pills.push(f.provider);
+    var pillHtml = pills.map(function(p){ return '<span class="rc-pill">' + esc(p) + '</span>'; }).join('');
+    var desc = file ? '' : cleanStreamDesc(f.desc, addonName);
+    return '<span class="rc-top">' +
+        '<span class="rc-head"><span class="stream-name">' + esc(title) + '</span>' +
+          (tags.length ? '<span class="rc-tags"> · ' + esc(tags.join(' · ')) + '</span>' : '') + '</span>' +
+        (spec ? '<span class="s-spec">' + spec + '</span>' : '') +
+      '</span>' +
+      (res || marks || langs ? '<span class="rc-marks">' + res + (marks ? '<span class="sbadges">' + marks + '</span>' : '') + langs + '</span>' : '') +
+      '<span class="rc-foot"><span class="rc-pills">' + pillHtml + '</span><span class="rc-play">' + RC_PLAY + '</span></span>' +
+      (file ? '<span class="rc-file">' + esc(file.replace(/^.*[\/\\]/, '')) + '</span>'
+            : (desc ? '<span class="rc-desc">' + esc(desc) + '</span>' : ''));
+  }
   function streamCard(s, addon){
     var addonName = (addon && addon.name) || '';
     var card=document.createElement('button'); card.className='stream focusable';
@@ -7406,9 +7563,12 @@
     var name = cleanStreamName(s.name, addonName) || f.provider || cleanStreamName(text.split('\n')[0], addonName) || 'Stream';
     var sub = [f.provider && name.indexOf(f.provider) < 0 ? f.provider : '', f.langs, cleanStreamDesc(f.desc, addonName)]
       .filter(Boolean).join('  ·  ');
+    var rel = getPrefs().streamStyle !== 'classic';   // Settings › Streams › Stream cards: the release card unless Classic was chosen
+    if (rel) card.className += ' rc';
     var spec = f.size ? '<b>' + esc(f.size) + '</b>' : '';
-    var line2 = [f.bitrate, f.seeds ? f.seeds + ' seeds' : ''].filter(Boolean).join(' · ');
-    if (line2) spec += esc(line2);
+    var line2 = rel ? [f.seeds ? '↑ ' + f.seeds + ' seeds' : '', f.bitrate].filter(Boolean).join(' · ')
+                    : [f.bitrate, f.seeds ? f.seeds + ' seeds' : ''].filter(Boolean).join(' · ');
+    if (line2) spec += rel ? '<span class="rc-seeds">' + esc(line2) + '</span>' : esc(line2);
     // the add-on's own word that this row needs a native player (headers, a gated host): say so, rather than a "Format error" later
     // faster than this device has measured its connection to be (Settings › Streams): no buffer saves such a row
     if (streamSlow(s, f)){ spec += '<i class="s-slow">may stall here</i>'; card.className += ' slow'; }
@@ -7422,7 +7582,8 @@
       if (hp){ spec += '<i class="s-snd">sound through ' + esc(soundHelperName(hp)) + '</i>'; card.className += ' snd'; }
       else { spec += '<i class="s-nosnd">no sound on this TV</i>'; card.className += ' nosnd'; }
     }
-    card.innerHTML =
+    if (rel) card.innerHTML = releaseCardHtml(s, raw, text, plate, f, name, spec, addonName);
+    else card.innerHTML =
       (plate ? '<span class="s-plate"><b>' + plate.r + '</b>' + (plate.t ? '<i>' + plate.t + '</i>' : '') + '</span>'
              : '<span class="stream-play"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span>') +
       '<span class="s-main">' +
@@ -16392,6 +16553,7 @@
     flag('nocast', pr.detailCast === false); flag('nogenres', pr.detailGenres === false);
     flag('noclock', pr.clock === false);
     flag('nofacts', pr.streamFacts === false); flag('nobadges', pr.streamBadges === false);
+    flag('sc-rel', pr.streamStyle !== 'classic'); flag('nofile', pr.streamFile === false);
     flag('am-name', pr.addonMark === 'name'); flag('am-hide', pr.addonMark === 'hidden');
     var con = $id('setConsole'); if (con){ if (pr.setMode !== 'all') con.classList.add('ess'); else con.classList.remove('ess'); }
     // the transport's skip buttons say how far they jump
@@ -16611,6 +16773,8 @@
     // ---- streams ----
     segChips('setStreamSort', [['As listed','listed'], ['Best quality first','quality'], ['Smallest first','size']], pr.streamSort === 'quality' || pr.streamSort === 'size' ? pr.streamSort : 'listed', function(v){ setPref('streamSort', v); });
     segChips('setMinRes', [['Any','any'], ['720p','720'], ['1080p','1080'], ['4K','2160']], pr.minRes === '720' || pr.minRes === '1080' || pr.minRes === '2160' ? pr.minRes : 'any', function(v){ setPref('minRes', v); });
+    segChips('setStreamStyle', [['Release','release'], ['Classic','classic']], pr.streamStyle === 'classic' ? 'classic' : 'release', function(v){ setPref('streamStyle', v); });
+    segChips('setStreamFile', [['Show', true], ['Hide', false]], pr.streamFile !== false, function(v){ setPref('streamFile', v); });
     segChips('setStreamFacts', [['Show', true], ['Hide', false]], pr.streamFacts !== false, function(v){ setPref('streamFacts', v); });
     segChips('setStreamBadges', [['Show', true], ['Hide', false]], pr.streamBadges !== false, function(v){ setPref('streamBadges', v); });
     segChips('setAddonMark', [['Initial','initial'], ['Name','name'], ['Hidden','hidden']], pr.addonMark === 'name' || pr.addonMark === 'hidden' ? pr.addonMark : 'initial', function(v){ setPref('addonMark', v); });
