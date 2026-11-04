@@ -2021,7 +2021,19 @@
   .sc-parts .chip { margin:4px 8px 4px 0; line-height:1.2; }
   .sc-live { display:block; max-width:640px; margin:10px 0 4px; pointer-events:none; }
   .sc-live .stream { cursor:default; transform:none; }
-  html.sc-new .sc-classiconly { display:none; }   /* Stream details and Badges are parts of a design now */
+  html.sc-new .sc-classiconly { display:none; }
+  /* Downloads (desktop) */
+  #view-streams.saving .stream.nosave { display:none; }
+  .s-saveline { color:var(--label); font-weight:600; }
+  .det-dlseason { margin:0 0 12px; }
+  .dl-busy { font-size:calc(13px * var(--ts)); color:var(--label2); }
+  .ep-dl { flex:0 0 auto; margin-left:10px; font-family:var(--mono); font-size:calc(11px * var(--ts)); color:var(--label2); letter-spacing:.04em; }
+  .dl-row { display:flex; align-items:center; }
+  .dl-row .dl-main { flex:1 1 auto; min-width:0; }
+  .dl-thumb { width:56px; height:84px; flex:0 0 auto; border-radius:8px; object-fit:cover; background:var(--l1); display:block; }
+  .dl-acts { flex:0 0 auto; margin-left:12px; white-space:nowrap; }
+  .dl-acts .chip { margin-left:8px; }
+  .dl-empty { color:var(--label2); font-size:calc(14px * var(--ts)); margin:18px 0; max-width:560px; }   /* Stream details and Badges are parts of a design now */
   @media (max-width:700px){
     .sc-opt { width:100%; margin-right:0; }
     .sc-prev { height:160px; }
@@ -2625,6 +2637,7 @@
         <button id="detEpisodes" class="focusable btn ghost" style="display:none">Episodes</button>
         <button id="detShuffle" class="focusable btn ghost" style="display:none" title="Play a random episode">Surprise me</button>
         <button id="detList" class="focusable btn ghost">My List</button>
+        <button id="detDl" class="focusable btn ghost" style="display:none">Download</button>
         <button id="detRec" class="focusable btn ghost" style="display:none">Recommend</button>
       </div>
       <div class="det-facts" id="detFacts"></div>
@@ -2634,6 +2647,7 @@
       <div class="det-chips cast" id="detCastRow"></div>
       <div class="det-credits" id="detCredits"></div>
       <div class="det-seasons" id="detSeasonRow" style="display:none"></div>
+      <div id="detDlSeason" class="det-dlseason" style="display:none"></div>
       <div id="detEpList" class="streams eplist det-eps"></div>
     </div>
     <div id="detUniverse" class="det-universe"></div>
@@ -3144,6 +3158,7 @@
       </div>
       <div id="streamResume"><span id="srText"></span><button class="chip focusable" id="srBtn" type="button">Start over</button></div>
       <div id="streamFilters" style="display:none"></div>
+      <div id="streamsSave" class="s-waitline s-saveline" role="status"></div>
       <div id="streamsWait" class="s-waitline" role="status" aria-live="polite"></div>
       <div id="streamList" class="streams"></div>
     </div>
@@ -3286,6 +3301,7 @@
 
   // ---------- view + focus ----------
   function show(name, push){
+    if (dlPick && name !== 'streams' && name !== 'player'){ dlPick = null; dlSaveLine(); }
     if (name !== 'player') phoneUpright();   // a phone the player turned sideways goes back as the player page closes (not on a next-episode hop)
     var back = (push === false);
     // which way this move goes, for html.mv's slides: a tab (setTab), Back, or a page opened on top
@@ -5838,6 +5854,7 @@
   // the one action a stray tap should never reach, so it moved in here: hold a
   // card (or right-click, or hold OK on a remote) and the sheet slides up.
   var SHEET_ICONS = {
+    download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>',
     play: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.6v12.8c0 .8.9 1.3 1.6.9l10-6.4c.6-.4.6-1.4 0-1.8l-10-6.4c-.7-.4-1.6.1-1.6.9z"/></svg>',
     info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.4"/></svg>',
     trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 7V5h4v2M6 7l1 12.2A1.8 1.8 0 0 0 8.8 21h6.4a1.8 1.8 0 0 0 1.8-1.8L18 7"/></svg>',
@@ -7193,7 +7210,7 @@
     wrap.innerHTML = '';
     // the three shelves as one segmented pill; Friends waits at the foot as a quiet hairline row
     var tabs = document.createElement('div'); tabs.className = 'seg'; tabs.id = 'libTabs';
-    [['list','My List'], ['cw','Continue Watching'], ['up','Upcoming']].forEach(function(t){
+    [['list','My List'], ['cw','Continue Watching'], ['up','Upcoming']].concat(DL ? [['dl','Downloads']] : []).forEach(function(t){
       var c = prefChip(t[1], libTab === t[0], function(){ libTab = t[0]; renderLibraryTab(true); });
       c.setAttribute('data-tab', t[0]); tabs.appendChild(c);
     });
@@ -7201,6 +7218,7 @@
     var body = document.createElement('div'); body.id = 'libBody'; wrap.appendChild(body);
     if (libTab === 'list') renderLibList(body);
     else if (libTab === 'cw') renderLibContinue(body);
+    else if (libTab === 'dl' && DL) renderLibDownloads(body);
     else renderUpcoming(body);
     var fr = document.createElement('div'); fr.id = 'friendsSec'; fr.className = 'lib-friends'; wrap.appendChild(fr);
     renderFriends(fr);
@@ -7688,6 +7706,7 @@
   function streamCardBuild(s, addon, sc){
     var addonName = (addon && addon.name) || '';
     var cls = 'stream';
+    if (DL && !dlSavable(s)) cls += ' nosave';          // hidden while the page picks a source to download
     var text = (s.title || s.description || '');
     var raw = (s.name || '') + '\n' + text;
     var plate = plateFor(raw);
@@ -7761,6 +7780,7 @@
   function streamCardWire(card, s, addon){
     // a hand-picked row is the one the next episodes follow (same source, same quality)
     card.onclick=function(){
+      if (dlPick && dlPick.id === ctx.playId){ dlFromRow(s, addon); return; }   // the page is picking a source to download
       autoRun = 0;
       var go = function(){ ctx.pickedFrom = streamSig(s, addon); savePick(ctx.pickedFrom); ctx.playSig = ctx.pickedFrom; playStream(s); };
       if (resumeAskDue()) resumeAsk(go); else go();
@@ -8008,7 +8028,7 @@
   }
   function renderDetailSeries(meta, type){
     var sRow = $id('detSeasonRow'), list = $id('detEpList'), sh = $id('detShuffle');
-    detEp = null;
+    detEp = null; dlSeasonCtx = null; dlSeasonSync();
     sRow.style.display = 'none'; sRow.innerHTML = ''; list.innerHTML = ''; sh.style.display = 'none';
     if (!episodic(type, meta) || !meta.videos || !meta.videos.length) return;
     var grouped = groupEpisodes(meta.videos);
@@ -8035,6 +8055,7 @@
         var i = flat.indexOf(v);
         list.appendChild(episodeRow(meta, v, i, i === upIdx));
       });
+      if (DL){ dlSeasonCtx = { meta: meta, type: type, sn: sn, eps: bySeason[sn] }; dlSeasonSync(); dlEpMarks(); }
     }
     function renderCurrent(){
       var cur = seriesCursor(type, flat);
@@ -8102,7 +8123,7 @@
     return best;
   }
   function syncDetButtons(){
-    try { detRateRender(); detRecWire(); } catch(e){}
+    try { detRateRender(); detRecWire(); dlDetSync(); } catch(e){}
     var meta = detCur.meta, type = detCur.type;
     var play = $id('detPlay'), lbl = $id('detPlayLbl'), eps = $id('detEpisodes');
     eps.style.display = 'none';
@@ -8542,6 +8563,11 @@
         markUnwatched(type, v.id); epListsRedraw(v.id);
         setStatus(epTag(v) + (pr.done ? ' marked as not watched.' : ' back to the start.'), 'ok');
       } });
+    if (DL){
+      var dr = dlFind(type, v.id);
+      if (!dr) acts.push({ icon:'download', label:'Download', fn: function(){ dlPickStart(type, v.id, epLabel(seriesMeta.name, v)); } });
+      else acts.push({ icon:'trash', label: dr.state === 'done' ? 'Remove the download' : 'Cancel the download', fn: function(){ DL.cmd(dr.key, 'remove'); } });
+    }
     openSheet({
       title: v.name || v.title || (epNum(v) != null ? 'Episode ' + epNum(v) : 'Episode'),
       sub: [epKick(v), fmtAirDate(v.released), at && pr ? fmtLeft(pr.dur - at) : ''].filter(Boolean).join(' · '),
@@ -8582,6 +8608,234 @@
       openStreams(ctx.seriesType || 'series', v.id, ctx.streamTitle);
     }, function(){ episodeSheet(seriesMeta, v, index); });
     return row;
+  }
+
+  // ---------- Downloads (desktop; 11-04, his "add the downloads option in ios and desktop versions") ----------
+  // The shell keeps the files (downloads.js — the Android app's rules: only a finished file or a finished unprotected
+  // playlist, never live, protected, a web page or a torrent). This page offers them: Download on a film's page, on an
+  // episode's sheet and for a whole season (a source picked once, the rest follow); the streams page in "choose a source
+  // to download" mode; Library › Downloads; and a saved title plays its own copy from the shell's /dl/ route.
+  var DL = (IS_DESKTOP && window.nebulaDesktop && nebulaDesktop.downloads) || null;
+  var dlRows = [], dlPick = null, dlSeasonBusy = '', dlSeasonCtx = null;
+  function dlSet(rows){ dlRows = Array.isArray(rows) ? rows : []; dlRepaint(); }
+  if (DL){ try { DL.list().then(dlSet); DL.on(dlSet); } catch(e){ DL = null; } }
+  function dlFind(type, id){
+    for (var i = 0; i < dlRows.length; i++){ var r = dlRows[i]; if (r.viewer === viewer && r.type === type && r.id === id) return r; }
+    return null;
+  }
+  function dlDone(type, id){ var r = dlFind(type, id); return r && r.state === 'done' ? r : null; }
+  function dlSavable(s){
+    return !!s && /^https?:\/\//i.test(s.url || '') && !/\.mpd(\?|#|$)/i.test(s.url) && !(s.behaviorHints && s.behaviorHints.nebulaEmbed);
+  }
+  function dlSize(b){ return b >= 1073741824 ? (b / 1073741824).toFixed(1) + ' GB' : b >= 1048576 ? Math.round(b / 1048576) + ' MB' : Math.round(b / 1024) + ' KB'; }
+  /** A row's status line (DownloadPlan.line on Android). */
+  function dlLine(r){
+    var pct = r.pct >= 0 ? Math.round(r.pct) + '%' : '';
+    if (r.state === 'done') return dlSize(r.bytes);
+    if (r.state === 'failed') return 'Couldn’t finish' + (r.err ? ' · ' + r.err : '');
+    if (r.state === 'queued') return 'Waiting to start';
+    if (r.state === 'paused') return ['Paused', pct].filter(Boolean).join(' · ');
+    return [pct, dlSize(r.bytes) + (r.total > 0 && !r.hls ? ' of ' + dlSize(r.total) : '')].filter(Boolean).join(' · ');
+  }
+  /** Pick a source to download for [type,id] — the ordinary streams page, its rows that cannot be kept hidden. [plan]: the
+      other episodes of a season, to follow with the same source. */
+  function dlPickStart(type, id, title, plan){
+    if (!DL) return;
+    dlPick = { type: type, id: id, title: title, plan: plan || null };
+    openStreams(type, id, title, false, true);
+  }
+  function dlSaveLine(){
+    var v = $id('view-streams'), el = $id('streamsSave');
+    var on = !!(dlPick && ctx.playId === dlPick.id);
+    if (v) v.classList.toggle('saving', on);
+    if (el){
+      el.classList.toggle('on', on);
+      el.textContent = !on ? '' : dlPick.plan ? 'Choose a source for Season ' + dlPick.plan.season + ' — the other episodes get the same one'
+        : 'Choose a source to download';
+    }
+  }
+  /** The row picked on the streams page in download mode. */
+  function dlFromRow(s, a){
+    var pk = dlPick; if (!pk || !DL) return;
+    var bh = s.behaviorHints || {}, ph = bh.proxyHeaders && bh.proxyHeaders.request;
+    var meta = { viewer: viewer, type: pk.type, id: pk.id, name: pk.title, poster: ctx.playPoster || '', addonUrl: a ? a.url : '',
+      source: (a && a.name) || '', fileName: rowFileName(s), description: (ctx.item && ctx.item.description) || '',
+      streamName: s.name || '', streamTitle: s.title || s.description || '' };
+    setStatus('Checking this stream…', 'info');
+    DL.add({ url: s.url, headers: (ph && typeof ph === 'object') ? ph : {}, meta: meta }).then(function(why){
+      if (why){ setStatus(why, 'err'); return; }
+      dlKeepSubs(pk.type, pk.id, s);
+      var plan = pk.plan;
+      dlPick = null; dlSaveLine();
+      var v = document.querySelector('.view.active');
+      if (v && v.id === 'view-streams') goBack();
+      setStatus(plan ? 'Downloading ' + pk.title + ' · finding the same source for the rest of Season ' + plan.season + '…' : 'Downloading · Library › Downloads', 'ok', 5000);
+      if (plan && plan.rest.length) dlSeasonRest(plan, s, a);
+    }).catch(function(){ setStatus('Couldn’t start that download.', 'err'); });
+  }
+  /** The stream's own subtitles in the wanted languages (two at most), kept beside the download. */
+  function dlKeepSubs(type, id, s){
+    var subs = (s.subtitles || []).filter(function(x){ return x && /^https?:\/\//i.test(x.url || ''); });
+    if (!subs.length) return;
+    var keys = [prefLang('subLang'), getPrefs().subLang2].filter(Boolean).map(subKey).filter(Boolean), seen = {};
+    var picks = [];
+    keys.forEach(function(k){ if (seen[k] || picks.length >= 2) return; seen[k] = 1; var f = subs.filter(function(x){ return subKey(x.lang) === k; })[0]; if (f) picks.push(f); });
+    if (!picks.length) return;
+    setTimeout(function(){
+      var r = dlFind(type, id); if (!r) return;
+      picks.forEach(function(p){ fetch(p.url).then(function(x){ return x.ok ? x.text() : ''; }).then(function(t){ if (t) DL.sub(r.key, p.lang, t); }).catch(function(){}); });
+    }, 600);
+  }
+  /** The rest of a season: the same release from the same add-on, one episode at a time (Android's SeasonDownload). */
+  function dlSeasonRest(plan, s0, a){
+    var sig = streamSig(s0, a), queued = 1, missing = [], total = plan.rest.length + 1, i = 0;
+    function next(){
+      if (i >= plan.rest.length){
+        dlSeasonBusy = ''; dlRepaint();
+        setStatus(missing.length ? queued + ' of ' + total + ' downloading · no matching source for ' + missing.length + ' (' + missing.slice(0, 2).join(', ') + (missing.length > 2 ? '…' : '') + ') — download those from their own sheet'
+          : 'Season ' + plan.season + ': all ' + queued + ' episodes downloading · Library › Downloads', missing.length ? 'info' : 'ok', 8000);
+        return;
+      }
+      var ep = plan.rest[i++];
+      dlSeasonBusy = 'Season ' + plan.season + ' · ' + (i + 1) + ' of ' + total; dlRepaint();
+      if (dlFind('series', ep.id)){ queued++; return next(); }
+      streamJson(a.base + '/stream/series/' + encodeURIComponent(ep.id) + '.json').then(function(d){
+        var streams = ((d && d.streams) || []).filter(dlSavable), m = streams.length ? matchStream(streams, sig, a) : null;
+        if (m && !isTwin(m, sig, a) && !(sig.res && streamSig(m, a).res === sig.res)) m = null;
+        if (!m){ missing.push(ep.title); return next(); }
+        var bh = m.behaviorHints || {}, ph = bh.proxyHeaders && bh.proxyHeaders.request;
+        return DL.add({ url: m.url, headers: (ph && typeof ph === 'object') ? ph : {}, meta: { viewer: viewer, type: 'series', id: ep.id, name: ep.title,
+          poster: plan.poster || '', addonUrl: a.url, source: a.name || '', fileName: rowFileName(m), streamName: m.name || '', streamTitle: m.title || m.description || '' } })
+          .then(function(why){ if (why) missing.push(ep.title); else { queued++; dlKeepSubs('series', ep.id, m); } next(); });
+      }).catch(function(){ missing.push(ep.title); next(); });
+    }
+    next();
+  }
+  /** Play a saved copy: the ordinary play (its resume point, its ticks), read from the shell. */
+  function dlPlay(r, fresh){
+    var base = location.origin + '/dl/' + r.key;
+    setPlayIdentity(r.type, r.id, r.name);
+    ctx.streamTitle = r.name; ctx.startOver = fresh === true; ctx.resumeChosen = fresh === true;
+    var s = { url: base + '/video' + r.ext, name: r.streamName || r.source, title: r.streamTitle,
+      subtitles: (r.subs || []).map(function(x){ return { id: 'dl' + x.i, url: base + '/sub/' + x.i, lang: x.lang }; }),
+      behaviorHints: { filename: r.fileName } };
+    var go = function(){ ctx.playSig = null; playStream(s); };
+    if (resumeAskDue()) resumeAsk(go); else go();
+  }
+  // ---- what the pages show ----
+  function dlRepaint(){
+    var v = document.querySelector('.view.active'), vid = v && v.id;
+    if (vid === 'view-detail'){ dlDetSync(); dlEpMarks(); dlSeasonSync(); }
+    if (vid === 'view-library' && libTab === 'dl') dlLibUpdate();
+  }
+  /** The film page's Download button. */
+  function dlDetSync(){
+    var b = $id('detDl'); if (!b) return;
+    var meta = detCur && detCur.meta, type = detCur && detCur.type;
+    if (!DL || !meta || type !== 'movie'){ b.style.display = 'none'; return; }
+    b.style.display = '';
+    var r = dlFind('movie', meta.id);
+    b.textContent = !r ? 'Download' : r.state === 'done' ? '✓ Downloaded' : r.state === 'failed' ? 'Download failed · Retry' : 'Downloading ' + (r.pct >= 0 ? Math.round(r.pct) + '%' : '…');
+    b.onclick = function(){
+      var r2 = dlFind('movie', meta.id);
+      if (!r2) dlPickStart('movie', meta.id, meta.name || '');
+      else if (r2.state === 'done') dlPlay(r2);
+      else if (r2.state === 'failed') DL.cmd(r2.key, 'retry');
+      else { libTab = 'dl'; setTab('library'); }
+    };
+  }
+  /** An episode row says it is saved (or how far along). */
+  function dlEpMarks(){
+    if (!DL) return;
+    Array.prototype.forEach.call(document.querySelectorAll('#detEpList .stream'), function(row){
+      if (!row.__epId) return;
+      var r = dlFind('series', row.__epId), el = row.querySelector('.ep-dl');
+      var t = !r ? '' : r.state === 'done' ? 'Downloaded' : r.state === 'failed' ? 'Download failed' : (r.pct >= 0 ? Math.round(r.pct) + '%' : 'Waiting');
+      if (!t){ if (el) el.parentNode.removeChild(el); return; }
+      if (!el){ el = document.createElement('span'); el.className = 'ep-dl'; var tr = row.querySelector('.ep-titlerow'); (tr || row).appendChild(el); }
+      if (el.textContent !== t) el.textContent = t;
+    });
+  }
+  /** "Download Season N · X episodes" above the episodes (two or more aired ones not saved yet). */
+  function dlSeasonSync(){
+    var box = $id('detDlSeason'); if (!box) return;
+    var c = dlSeasonCtx;
+    if (!DL || !c){ box.style.display = 'none'; box.innerHTML = ''; return; }
+    if (dlSeasonBusy){ box.style.display = ''; box.innerHTML = '<span class="dl-busy">Finding the same source · ' + esc(dlSeasonBusy) + '</span>'; return; }
+    var today = new Date().toISOString().slice(0, 10);
+    var todo = c.eps.filter(function(v){ var d = String(v.released || '').slice(0, 10); return (!d || d <= today) && !dlFind('series', v.id); });
+    if (todo.length < 2){ box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.style.display = '';
+    var label = (c.sn === 0 ? 'Download the specials' : 'Download Season ' + c.sn) + ' · ' + todo.length + ' episodes';
+    if (box.__label === label && box.firstChild) return;
+    box.__label = label; box.innerHTML = '';
+    var b = document.createElement('button'); b.className = 'chip focusable'; b.textContent = label;
+    b.onclick = function(){
+      var eps = todo.map(function(v){ return { id: v.id, title: epLabel(c.meta.name, v) }; });
+      dlPickStart('series', eps[0].id, eps[0].title, { season: c.sn, rest: eps.slice(1), poster: c.meta.poster || '' });
+    };
+    box.appendChild(b);
+  }
+  /** Library › Downloads: one shelf per film or show, a show's episodes in order. */
+  function renderLibDownloads(body){
+    body.innerHTML = '';
+    var mine = dlRows.filter(function(r){ return r.viewer === viewer; });
+    if (!mine.length){
+      body.innerHTML = '<p class="dl-empty">Nothing downloaded yet. A film’s page has Download; an episode’s has it in its menu (hold, or the ⋯), and a season above its episodes.</p>';
+      return;
+    }
+    var TAG = /^S(\d+)(?:E(\d+))?$/i, groups = {}, order = [];
+    mine.forEach(function(r){
+      var parts = String(r.name || '').split(' · '), show = parts.length > 1 && TAG.test(parts[1]) ? parts[0] : '';
+      var k = show ? 'show/' + show : 'one/' + r.type + '/' + r.id;
+      if (!groups[k]){ groups[k] = { title: show || r.name, rows: [] }; order.push(k); }
+      groups[k].rows.push(r);
+    });
+    function num(r){ var t = String(r.name || '').split(' · ')[1] || '', m = TAG.exec(t); return m ? (+m[1] === 0 ? 1e6 : +m[1] * 1000) + (+(m[2] || 0)) : 0; }
+    order.forEach(function(k){
+      var g = groups[k];
+      g.rows.sort(function(x, y){ return num(x) - num(y); });
+      if (g.rows.length > 1 || g.rows[0].type === 'series') shelfHead(body, g.title, g.rows.length + (g.rows.length === 1 ? ' episode' : ' episodes'));
+      var list = document.createElement('div'); list.className = 'streams eplist dl-list'; body.appendChild(list);
+      g.rows.forEach(function(r){ list.appendChild(dlLibRow(r)); });
+    });
+  }
+  function dlLibRow(r){
+    var wrap = document.createElement('div'); wrap.className = 'dl-row'; wrap.setAttribute('data-dlkey', r.key);
+    var main = document.createElement('button'); main.className = 'stream focusable dl-main';
+    var parts = String(r.name || '').split(' · ');
+    var title = parts.length > 1 && /^S\d+/i.test(parts[1]) ? parts.slice(1).join(' · ') : r.name;
+    main.innerHTML = (r.poster ? '<img class="dl-thumb" loading="lazy" src="' + esc(r.poster) + '" onerror="this.remove()">' : '<span class="dl-thumb"></span>') +
+      '<span class="ep-main"><span class="stream-name">' + esc(title) + '</span><span class="ep-sub dl-line"></span></span>';
+    main.onclick = function(){ var x = dlRows.filter(function(y){ return y.key === r.key; })[0]; if (x && x.state === 'done') dlPlay(x); };
+    var acts = document.createElement('span'); acts.className = 'dl-acts';
+    wrap.appendChild(main); wrap.appendChild(acts);
+    dlLibRowFill(wrap, r);
+    return wrap;
+  }
+  function dlLibRowFill(wrap, r){
+    var line = wrap.querySelector('.dl-line'); if (line && line.textContent !== dlLine(r)) line.textContent = dlLine(r);
+    var acts = wrap.querySelector('.dl-acts'), want = [];
+    if (r.state === 'running' || r.state === 'queued') want.push(['Pause', 'pause']);
+    if (r.state === 'paused') want.push(['Resume', 'resume']);
+    if (r.state === 'failed') want.push(['Retry', 'retry']);
+    want.push(['Remove', 'remove']);
+    var sig = want.map(function(w){ return w[1]; }).join(',');
+    if (acts.__sig === sig) return;
+    acts.__sig = sig; acts.innerHTML = '';
+    want.forEach(function(w){
+      var b = document.createElement('button'); b.className = 'chip focusable'; b.textContent = w[0];
+      b.onclick = function(){ DL.cmd(r.key, w[1]); };
+      acts.appendChild(b);
+    });
+  }
+  /** Progress lands about once a second: the rows are filled in place (a redraw would drop the remote's focus). */
+  function dlLibUpdate(){
+    var body = $id('libBody'); if (!body) return;
+    var mine = dlRows.filter(function(r){ return r.viewer === viewer; });
+    var shown = Array.prototype.map.call(body.querySelectorAll('.dl-row'), function(w){ return w.getAttribute('data-dlkey'); }).sort().join();
+    if (shown !== mine.map(function(r){ return r.key; }).sort().join()){ renderLibDownloads(body); return; }
+    mine.forEach(function(r){ var w = body.querySelector('.dl-row[data-dlkey="' + r.key + '"]'); if (w) dlLibRowFill(w, r); });
   }
 
   // ---------- streams ----------
@@ -8776,6 +9030,9 @@
   function openStreams(type, id, titleText, fresh, noAuto, pick){
     // Autoplay the best stream (Settings › Streams, TVs; on by itself under Shelf): a film or an episode starts on its best stream, no list
     if (!pick && !noAuto && shelfMode() && (type === 'movie' || type === 'series')) pick = 'best';
+    // Downloads (desktop): a title kept on this computer plays its own copy; a pick for another title ends download mode
+    if (dlPick && dlPick.id !== id) dlPick = null;
+    if (DL && !dlPick && !pick){ var dsv = dlDone(type, id); if (dsv){ if (titleText) ctx.streamTitle = titleText; dlPlay(dsv, fresh === true); return; } }
     var seq = ++openSeq, openedAt = Date.now(), pr = getPrefs();
     if (pick === 'best'){ ctx.bestFor = id; ctx.bestQueue = null; ctx.bestTries = 0; } else ctx.bestFor = '';
     // the title this list plays under is the one it was opened for — a film resumed from Continue watching wore the
@@ -8794,7 +9051,7 @@
     list.__sch = 0; list.style.removeProperty('--sgh');      // a design may have changed since: measured again
     list.innerHTML = '<div class="streamsec" id="streamsLoading">' + streamSkeletons(4) + '</div>';
     list.parentNode.scrollTop = 0;
-    show('streams'); setStatus('Loading streams…','info');
+    show('streams'); setStatus('Loading streams…','info'); dlSaveLine();
     // an LG: whether a computer converts the sound it cannot play decides how DTS rows are marked (the list waits for nobody)
     if (IS_WEBOS && relayWanted() && !soundHelper()) Promise.all([relayResolve(), phoneResolve()]).then(function(){ if (seq === openSeq) soundMarksRefresh(); });
 
