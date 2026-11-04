@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.30.1",
+  "version": "2026.11.04.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "A film from a debrid service (TorBox, Real-Debrid and others) is read only by the device playing it. Reading its built-in subtitles through our server could make the service drop the film mid-play."
+  "notes": "New stream cards: each stream shows what the file is, its picture and sound marks, its languages and who has it. Pick a design in Settings › Streams › Stream cards (Release, Compact, One line, Minimal, Classic) or build your own with Custom."
 }
