@@ -2816,6 +2816,10 @@
           <span class="setname">Speed when a video starts<small>Last used remembers what you picked</small></span>
           <span id="setSpeed" class="seg"></span>
         </div>
+        <div class="setrow" id="rowSideways" style="display:none">
+          <span class="setname">Sideways when a video starts<small>On a phone: full screen and landscape as playback begins</small></span>
+          <span id="setSideways" class="seg"></span>
+        </div>
         <div class="setrow">
           <span class="setname">Picture quality<small>Auto adapts to your connection · Start high opens at the best rendition · Data saver caps at 720p</small></span>
           <span id="setQuality" class="seg"></span>
@@ -3282,6 +3286,7 @@
 
   // ---------- view + focus ----------
   function show(name, push){
+    if (name !== 'player') phoneUpright();   // a phone the player turned sideways goes back as the player page closes (not on a next-episode hop)
     var back = (push === false);
     // which way this move goes, for html.mv's slides: a tab (setTab), Back, or a page opened on top
     var mvDir = navTabNext ? 't' : (back ? 'b' : 'f'); navTabNext = false;
@@ -11038,6 +11043,7 @@
       else { try { party.ws.send(JSON.stringify({ t:'stream', stream: partyStreamDesc() })); } catch(e){} }
     }
     await stopPlayer();
+    phoneSideways();          // a phone: full screen + landscape while the tap still counts (after the stop, which undoes it)
     if (seq !== playSeq) return;
     playStarting = true;                 // (after the teardown, which clears it)
     // promote the staged selection: from here on this is what progress is written against
@@ -14486,6 +14492,28 @@
   // ---- fullscreen ----
   // Hidden on webOS, where the app already owns the whole screen.
   function fsEl(){ return document.fullscreenElement || document.webkitFullscreenElement || null; }
+  // ---- a phone turns sideways as a video starts (Settings › Playback › Sideways when a video starts; Android's 1.103.2
+  // does the same, the iPhone app always has). Needs the page in full screen first (orientation.lock refuses otherwise),
+  // and a fresh tap — a start with no tap behind it is refused and nothing happens. iPhone browsers have neither. ----
+  var IS_PHONE = !IS_TV && !IS_DESKTOP && !!(window.matchMedia && matchMedia('(pointer: coarse)').matches) &&
+    Math.min(screen.width || 0, screen.height || 0) > 0 && Math.min(screen.width, screen.height) < 600;
+  var sideways = false;     // this page put itself in full screen and locked landscape for the player
+  function phoneSideways(){
+    if (!IS_PHONE || getPrefs().landscapeStart === false || sideways || fsEl() || !fsOk()) return;
+    if (window.innerWidth > window.innerHeight) return;              // already held sideways
+    var root = document.documentElement, p = null;
+    try { p = (root.requestFullscreen || root.webkitRequestFullscreen).call(root); } catch(e){ return; }
+    sideways = true;
+    Promise.resolve(p).then(function(){
+      if (screen.orientation && screen.orientation.lock) return screen.orientation.lock('landscape');
+    }).catch(function(){});
+  }
+  function phoneUpright(){
+    if (!sideways) return;
+    sideways = false;
+    try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch(e){}
+    try { if (fsEl()) { var x = (document.exitFullscreen || document.webkitExitFullscreen).call(document); if (x && x.catch) x.catch(function(){}); } } catch(e){}
+  }
   function fsOk(){ return !IS_WEBOS && !!(document.fullscreenEnabled || document.webkitFullscreenEnabled); }
   function toggleFullscreen(){
     if (!fsOk()) return;
@@ -16960,6 +16988,8 @@
     segChips('setSkip', [['Show button','button'], ['Auto','auto'], ['Off','off']], skipMode(), function(v){ setPref('skip', v); });
     segChips('setResume', [['Resume','resume'], ['Ask','ask'], ['Start over','over']], pr.resume === 'ask' || pr.resume === 'over' ? pr.resume : 'resume', function(v){ setPref('resume', v); });
     segChips('setSeekStep', [['5 s',5], ['10 s',10], ['15 s',15], ['30 s',30]], seekStepSecs(), function(v){ setPref('seekStep', v); });
+    segChips('setSideways', [['On', true], ['Off', false]], pr.landscapeStart !== false, function(v){ setPref('landscapeStart', v); });
+    if ($id('rowSideways')) $id('rowSideways').style.display = IS_PHONE ? '' : 'none';
     segChips('setSpeed', [['1×','1'], ['1.25×','1.25'], ['1.5×','1.5'], ['Last used','last']], pr.speedDefault === '1.25' || pr.speedDefault === '1.5' || pr.speedDefault === 'last' ? pr.speedDefault : '1', function(v){ setPref('speedDefault', v); });
     segChips('setQuality', [['Auto','auto'], ['Start high','high'], ['Data saver','saver']], pr.quality || 'auto', function(v){ setPref('quality', v); applyQualityPolicy(); });
     segChips('setMaxRes', [['No cap','none'], ['720p','720'], ['1080p','1080'], ['1440p','1440']], pr.maxRes === '720' || pr.maxRes === '1080' || pr.maxRes === '1440' ? pr.maxRes : 'none', function(v){ setPref('maxRes', v); applyQualityPolicy(); });
