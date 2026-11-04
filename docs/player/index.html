@@ -1967,7 +1967,60 @@
     margin-top:14px; padding-top:12px; border-top:1px solid var(--sep); color:var(--label3); font-size:calc(12.5px * var(--ts)); line-height:1.5; }
   .rc-file { font-family:var(--mono); word-break:break-all; }
   .rc-desc { word-break:break-word; color:var(--label2); font-size:calc(13px * var(--ts)); }
-  html.nofile .rc-file { display:none; }
+  /* One line: quality · title (marks and pills under it when the design asks) · size · play */
+  .rc-row { display:flex; align-items:center; }
+  .stream.rc-line .s-plate { flex:0 0 auto; min-width:56px; margin:0 14px 0 0; text-align:center; box-sizing:border-box; }
+  .stream.rc-line .s-plate.rc-noplate { visibility:hidden; }   /* keeps every title on one edge */
+  html.tv .stream.rc-line .s-plate { min-width:72px; }
+  .rc-row .rc-head { flex:1 1 auto; min-width:0; }
+  .stream.rc-line .s-spec { margin-left:16px; padding-top:0; }
+  .stream.rc-line .rc-play { margin-left:16px; }
+  .rc-under { display:block; margin-top:6px; line-height:0; }
+  .rc-under .rc-pill { padding:5px 11px; font-size:calc(12.5px * var(--ts)); }
+  .stream.rc-line .rc-file, .stream.rc-line .rc-desc { margin-top:12px; padding-top:10px; }
+  /* the denser designs: less air, a smaller disc */
+  .stream.rc.rc-dense { padding:12px 16px; }
+  .rc-dense .rc-head { font-size:calc(15.5px * var(--ts)); }
+  .rc-dense .rc-marks { margin-top:7px; }
+  .rc-dense .rc-foot { margin-top:6px; }
+  .rc-dense .rc-pill { padding:5px 11px; font-size:calc(12.5px * var(--ts)); }
+  .rc-dense .rc-play { width:38px; height:38px; }
+  .rc-dense .rc-play svg { width:15px; height:15px; }
+  .stream.rc-dense .sbadges img { height:17px; }
+  html.tv #streamList .stream.rc.rc-dense { padding:16px 22px; }
+  html.tv .rc-dense .rc-head { font-size:calc(20px * var(--ts)); }
+  html.tv .rc-dense .rc-pill, html.tv .rc-under .rc-pill { font-size:calc(15px * var(--ts)); padding:7px 14px; }
+  html.tv .rc-dense .rc-play { width:50px; height:50px; }
+  html.tv .stream.rc-dense .sbadges img { height:22px; }
+  /* Settings › Streams › Stream cards: each design is a button wearing a small live copy of a real row */
+  .sc-gallery { display:block; width:100%; margin-top:12px; line-height:0; }
+  .sc-opt { display:inline-block; vertical-align:top; width:300px; margin:0 12px 12px 0; padding:10px; border:0; border-radius:16px;
+    background:var(--fill); color:var(--label); text-align:left; cursor:pointer; line-height:1.3; box-shadow:inset 0 0 0 1px var(--sep); }
+  .sc-opt.on { box-shadow:inset 0 0 0 2px var(--accent); }
+  html.tv .sc-opt.focusable:focus { box-shadow:0 0 0 3px #fff; }
+  .sc-opt.focusable:focus-visible { box-shadow:0 0 0 3px #fff; }
+  /* the preview sits in a well of one height, centred, at the tile's width (zoom keeps a real row's proportions) */
+  .sc-prev { display:flex; flex-direction:column; justify-content:center; height:150px; overflow:hidden; padding:0 8px; border-radius:10px;
+    background:var(--bg); pointer-events:none; }
+  .sc-prev .stream { zoom:.56; width:auto; margin:0; cursor:default; transform:none; }
+  .sc-name { display:block; margin-top:10px; font-size:calc(14px * var(--ts)); font-weight:600; }
+  .sc-name small { display:block; margin-top:2px; font-size:calc(12px * var(--ts)); font-weight:400; color:var(--label2); }
+  html.tv .sc-opt { width:340px; }
+  html.tv .sc-prev .stream { zoom:.5; }
+  html.tv .sc-name { font-size:calc(17px * var(--ts)); }
+  html.tv .sc-name small { font-size:calc(14px * var(--ts)); }
+  .sc-custom { display:block; width:100%; margin-top:6px; }
+  .sc-custom .setrow { padding:10px 0; }
+  .sc-parts { display:block; width:100%; margin-top:8px; line-height:0; }
+  .sc-parts .chip { margin:4px 8px 4px 0; line-height:1.2; }
+  .sc-live { display:block; max-width:640px; margin:10px 0 4px; pointer-events:none; }
+  .sc-live .stream { cursor:default; transform:none; }
+  html.sc-new .sc-classiconly { display:none; }   /* Stream details and Badges are parts of a design now */
+  @media (max-width:700px){
+    .sc-opt { width:100%; margin-right:0; }
+    .sc-prev { height:160px; }
+    .sc-prev .stream { zoom:.6; }
+  }
   html.sc-rel .streamsec .rowhead { display:none; }   /* the add-on is a pill on every card */
   .stream.rc.nwr .rc-head, .stream.rc.nosnd .rc-head { opacity:.7; }
   .stream.rc.slow .rc-head { opacity:.8; }
@@ -2830,13 +2883,16 @@
       <section class="con-sec panel" data-sec="streams" data-lvl="all">
         <h2 class="con-title">Streams</h2>
         <p class="con-sub">How the list of streams is ordered and trimmed, and whether the player picks one for you.</p>
-        <div class="setrow">
-          <span class="setname">Stream cards<small>Release: what the file is, its marks, who has it · Classic: the quality plate in front</small></span>
-          <span id="setStreamStyle" class="seg"></span>
-        </div>
-        <div class="setrow">
-          <span class="setname">File name<small>The file's own name at the foot of each release card</small></span>
-          <span id="setStreamFile" class="seg"></span>
+        <!-- stream card designs: each option wears a small live copy of a real row; Custom opens its own parts below -->
+        <div class="setrow" id="rowStreamStyle">
+          <span class="setname">Stream cards<small>How each stream in the list looks · Custom is yours to build</small></span>
+          <span id="setScGallery" class="sc-gallery"></span>
+          <span id="setScCustom" class="sc-custom" style="display:none">
+            <span class="setrow"><span class="setname">Layout<small>Stacked like Release, or one line per stream</small></span><span id="setScLayout" class="seg"></span></span>
+            <span class="setrow"><span class="setname">Spacing<small>Roomy, or less air and a smaller play button</small></span><span id="setScDense" class="seg"></span></span>
+            <span class="setrow"><span class="setname">Show<small>Each part on or off</small></span><span id="setScParts" class="sc-parts"></span></span>
+            <span id="scLive" class="sc-live"></span>
+          </span>
         </div>
         <div class="setrow">
           <span class="setname">Order streams<small>Within each add-on</small></span>
@@ -2846,11 +2902,11 @@
           <span class="setname">Minimum quality<small>Rows below it are hidden · Rows that do not say stay</small></span>
           <span id="setMinRes" class="seg"></span>
         </div>
-        <div class="setrow">
+        <div class="setrow sc-classiconly">
           <span class="setname">Stream details<small>Size, bitrate, seeds</small></span>
           <span id="setStreamFacts" class="seg"></span>
         </div>
-        <div class="setrow">
+        <div class="setrow sc-classiconly">
           <span class="setname">Badges<small>The picture and sound marks on each row</small></span>
           <span id="setStreamBadges" class="seg"></span>
         </div>
@@ -3097,7 +3153,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.10.30.1';
+  var PLAYER_VERSION = '2026.11.04.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -7515,46 +7571,83 @@
     return out;
   }
   var RC_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
-  function releaseCardHtml(s, raw, text, plate, f, name, spec, addonName){
+  // ---- stream card designs (Settings › Streams › Stream cards). A design = a layout + which parts show. ----
+  // 'stack' = the release card (title line, marks, pills + play, file); 'row' = one line: quality · title · size · play.
+  var SC_PARTS = [['tags','Source · codec'], ['size','Size'], ['seeds','Seeds'], ['res','Quality'], ['marks','Picture & sound'],
+    ['langs','Languages'], ['addon','Add-on'], ['service','Service'], ['play','Play button'], ['file','File name']];
+  var SC_ALL = { tags:1, size:1, seeds:1, res:1, marks:1, langs:1, addon:1, service:1, play:1, file:1 };
+  function scWith(base, o){ var r = {}, k; for (k in base) r[k] = base[k]; for (k in o) r[k] = o[k]; return r; }
+  var SC_DESIGNS = [
+    ['release', 'Release', 'Everything, the file’s name at the foot', scWith(SC_ALL, { layout:'stack', dense:false })],
+    ['compact', 'Compact', 'Marks and sources, no file name', scWith(SC_ALL, { layout:'stack', dense:true, service:0, file:0 })],
+    ['line', 'One line', 'Quality, title, size and the add-on', scWith(SC_ALL, { layout:'row', dense:true, seeds:0, marks:0, langs:0, service:0, file:0 })],
+    ['minimal', 'Minimal', 'Quality, title and size — nothing else', scWith(SC_ALL, { layout:'row', dense:true, tags:0, seeds:0, marks:0, langs:0, addon:0, service:0, play:0, file:0 })],
+    ['classic', 'Classic', 'The quality plate in front', null],
+    ['custom', 'Custom', 'Yours: pick the layout and every part', null]
+  ];
+  function scDesign(id){ for (var i = 0; i < SC_DESIGNS.length; i++) if (SC_DESIGNS[i][0] === id) return SC_DESIGNS[i]; return SC_DESIGNS[0]; }
+  /** The custom design: what was saved, over the Release card (a part never saved shows). */
+  function scCustom(pr){
+    var c = (pr || getPrefs()).streamCustom, out = scWith(SC_ALL, { layout:'stack', dense:false });
+    if (c && typeof c === 'object') for (var k in out) if (Object.prototype.hasOwnProperty.call(c, k)) out[k] = c[k];
+    if (out.layout !== 'row') out.layout = 'stack';
+    out.dense = !!out.dense;
+    return out;
+  }
+  /** The design the stream list draws: a spec, or null for Classic. */
+  function scSpec(id){
+    var pr = getPrefs(); id = id || pr.streamStyle || 'release';
+    if (id === 'classic') return null;
+    if (id === 'custom') return scCustom(pr);
+    return scDesign(id)[3] || SC_DESIGNS[0][3];
+  }
+  function releaseCardHtml(s, raw, text, plate, f, name, spec, addonName, sc){
     var file = rowFileName(s);
     // no file name: a first line that reads like a release ("The Dark Knight 2008 1080p BluRay x264") stands in for one
     var line1 = String(text || '').split('\n')[0].replace(RE_EMOJI, ' ').replace(/\s+/g, ' ').trim();
     if (!file && line1){ var lt = relTitle(line1); if (lt && lt.length < line1.length - 4) file = line1; }
     var title = relTitle(file) || name;
-    var tags = relTags(raw);
+    var tags = sc.tags ? relTags(raw) : [];
     var bg = streamBadges(raw, { resolution:1, source:1, 'video-codec':1, 'bit-depth':1, 'audio-channels':1 }, 4);
-    var marks = bg.html;
-    var langs = streamLangList(raw, 5).map(function(n){
+    var marks = sc.marks ? bg.html : '';
+    var langs = !sc.langs ? '' : streamLangList(raw, 5).map(function(n){
       return '<span class="rc-lang">' + esc(LANG_CODES[n] || n.slice(0, 2).toUpperCase()) + '</span>';
     }).join('');
-    var res = plate ? '<span class="s-plate"><b>' + plate.r + '</b>' + (/^\d+$/.test(plate.r) ? '<i>p</i>' : '') + '</span>' : '';
+    var res = plate && sc.res ? '<span class="s-plate"><b>' + plate.r + '</b>' + (/^\d+$/.test(plate.r) ? '<i>p</i>' : '') + '</span>' : '';
     // who has it: the add-on, then the service or site inside it — each a pill (Settings › Streams › Add-on on each row: Hidden drops the add-on's)
     var pills = [], am = getPrefs().addonMark;
-    if (addonName && am !== 'hidden') pills.push(addonName);
+    if (sc.addon && addonName && am !== 'hidden') pills.push(addonName);
     // the add-on's own label for the row ("4KHDHub | Direct" → "Direct"), less what the marks, the plate and the title already say
-    var low = title.toLowerCase(), label = cleanStreamName(s.name, addonName).split(' · ').filter(function(tk){
+    var low = title.toLowerCase(), label = !sc.service ? '' : cleanStreamName(s.name, addonName).split(' · ').filter(function(tk){
       tk = tk.trim(); if (!tk) return false;
       for (var b = 0; b < bg.fired.length; b++) if (bg.fired[b].test(tk)) return false;
       if (RC_STOP.test(tk.toLowerCase()) || low.indexOf(tk.toLowerCase()) >= 0) return false;
       return !(f.provider && tk === f.provider);
     }).join(' · ');
     if (label && label.length <= 40) pills.push(label);
-    if (f.provider && f.provider !== addonName) pills.push(f.provider);
+    if (sc.service && f.provider && f.provider !== addonName) pills.push(f.provider);
     var pillHtml = pills.map(function(p){ return '<span class="rc-pill">' + esc(p) + '</span>'; }).join('');
     var desc = file ? '' : cleanStreamDesc(f.desc, addonName);
-    return '<span class="rc-top">' +
-        '<span class="rc-head"><span class="stream-name">' + esc(title) + '</span>' +
-          (tags.length ? '<span class="rc-tags"> · ' + esc(tags.join(' · ')) + '</span>' : '') + '</span>' +
-        (spec ? '<span class="s-spec">' + spec + '</span>' : '') +
-      '</span>' +
+    var head = '<span class="rc-head"><span class="stream-name">' + esc(title) + '</span>' +
+      (tags.length ? '<span class="rc-tags"> · ' + esc(tags.join(' · ')) + '</span>' : '');
+    var specHtml = spec ? '<span class="s-spec">' + spec + '</span>' : '';
+    var play = sc.play ? '<span class="rc-play">' + RC_PLAY + '</span>' : '';
+    var foot = sc.file ? (file ? '<span class="rc-file">' + esc(file.replace(/^.*[\/\\]/, '')) + '</span>'
+                               : (desc ? '<span class="rc-desc">' + esc(desc) + '</span>' : '')) : '';
+    if (sc.layout === 'row'){
+      // one line: the quality in front, marks and pills under the title (when asked for), size and play at the end
+      var under = marks || langs || pillHtml ? '<span class="rc-under">' + (marks ? '<span class="sbadges">' + marks + '</span>' : '') + langs + pillHtml + '</span>' : '';
+      if (sc.res && !res) res = '<span class="s-plate rc-noplate"></span>';
+      return '<span class="rc-row">' + res + head + under + '</span>' + specHtml + play + '</span>' + foot;
+    }
+    return '<span class="rc-top">' + head + '</span>' + specHtml + '</span>' +
       (res || marks || langs ? '<span class="rc-marks">' + res + (marks ? '<span class="sbadges">' + marks + '</span>' : '') + langs + '</span>' : '') +
-      '<span class="rc-foot"><span class="rc-pills">' + pillHtml + '</span><span class="rc-play">' + RC_PLAY + '</span></span>' +
-      (file ? '<span class="rc-file">' + esc(file.replace(/^.*[\/\\]/, '')) + '</span>'
-            : (desc ? '<span class="rc-desc">' + esc(desc) + '</span>' : ''));
+      (pillHtml || play ? '<span class="rc-foot"><span class="rc-pills">' + pillHtml + '</span>' + play + '</span>' : '') + foot;
   }
-  function streamCard(s, addon){
+  /** One row's class and markup, in the design `sc` (null = Classic). Shared by the list and the Settings previews. */
+  function streamCardBuild(s, addon, sc){
     var addonName = (addon && addon.name) || '';
-    var card=document.createElement('button'); card.className='stream focusable';
+    var cls = 'stream';
     var text = (s.title || s.description || '');
     var raw = (s.name || '') + '\n' + text;
     var plate = plateFor(raw);
@@ -7563,27 +7656,26 @@
     var name = cleanStreamName(s.name, addonName) || f.provider || cleanStreamName(text.split('\n')[0], addonName) || 'Stream';
     var sub = [f.provider && name.indexOf(f.provider) < 0 ? f.provider : '', f.langs, cleanStreamDesc(f.desc, addonName)]
       .filter(Boolean).join('  ·  ');
-    var rel = getPrefs().streamStyle !== 'classic';   // Settings › Streams › Stream cards: the release card unless Classic was chosen
-    if (rel) card.className += ' rc';
-    var spec = f.size ? '<b>' + esc(f.size) + '</b>' : '';
-    var line2 = rel ? [f.seeds ? '↑ ' + f.seeds + ' seeds' : '', f.bitrate].filter(Boolean).join(' · ')
+    var rel = !!sc;
+    if (rel) cls += ' rc' + (sc.layout === 'row' ? ' rc-line' : '') + (sc.dense ? ' rc-dense' : '');
+    var spec = f.size && (!rel || sc.size) ? '<b>' + esc(f.size) + '</b>' : '';
+    var line2 = rel ? [f.seeds && sc.seeds ? '↑ ' + f.seeds + ' seeds' : '', sc.size ? f.bitrate : ''].filter(Boolean).join(' · ')
                     : [f.bitrate, f.seeds ? f.seeds + ' seeds' : ''].filter(Boolean).join(' · ');
     if (line2) spec += rel ? '<span class="rc-seeds">' + esc(line2) + '</span>' : esc(line2);
     // the add-on's own word that this row needs a native player (headers, a gated host): say so, rather than a "Format error" later
     // faster than this device has measured its connection to be (Settings › Streams): no buffer saves such a row
-    if (streamSlow(s, f)){ spec += '<i class="s-slow">may stall here</i>'; card.className += ' slow'; }
-    if (s.behaviorHints && s.behaviorHints.notWebReady){ spec += '<i class="s-nwr">may not play here</i>'; card.className += ' nwr'; }
+    if (streamSlow(s, f)){ spec += '<i class="s-slow">may stall here</i>'; cls += ' slow'; }
+    if (s.behaviorHints && s.behaviorHints.notWebReady){ spec += '<i class="s-nwr">may not play here</i>'; cls += ' nwr'; }
     // a debrid row: ready in the service's cloud (starts at once) or not yet (it would have to fetch the file first)
     if (streamInstant(s)) spec += '<i class="s-inst">instant</i>';
     else if (debridState(s) === 'wait') spec += '<i class="s-inst">not ready yet</i>';
     // an LG plays a DTS film's picture in silence: said before it is picked — or, with a computer converting sound for this TV, who will
     if (streamNoSound(s)){
       var hp = soundHelper();
-      if (hp){ spec += '<i class="s-snd">sound through ' + esc(soundHelperName(hp)) + '</i>'; card.className += ' snd'; }
-      else { spec += '<i class="s-nosnd">no sound on this TV</i>'; card.className += ' nosnd'; }
+      if (hp){ spec += '<i class="s-snd">sound through ' + esc(soundHelperName(hp)) + '</i>'; cls += ' snd'; }
+      else { spec += '<i class="s-nosnd">no sound on this TV</i>'; cls += ' nosnd'; }
     }
-    if (rel) card.innerHTML = releaseCardHtml(s, raw, text, plate, f, name, spec, addonName);
-    else card.innerHTML =
+    var html = rel ? releaseCardHtml(s, raw, text, plate, f, name, spec, addonName, sc) :
       (plate ? '<span class="s-plate"><b>' + plate.r + '</b>' + (plate.t ? '<i>' + plate.t + '</i>' : '') + '</span>'
              : '<span class="stream-play"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span>') +
       '<span class="s-main">' +
@@ -7594,6 +7686,12 @@
       (spec ? '<span class="s-spec">' + spec + '</span>' : '') +
       // the add-on's mark (Settings › Streams): its initial in a ring on a TV, or its name on every screen; CSS hides it elsewhere
       (addonName ? '<span class="s-src" title="' + esc(addonName) + '">' + esc(getPrefs().addonMark === 'name' ? addonName : addonInitial(addonName)) + '</span>' : '');
+    return { cls: cls, html: html };
+  }
+  function streamCard(s, addon){
+    var built = streamCardBuild(s, addon, scSpec());
+    var card = document.createElement('button'); card.className = built.cls + ' focusable';
+    card.innerHTML = built.html;
     // a hand-picked row is the one the next episodes follow (same source, same quality)
     card.onclick=function(){
       autoRun = 0;
@@ -16553,7 +16651,7 @@
     flag('nocast', pr.detailCast === false); flag('nogenres', pr.detailGenres === false);
     flag('noclock', pr.clock === false);
     flag('nofacts', pr.streamFacts === false); flag('nobadges', pr.streamBadges === false);
-    flag('sc-rel', pr.streamStyle !== 'classic'); flag('nofile', pr.streamFile === false);
+    var scs = scSpec(); flag('sc-new', !!scs); flag('sc-rel', !!(scs && scs.addon));   // the add-on's heading goes when every card names it
     flag('am-name', pr.addonMark === 'name'); flag('am-hide', pr.addonMark === 'hidden');
     var con = $id('setConsole'); if (con){ if (pr.setMode !== 'all') con.classList.add('ess'); else con.classList.remove('ess'); }
     // the transport's skip buttons say how far they jump
@@ -16672,6 +16770,53 @@
       setTimeout(function(){ var i = $id('partyCode'); if (i){ try { i.scrollIntoView({ block: 'center' }); } catch(e){} i.focus(); } }, 80);
     };
   })();
+  // ---- Settings › Streams › Stream cards ----
+  // the row every preview draws: a film's 4K remux from a torrent add-on, as such rows really arrive
+  var SC_SAMPLE = { name:'Torrentio\n4k DV | HDR', url:'about:blank',
+    title:'The.Dark.Knight.2008.UHD.BluRay.2160p.TrueHD.Atmos.7.1.DV.HEVC.REMUX-FraMeSToR.mkv\n\uD83D\uDC64 154 \uD83D\uDCBE 53.75 GB \u2699\uFE0F TorrentGalaxy\nMulti Audio / \uD83C\uDDEC\uD83C\uDDE7 / \uD83C\uDDF3\uD83C\uDDF1',
+    behaviorHints:{ filename:'The.Dark.Knight.2008.UHD.BluRay.2160p.TrueHD.Atmos.7.1.DV.HEVC.REMUX-FraMeSToR.mkv' } };
+  function scPreview(sc){
+    var b = streamCardBuild(SC_SAMPLE, { name:'Torrentio' }, sc);
+    return '<span class="' + b.cls + '">' + b.html + '</span>';
+  }
+  function scSettingsRender(pr){
+    var gal = $id('setScGallery'); if (!gal) return;
+    var cur = pr.streamStyle || 'release';
+    if (!scDesign(cur) || scDesign(cur)[0] !== cur) cur = 'release';
+    gal.innerHTML = '';
+    SC_DESIGNS.forEach(function(d){
+      var b = document.createElement('button');
+      b.className = 'sc-opt focusable' + (d[0] === cur ? ' on' : '');
+      b.title = d[1];                                   // settingsRender hands the remote back by title
+      b.setAttribute('aria-pressed', d[0] === cur ? 'true' : 'false');
+      b.innerHTML = '<span class="sc-prev">' + scPreview(d[0] === 'custom' ? scCustom(pr) : d[3]) + '</span>' +
+        '<span class="sc-name">' + esc(d[1]) + '<small>' + esc(d[2]) + '</small></span>';
+      b.onclick = function(){
+        // the first Custom starts from the design that was showing, so it is a tweak, not a blank page
+        if (d[0] === 'custom' && !pr.streamCustom){
+          var from = scSpec(cur) || SC_DESIGNS[0][3], c = {};
+          for (var k in from) c[k] = from[k];
+          var p2 = getPrefs(); p2.streamCustom = c; writePrefs(p2);
+        }
+        setPref('streamStyle', d[0]);
+      };
+      gal.appendChild(b);
+    });
+    var box = $id('setScCustom'); if (!box) return;
+    box.style.display = cur === 'custom' ? '' : 'none';
+    if (cur !== 'custom') return;
+    var c = scCustom(pr);
+    function save(k, v){ var p2 = getPrefs(), cc = scCustom(p2); cc[k] = v; p2.streamCustom = cc; writePrefs(p2); applyPrefs(); settingsRender(); }
+    segChips('setScLayout', [['Stacked','stack'], ['One line','row']], c.layout, function(v){ save('layout', v); });
+    segChips('setScDense', [['Roomy', false], ['Compact', true]], c.dense, function(v){ save('dense', v); });
+    var parts = $id('setScParts'); parts.innerHTML = '';
+    SC_PARTS.forEach(function(p){
+      var ch = prefChip(p[1], !!c[p[0]], function(){ save(p[0], c[p[0]] ? 0 : 1); });
+      ch.setAttribute('aria-pressed', c[p[0]] ? 'true' : 'false');
+      parts.appendChild(ch);
+    });
+    $id('scLive').innerHTML = scPreview(c);
+  }
   function settingsRender(){
     var pr = getPrefs();
     var acc = $id('setAccent'); if (!acc) return;
@@ -16773,8 +16918,7 @@
     // ---- streams ----
     segChips('setStreamSort', [['As listed','listed'], ['Best quality first','quality'], ['Smallest first','size']], pr.streamSort === 'quality' || pr.streamSort === 'size' ? pr.streamSort : 'listed', function(v){ setPref('streamSort', v); });
     segChips('setMinRes', [['Any','any'], ['720p','720'], ['1080p','1080'], ['4K','2160']], pr.minRes === '720' || pr.minRes === '1080' || pr.minRes === '2160' ? pr.minRes : 'any', function(v){ setPref('minRes', v); });
-    segChips('setStreamStyle', [['Release','release'], ['Classic','classic']], pr.streamStyle === 'classic' ? 'classic' : 'release', function(v){ setPref('streamStyle', v); });
-    segChips('setStreamFile', [['Show', true], ['Hide', false]], pr.streamFile !== false, function(v){ setPref('streamFile', v); });
+    scSettingsRender(pr);
     segChips('setStreamFacts', [['Show', true], ['Hide', false]], pr.streamFacts !== false, function(v){ setPref('streamFacts', v); });
     segChips('setStreamBadges', [['Show', true], ['Hide', false]], pr.streamBadges !== false, function(v){ setPref('streamBadges', v); });
     segChips('setAddonMark', [['Initial','initial'], ['Name','name'], ['Hidden','hidden']], pr.addonMark === 'name' || pr.addonMark === 'hidden' ? pr.addonMark : 'initial', function(v){ setPref('addonMark', v); });
