@@ -1948,8 +1948,14 @@
   html.tv .stream.rc.focusable:focus .s-plate i { color:#000; }
   .stream.rc.focusable:focus-visible .s-plate i { color:#000; }
   .stream.rc .sbadges { display:inline; margin:0; white-space:normal; -webkit-mask-image:none; mask-image:none; }
-  /* the pack's logos come in brand colours; the card draws them white, as the marks on a disc box are */
-  .stream.rc .sbadges img { height:20px; margin:3px 12px 3px 0; -webkit-filter:grayscale(1) brightness(1.9); filter:grayscale(1) brightness(1.9); }
+  /* the pack's logos drawn white (badges/w/ — made once with grayscale × 1.9, as the marks on a disc box are; a CSS filter on
+     every picture of a 500-row list froze a TV) */
+  .stream.rc .sbadges img { height:20px; margin:3px 12px 3px 0; }
+  /* A TV with content-visibility lays out and paints only what it can see — in GROUPS of 20 cards (.sgrp). On every card
+     (his LG, 11-04, 505 rows) opening was fast but each scroll re-checked 505 skipped cards: ~55 ms a press; with none,
+     scrolling was smooth but opening froze 1.4 s at a time. --sgh = 20 measured cards and their gaps. */
+  .sgrp { display:grid; grid-template-columns:1fr; gap:10px; }
+  html.cvok #streamList .sgrp { content-visibility:auto; contain-intrinsic-size:1200px var(--sgh, 3000px); }
   .rc-lang { display:inline-block; vertical-align:middle; line-height:1; padding:5px 7px; margin:3px 6px 3px 0; border-radius:6px;
     background:var(--fill); color:var(--label2); font-family:var(--mono); font-size:calc(11.5px * var(--ts)); font-weight:600; letter-spacing:.04em; }
   .rc-foot { display:flex; align-items:center; margin-top:10px; }
@@ -2396,6 +2402,11 @@
   html.lite .view.under { display:block; opacity:0; z-index:1; animation:none; }
   html.lite .view.cols.under { display:flex; flex-direction:column; overflow:hidden; }
   html.lite .view.active.was-under { animation:none; }
+  /* Stream cards: the lit card wears the white ring and nothing else. The 1.015 zoom, the 32px blurred shadow and the 0.2 s
+     fades repainted a 1600 px card frame by frame on every press (his LG, 11-04: p95 100-133 ms a press down the list). */
+  html.lite .stream, html.lite .stream .s-plate, html.lite .stream .rc-play, html.lite .stream .stream-play { transition:none; }
+  html.lite .stream.focusable:focus { transform:none; box-shadow:0 0 0 3px #fff; }
+  html.lite .stream:hover { background:var(--l1); }
 
 </style>
 </head>
@@ -3153,7 +3164,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.11.04.2';
+  var PLAYER_VERSION = '2026.11.04.3';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -3463,9 +3474,19 @@
     }
     // a card in a row the TV skips while it is off screen (cvSweep) takes its row's answer: asking each card forced the
     // engine to lay every skipped row out again on every press (444 cards on his Home, 10-15)
-    var stamp = ++fsStamp;
+    var stamp = ++fsStamp, vh = window.innerHeight;
     return list.filter(function(e){
       var p = e.parentNode;
+      // a stream card in a group of 20 (.sgrp, streamCardsInto): only the groups within a screen of the view are asked —
+      // a card of a skipped group made the engine lay its whole group out on every press (~1 s on his LG, 505 rows)
+      if (p && p.__sgrp){
+        if (p.__fsAt !== stamp){
+          p.__fsAt = stamp;
+          var gr = p.offsetParent !== null ? p.getBoundingClientRect() : null;
+          p.__fsOn = !!gr && gr.bottom > -vh && gr.top < 2 * vh;
+        }
+        return p.__fsOn && !e.hidden && e.style.display !== 'none';
+      }
       if (p && p.__cvH){
         if (p.__fsAt !== stamp){ p.__fsAt = stamp; p.__fsOn = p.offsetParent !== null; }
         return p.__fsOn && !e.hidden && e.style.display !== 'none';
@@ -3479,6 +3500,7 @@
   // visibility lets the engine skip a row it cannot see; its height is kept by its measured size, so nothing moves. Chromium
   // 85+ (webOS 6 and later); webOS 5's 68 does not have it and is left as it is.
   var CV_OK = IS_TV && !!(window.CSS && CSS.supports && CSS.supports('content-visibility', 'auto'));
+  if (CV_OK) document.documentElement.classList.add('cvok');
   var cvTimer = null;
   function cvSoon(){ if (!CV_OK) return; clearTimeout(cvTimer); cvTimer = setTimeout(cvSweep, 300); }
   function cvSweep(){
@@ -3540,6 +3562,17 @@
   }
   function stepFrom(list, cur, dx, dy){
     var browsing = document.body.className.indexOf('playing') === -1;
+    // ↑/↓ on a stream card: the card before or after it in the list. The nearest-by-geometry search went to the Back button
+    // over the hero every third ↑ while the list scrolled up (the card above was still cut by the screen's edge), and the next
+    // press then skipped a card — shipped like that since the cards were full-width (found 11-04 in the TV group rig)
+    if (dy && !dx && browsing && cur.classList && cur.classList.contains('stream')){
+      var sl = $id('streamList');
+      if (sl && sl.contains(cur)){
+        var cards = list.filter(function(e){ return e.classList && e.classList.contains('stream') && sl.contains(e); });
+        var nx = cards[cards.indexOf(cur) + (dy > 0 ? 1 : -1)];
+        if (nx) return nx;
+      }
+    }
     var sp = (IS_TV && browsing && dy && !dx && spotOn() && $id('homeRows').contains(cur)) ? spotStep(list, cur, dy) : undefined;
     var best = sp !== undefined ? sp : (IS_TV && browsing) ? tvBrowseStep(list, cur, dx, dy) : pickNearest(list, cur, dx, dy);
     // a season row is entered on the season on screen, never on whichever chip happened to sit nearest
@@ -7374,9 +7407,11 @@
   ];
   var badgeRe = null;
   // skipGroup: one group's name, or a map of groups shown elsewhere ({resolution:1, source:1, …}); cap: badges at most (6)
-  function streamBadges(raw, skipGroup, cap){
+  // base: the folder (release cards use badges/w/, white copies — a CSS filter per picture cost a TV dearly)
+  function streamBadges(raw, skipGroup, cap, base){
     var i;
     if (!cap) cap = 6;
+    if (!base) base = BADGE_IMG_BASE;
     if (!badgeRe){
       badgeRe = [];
       for (i=0;i<BADGE_PACK.length;i++){
@@ -7391,7 +7426,7 @@
       if (g === skipGroup || (skipGroup && typeof skipGroup === 'object' && skipGroup[g])) continue;   // shown elsewhere (resolution plate, the card's tags)
       if (seen[g] || shown >= cap) continue;  // but only the group's first becomes a badge
       seen[g] = 1; shown++;
-      out += '<img alt="" src="' + BADGE_IMG_BASE + BADGE_PACK[i][2] +
+      out += '<img alt="" loading="lazy" decoding="async" src="' + base + BADGE_PACK[i][2] +
         '" onerror="this.style.display=\'none\'">';
     }
     return { html: out, fired: fired };
@@ -7608,7 +7643,7 @@
     if (!file && line1){ var lt = relTitle(line1); if (lt && lt.length < line1.length - 4) file = line1; }
     var title = relTitle(file) || name;
     var tags = sc.tags ? relTags(raw) : [];
-    var bg = streamBadges(raw, { resolution:1, source:1, 'video-codec':1, 'bit-depth':1, 'audio-channels':1 }, 4);
+    var bg = streamBadges(raw, { resolution:1, source:1, 'video-codec':1, 'bit-depth':1, 'audio-channels':1 }, 4, BADGE_IMG_BASE + 'w/');
     var marks = sc.marks ? bg.html : '';
     var langs = !sc.langs ? '' : streamLangList(raw, 5).map(function(n){
       return '<span class="rc-lang">' + esc(LANG_CODES[n] || n.slice(0, 2).toUpperCase()) + '</span>';
@@ -7659,7 +7694,8 @@
     var rel = !!sc;
     if (rel) cls += ' rc' + (sc.layout === 'row' ? ' rc-line' : '') + (sc.dense ? ' rc-dense' : '');
     var spec = f.size && (!rel || sc.size) ? '<b>' + esc(f.size) + '</b>' : '';
-    var line2 = rel ? [f.seeds && sc.seeds ? '↑ ' + f.seeds + ' seeds' : '', sc.size ? f.bitrate : ''].filter(Boolean).join(' · ')
+    // "0 seeds" on a debrid row (Comet says 0 for a file already in the service) is noise on a card
+    var line2 = rel ? [f.seeds && f.seeds !== '0' && sc.seeds ? '↑ ' + f.seeds + ' seeds' : '', sc.size ? f.bitrate : ''].filter(Boolean).join(' · ')
                     : [f.bitrate, f.seeds ? f.seeds + ' seeds' : ''].filter(Boolean).join(' · ');
     if (line2) spec += rel ? '<span class="rc-seeds">' + esc(line2) + '</span>' : esc(line2);
     // the add-on's own word that this row needs a native player (headers, a gated host): say so, rather than a "Format error" later
@@ -7692,6 +7728,32 @@
     var built = streamCardBuild(s, addon, scSpec());
     var card = document.createElement('button'); card.className = built.cls + ' focusable';
     card.innerHTML = built.html;
+    return streamCardWire(card, s, addon);
+  }
+  /** An add-on's whole answer in one pass: one string, parsed once (a card each, parsed one at a time, was ~4 ms a row on
+      an LG — 2 s for an answer of 500), then each button gets its stream. Returns the buttons in order. */
+  var SC_GROUP = 20;
+  function streamCardsInto(box, streams, addon){
+    var sc = scSpec(), html = '', i;
+    for (i = 0; i < streams.length; i++){
+      var b = streamCardBuild(streams[i], addon, sc);
+      if (CV_OK && i % SC_GROUP === 0) html += (i ? '</div>' : '') + '<div class="sgrp">';
+      html += '<button class="' + b.cls + ' focusable">' + b.html + '</button>';
+    }
+    if (CV_OK && streams.length) html += '</div>';
+    var before = box.querySelectorAll('.stream').length;
+    box.insertAdjacentHTML('beforeend', html);
+    if (CV_OK){ var gs = box.querySelectorAll('.sgrp'); for (i = 0; i < gs.length; i++) gs[i].__sgrp = true; }
+    var all = box.querySelectorAll('.stream'), cards = [];
+    for (i = 0; i < streams.length; i++) cards.push(streamCardWire(all[before + i], streams[i], addon));
+    var list = box.parentNode;
+    if (CV_OK && list && !list.__sch && cards[0] && cards[0].offsetHeight){   // the first card's height stands in for the unseen ones
+      list.__sch = cards[0].offsetHeight;
+      list.style.setProperty('--sgh', (list.__sch * SC_GROUP + 10 * (SC_GROUP - 1)) + 'px');
+    }
+    return cards;
+  }
+  function streamCardWire(card, s, addon){
     // a hand-picked row is the one the next episodes follow (same source, same quality)
     card.onclick=function(){
       autoRun = 0;
@@ -8724,6 +8786,7 @@
     var fb = $id('streamFilters'); fb.style.display = 'none'; fb.innerHTML = '';
     var list = document.getElementById('streamList');
     list.setAttribute('data-filter', '');
+    list.__sch = 0; list.style.removeProperty('--sgh');      // a design may have changed since: measured again
     list.innerHTML = '<div class="streamsec" id="streamsLoading">' + streamSkeletons(4) + '</div>';
     list.parentNode.scrollTop = 0;
     show('streams'); setStatus('Loading streams…','info');
@@ -8890,7 +8953,7 @@
           if (order.length > 1){
             box.innerHTML = '<div class="rowhead"><span class="row-title">'+esc(a.name||'Add-on')+'</span></div>';
           }
-          var cards = streams.map(function(s){ total++; var c = streamCard(s, a); box.appendChild(c); return c; });
+          var cards = streamCardsInto(box, streams, a); total += cards.length;
           bestEarly();
           // rows that came in go above the add-ons still being asked: a slow add-on high in the list kept the rows
           // that could already play below the fold (seen on his TV, 10-16) — and nothing above moves under the remote
@@ -8913,7 +8976,7 @@
               if (nm){ var tag = document.createElement('span'); tag.className = 's-usual'; tag.textContent = 'Same as last time'; nm.parentNode.insertBefore(tag, nm); }
               // it heads its section — buried at row 30 of 40 it would help nobody
               var first = box.querySelector('.stream');
-              if (first && first !== uc) box.insertBefore(uc, first);
+              if (first && first !== uc) first.parentNode.insertBefore(uc, first);   // its group's head on a TV (.sgrp)
               if (driving && untouched){ try { uc.focus(); } catch(e){} }
             }
           }
