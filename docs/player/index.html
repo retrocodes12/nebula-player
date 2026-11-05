@@ -1463,6 +1463,11 @@
   .det-castlbl { color:var(--label3); font-family:var(--mono); font-size:calc(11px * var(--ts)); font-weight:500;
     letter-spacing:.16em; margin:14px 0 8px; }
   /* the catalogue's score: a small mono plate in the facts line */
+  /* the age rating: an outlined plate like the score's, before it */
+  .det-cert { display:inline-block; vertical-align:middle; font-size:calc(12px * var(--ts)); font-weight:600; letter-spacing:.04em;
+    color:var(--label); padding:2px 7px; margin-left:14px; border:1px solid rgba(255,255,255,.55); border-radius:4px; text-shadow:none; }
+  .det-cert[hidden] { display:none; }
+  html.tv .det-cert { font-size:calc(15px * var(--ts)); padding:3px 9px; }
   .det-imdb { display:inline-block; vertical-align:middle; font-family:var(--mono); font-size:calc(12px * var(--ts)); font-weight:500;
     letter-spacing:.06em; text-transform:none; color:var(--label); padding:2px 8px; margin-left:14px;
     border:1px solid rgba(255,255,255,.3); border-radius:6px; text-shadow:none; }
@@ -3227,7 +3232,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.11.05.1';
+  var PLAYER_VERSION = '2026.11.05.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -6545,6 +6550,16 @@
       if (meta.imdbRating) facts.push('★ ' + meta.imdbRating);
       if (g && g.length) facts.push(g.slice(0, 2).join(' · '));
     }
+    // the age rating on a featured title (not on the spotlight of every card the remote passes: a call a card)
+    var heroAge = !spot && !it.left && ageKnown(meta) ? [ageKnown(meta)] : [];
+    if (!spot && !it.left && !heroAge.length && advTt(meta)){
+      var htt = advTt(meta), hfacts = facts.slice();
+      advFetch(htt).then(function(a){
+        var cur = heroState.items[heroState.idx], el = h.querySelector('.hf-facts');
+        if (!a || !a.cert || !el || heroState.spot || !cur || advTt(cur.meta) !== htt) return;
+        el.textContent = hfacts.concat([a.cert]).join('  ·  ');
+      });
+    }
     var art = meta.background || meta.poster;
     if (spot && IS_LITE) art = cardArtSmall(art);   // the spotlight swaps often: a TV-size picture, not the full one
     // the phone reads one line under the title: "Series · Drama · 2026–" (type · first genre · years)
@@ -6564,7 +6579,7 @@
       '<div class="hf-art">' + (prevSrc ? '<img class="hf-prev" src="'+esc(prevSrc)+'" alt="" aria-hidden="true">' : '') +
         '<img src="'+esc(art)+'" alt="" decoding="async" onerror="this.remove()"></div>' +
       '<div class="hf-info">' +
-        '<div class="hf-facts">'+esc(facts.join('  ·  '))+'</div>' + head +
+        '<div class="hf-facts">'+esc(facts.concat(heroAge).join('  ·  '))+'</div>' + head +
         '<div class="hf-meta">'+esc(metaLine)+'</div>' +
         (meta.description ? '<p class="hf-desc">'+esc(meta.description)+'</p>' : '') +
         '<div class="row" style="margin-top:4px">' +
@@ -8237,8 +8252,19 @@
       var n = Object.keys(sn).length;
       if (n) bits.push(n + ' Season' + (n > 1 ? 's' : ''));
     }
+    // the age rating ("UA" where the device is) as an outlined plate before the score — asked once a title (advFetch)
+    var cert = ageKnown(meta);
     $id('detMeta').innerHTML = esc(bits.join('   ·   ')) +
+      '<span class="det-cert"' + (cert ? '' : ' hidden') + '>' + esc(cert) + '</span>' +
       (meta.imdbRating ? '<span class="det-imdb">★ ' + esc(String(meta.imdbRating)) + '</span>' : '');
+    if (!cert){
+      var ctt = advTt(meta);
+      if (ctt) advFetch(ctt).then(function(a){
+        var el = document.querySelector('#detMeta .det-cert');
+        if (!a || !a.cert || !el || !detCur || advTt(detCur.meta) !== ctt) return;
+        el.textContent = a.cert; el.hidden = false;
+      });
+    }
     $id('detDesc').textContent = meta.description || meta.overview || '';
     var g = meta.genres || meta.genre || [];
     $id('detGenres').innerHTML = g.slice(0, 6).map(function(x){ return '<span>' + esc(x) + '</span>'; }).join('');
@@ -15250,44 +15276,83 @@
   // two weeks), never of the database itself. Settings › Playback › Content advisory.
   var PG_KIND = { violence:'Violence', profanity:'Profanity', frightening:'Frightening', nudity:'Nudity', alcohol:'Alcohol/Drugs' };
   var PG_LEVEL = { severe:'Severe', moderate:'Moderate', mild:'Mild' };
-  var pg = { tt:'', items:null, shownFor:'', cut:false, timers:[], cache:{} };
+  var pg = { tt:'', adv:null, shownFor:'', cut:false, timers:[], cache:{}, wait:{} };
   function pgOn(){ return getPrefs().advisory !== false; }
   function pgTt(play){
     var m = /^(tt\d{5,10})(?::|$)/.exec(String((play && play.id) || ''));
     return m ? m[1] : '';
   }
+  /** A catalogue title's IMDb id (its own id, or the imdb_id it carries), '' without one. */
+  function advTt(meta){
+    var m = /^(tt\d{5,10})(?::|$)/.exec(String((meta && (meta.imdb_id || meta.id)) || ''));
+    return m ? m[1] : '';
+  }
+  // ---- the age rating (11-05): "UA", "PG-13", "TV-MA" — for the country this device is in ----
+  // The cloud answers it beside the advisory levels (/v1/advisory?id=tt…&cc=IN), kept two weeks there; here, for the
+  // session. Shown on the title page, the featured banner and the advisory's first row. The region: the clock's time
+  // zone first (a TV's language is often en-US wherever it is), then the language's region, else the US.
+  var AGE_TZ = { 'Asia/Kolkata':'IN', 'Asia/Calcutta':'IN', 'Europe/London':'GB', 'Europe/Dublin':'IE', 'Europe/Berlin':'DE',
+    'Europe/Paris':'FR', 'Europe/Madrid':'ES', 'Europe/Rome':'IT', 'Europe/Amsterdam':'NL', 'Europe/Brussels':'BE', 'Europe/Zurich':'CH',
+    'Europe/Vienna':'AT', 'Europe/Stockholm':'SE', 'Europe/Oslo':'NO', 'Europe/Copenhagen':'DK', 'Europe/Helsinki':'FI', 'Europe/Lisbon':'PT',
+    'Europe/Warsaw':'PL', 'Europe/Istanbul':'TR', 'Asia/Dubai':'AE', 'Asia/Riyadh':'SA', 'Asia/Singapore':'SG', 'Asia/Kuala_Lumpur':'MY',
+    'Asia/Manila':'PH', 'Asia/Jakarta':'ID', 'Asia/Tokyo':'JP', 'Asia/Seoul':'KR', 'Asia/Karachi':'PK', 'Asia/Dhaka':'BD', 'Asia/Colombo':'LK',
+    'Asia/Kathmandu':'NP', 'Africa/Johannesburg':'ZA', 'Africa/Lagos':'NG', 'Africa/Nairobi':'KE', 'America/Sao_Paulo':'BR',
+    'America/Mexico_City':'MX', 'America/Argentina/Buenos_Aires':'AR', 'America/Toronto':'CA', 'America/Vancouver':'CA',
+    'Pacific/Auckland':'NZ' };
+  var ageCc = '';
+  function ageRegion(){
+    if (ageCc) return ageCc;
+    var tz = ''; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch(e){}
+    var cc = AGE_TZ[tz] || (/^Australia\//.test(tz) ? 'AU' : '') ||
+      (/^America\/(New_York|Chicago|Denver|Los_Angeles|Phoenix|Anchorage|Detroit|Boise|Indiana|Kentucky)/.test(tz) || /^Pacific\/Honolulu$/.test(tz) ? 'US' : '');
+    if (!cc){ var m = /[-_]([A-Za-z]{2})$/.exec(String(navigator.language || '')); if (m) cc = m[1].toUpperCase(); }
+    return (ageCc = /^[A-Z]{2}$/.test(cc) ? cc : 'US');
+  }
+  /** The title's advisory answer {items, cert}, once a session per title (null when it could not be had). */
+  function advFetch(tt){
+    if (!tt || !pg) return Promise.resolve(null);      // (pg is set further down the script than its first callers)
+    if (pg.cache[tt]) return Promise.resolve(pg.cache[tt]);
+    if (pg.wait[tt]) return pg.wait[tt];
+    return (pg.wait[tt] = fetch(CLOUD_BASE + '/v1/advisory?id=' + tt + '&cc=' + ageRegion())
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        delete pg.wait[tt];
+        if (!j || !j.items) return null;
+        var items = [];
+        j.items.forEach(function(x){ if (x && PG_KIND[x.k] && PG_LEVEL[x.s]) items.push(x); });
+        var cert = typeof j.cert === 'string' && j.cert.length <= 16 ? j.cert : '';
+        return (pg.cache[tt] = { items: items.slice(0, 5), cert: cert });
+      })
+      .catch(function(){ delete pg.wait[tt]; return null; }));
+  }
+  /** The age rating already known for a catalogue title ('' while it is asked). */
+  function ageKnown(meta){ var a = pg && pg.cache[advTt(meta)]; return (a && a.cert) || ''; }
   /** From playUrl: ask for this title's levels (a series answers for its episodes). */
   function pgLoad(play){
     var tt = pgTt(play);
-    pg.tt = tt; pg.items = null;
+    pg.tt = tt; pg.adv = null;
     if (!tt || !pgOn()) return;
-    if (pg.cache[tt]){ pg.items = pg.cache[tt]; return; }
-    fetch(CLOUD_BASE + '/v1/advisory?id=' + tt)
-      .then(function(r){ return r.ok ? r.json() : null; })
-      .then(function(j){
-        if (!j || !j.items) return;
-        var items = [];
-        j.items.forEach(function(x){ if (x && PG_KIND[x.k] && PG_LEVEL[x.s]) items.push(x); });
-        pg.cache[tt] = items.slice(0, 5);
-        if (pg.tt !== tt) return;
-        pg.items = pg.cache[tt];
-        pgTry();                           // the answer came after the picture started
-      })
-      .catch(function(){});
+    if (pg.cache[tt]){ pg.adv = pg.cache[tt]; return; }
+    advFetch(tt).then(function(a){
+      if (!a || pg.tt !== tt) return;
+      pg.adv = a;
+      pgTry();                             // the answer came after the picture started
+    });
   }
   /** Once per film or episode, as it first plays. */
   function pgTry(){
-    if (!curPlay || !pg.items || !pg.items.length || !pgOn()) return;
+    if (!curPlay || !pg.adv || !(pg.adv.items.length || pg.adv.cert) || !pgOn()) return;
     if (pg.tt !== pgTt(curPlay) || pg.shownFor === curPlay.id) return;
     if (video.paused || !document.body.classList.contains('playing')) return;
     pg.shownFor = curPlay.id;
-    pgShow(pg.items);
+    pgShow(pg.adv.items, pg.adv.cert);
   }
   function pgAt(ms, fn){ pg.timers.push(setTimeout(fn, ms)); }
-  function pgShow(items){
+  function pgShow(items, cert){
     pgHide();
-    var box = $id('pguide'), line = box.firstChild, rows = box.lastChild, n = items.length;
-    rows.innerHTML = items.map(function(x){
+    var box = $id('pguide'), line = box.firstChild, rows = box.lastChild, n = items.length + (cert ? 1 : 0);
+    // the age rating leads ("Rated · UA"), then the levels
+    rows.innerHTML = (cert ? '<div class="pg-row"><b>Rated</b><i> · </i><span>' + esc(cert) + '</span></div>' : '') + items.map(function(x){
       return '<div class="pg-row"><b>' + PG_KIND[x.k] + '</b><i> · </i><span>' + PG_LEVEL[x.s] + '</span></div>';
     }).join('');
     var els = rows.children, still = document.documentElement.classList.contains('rm');

@@ -13,12 +13,16 @@
 //     and a kept answer past its time is served instead;
 //   - the apps may keep an answer 3 days themselves (Cache-Control).
 //
-//   GET /v1/advisory?id=tt…  → {id, items:[{k, s}]}
+//   GET /v1/advisory?id=tt…[&cc=IN]  → {id, items:[{k, s}], cert}
 //     k = violence | profanity | frightening | nudity | alcohol
 //     s = severe | moderate | mild          (most severe first, at most five)
+//     cert = the title's age rating where the viewer is ("UA", "PG-13", "TV-MA"): the
+//            country `cc` (the app's region), else the US, else the UK; "" when none
 //
 // A level counts when the most-voted level other than "none" has more votes than
-// "none" itself; otherwise the category is left out.
+// "none" itself; otherwise the category is left out. Age ratings (11-05) come from the
+// same mirror's /certificates, asked beside the guide: per country the plainest one is
+// kept (an official certificate over a TV/DVD/self-applied one, over "some episodes").
 
 'use strict';
 
@@ -28,7 +32,7 @@ const path = require('path');
 const UPSTREAM = () => process.env.ADVISORY_UPSTREAM || 'https://api.tiffara.com';
 const HIT_MS = 14 * 24 * 3600_000, MISS_MS = 3 * 24 * 3600_000, FAIL_MS = 5 * 60_000;
 const COOL_MS = 10 * 60_000;
-const MAX_ENTRIES = 20000;            // ≈ 150 B each → ≤ 3 MB held
+const MAX_ENTRIES = 20000;            // ≈ 600 B each (levels + a rating per country) → ≤ 12 MB held
 const MAX_UPSTREAM_BYTES = 256 * 1024;
 const TIMEOUT_MS = 8000;
 const SAVE_EVERY_MS = 10 * 60_000;
@@ -73,6 +77,38 @@ function trim(j) {
   return items.slice(0, 5).map(({ k, s }) => ({ k, s }));
 }
 
+/** How plain a certificate is: 0 the country's own (or "original"), higher = a TV/DVD/self-applied/partial one. */
+function certRank(attrs) {
+  const a = (Array.isArray(attrs) ? attrs : []).join(' ').toLowerCase();
+  if (!a || /original rating|certificate|re-rating|cbfc/.test(a)) return 0;
+  if (/some episodes|two episodes|three episodes|one episode|an episode|\bepisodes? \d/.test(a)) return 5;
+  if (/cut|edited|uncut|re-release|extended|director/.test(a)) return 4;
+  if (/dvd|blu-ray|video|most episodes|season/.test(a)) return 3;
+  return 2;                                      // self-applied, TV rating, recommended, a region
+}
+/** {CC: rating} — one per country, the plainest; ratings that say nothing ("Not Rated") left out. */
+function certs(j) {
+  const list = j && Array.isArray(j.certificates) ? j.certificates : null;
+  if (!list) return {};
+  const best = {};
+  list.forEach((c, i) => {
+    const cc = c && c.country && String(c.country.code || '').toUpperCase();
+    const r = c && String(c.rating || '').trim();
+    if (!/^[A-Z]{2}$/.test(cc || '') || !r || r.length > 16) return;
+    if (/^(not rated|unrated|approved|passed|banned|\(banned\)|rejected)$/i.test(r)) return;
+    const k = certRank(c.attributes) * 1000 + i;
+    if (!best[cc] || k < best[cc].k) best[cc] = { r, k };
+  });
+  const out = {};
+  for (const cc of Object.keys(best)) out[cc] = best[cc].r;
+  return out;
+}
+/** The rating for a viewer in `cc`: theirs, else the US one, else the UK one. */
+function certFor(all, cc) {
+  if (!all) return '';
+  return all[cc] || all.US || all.GB || '';
+}
+
 module.exports = function advisory({ DATA_DIR, allow }) {
   const file = path.join(DATA_DIR, 'advisory.json');
   const cache = new Map();     // id -> {until, status, body}
@@ -83,7 +119,8 @@ module.exports = function advisory({ DATA_DIR, allow }) {
   try {
     const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
     for (const [id, e] of Object.entries(saved)) {
-      if (/^tt\d{5,10}$/.test(id) && e && typeof e.body === 'string' && e.status === 200) cache.set(id, e);
+      // (entries from before the ratings — a `body` and no `items` — are asked again)
+      if (/^tt\d{5,10}$/.test(id) && e && e.status === 200 && Array.isArray(e.items) && e.certs && typeof e.certs === 'object') cache.set(id, e);
     }
   } catch (e) {}
 
@@ -100,28 +137,33 @@ module.exports = function advisory({ DATA_DIR, allow }) {
   }
   setInterval(save, SAVE_EVERY_MS).unref();
 
-  async function fetchOne(id) {
+  /** One upstream document: {json} (null for a title it does not know), or {refused} / {bad}. */
+  async function getDoc(url) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     try {
-      const r = await fetch(UPSTREAM() + '/titles/' + id + '/parentsGuide', {
-        signal: ctrl.signal,
-        headers: { Accept: 'application/json' },
-      });
-      if (r.status === 404) return { items: [] };          // a title the database does not know
+      const r = await fetch(url, { signal: ctrl.signal, headers: { Accept: 'application/json' } });
+      if (r.status === 404) return { json: null };         // a title the database does not know
       if (!r.ok) return { refused: true };
       const len = Number(r.headers.get('content-length') || 0);
-      if (len > MAX_UPSTREAM_BYTES) return { refused: false };
+      if (len > MAX_UPSTREAM_BYTES) return { bad: true };
       const text = await r.text();
-      if (text.length > MAX_UPSTREAM_BYTES) return { refused: false };
-      if (!text.trim()) return { items: [] };
-      const items = trim(JSON.parse(text));
-      return items ? { items } : { items: [] };
+      if (text.length > MAX_UPSTREAM_BYTES) return { bad: true };
+      if (!text.trim()) return { json: null };
+      return { json: JSON.parse(text) };
     } catch (e) {
       return { refused: true };
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  async function fetchOne(id) {
+    const base = UPSTREAM() + '/titles/' + id;
+    const [g, c] = await Promise.all([getDoc(base + '/parentsGuide'), getDoc(base + '/certificates')]);
+    if (g.refused || c.refused) return { refused: true };
+    if (g.bad && c.bad) return { refused: false };
+    return { items: (g.json && trim(g.json)) || [], certs: c.json ? certs(c.json) : {} };
   }
 
   function send(res, status, body, maxAge, retryAfter) {
@@ -145,22 +187,27 @@ module.exports = function advisory({ DATA_DIR, allow }) {
     if (entry.status === 200) dirty = true;
   }
 
-  async function handleGet(res, id, ip) {
+  function bodyOf(id, e, cc) {
+    return JSON.stringify({ id, items: e.items, cert: certFor(e.certs, cc) });
+  }
+
+  async function handleGet(res, id, ip, cc) {
     if (!/^tt\d{5,10}$/.test(id)) return send(res, 400, '{"error":"bad id"}');
     if (!allow('advisory', ip, 30, 20)) return send(res, 429, '{"error":"rate limited"}', 0, 30);
     const now = Date.now();
     const hit = cache.get(id);
-    if (hit && hit.until > now) return send(res, hit.status, hit.body, hit.status === 200 ? CLIENT_MAX_AGE : 0);
+    if (hit && hit.until > now) return send(res, hit.status, hit.status === 200 ? bodyOf(id, hit, cc) : hit.body, hit.status === 200 ? CLIENT_MAX_AGE : 0);
     const stale = hit && hit.status === 200 ? hit : null;
     if (now < coolUntil) {
-      if (stale) return send(res, 200, stale.body, 3600);
+      if (stale) return send(res, 200, bodyOf(id, stale, cc), 3600);
       return send(res, 503, '{"error":"unavailable"}', 0, Math.ceil((coolUntil - now) / 1000));
     }
     let pend = pending.get(id);
     if (!pend) {
       pend = fetchOne(id).then((r) => {
         if (r.items) {
-          const e = { until: Date.now() + (r.items.length ? HIT_MS : MISS_MS), status: 200, body: JSON.stringify({ id, items: r.items }) };
+          const known = r.items.length || Object.keys(r.certs).length;
+          const e = { until: Date.now() + (known ? HIT_MS : MISS_MS), status: 200, items: r.items, certs: r.certs };
           keep(id, e);
           return e;
         }
@@ -173,13 +220,14 @@ module.exports = function advisory({ DATA_DIR, allow }) {
       pending.set(id, pend);
     }
     const e = await pend;
-    return send(res, e.status, e.body, e.status === 200 ? (e === stale ? 3600 : CLIENT_MAX_AGE) : 0);
+    return send(res, e.status, e.status === 200 ? bodyOf(id, e, cc) : e.body, e.status === 200 ? (e === stale ? 3600 : CLIENT_MAX_AGE) : 0);
   }
 
   return {
     handle(p, req, res, ip, u) {
       if (p !== '/v1/advisory' || req.method !== 'GET') return false;
-      handleGet(res, u.searchParams.get('id') || '', ip);
+      const cc = String(u.searchParams.get('cc') || '').toUpperCase();
+      handleGet(res, u.searchParams.get('id') || '', ip, /^[A-Z]{2}$/.test(cc) ? cc : 'US');
       return true;
     },
     flush() { save(); },
@@ -188,3 +236,5 @@ module.exports = function advisory({ DATA_DIR, allow }) {
 };
 
 module.exports.trim = trim;
+module.exports.certs = certs;
+module.exports.certFor = certFor;

@@ -220,6 +220,16 @@ test('advisory: the votes settle each level, most severe first, one upstream cal
     hits.push(req.url);
     if (refuse) { res.writeHead(503); return res.end('busy'); }
     if (req.url === '/titles/tt0000012/parentsGuide') { res.writeHead(404); return res.end('{}'); }
+    if (req.url.endsWith('/certificates')) {
+      if (req.url !== '/titles/tt0000010/certificates') { res.writeHead(404); return res.end('{}'); }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      const c = (code, rating, attributes) => ({ rating, country: { code, name: code }, attributes });
+      return res.end(JSON.stringify({ certificates: [
+        c('US', 'TV-14', ['TV rating']), c('US', 'PG-13', ['certificate #49218']), c('US', 'TV-PG', ['recommended rating']),
+        c('GB', '12', ['DVD rating']), c('GB', '12A'), c('IN', 'UA'), c('EC', 'Not Rated', ['self-applied']),
+        c('BR', '14', ['some episodes']), c('BR', '16'),
+      ] }));
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     if (req.url === '/titles/tt0000011/parentsGuide') return res.end(JSON.stringify({ parentsGuide: [cat('VIOLENCE', 900, 10, 10, 10)] }));
     res.end(JSON.stringify({ parentsGuide: [
@@ -233,12 +243,12 @@ test('advisory: the votes settle each level, most severe first, one upstream cal
   });
   await new Promise((ok) => stub.listen(0, '127.0.0.1', ok));
   process.env.ADVISORY_UPSTREAM = 'http://127.0.0.1:' + stub.address().port;
-  const get = (id) => fetch(base + '/cloud/v1/advisory?id=' + encodeURIComponent(id), { headers: { 'X-Forwarded-For': '203.0.113.78' } });
+  const get = (id, cc) => fetch(base + '/cloud/v1/advisory?id=' + encodeURIComponent(id) + (cc ? '&cc=' + cc : ''), { headers: { 'X-Forwarded-For': '203.0.113.78' } });
+  const guideHits = () => hits.filter((h) => h.endsWith('/parentsGuide'));
   try {
     const rs = await Promise.all([get('tt0000010'), get('tt0000010')]);
     for (const r of rs) assert.equal(r.status, 200);
-    assert.equal(hits.length, 1);
-    assert.equal(hits[0], '/titles/tt0000010/parentsGuide');
+    assert.deepEqual(hits.slice().sort(), ['/titles/tt0000010/certificates', '/titles/tt0000010/parentsGuide']);
     assert.match(rs[0].headers.get('cache-control'), /max-age=259200/);
     assert.equal(rs[0].headers.get('access-control-allow-origin'), '*');
     // the screenshot's order: the severe ones in the upstream's order, then moderate, then mild
@@ -246,20 +256,29 @@ test('advisory: the votes settle each level, most severe first, one upstream cal
       { k: 'violence', s: 'severe' }, { k: 'profanity', s: 'severe' }, { k: 'frightening', s: 'severe' },
       { k: 'nudity', s: 'moderate' }, { k: 'alcohol', s: 'mild' },
     ]);
+    // the age rating where the viewer is: the plainest certificate there, else the US one, else the UK one
+    assert.equal((await (await get('tt0000010', 'IN')).json()).cert, 'UA');
+    assert.equal((await (await get('tt0000010', 'gb')).json()).cert, '12A');
+    assert.equal((await (await get('tt0000010', 'BR')).json()).cert, '16');
+    assert.equal((await (await get('tt0000010', 'EC')).json()).cert, 'PG-13', '"Not Rated" says nothing: the US one');
+    assert.equal((await (await get('tt0000010')).json()).cert, 'PG-13');
+    assert.equal((await (await get('tt0000011', 'IN')).json()).cert, '');
+    assert.equal(hits.length, 4, 'one pair of upstream calls per title, whatever the country');
     // "none" outvoting every level leaves the category out; an unknown title is an empty list
     assert.deepEqual((await (await get('tt0000011')).json()).items, []);
     assert.deepEqual((await (await get('tt0000012')).json()).items, []);
     await get('tt0000010'); await get('tt0000012');
-    assert.equal(hits.length, 3, 'kept answers are not asked again');
+    assert.equal(guideHits().length, 3, 'kept answers are not asked again');
     for (const bad of ['', 'tt1', 'nm0000001', 'tt0000010:1:2', '../x']) assert.equal((await get(bad)).status, 400, bad);
-    assert.equal(hits.length, 3);
+    assert.equal(guideHits().length, 3);
     flushAll();
     const saved = JSON.parse(fs.readFileSync(path.join(process.env.DATA_DIR, 'advisory.json'), 'utf8'));
     assert.ok(saved.tt0000010 && saved.tt0000011);
+    assert.equal(saved.tt0000010.certs.IN, 'UA');
     refuse = true;
     assert.equal((await get('tt0000013')).status, 502);
     assert.equal((await get('tt0000014')).status, 503);
-    assert.equal(hits.length, 4, 'nothing asked while cooling down');
+    assert.equal(guideHits().length, 4, 'nothing asked while cooling down');
     assert.equal((await get('tt0000010')).status, 200);
   } finally {
     delete process.env.ADVISORY_UPSTREAM;
