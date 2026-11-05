@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.04.4",
+  "version": "2026.11.05.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "On a phone, a video turns the screen sideways and full screen as it starts (Settings › Playback › Sideways when a video starts). In the Windows and Linux app: Downloads — keep a film, an episode or a whole season to watch with no connection."
+  "notes": "Continue Watching works like Nuvio's: one card per show, and when you finish an episode the next one waits there as Up next (New episode when it just came out). 90% in counts as watched. Hold a card for Mark as watched. Closed the app in the middle of something? It offers it back when you return. A content advisory (Violence · Severe …) shows for a few seconds as a title starts (Settings › Playback)."
 }
