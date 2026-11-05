@@ -1234,6 +1234,34 @@
   body.scrubbing #upnext, body.scrubbing #skipBtn, body.scrubbing #srcBtn { visibility:hidden; }
   /* the Up next card and the pills stay under the subtitles panel while it is open */
   body.sp-on #upnext, body.sp-on #skipBtn, body.sp-on #srcBtn { visibility:hidden; }
+  /* the content advisory as a title starts (pgShow): a white line drawn downwards, then
+     "Violence · Severe" rows one by one; it holds 5 s and leaves in reverse. Outside
+     .pui-chrome — it stays when the controls sleep, and steps under the top buttons when they wake. */
+  #pguide { display:none; position:absolute; left:32px; top:26px; z-index:6; pointer-events:none;
+    align-items:flex-start; opacity:0; transition-property:opacity, top; transition-duration:.3s, .26s;
+    transition-timing-function:linear, var(--ease); }
+  #pguide.on { display:flex; }
+  body.pui-on #pguide { top:86px; }
+  body.sp-on #pguide, body.scrubbing #pguide { visibility:hidden; }
+  .pg-line { flex:none; width:3px; height:0; border-radius:1px; background:#fff;
+    transition:height .4s cubic-bezier(.4,0,.2,1); }
+  .pg-rows { margin-left:10px; }
+  .pg-row { height:calc(25px * var(--ts)); margin-top:calc(2px * var(--ts)); display:flex; align-items:center; white-space:nowrap;
+    font-size:calc(15px * var(--ts)); color:rgba(255,255,255,.5); opacity:0; transition:opacity .2s linear;
+    text-shadow:0 1px 3px rgba(0,0,0,.45); }
+  .pg-row:first-child { margin-top:0; }
+  .pg-row b { font-weight:600; color:rgba(255,255,255,.85); }
+  .pg-row i { font-style:normal; color:rgba(255,255,255,.4); white-space:pre; }
+  @media (max-width:700px), (max-height:480px){
+    #pguide { left:16px; left:max(16px, env(safe-area-inset-left)); top:16px; }
+    body.pui-on #pguide { top:72px; }
+    .pg-row { height:calc(20px * var(--ts)); font-size:calc(12px * var(--ts)); }
+  }
+  html.tv #pguide { left:44px; top:34px; }
+  html.tv body.pui-on #pguide { top:108px; }
+  html.tv .pg-line { width:4px; }
+  html.tv .pg-rows { margin-left:14px; }
+  html.tv .pg-row { height:calc(32px * var(--ts)); margin-top:calc(3px * var(--ts)); font-size:calc(20px * var(--ts)); }
   /* the row that matches what you picked last time — same source, same quality */
   .stream.usual { box-shadow:inset 0 0 0 1px rgba(255,255,255,.16); }
   .s-usual { display:block; font-family:var(--mono); font-size:calc(10px * var(--ts)); font-weight:500; letter-spacing:.14em;
@@ -2567,6 +2595,7 @@
     <!-- offered over a recap or the opening titles; OK / Enter takes it when it has focus -->
     <button id="skipBtn" class="pui-btn focusable" type="button">Skip intro</button>
     <button id="srcBtn" class="pui-btn focusable" type="button"></button>
+    <div id="pguide" aria-live="polite"><div class="pg-line"></div><div class="pg-rows"></div></div>
   </div>
 
   <!-- nav rail (Home / Search / Add-ons) -->
@@ -2817,6 +2846,10 @@
         <div class="setrow">
           <span class="setname">Skip intros and recaps<small>A pill appears over an episode's recap and opening titles, or Auto jumps past them for you · Timestamps come from a community database, looked up by episode</small></span>
           <span id="setSkip" class="seg"></span>
+        </div>
+        <div class="setrow">
+          <span class="setname">Content advisory<small>What a film or show contains — violence, language, frightening scenes, nudity, drink and drugs — shown for a few seconds as it starts · From public viewer ratings, looked up by title</small></span>
+          <span id="setAdvisory" class="seg"></span>
         </div>
         <div class="setrow" data-lvl="all">
           <span class="setname">When you come back<small>Starting point for something you have started</small></span>
@@ -3302,7 +3335,9 @@
   // ---------- view + focus ----------
   function show(name, push){
     if (dlPick && name !== 'streams' && name !== 'player'){ dlPick = null; dlSaveLine(); }
-    if (name !== 'player') phoneUpright();   // a phone the player turned sideways goes back as the player page closes (not on a next-episode hop)
+    // a phone the player turned sideways goes back as the player page closes (not on a next-episode hop);
+    // back in the player later, the content advisory shows again
+    if (name !== 'player'){ phoneUpright(); if (pg) pg.shownFor = ''; }
     var back = (push === false);
     // which way this move goes, for html.mv's slides: a tab (setTab), Back, or a page opened on top
     var mvDir = navTabNext ? 't' : (back ? 'b' : 'f'); navTabNext = false;
@@ -9520,6 +9555,7 @@
     ctx.viaRelay = null; ctx.relaySrc = false;   // the relay's base stays: a late response still maps back
     closeUpNext();
     skipReset();
+    pgStop();
     stallReset();
     subHdrReset();
     sgReset();
@@ -11313,6 +11349,7 @@
     show('player');
     puiReset(title || '');
     $id('puiSrc').textContent = srcLine(ctx.playSig);   // add-on · plate · provider of what is playing
+    pgLoad(curPlay);                   // the content advisory shown as it starts
     if (curPlay && curPlay.type === 'series'){
       // the show's name on top, "S1 E1 · name" under it; an id alone reads Season · Episode
       var ep = playingEpisode();
@@ -14981,6 +15018,100 @@
   var skipState = { id:null, segs:null, kind:null, auto:{} };
   function skipMode(){ var m = getPrefs().skip; return (m === 'auto' || m === 'off') ? m : 'button'; }
   function skipReset(){ skipState = { id:null, segs:null, kind:null, auto:{} }; skipHide(); }
+  // ---- the content advisory as a title starts ----
+  // "Violence · Severe" rows top-left for a few seconds the first time a film or an
+  // episode starts playing (Nuvio's parental guide, same timings). The levels are the
+  // title's public parents-guide votes, asked of our cloud (/v1/advisory, cached there
+  // two weeks), never of the database itself. Settings › Playback › Content advisory.
+  var PG_KIND = { violence:'Violence', profanity:'Profanity', frightening:'Frightening', nudity:'Nudity', alcohol:'Alcohol/Drugs' };
+  var PG_LEVEL = { severe:'Severe', moderate:'Moderate', mild:'Mild' };
+  var pg = { tt:'', items:null, shownFor:'', cut:false, timers:[], cache:{} };
+  function pgOn(){ return getPrefs().advisory !== false; }
+  function pgTt(play){
+    var m = /^(tt\d{5,10})(?::|$)/.exec(String((play && play.id) || ''));
+    return m ? m[1] : '';
+  }
+  /** From playUrl: ask for this title's levels (a series answers for its episodes). */
+  function pgLoad(play){
+    var tt = pgTt(play);
+    pg.tt = tt; pg.items = null;
+    if (!tt || !pgOn()) return;
+    if (pg.cache[tt]){ pg.items = pg.cache[tt]; return; }
+    fetch(CLOUD_BASE + '/v1/advisory?id=' + tt)
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        if (!j || !j.items) return;
+        var items = [];
+        j.items.forEach(function(x){ if (x && PG_KIND[x.k] && PG_LEVEL[x.s]) items.push(x); });
+        pg.cache[tt] = items.slice(0, 5);
+        if (pg.tt !== tt) return;
+        pg.items = pg.cache[tt];
+        pgTry();                           // the answer came after the picture started
+      })
+      .catch(function(){});
+  }
+  /** Once per film or episode, as it first plays. */
+  function pgTry(){
+    if (!curPlay || !pg.items || !pg.items.length || !pgOn()) return;
+    if (pg.tt !== pgTt(curPlay) || pg.shownFor === curPlay.id) return;
+    if (video.paused || !document.body.classList.contains('playing')) return;
+    pg.shownFor = curPlay.id;
+    pgShow(pg.items);
+  }
+  function pgAt(ms, fn){ pg.timers.push(setTimeout(fn, ms)); }
+  function pgShow(items){
+    pgHide();
+    var box = $id('pguide'), line = box.firstChild, rows = box.lastChild, n = items.length;
+    rows.innerHTML = items.map(function(x){
+      return '<div class="pg-row"><b>' + PG_KIND[x.k] + '</b><i> · </i><span>' + PG_LEVEL[x.s] + '</span></div>';
+    }).join('');
+    var els = rows.children, still = document.documentElement.classList.contains('rm');
+    box.className = 'on';
+    var full = rows.offsetHeight;          // laid out now; the line grows to it
+    pg.cut = true;
+    if (still){                            // Motion: Reduced — all at once, then gone
+      line.style.height = full + 'px'; box.style.opacity = '1';
+      for (var k = 0; k < n; k++) els[k].style.opacity = '1';
+      pg.cut = false;
+      pgAt(5000 + 300 * n, pgHide);
+      return;
+    }
+    // in: the box 300 ms → the line 400 ms → each row 80 ms apart, 200 ms each
+    box.style.opacity = '1';
+    pgAt(300, function(){ line.style.height = full + 'px'; });
+    var t = 700;
+    for (var i = 0; i < n; i++){
+      t += 80;
+      (function(el){ pgAt(t, function(){ el.style.transitionDuration = '.2s'; el.style.opacity = '1'; }); })(els[i]);
+      t += 200;
+    }
+    pgAt(t, function(){ pg.cut = false; });   // every row is up: it has been seen
+    // held 5 s; out: rows bottom first (60 ms apart, 150 ms each) → the line 300 ms → the box 200 ms
+    t += 5000;
+    for (var j = n - 1; j >= 0; j--){
+      t += 60;
+      (function(el){ pgAt(t, function(){ el.style.transitionDuration = '.15s'; el.style.opacity = '0'; }); })(els[j]);
+      t += 150;
+    }
+    t += 100; pgAt(t, function(){ line.style.transitionDuration = '.3s'; line.style.height = '0'; });
+    t += 500; pgAt(t, function(){ box.style.transitionDuration = '.2s, .26s'; box.style.opacity = '0'; });
+    t += 200; pgAt(t, pgHide);
+  }
+  function pgHide(){
+    pg.timers.forEach(clearTimeout); pg.timers = [];
+    var box = $id('pguide');
+    box.className = ''; box.style.opacity = ''; box.style.transitionDuration = '';
+    box.firstChild.style.height = ''; box.firstChild.style.transitionDuration = '';
+    box.lastChild.innerHTML = '';
+  }
+  /** stopPlayer: a guide cut off before its rows were all up shows again on the next start of that title. */
+  function pgStop(){
+    if (pg.timers.length && pg.cut) pg.shownFor = '';
+    pg.cut = false;
+    pgHide();
+  }
+  video.addEventListener('playing', pgTry);
+
   function skipLoad(id){
     if (skipMode() === 'off' || !/^tt\d+:\d+:\d+$/.test(id || '')) return;
     skipState.id = id;
@@ -17243,6 +17374,10 @@
     segChips('setCountdown', [['5 s',5], ['8 s',8], ['15 s',15]], countdownSecs(), function(v){ setPref('countdown', v); });
     segChips('setStill', [['Off','off'], ['After 3','3'], ['After 5','5']], pr.stillWatching === '3' || pr.stillWatching === '5' ? pr.stillWatching : 'off', function(v){ setPref('stillWatching', v); });
     segChips('setSkip', [['Show button','button'], ['Auto','auto'], ['Off','off']], skipMode(), function(v){ setPref('skip', v); });
+    segChips('setAdvisory', [['Show','show'], ['Off','off']], pr.advisory === false ? 'off' : 'show', function(v){
+      setPref('advisory', v !== 'off');
+      if (v === 'off') pgHide();
+    });
     segChips('setResume', [['Resume','resume'], ['Ask','ask'], ['Start over','over']], pr.resume === 'ask' || pr.resume === 'over' ? pr.resume : 'resume', function(v){ setPref('resume', v); });
     segChips('setSeekStep', [['5 s',5], ['10 s',10], ['15 s',15], ['30 s',30]], seekStepSecs(), function(v){ setPref('seekStep', v); });
     segChips('setSideways', [['On', true], ['Off', false]], pr.landscapeStart !== false, function(v){ setPref('landscapeStart', v); });

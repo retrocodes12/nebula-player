@@ -208,6 +208,65 @@ test('skip segments: shaped, cached, misses and failures handled, ids validated'
   }
 });
 
+test('advisory: the votes settle each level, most severe first, one upstream call per title', async () => {
+  const fs = require('fs'), path = require('path');
+  const hits = [];
+  let refuse = false;
+  const cat = (category, none, mild, moderate, severe) => ({ category, severityBreakdowns: [
+    { severityLevel: 'none', voteCount: none }, { severityLevel: 'mild', voteCount: mild },
+    { severityLevel: 'moderate', voteCount: moderate }, { severityLevel: 'severe', voteCount: severe },
+  ] });
+  const stub = require('http').createServer((req, res) => {
+    hits.push(req.url);
+    if (refuse) { res.writeHead(503); return res.end('busy'); }
+    if (req.url === '/titles/tt0000012/parentsGuide') { res.writeHead(404); return res.end('{}'); }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    if (req.url === '/titles/tt0000011/parentsGuide') return res.end(JSON.stringify({ parentsGuide: [cat('VIOLENCE', 900, 10, 10, 10)] }));
+    res.end(JSON.stringify({ parentsGuide: [
+      cat('SEXUAL_CONTENT', 200, 300, 900, 100),          // moderate
+      cat('VIOLENCE', 5, 10, 40, 800),                     // severe
+      cat('PROFANITY', 1, 2, 3, 400),                      // severe
+      cat('ALCOHOL_DRUGS', 100, 500, 20, 1),               // mild
+      cat('FRIGHTENING_INTENSE_SCENES', 60, 85, 395, 1540), // severe
+      { category: 'SPOILERS', severityBreakdowns: [] },
+    ] }));
+  });
+  await new Promise((ok) => stub.listen(0, '127.0.0.1', ok));
+  process.env.ADVISORY_UPSTREAM = 'http://127.0.0.1:' + stub.address().port;
+  const get = (id) => fetch(base + '/cloud/v1/advisory?id=' + encodeURIComponent(id), { headers: { 'X-Forwarded-For': '203.0.113.78' } });
+  try {
+    const rs = await Promise.all([get('tt0000010'), get('tt0000010')]);
+    for (const r of rs) assert.equal(r.status, 200);
+    assert.equal(hits.length, 1);
+    assert.equal(hits[0], '/titles/tt0000010/parentsGuide');
+    assert.match(rs[0].headers.get('cache-control'), /max-age=259200/);
+    assert.equal(rs[0].headers.get('access-control-allow-origin'), '*');
+    // the screenshot's order: the severe ones in the upstream's order, then moderate, then mild
+    assert.deepEqual((await rs[0].json()).items, [
+      { k: 'violence', s: 'severe' }, { k: 'profanity', s: 'severe' }, { k: 'frightening', s: 'severe' },
+      { k: 'nudity', s: 'moderate' }, { k: 'alcohol', s: 'mild' },
+    ]);
+    // "none" outvoting every level leaves the category out; an unknown title is an empty list
+    assert.deepEqual((await (await get('tt0000011')).json()).items, []);
+    assert.deepEqual((await (await get('tt0000012')).json()).items, []);
+    await get('tt0000010'); await get('tt0000012');
+    assert.equal(hits.length, 3, 'kept answers are not asked again');
+    for (const bad of ['', 'tt1', 'nm0000001', 'tt0000010:1:2', '../x']) assert.equal((await get(bad)).status, 400, bad);
+    assert.equal(hits.length, 3);
+    flushAll();
+    const saved = JSON.parse(fs.readFileSync(path.join(process.env.DATA_DIR, 'advisory.json'), 'utf8'));
+    assert.ok(saved.tt0000010 && saved.tt0000011);
+    refuse = true;
+    assert.equal((await get('tt0000013')).status, 502);
+    assert.equal((await get('tt0000014')).status, 503);
+    assert.equal(hits.length, 4, 'nothing asked while cooling down');
+    assert.equal((await get('tt0000010')).status, 200);
+  } finally {
+    delete process.env.ADVISORY_UPSTREAM;
+    stub.close();
+  }
+});
+
 test('universe: one trimmed upstream call per title, kept, and a refusal stops the asking', async () => {
   const fs = require('fs'), path = require('path');
   const hits = [];
