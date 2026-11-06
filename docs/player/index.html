@@ -1026,26 +1026,90 @@
   .pui-live { flex:0 0 auto; background:rgba(80,80,88,.42); color:#fff; font-size:calc(11px * var(--ts)); font-weight:700;
     letter-spacing:.04em; padding:6px 12px; border-radius:var(--r-pill); }
   .pui-live.hot { background:var(--accent); color:var(--on-accent); }
-  #partyCard { display:none; position:absolute; right:40px; top:90px; z-index:8; width:320px; max-width:80vw;
-    background:rgba(20,20,25,.96); border:1px solid rgba(255,255,255,.14); border-radius:20px; padding:20px; }
+  #partyCard { display:none; position:absolute; right:40px; top:90px; z-index:8; width:340px; max-width:86vw;
+    max-height:calc(100vh - 200px); overflow-y:auto; overscroll-behavior:contain;
+    background:rgba(20,20,25,.96); border:1px solid rgba(255,255,255,.14); border-radius:20px; padding:18px 20px; }
   #partyCard.open { display:block; }
-  #partyCard .pc-title { font-size:calc(15px * var(--ts)); font-weight:700; margin:0 0 2px; }
-  #partyCard .pc-code { font-family:var(--mono); font-size:calc(30px * var(--ts)); font-weight:700; letter-spacing:.14em; margin:6px 0 10px; }
-  #partyCard .pc-qr { background:#fff; border-radius:12px; padding:10px; width:150px; margin:0 0 10px; }
-  #partyCard .pc-qr svg { display:block; width:130px; height:130px; }
-  #partyCard .pc-link { color:var(--label2); font-size:calc(12px * var(--ts)); word-break:break-all; margin:0 0 10px; }
-  #partyCard .pc-members { color:var(--label2); font-size:calc(13px * var(--ts)); line-height:1.7; margin:0 0 12px; }
-  #partyCard .pc-react { display:flex; }
-  #partyCard .pc-react button { flex:1; font-size:calc(22px * var(--ts)); background:var(--fill); border:0; border-radius:12px;
-    padding:8px 0; margin-right:8px; cursor:pointer; }
+  #partyCard .pc-head { display:flex; align-items:center; margin:0 0 10px; }
+  #partyCard .pc-title { font-size:calc(15px * var(--ts)); font-weight:700; margin:0; flex:1; min-width:0; }
+  #partyCard .pc-seats { font-family:var(--mono); font-size:calc(11px * var(--ts)); color:var(--label3); margin-right:10px; letter-spacing:.04em; }
+  #partyCard .pc-x { width:32px; height:32px; }
+  #partyCard .pc-x svg { width:16px; height:16px; }
+  #partyCard .pc-invite { display:flex; align-items:center; margin:0 0 14px; }
+  #partyCard .pc-qr { background:#fff; border-radius:10px; padding:7px; width:92px; flex:none; margin-right:14px; }
+  #partyCard .pc-qr svg { display:block; width:78px; height:78px; }
+  #partyCard .pc-inv { min-width:0; }
+  #partyCard .pc-code { font-family:var(--mono); font-size:calc(26px * var(--ts)); font-weight:700; letter-spacing:.14em; margin:0 0 4px; }
+  #partyCard .pc-link { color:var(--label2); font-size:calc(11px * var(--ts)); word-break:break-all; margin:0; }
+  #partyCard .pc-sec { font-family:var(--mono); font-size:calc(10.5px * var(--ts)); letter-spacing:.12em; text-transform:uppercase; color:var(--label3); margin:12px 0 6px; }
+  #partyCard .pc-members { margin:0 0 4px; }
+  #partyCard .pc-old { color:var(--label2); font-size:calc(13px * var(--ts)); line-height:1.7; margin:0; }
+  .pc-mem { display:flex; align-items:center; padding:5px 0; }
+  .pc-mem + .pc-mem { border-top:1px solid var(--sep); }
+  .pc-av { width:28px; height:28px; border-radius:50%; flex:none; margin-right:10px; display:flex; align-items:center; justify-content:center;
+    font-size:calc(13px * var(--ts)); font-weight:700; color:#fff; }
+  .pc-who { flex:1; min-width:0; display:flex; flex-wrap:wrap; align-items:baseline; }
+  .pc-mn { font-size:calc(13.5px * var(--ts)); font-weight:600; margin-right:6px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pc-tag { font-size:calc(11px * var(--ts)); color:var(--label3); margin-right:6px; }
+  .pc-st { flex-basis:100%; font-size:calc(11.5px * var(--ts)); color:var(--label2); }
+  .pc-st-buffering, .pc-st-loading, .pc-st-choosing { color:#ffd479; }
+  .pc-st-behind, .pc-st-away { color:var(--label3); }
+  .pc-rm { font-size:calc(12px * var(--ts)); margin-left:8px; flex:none; }
+  #partyCard .pc-note { color:var(--label3); font-size:calc(11.5px * var(--ts)); margin:4px 0 0; }
+  #partyCard .pc-note:empty { display:none; }
+  #partyCard .pc-chat { max-height:150px; overflow-y:auto; margin:0 0 8px; font-size:calc(13px * var(--ts)); line-height:1.45; }
+  .pc-msg { padding:2px 0; word-wrap:break-word; }
+  .pc-msg b { font-weight:600; margin-right:6px; color:var(--label2); }
+  .pc-msg.mine b { color:var(--ink); }
+  .pc-msg.pend { opacity:.5; }
+  .pc-msg.fail { color:var(--red); }
+  .pc-retry { font-size:calc(11.5px * var(--ts)); margin-left:6px; }
+  .pc-empty { color:var(--label3); font-size:calc(12px * var(--ts)); margin:0; }
+  #partyCard .pc-row { display:flex; align-items:center; }
+  #partyCard .pc-row > * + * { margin-left:8px; }
+  #partyCard .pc-chatrow .field { flex:1; min-width:0; }
+  #partyCard .pc-ask { background:var(--fill); border-radius:12px; padding:12px; margin:0 0 12px; }
+  #partyCard .pc-ask p { margin:0 0 10px; font-size:calc(13px * var(--ts)); line-height:1.45; }
+  #partyCard .pc-react { display:flex; margin:10px 0 0; }
+  #partyCard .pc-react button { flex:1; font-size:calc(20px * var(--ts)); background:var(--fill); border:0; border-radius:12px;
+    padding:6px 0; margin-right:6px; cursor:pointer; color:inherit; }
   #partyCard .pc-react button:last-child { margin-right:0; }
   html.tv #partyCard .pc-react button:focus { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
   #partyCard .pc-react button:focus-visible { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
-  #partyCard .pc-close { margin-top:12px; }
-  html.tv #partyCard { right:56px; top:110px; width:380px; }
-  html.tv #partyCard .pc-code { font-size:calc(36px * var(--ts)); }
-  html.tv #partyCard .pc-qr { width:190px; }
-  html.tv #partyCard .pc-qr svg { width:170px; height:170px; }
+  #partyCard .pc-acts { margin:12px 0 0; }
+  #partyCard .pc-acts .btn { display:block; width:100%; margin:0 0 6px; text-align:left; }
+  #partyCard .pc-toggle.on { border-color:var(--ink); }
+  #partyCard .pc-danger { color:var(--red); }
+  html.tv #partyCard { right:56px; top:110px; width:420px; max-height:calc(100vh - 240px); padding:20px 22px; }
+  html.tv #partyCard .pc-code { font-size:calc(32px * var(--ts)); }
+  html.tv #partyCard .pc-qr { width:120px; }
+  html.tv #partyCard .pc-qr svg { width:106px; height:106px; }
+  html.tv #partyCard .pc-chat { max-height:180px; }
+  /* the party's pill (waiting / paused for you / behind · Catch up) and incoming chat lines, bottom left — outside the
+     chrome, so they stay while it sleeps */
+  #partyPill { display:none; position:absolute; left:40px; bottom:158px; z-index:7; padding:11px 20px; font-size:calc(14px * var(--ts));
+    max-width:60vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #partyPill.show { display:block; animation:upIn .28s var(--ease) both; }
+  #partyPill.static { pointer-events:none; }
+  #pui.idle #partyPill { bottom:40px; }
+  #partyFeed { position:absolute; left:40px; bottom:214px; z-index:7; max-width:460px; pointer-events:none; }
+  #pui.idle #partyFeed { bottom:96px; }
+  .pf-msg { background:rgba(28,28,30,.86); border-radius:14px; padding:8px 12px; margin-top:6px; font-size:calc(13.5px * var(--ts)); line-height:1.4;
+    animation:upIn .28s var(--ease) both; transition:opacity .5s; word-wrap:break-word; }
+  .pf-msg b { font-weight:600; margin-right:6px; }
+  .pf-msg.out { opacity:0; }
+  html.tv #partyPill { left:56px; bottom:196px; padding:15px 28px; font-size:calc(19px * var(--ts)); }
+  html.tv #pui.idle #partyPill { bottom:56px; }
+  html.tv #partyFeed { left:56px; bottom:270px; max-width:620px; }
+  html.tv #pui.idle #partyFeed { bottom:130px; }
+  html.tv .pf-msg { font-size:calc(18px * var(--ts)); padding:10px 16px; }
+  body.sp-on #partyPill, body.sp-on #partyFeed, body.scrubbing #partyPill { visibility:hidden; }
+  @media (max-width:700px), (max-height:480px){
+    #partyCard { right:12px; left:12px; width:auto; max-width:none; top:64px; max-height:calc(100vh - 150px); }
+    #partyPill { left:16px; bottom:150px; }
+    #partyFeed { left:16px; bottom:204px; }
+  }
+  @media (prefers-reduced-motion: reduce){ #partyPill.show, .pf-msg { animation:none; } }
   #reactLayer { position:absolute; left:0; right:0; top:0; bottom:0; z-index:6; pointer-events:none; overflow:hidden; }
   .react-float { position:absolute; bottom:18%; font-size:calc(44px * var(--ts)); opacity:0;
     animation:reactUp 2.6s var(--ease) forwards; text-align:center; }
@@ -2583,14 +2647,22 @@
     </div>
     <div id="pinfo"><div class="pi-kick">Playback info</div><div id="pinfoRows"></div></div>
     <div id="partyCard">
-      <p class="pc-title">Watch together</p>
-      <div class="pc-code" id="pcCode"></div>
-      <div class="pc-qr" id="pcQr"></div>
-      <p class="pc-link" id="pcLink"></p>
-      <p class="pc-members" id="pcMembers"></p>
+      <div class="pc-head"><p class="pc-title">Watch together</p><span class="pc-seats" id="pcSeats"></span>
+        <button id="pcClose" class="focusable pui-round pc-x" title="Close" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="pc-ask" id="pcAsk" hidden><p id="pcAskText"></p>
+        <div class="pc-row"><button id="pcAskYes" class="focusable btn" type="button">Switch</button><button id="pcAskNo" class="focusable btn ghost" type="button">Not now</button></div></div>
+      <div class="pc-invite"><div class="pc-qr" id="pcQr"></div><div class="pc-inv"><div class="pc-code" id="pcCode"></div><p class="pc-link" id="pcLink"></p></div></div>
+      <p class="pc-sec">Members</p>
+      <div class="pc-members" id="pcMembers"></div>
+      <p class="pc-note" id="pcNote"></p>
+      <p class="pc-sec" id="pcChatHead">Chat</p>
+      <div class="pc-chat" id="pcChat"></div>
+      <div class="pc-row pc-chatrow" id="pcChatRow"><input id="pcChatIn" class="focusable field" type="text" maxlength="200" placeholder="Message" autocomplete="off" /><button id="pcChatSend" class="focusable btn" type="button">Send</button></div>
       <div class="pc-react" id="pcReact"></div>
-      <button id="pcClose" class="focusable btn ghost pc-close">Close</button>
+      <div class="pc-acts" id="pcActs"></div>
     </div>
+    <button id="partyPill" class="pui-btn focusable" type="button"></button>
+    <div id="partyFeed" aria-live="polite"></div>
     <div id="upnext">
       <div class="lbl">Up next</div>
       <div id="upnextTitle" class="upnext-title"></div>
@@ -3057,6 +3129,14 @@
           <span class="setname">Join a party<small>Enter a friend's code · To start one, press Party in the player</small></span>
           <button id="setPartyJoin" class="textbtn focusable">Enter a code</button>
         </div>
+        <div class="setrow">
+          <span class="setname">Share my stream<small>When you host, friends play your link · Off: each plays the same file from their own add-ons, and your link (with any debrid key in it) stays here</small></span>
+          <span id="setPartyShare" class="seg"></span>
+        </div>
+        <div class="setrow">
+          <span class="setname">Use my own add-ons<small>When you join, look for the host's file in your add-ons first · the host's link if none has it</small></span>
+          <span id="setPartyOwn" class="seg"></span>
+        </div>
       </section>
       <!-- the rarely-touched: remote speed on rows, the start-up toast, resets -->
       <!-- Support Nebula: hidden until the server has a link, or this profile is already a supporter -->
@@ -3232,7 +3312,7 @@
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.11.05.2';
+  var PLAYER_VERSION = '2026.11.06.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -3534,7 +3614,8 @@
         if (un) return Array.prototype.slice.call(un.querySelectorAll('.focusable')).filter(function(el){ return el.offsetParent !== null; });
       }
       if (!pui || pui.className === 'idle') return [];
-      var scope = puiState.menu === 'subs' ? subPanelEl : (puiState.menu ? puiMenuEl : pui);
+      // an open party card holds the remote the way a menu does (Back closes it)
+      var scope = puiState.menu === 'subs' ? subPanelEl : (puiState.menu ? puiMenuEl : (partyCardOpen() ? $id('partyCard') : pui));
       return Array.prototype.slice.call(scope.querySelectorAll('.focusable')).filter(function(el){ return el.offsetParent !== null; });
     }
     var v = document.querySelector('.view.active');
@@ -3978,9 +4059,10 @@
     if (e.key === '?' && !inInput && !mod){ kbhShow(); e.preventDefault(); return; }
     // While playing, the quality overlay owns D-pad/keys (so it's reachable on TV).
     if (video.style.display==='block'){
-      var isBack = (k===461 || k===10009 || k===8 || e.key==='GoBack' || e.key==='BrowserBack');   // 10009: a Samsung remote's Back
+      var isBack = (k===461 || k===10009 || (k===8 && !inInput) || e.key==='GoBack' || e.key==='BrowserBack');   // 10009: a Samsung remote's Back
       if (isBack){
-        if (scrubState.on){ scrubCancel(); puiShow(); }    // a pending jump is its own layer; the controls stay
+        if (scrubState.on){ scrubCancel(); puiShow(); }
+        else if (partyCardOpen()){ partyCardToggle(false); var pb0 = $id('puiPartyBadge'); if (pb0 && (IS_TV || kbUsed)) pb0.focus(); puiShow(); }    // a pending jump is its own layer; the controls stay
         else if (upnextState.open){ dismissUpNext(); }
         else if (puiState.menu){ closePuiMenu(true); }
         // while a stream is still starting there is nothing to peel: Back means "not this one" — nor once it would not play
@@ -4005,7 +4087,7 @@
         if (k===457){ pinfoSet(!pinfoOn); puiShow(); e.preventDefault(); return; }   // a conventional remote's Info: the playback facts
         if (k===33 || k===34){ e.preventDefault(); return; }                        // CH+/− have nothing to scroll here
       }
-      if (k===70 && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey){
+      if (k===70 && !inInput && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey){
         toggleFullscreen(); e.preventDefault(); return;
       }
       // F11 drives the same fullscreen as f, so the button and the window never disagree (the desktop shell has no menu accelerator for it any more)
@@ -4016,6 +4098,7 @@
       if (!inInput && !mod && !e.shiftKey){
         if (k===27){                                          // Esc peels one layer at a time
           if (scrubState.on){ scrubCancel(); puiShow(); }
+          else if (partyCardOpen()) partyCardToggle(false);
           else if (puiState.menu) closePuiMenu(true);
           else if (upnextState.open) dismissUpNext();
           else if (pui.className !== 'idle') puiIdle();
@@ -4084,6 +4167,8 @@
       // controls visible: arrows move focus (the focused seek bar is scrub mode)
       puiShow();
       var ae = document.activeElement;
+      // typing in the party chat: letters, space and the caret keys are the field's (↑/↓ — and ←/→ on a TV — still leave it)
+      if (inInput && ae && ae.id === 'pcChatIn' && k !== 38 && k !== 40 && !(IS_TV && (k === 37 || k === 39))) return;
       if (ae && ae.id==='puiSeek'){
         // ←/→ move a preview along the rail (faster under quick repeated presses), OK jumps there,
         // Back/Esc drops it, and so do four quiet seconds — nothing moves until you say so
@@ -9790,6 +9875,7 @@
     return true;
   }
   async function stopPlayer(){
+    partyQuiet(1500);          // leaving is not pausing the party
     // Synchronous, and first: a sticky playback error must not outlive the
     // stream, and this must run before any await so a caller that sets its own
     // toast right after (goBack → endParty's "Left the party.") isn't wiped by
@@ -11576,15 +11662,12 @@
     didRetry = false;
     // what a stream row said (Dolby in its name, the add-on's headers) belongs to that row's address: a pasted link, a
     // local file or a party's stream played after it must not inherit it
-    if (ctx.rowFor !== rawUrl){ ctx.playRow = ''; ctx.playHeaders = null; ctx.playAudHint = null; ctx.rowFor = ''; }
+    if (ctx.rowFor !== rawUrl){ ctx.playRow = ''; ctx.playHeaders = null; ctx.playAudHint = null; ctx.rowFor = ''; ctx.playFile = ''; }
     lastPlay = { url: rawUrl, keys: clearKeys || null, title: title || '', subs: subtitles || [], mime: mimeType || '' };
     // a party host changing streams takes the whole room along — but not to a file from this computer, which the room cannot
     // open: they stay where they are, no longer steered, until the host plays a stream again (told once the play has begun)
-    if (party && party.isHost && party.ws.readyState === 1){
-      party.hostLocal = !partyShareable();
-      if (party.hostLocal) setTimeout(function(){ if (party && party.hostLocal) setStatus('Your watch party cannot see a file from this computer — they stay where they are until you play a stream.', 'info'); }, 3000);
-      else { try { party.ws.send(JSON.stringify({ t:'stream', stream: partyStreamDesc() })); } catch(e){} }
-    }
+    partyQuiet(1500);                     // a new source's load is not the viewer pausing or seeking
+    if (party && party.isHost) partyHostPlays();
     await stopPlayer();
     phoneSideways();          // a phone: full screen + landscape while the tap still counts (after the stop, which undoes it)
     if (seq !== playSeq) return;
@@ -11842,6 +11925,7 @@
     ctx.playHeaders = (ph && typeof ph === 'object' && !Array.isArray(ph)) ? ph : null;
     ctx.playAudHint = audHintOf(bh);
     ctx.rowFor = s.url;
+    ctx.playFile = rowFileName(s);     // the file's own name, for a watch party's viewers to find it in their add-ons
     playUrl(s.url, extractClearKeys(s), ctx.streamTitle || (ctx.item && ctx.item.name) || s.name || 'Nebula', s.subtitles || []);
   }
   /** Settings › languages → the player's own preferences (they decide the next track choice). */
@@ -13700,7 +13784,7 @@
     pauseBoardHide();
     clearTimeout(puiState.idleTimer);
     puiState.idleTimer = setTimeout(function(){
-      if (!video.paused && !puiState.menu && !upnextState.open && !scrubState.on) puiIdle();
+      if (!video.paused && !puiState.menu && !upnextState.open && !scrubState.on && !partyCardOpen()) puiIdle();
     }, controlsHideMs());                // Settings › Controls hide after
     pauseBoardArm();
   }
@@ -15742,13 +15826,19 @@
   $id('puiMini').onclick = function(){ setMini(!miniOn); };
   video.addEventListener('enterpictureinpicture', function(){ setStatus('Picture-in-picture.','ok'); puiShow(); });
 
-  // ---- watch party (sync only — every member streams the video themselves) ----
+  // ---- watch party (sync only — every member streams the video themselves). v2 since 11-06 (brief party-2026-11-06.md):
+  // a clock shared with the relay, everyone may control unless the host keeps it, the speed travels, the party waits for
+  // whoever buffers, a viewer may pause or fall behind for themselves, notices say who did what, chat, statuses, remove /
+  // end for everyone, the host may keep its link to itself and a viewer may play from their own add-ons. A v1 relay or a
+  // v1 host gets the v1 behaviour: the host alone steers. ----
   var lastPlay = null;
-  var party = null;        // { ws, code, isHost, count, closing, lastState, lastSeek, n, dirty, tick, keep }
-  var partyPending = null; // { kind:'create'|'join', code, wasHost, until } — connection being established
+  var party = null;        // see mkParty
+  var partyPending = null; // { kind:'create'|'join', code, wasHost, token, until } — connection being established
   // the relay that runs today, so a device that cannot read party.json (or reads it stale) still lands somewhere alive
   var PARTY_FALLBACK = 'wss://play.rifflehq.in/party/ws';
   var partyServerCached = null;
+  var PARTY_SEEK = 1.5, PARTY_NUDGE_ON = 0.3, PARTY_NUDGE_OFF = 0.1, PARTY_NUDGE = 0.05, PARTY_PAUSED_TOL = 0.5;
+  var PARTY_REJOIN = 2, PARTY_WAIT_MAX = 15000, PARTY_RESUME_GRACE = 3000, PARTY_HB = 4000;
   function partyServer(cb){
     var ls = null; try { ls = LS.getItem('party_server'); } catch(e){}
     if (ls){ cb(ls); return; }
@@ -15758,18 +15848,50 @@
       .then(function(j){ partyServerCached = (j && j.server) || PARTY_FALLBACK; cb(partyServerCached); })
       .catch(function(){ cb(PARTY_FALLBACK); });
   }
+  /** This install's id for the relay (a removed member stays out of that party), kept on the device only. */
+  function partyDev(){
+    var d = ''; try { d = LS.getItem('party_dev') || ''; } catch(e){}
+    if (!/^[A-Za-z0-9_-]{8,64}$/.test(d)){
+      d = 'w' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+      try { LS.setItem('party_dev', d); } catch(e){}
+    }
+    return d;
+  }
   /** A file on the host's own computer (a granted name, a blob) means nothing on a viewer's: it is never sent to a party. */
   function partyShareable(){ return !!(lastPlay && lastPlay.url) && !/^(local:|blob:)/i.test(lastPlay.url); }
+  /** The file name of what plays, as its row named it (playStream keeps it). */
+  function partyFileName(){ return String(ctx.playFile || ''); }
   function partyStreamDesc(){
-    return {
-      url: lastPlay.url, title: lastPlay.title || 'Watch party',
-      keys: lastPlay.keys || undefined,
-      subs: (lastPlay.subs && lastPlay.subs.length) ? lastPlay.subs : undefined,
-      // identity travels with the party so viewers get subtitles + progress
+    var d = {
+      title: lastPlay.title || 'Watch party',
+      // identity travels with the party so viewers get subtitles + progress (and can find the title in their own add-ons)
       type: ctx.playType || undefined, id: ctx.playId || undefined,
       name: ctx.playTitle || undefined, poster: ctx.playPoster || undefined,
       addonUrl: ctx.playAddonUrl || undefined
     };
+    var f = partyFileName(); if (f) d.file = f.slice(0, 300);
+    var h = ctx.playSig && ctx.playSig.hash; if (h && /^[0-9a-f]{40}$/.test(h)) d.hash = h;
+    // Settings › Party › Share my stream off: the link (and a debrid key inside it) stays here — only on a relay that
+    // takes a stream without one, and only for a title the viewers can look up
+    if (getPrefs().partyShare === false && d.type && d.id && (!party || party.v2) && (!partyPending || partyPending.v2)) d.share = false;
+    else {
+      d.url = lastPlay.url;
+      d.keys = lastPlay.keys || undefined;
+      d.subs = (lastPlay.subs && lastPlay.subs.length) ? lastPlay.subs : undefined;
+    }
+    return d;
+  }
+  /** What a party is watching, as a key: the title when the stream names one, else its address. */
+  function partyKey(d){ return !d ? '' : (d.type && d.id) ? d.type + ':' + d.id : (d.url || ''); }
+  /** What this device plays now, by the same key ('' when nothing plays). */
+  function partyMyKey(){
+    if (!player || video.style.display !== 'block') return '';
+    if (ctx.playType && ctx.playId) return ctx.playType + ':' + ctx.playId;
+    return (lastPlay && lastPlay.url) || '';
+  }
+  function partySameShow(a, b){
+    if (!a || !b || !a.id || !b.id || a.type !== b.type) return false;
+    return a.id === b.id || seriesIdOf(a.id) === seriesIdOf(b.id);
   }
   /** A viewer adopts the host's content identity when the message carries one
       (older hosts don't send it) — that lights up subtitles and progress. */
@@ -15798,13 +15920,27 @@
     if (IS_DESKTOP || /electron/i.test(navigator.userAgent || '')) return desktopOs() || 'Desktop';
     return 'Web';
   }
+  function partySend(o){ if (party && party.ws.readyState === 1){ try { party.ws.send(JSON.stringify(o)); } catch(e){} } }
+  /** The relay's time on this device (its clock answers; 0 offset on a v1 relay). */
+  function partyNow(){ return Date.now() + ((party && party.clk) ? party.clk.off : 0); }
+  function partyClockAsk(ws){ try { ws.send(JSON.stringify({ t:'clock', c: Date.now() })); } catch(e){} }
+  function partyClockAnswer(clk, m){
+    var now = Date.now(), c = Number(m.c), s = Number(m.s);
+    if (!(c > 0) || !(s > 0)) return;
+    var rtt = Math.max(0, now - c);
+    // the sample with the shortest round trip wins; a stale best gives way after 5 minutes
+    if (clk.rtt == null || rtt <= clk.rtt + 30 || now - clk.at > 300000){
+      if (clk.rtt == null || rtt <= clk.rtt || now - clk.at > 300000){ clk.rtt = rtt; clk.at = now; }
+      clk.off = s + rtt / 2 - now;
+    }
+  }
   var REACTIONS = ['👍','😂','❤️','😮','🔥'];
   var lastReactAt = 0;
   function sendReaction(e){
     if (!party || party.ws.readyState !== 1) return;
     if (Date.now() - lastReactAt < 600) return;   // stay well inside the relay's budget
     lastReactAt = Date.now();
-    try { party.ws.send(JSON.stringify({ t:'react', emoji: e })); } catch(err){}
+    partySend({ t:'react', emoji: e });
     showReaction(e, '');
   }
   function showReaction(emoji, name){
@@ -15818,17 +15954,443 @@
     setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 2800);
   }
   function partyInviteUrl(code){ return 'https://play.rifflehq.in/?party=' + code; }
+
+  // ---- who may steer, and what the party is doing ----
+  function partyHostV2(p){
+    p = p || party; if (!p || !p.v2) return false;
+    for (var i = 0; i < p.members.length; i++) if (p.members[i].host) return (p.members[i].v || 1) >= 2;
+    return p.isHost;
+  }
+  /** May this device's own play / pause / seek / speed move the whole party? */
+  function partyMayControl(){ return !!party && (party.isHost || (party.v2 && !party.hostOnly && partyHostV2())); }
+  function partyExpect(s, atMs){
+    if (!s) return 0;
+    return s.playing ? s.pos + Math.max(0, atMs - s.at) / 1000 * (s.rate || 1) : s.pos;
+  }
+  /** Seconds this device is behind the party (negative = ahead). */
+  function partyGap(){
+    var s = party && party.ps; if (!s) return 0;
+    if (s.live){ var r = puiRange(); return (r.end - video.currentTime) - s.pos; }
+    return partyExpect(s, partyNow()) - video.currentTime;
+  }
+  function partyStateOf(m){
+    var at = (party && party.v2 && Number(m.at) > 0) ? Number(m.at) : partyNow() - (Number(m.age) || 0);
+    var rate = Number(m.rate); if (!(rate >= 0.25 && rate <= 4)) rate = 1;
+    return { playing: !!m.playing, pos: Number(m.pos) || 0, live: !!m.live, rate: rate, waiting: !!m.waiting, at: at,
+      seq: Number(m.seq) || 0, by: m.by || '', name: m.name || '' };
+  }
+  /** Something this device does to its own player for the party: the one element event it causes is not the viewer's.
+      A token per kind (a nudge of the speed every few seconds must not hide the viewer's own pause). */
+  function partyDo(kind, fn){
+    if (party) party.self[kind] = Date.now();
+    try { fn(); } catch(e){ if (party) party.self[kind] = 0; }
+  }
+  function partyPause(){ if (!video.paused) partyDo('pause', function(){ video.pause(); }); }
+  function partyPlay(){ if (video.paused) partyDo('play', function(){ var pr = video.play(); if (pr && pr.catch) pr.catch(function(){}); }); }
+  function partySeekTo(t){ partyDo('seek', function(){ video.currentTime = t; }); }
+  /** A load or a stop: nothing the element says for a moment is the viewer's. */
+  function partyQuiet(ms){ if (party) party.applyUntil = Math.max(party.applyUntil || 0, Date.now() + ms); }
+  function partyOurs(kind){
+    if (!party || Date.now() < (party.applyUntil || 0)) return true;
+    var at = party.self[kind];
+    if (at && Date.now() - at < 1500){ party.self[kind] = 0; return true; }
+    return false;
+  }
+  function partyRate(r){
+    if (Math.abs((video.playbackRate || 0) - r) > 0.001) partyDo('rate', function(){ video.playbackRate = r; });
+  }
+  /** The speed the viewer chose (a nudge is the party's, not theirs). */
+  function partyUserRate(){
+    var p = party, r = video.playbackRate || 1;
+    if (p && p.nudge && p.ps) return p.ps.rate || 1;
+    return r;
+  }
+
+  // ---- publishing ----
+  function partyPublish(hb, waiting){
+    var p = party; if (!p || p.ws.readyState !== 1 || !player || video.style.display !== 'block') return;
+    if (p.hostLocal || p.away) return;
+    if (p.key && partyMyKey() !== p.key) return;
+    var live = puiIsLive(), pos = video.currentTime;
+    if (live){ var r = puiRange(); pos = Math.max(0, r.end - video.currentTime); }
+    var rate = live ? 1 : partyUserRate();
+    var playing = waiting ? false : !video.paused;
+    var msg = { t:'state', playing: playing, pos: pos, live: live };
+    if (p.v2){
+      msg.rate = rate;
+      if (waiting) msg.waiting = true;
+      // a heartbeat that crossed someone else's action on the wire is dropped by the relay (base = what we last held)
+      if (hb){ msg.hb = true; msg.base = p.ps ? p.ps.seq : 0; }
+    }
+    partySend(msg);
+    var mine = { playing: playing, pos: pos, live: live, rate: rate, waiting: !!waiting, at: partyNow(),
+      seq: p.ps ? p.ps.seq : 0, by: p.id || 'me', name: '' };
+    if (!hb || !p.ps || p.ps.by === mine.by || !p.ps.by) p.ps = mine;
+    p.mine = p.v2 ? { st: mine, at: Date.now() } : null;
+    p.lastPub = Date.now();
+  }
+  /** The viewer's own hand on the player (the element's event, not one partyDo caused). */
+  function partyOnUser(kind){
+    var p = party; if (!p || partyOurs(kind) || !player || video.style.display !== 'block') return;
+    // nothing is the viewer's until this stream has played a moment: its own start (autoplay, a resume point) is not
+    if (!stall.playedAt || Date.now() - stall.playedAt < 800) return;
+    if (p.key && partyMyKey() !== p.key) return;
+    if (kind === 'pause' && (video.ended || video.error || (mp && mp.error))) return;   // the end, or a failure, is not a choice
+    if (partyMayControl()){
+      if (kind === 'rate') p.nudge = false;
+      if (kind === 'seek' && p.ps && !p.ps.live && Math.abs(partyGap()) < PARTY_SEEK) return;   // the engine's own small hops
+      p.own.paused = false; p.own.behind = false;
+      if (p.isHost) p.resumedAt = kind === 'play' ? Date.now() : p.resumedAt;
+      partyPublish(false, false);
+      partyPillRender();
+      return;
+    }
+    // the host keeps the controls: what this viewer does stays on this screen
+    var s = p.ps;
+    if (kind === 'pause'){ p.own.paused = true; partyPillRender(); return; }
+    if (kind === 'play'){
+      p.own.paused = false;
+      p.own.behind = !!s && partyGap() > PARTY_REJOIN;
+      partyPillRender(); return;
+    }
+    if (kind === 'seek'){
+      if (!s) return;
+      var gap = partyGap();
+      if (gap > PARTY_REJOIN){ p.own.behind = true; partyPillRender(); return; }
+      if (p.own.behind && gap >= -PARTY_REJOIN){ p.own.behind = false; setStatus('Back in sync with the party.', 'ok'); partyPillRender(); return; }
+      if (gap < -PARTY_REJOIN){
+        p.own.behind = false;
+        partySeekTo(video.currentTime + gap);
+        setStatus('Only the host can control playback.', 'info');
+      }
+      return;
+    }
+    if (kind === 'rate'){
+      var want = s ? (s.rate || 1) : 1, r = video.playbackRate || 1;
+      if (r === 0 || Math.abs(r - want) < 0.001 || Math.abs(r - want * (1 + PARTY_NUDGE)) < 0.001 || Math.abs(r - want * (1 - PARTY_NUDGE)) < 0.001) return;
+      partyRate(want);
+      $id('puiSpeedVal').textContent = want + '×';
+      setStatus('Only the host can control playback.', 'info');
+    }
+  }
+  video.addEventListener('play', function(){ partyOnUser('play'); });
+  video.addEventListener('pause', function(){ partyOnUser('pause'); });
+  video.addEventListener('seeking', function(){ partyOnUser('seek'); });
+  video.addEventListener('ratechange', function(){
+    var r = video.playbackRate;
+    if (!party || r === 0) return;     // the engine holds the clock at 0 while it buffers
+    var s = party.ps, want = s ? (s.rate || 1) : 1;
+    if (party.nudge && (Math.abs(r - want * (1 + PARTY_NUDGE)) < 0.001 || Math.abs(r - want * (1 - PARTY_NUDGE)) < 0.001)) return;
+    partyOnUser('rate');
+  });
+
+  // ---- following ----
+  function partyOnState(m){
+    var p = party, s = partyStateOf(m), prev = p.ps;
+    if (prev && s.seq && prev.seq && s.seq < prev.seq) return;          // older than what we hold
+    p.ps = s;
+    if (s.by && s.by !== p.id && p.v2) partyNotice(prev, s);
+    if (prev && prev.waiting && !s.waiting) p.resumedAt = Date.now();
+    partyCorrect();
+    partyPillRender();
+  }
+  function partyNotice(prev, s){
+    if (!prev || prev.waiting || s.waiting || !s.name || prev.live !== s.live) return;
+    if (party.key && partyMyKey() !== party.key) return;
+    var msg = '';
+    if (prev.playing !== s.playing) msg = s.name + (s.playing ? ' resumed' : ' paused');
+    else if (Math.abs((prev.rate || 1) - (s.rate || 1)) > 0.01) msg = s.name + ' changed the speed to ' + s.rate + '×';
+    else if (!s.live && Math.abs(s.pos - partyExpect(prev, s.at)) > 2) msg = s.name + ' skipped to ' + fmtT(s.pos);
+    if (msg) setStatus(msg, 'info');
+  }
+  // Everyone glides to the party's position: a jump when way off, small speed nudges for small drift so there is no
+  // visible jump. A state this device sent is its own reference — it never corrects towards it.
+  function partyCorrect(){
+    var p = party;
+    if (!p || !p.ps || !player || video.style.display !== 'block') return;
+    if (p.key && partyMyKey() !== p.key) return;              // watching something else
+    var s = p.ps;
+    if (p.isHost && !p.v2) return;                             // a v1 room: the host is the clock
+    if (s.by && s.by === p.id) return;
+    if (p.own.paused) return;
+    if (p.own.behind){
+      if (!video.paused) partyRate(s.live ? 1 : (s.rate || 1));
+      var g = partyGap();
+      if (g <= PARTY_REJOIN && g >= -PARTY_REJOIN && !video.paused){ p.own.behind = false; setStatus('Back in sync with the party.', 'ok'); partyPillRender(); }
+      return;
+    }
+    if (!s.playing){
+      partyPause();
+      p.nudge = false; partyRate(s.live ? 1 : (s.rate || 1));
+      if (!s.live && Math.abs(video.currentTime - s.pos) > PARTY_PAUSED_TOL) partySeekTo(s.pos);
+      return;
+    }
+    // (a host that started again from the top — just now, or since this copy ended: its position fell well behind where it
+    // was then — a stream that cannot seek, ended here, follows by opening afresh)
+    if (mp && mp.ended && mpvStuck()){
+      if (mp.hostAtEnd == null) mp.hostAtEnd = s.pos;
+      if (s.pos < 5 || s.pos < mp.hostAtEnd - 10){ mp.hostAtEnd = null; mpvRetryAsked(); return; }
+    }
+    // (a play that failed waits for the viewer's own press)
+    if (!video.error) partyPlay();
+    if (s.live){ var r = puiRange(); if (r.end <= r.start) return; }
+    var err = partyGap(), a = Math.abs(err), base = s.live ? 1 : (s.rate || 1);
+    if (a > PARTY_SEEK){
+      if (Date.now() - p.lastSeek > 4000){
+        p.lastSeek = Date.now();
+        partySeekTo(video.currentTime + err);
+      }
+      p.nudge = false; partyRate(base);
+    } else if (a > PARTY_NUDGE_ON || (p.nudge && a > PARTY_NUDGE_OFF)){
+      p.nudge = true; partyRate(base * (err > 0 ? 1 + PARTY_NUDGE : 1 - PARTY_NUDGE));
+    } else { p.nudge = false; partyRate(base); }
+  }
+
+  // ---- statuses, and waiting for whoever buffers ----
+  function partyMyStatus(){
+    var p = party, k = partyMyKey();
+    if (p.choosing && k && k === p.key) p.choosing = false;   // a source was picked
+    if (p.choosing) return { s: 'choosing' };
+    if (!k || (p.key && k !== p.key)) return { s: 'away' };
+    if (!stall.playedAt && video.readyState < 3) return { s: 'loading', k: k };
+    if (video.readyState < 3 && !video.ended){
+      if (!p.bufSince) p.bufSince = Date.now();
+      if (Date.now() - p.bufSince > 1000) return { s: 'buffering', k: k };
+    } else p.bufSince = 0;
+    if (p.own.paused || p.own.behind){
+      var g = Math.max(0, partyGap());
+      return { s: 'behind', k: k, behind: Math.max(5, Math.round(g / 5) * 5) };
+    }
+    return { s: 'ready', k: k };
+  }
+  function partyStatusTick(){
+    var p = party; if (!p || !p.v2) return;
+    var st = partyMyStatus(), sig = st.s + '|' + (st.k || '') + '|' + (st.behind == null ? '' : st.behind);
+    if (sig === p.statusSig) return;
+    p.statusSig = sig;
+    var o = { t:'status', s: st.s, k: st.k || '' };
+    if (st.behind != null) o.behind = st.behind;
+    partySend(o);
+  }
+  function partyMember(id){ for (var i = 0; i < party.members.length; i++) if (party.members[i].id === id) return party.members[i]; return null; }
+  /** Members on the party's title still loading or buffering (the ones the party waits for). */
+  function partyWaiters(ignore){
+    var p = party, out = [];
+    if (!p) return out;
+    p.members.forEach(function(m){
+      if (m.id === p.id || m.k !== p.key) return;
+      if (m.s !== 'loading' && m.s !== 'buffering') return;
+      if (ignore && p.waitIgnore[m.id]) return;
+      out.push(m);
+    });
+    return out;
+  }
+  /** The host keeps the party together: someone buffering pauses everyone (after a beat), 15 s at most. */
+  function partyWaitTick(){
+    var p = party; if (!p || !p.isHost || !p.v2 || !p.ps || p.away || p.hostLocal || p.ps.live) return;
+    if (partyMyKey() !== p.key) return;
+    var w = partyWaiters(true), now = Date.now();
+    if (p.ps.playing && !p.ps.waiting){
+      if (w.length && now - (p.resumedAt || 0) > PARTY_RESUME_GRACE){
+        partyPause();
+        partyPublish(false, true);
+        p.waitAt = now;
+        partyPillRender();
+      }
+    } else if (p.ps.waiting){
+      if (!w.length || now - (p.waitAt || now) > PARTY_WAIT_MAX){
+        w.forEach(function(m){ p.waitIgnore[m.id] = true; });
+        p.ps.waiting = false;
+        partyPlay();
+        p.resumedAt = now;
+        partyPublish(false, false);
+        partyPillRender();
+      }
+    }
+  }
+
+  // ---- the pill (waiting / paused for you / behind) and the chat feed ----
+  function partyGapLabel(secs){
+    secs = Math.max(0, Math.round(secs));
+    if (secs < 60) return secs + ' s';
+    var m = Math.round(secs / 60);
+    return m >= 60 ? Math.floor(m / 60) + ' h ' + (m % 60) + ' min' : m + ' min';
+  }
+  function partyPillRender(){
+    var el = $id('partyPill'); if (!el) return;
+    var p = party, text = '', act = '';
+    if (p && p.ws.readyState !== 1) text = 'Reconnecting to the party…';
+    else if (p && p.ps && (!p.key || partyMyKey() === p.key)){
+      if (p.ps.waiting){
+        var w = partyWaiters(false).map(function(m){ return m.name; });
+        text = w.length ? 'Waiting for ' + w.slice(0, 3).join(', ') : 'Waiting for everyone';
+      } else if (p.own.paused){ text = 'Paused for you'; act = 'play'; }
+      else if (p.own.behind){ text = partyGapLabel(partyGap()) + ' behind · Catch up'; act = 'catch'; }
+    }
+    el.textContent = text;
+    el.setAttribute('data-act', act);
+    el.classList.toggle('show', !!text);
+    el.classList.toggle('static', !act);
+  }
+  $id('partyPill').onclick = function(){
+    var p = party; if (!p) return;
+    var act = this.getAttribute('data-act');
+    if (act === 'play'){ try { video.play(); } catch(e){} }
+    else if (act === 'catch'){ p.own.behind = false; p.own.paused = false; p.lastSeek = 0; partyCorrect(); setStatus('Caught up with the party.', 'ok'); }
+    partyPillRender();
+  };
+  function partyFeed(name, text){
+    var layer = $id('partyFeed'); if (!layer) return;
+    var el = document.createElement('div');
+    el.className = 'pf-msg';
+    var b = document.createElement('b'); b.textContent = name; el.appendChild(b);
+    el.appendChild(document.createTextNode(text));
+    layer.appendChild(el);
+    while (layer.childNodes.length > 3) layer.removeChild(layer.firstChild);
+    setTimeout(function(){ el.classList.add('out'); }, 6000);
+    setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 6600);
+  }
+
+  // ---- the card ----
+  var PC_STATUS = { ready: 'Watching', buffering: 'Buffering', loading: 'Loading', choosing: 'Choosing a source', away: 'Watching something else' };
+  function partyStatusLabel(m){
+    if (m.s === 'behind') return partyGapLabel(m.behind || 0) + ' behind';
+    return PC_STATUS[m.s] || '';
+  }
+  function partyAvColor(name){
+    var h = 0, s = String(name || '');
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return 'hsl(' + (h % 360) + ',38%,42%)';
+  }
+  /** A button that asks for a second press within 3.5 s (Remove, End for everyone). The card redraws every second, so
+      the first press is kept by key, not on the element. */
+  var pcArmed = {};
+  function pcTwoStep(btn, key, first, second, fn){
+    var armed = function(){ return pcArmed[key] && Date.now() - pcArmed[key] < 3500; };
+    btn.textContent = armed() ? second : first;
+    btn.onclick = function(){
+      if (armed()){ delete pcArmed[key]; fn(); return; }
+      pcArmed[key] = Date.now(); btn.textContent = second;
+      setTimeout(function(){ if (!armed() && btn.textContent === second) btn.textContent = first; }, 3600);
+    };
+  }
+  function partyMembersRender(){
+    var box = $id('pcMembers'); if (!box || !party) return;
+    var p = party, keep = document.activeElement && box.contains(document.activeElement) ? document.activeElement.getAttribute('data-id') : '';
+    box.innerHTML = '';
+    var list = p.members.length ? p.members : [{ id: p.id, name: partyName(), host: p.isHost, s: 'ready' }];
+    if (!p.v2){
+      var names = (p.names && p.names.length) ? p.names : [partyName()];
+      var line = document.createElement('p'); line.className = 'pc-old';
+      line.textContent = 'Watching (' + Math.max(p.count, names.length) + '): ' + names.join(', ');
+      box.appendChild(line); return;
+    }
+    list.forEach(function(m){
+      var row = document.createElement('div'); row.className = 'pc-mem';
+      var av = document.createElement('span'); av.className = 'pc-av'; av.style.background = partyAvColor(m.name);
+      av.textContent = String(m.name || '?').charAt(0).toUpperCase(); row.appendChild(av);
+      var who = document.createElement('span'); who.className = 'pc-who';
+      var nm = document.createElement('span'); nm.className = 'pc-mn'; nm.textContent = m.name || 'Guest'; who.appendChild(nm);
+      var tags = [];
+      if (m.id === p.id) tags.push('You');
+      if (m.host) tags.push('Host');
+      if (tags.length){ var tg = document.createElement('span'); tg.className = 'pc-tag'; tg.textContent = tags.join(' · '); who.appendChild(tg); }
+      var st = document.createElement('span'); st.className = 'pc-st pc-st-' + (m.s || ''); st.textContent = m.id === p.id ? partyStatusLabel(partyMyStatus()) : partyStatusLabel(m);
+      who.appendChild(st);
+      row.appendChild(who);
+      if (p.isHost && m.id !== p.id){
+        var rm = document.createElement('button'); rm.className = 'focusable textbtn pc-rm'; rm.type = 'button'; rm.textContent = 'Remove';
+        rm.setAttribute('data-id', m.id);
+        pcTwoStep(rm, 'rm:' + m.id, 'Remove', 'Remove ' + (m.name || 'them') + '?', function(){ partySend({ t:'kick', id: m.id }); });
+        row.appendChild(rm);
+      }
+      box.appendChild(row);
+    });
+    if (keep){ var again = box.querySelector('[data-id="' + keep + '"]'); if (again) again.focus(); }
+  }
+  function partyChatRender(){
+    var log = $id('pcChat'); if (!log || !party) return;
+    var p = party;
+    $id('pcChatHead').style.display = p.v2 ? '' : 'none';
+    log.style.display = p.v2 ? '' : 'none';
+    $id('pcChatRow').style.display = p.v2 ? '' : 'none';
+    if (!p.v2) return;
+    var atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 8;
+    log.innerHTML = '';
+    if (!p.chat.length){
+      var e = document.createElement('p'); e.className = 'pc-empty';
+      e.textContent = 'No messages yet. Only people in this party can see the chat.';
+      log.appendChild(e); return;
+    }
+    p.chat.forEach(function(c){
+      var row = document.createElement('div');
+      row.className = 'pc-msg' + (c.by === p.id ? ' mine' : '') + (c.pend ? ' pend' : '') + (c.fail ? ' fail' : '');
+      var b = document.createElement('b'); b.textContent = c.by === p.id ? 'You' : (c.name || 'Guest'); row.appendChild(b);
+      row.appendChild(document.createTextNode(c.text));
+      if (c.fail){
+        var r = document.createElement('button'); r.type = 'button'; r.className = 'focusable textbtn pc-retry'; r.textContent = 'Not sent · Retry';
+        r.onclick = function(){ c.fail = false; c.pend = true; partySend({ t:'chat', text: c.text, cid: c.cid }); partyChatRender(); };
+        row.appendChild(r);
+      }
+      log.appendChild(row);
+    });
+    if (atEnd || p.chatJump){ log.scrollTop = log.scrollHeight; p.chatJump = false; }
+  }
+  function partyChatSend(){
+    var p = party, i = $id('pcChatIn'); if (!p || !p.v2 || !i) return;
+    var text = String(i.value || '').trim().slice(0, 200); if (!text) return;
+    var cid = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    p.chat.push({ cid: cid, by: p.id, name: '', text: text, pend: true });
+    if (p.chat.length > 100) p.chat.splice(0, p.chat.length - 100);
+    partySend({ t:'chat', text: text, cid: cid });
+    i.value = ''; p.chatJump = true;
+    partyChatRender();
+  }
+  function partyActsRender(){
+    var box = $id('pcActs'); if (!box || !party) return;
+    var p = party;
+    box.innerHTML = '';
+    var note = $id('pcNote');
+    note.textContent = (p.v2 && (p.hostOnly || !partyHostV2()) && !p.isHost) ? 'Only the host can control playback. You can still pause or rewind for yourself.' : '';
+    if (p.isHost && p.v2){
+      var ho = document.createElement('button'); ho.type = 'button'; ho.className = 'focusable btn ghost pc-toggle' + (p.hostOnly ? ' on' : '');
+      ho.id = 'pcHostOnly';
+      ho.textContent = 'Only I can control playback · ' + (p.hostOnly ? 'On' : 'Off');
+      ho.onclick = function(){ partySend({ t:'hostonly', on: !p.hostOnly }); };
+      box.appendChild(ho);
+    }
+    var leave = document.createElement('button'); leave.type = 'button'; leave.className = 'focusable btn ghost'; leave.id = 'pcLeave';
+    leave.textContent = 'Leave party';
+    leave.onclick = function(){ endParty('Left the party.'); };
+    box.appendChild(leave);
+    if (p.isHost && p.v2){
+      var end = document.createElement('button'); end.type = 'button'; end.className = 'focusable btn ghost pc-danger'; end.id = 'pcEnd';
+      end.textContent = 'End for everyone';
+      pcTwoStep(end, 'end', 'End for everyone', 'Press again to end it', function(){ p.ending = true; partySend({ t:'endall' }); });
+      box.appendChild(end);
+    }
+  }
+  function partyAskRender(){
+    var box = $id('pcAsk'); if (!box || !party) return;
+    var a = party.ask;
+    box.hidden = !a;
+    if (a) $id('pcAskText').textContent = 'Switch the party to ' + (a.name || a.title || 'this') + '? Everyone will start watching it with you.';
+  }
   function partyCardRender(){
     var card = $id('partyCard'); if (!card) return;
     if (!party){ card.classList.remove('open'); return; }
     $id('pcCode').textContent = party.code;
     $id('pcLink').textContent = partyInviteUrl(party.code);
-    try {
-      var qr = qrcode(0, 'M'); qr.addData(partyInviteUrl(party.code)); qr.make();
-      $id('pcQr').innerHTML = qr.createSvgTag({ cellSize: 5, margin: 0 });
-    } catch(e){ $id('pcQr').innerHTML = ''; }
-    var names = (party.names && party.names.length) ? party.names : [partyName()];
-    $id('pcMembers').textContent = 'Watching (' + Math.max(party.count, names.length) + '): ' + names.join(', ');
+    if ($id('pcQr').__code !== party.code){
+      try {
+        var qr = qrcode(0, 'M'); qr.addData(partyInviteUrl(party.code)); qr.make();
+        $id('pcQr').innerHTML = qr.createSvgTag({ cellSize: 5, margin: 0 });
+        $id('pcQr').__code = party.code;
+      } catch(e){ $id('pcQr').innerHTML = ''; }
+    }
+    var seats = $id('pcSeats');
+    seats.textContent = party.v2 ? (party.members.length || 1) + ' of 25 seats' : '';
+    partyAskRender(); partyMembersRender(); partyChatRender(); partyActsRender();
     var re = $id('pcReact');
     if (!re.childNodes.length){
       REACTIONS.forEach(function(e){
@@ -15842,78 +16404,56 @@
   function partyCardToggle(force){
     var card = $id('partyCard'); if (!card) return;
     var open = force !== undefined ? force : !card.classList.contains('open');
-    if (open && party){ partyCardRender(); card.classList.add('open'); pinfoSet(false); pauseBoardHide(); }
+    if (open && party){
+      party.unread = 0; partyBadge();
+      partyCardRender(); card.classList.add('open'); pinfoSet(false); pauseBoardHide();
+      var log = $id('pcChat'); if (log) log.scrollTop = log.scrollHeight;
+      if (IS_TV || kbUsed){ var f0 = card.querySelector(party.ask ? '#pcAskYes' : '.focusable'); if (f0) f0.focus(); }
+    }
     else card.classList.remove('open');
   }
+  function partyCardOpen(){ var c = $id('partyCard'); return !!(c && c.classList.contains('open')); }
   function partyBadge(){
     var b = $id('puiPartyBadge'), btn = $id('puiParty');
     if (!party){ b.style.display='none'; puiLabel(btn, 'Party'); return; }
     b.style.display='';
-    b.textContent = party.code + ' · ' + party.count;
+    var n = party.v2 ? (party.members.length || party.count) : party.count;
+    b.textContent = party.code + ' · ' + n + (party.unread ? ' · ' + party.unread + ' new' : '');
     puiLabel(btn, 'Leave party');
   }
-  function mkParty(ws, code, isHost){
+  function mkParty(ws, code, isHost, m){
     if (party){ party.closing = true; try { party.ws.close(); } catch(e){} clearPartyTimers(party); }
+    var pend = partyPending;
     partyPending = null;
-    var p = { ws:ws, code:code, isHost:isHost, count:1, names:[], closing:false, lastState:null, lastSeek:0, n:0, dirty:false };
-    p.tick = setInterval(function(){ partyTick(p); }, 1000);
+    var p = { ws:ws, code:code, isHost:isHost, id: (m && m.id) || '', token: (m && m.token) || '', v2: !!(m && m.v === 2),
+      hostOnly: !!(m && m.hostOnly), count:1, names:[], members: (m && m.members) || [], closing:false,
+      ps:null, key:'', stream:null, clk: (pend && pend.clk) || { off: 0, rtt: null, at: 0 }, n:0, lastSeek:0, applyUntil:0,
+      own: { paused:false, behind:false }, self: {}, nudge:false, waitIgnore:{}, waitAt:0, resumedAt: Date.now(), bufSince:0,
+      statusSig:'', chat: [], unread:0, ask:null, away:false, hostLocal:false, mine:null, lastPub:0, choosing:false };
+    if (p.v2 && m && m.chat) m.chat.forEach(function(c){ p.chat.push({ id: c.id, by: c.by, name: c.name, text: c.text }); });
+    p.tick = setInterval(function(){ partyTick(p); }, 500);
     p.keep = setInterval(function(){ if (ws.readyState===1){ try { ws.send('{"t":"ping"}'); } catch(e){} } }, 25000);
+    p.clock = setInterval(function(){ if (p.v2 && ws.readyState === 1) partyClockAsk(ws); }, 60000);
     return p;
   }
-  function clearPartyTimers(p){ clearInterval(p.tick); clearInterval(p.keep); }
+  function clearPartyTimers(p){ clearInterval(p.tick); clearInterval(p.keep); clearInterval(p.clock); }
   function partyTick(p){
     if (party !== p){ clearPartyTimers(p); return; }
     p.n++;
+    if (p.mine && Date.now() - p.mine.at > 3000) p.mine = null;
+    // the host is not away once it plays the party's title again
+    if (p.isHost && p.away && !p.ask && partyMyKey() === p.key) p.away = false;
     if (p.isHost){
-      if ((p.dirty || p.n % 4 === 0) && !p.hostLocal && player && video.style.display==='block' && p.ws.readyState===1){
-        p.dirty = false;
-        // live: send "seconds behind the live edge" (engine-neutral); VOD: absolute position
-        var live = puiIsLive(), pos = video.currentTime;
-        if (live){ var r = puiRange(); pos = Math.max(0, r.end - video.currentTime); }
-        try { p.ws.send(JSON.stringify({ t:'state', playing: !video.paused, pos: pos, live: live })); } catch(e){}
-      }
-    } else {
-      partyCorrect();
+      // the host's word every 4 s (and a v1 room's on any change, as before)
+      if (!p.hostLocal && !p.away && player && video.style.display==='block' && Date.now() - (p.lastPub || 0) >= PARTY_HB) partyPublish(true, p.ps ? p.ps.waiting : false);
+      partyWaitTick();
     }
-  }
-  // Viewers glide to the host's position: hard seek when way off, tiny speed
-  // nudges for small drift so there is no visible jump.
-  function partyCorrect(){
-    if (!party || party.isHost || !party.lastState || !player) return;
-    if (video.style.display !== 'block') return;
-    var s = party.lastState;
-    if (!s.playing){
-      if (!video.paused) video.pause();
-      video.playbackRate = 1;
-      if (!s.live && Math.abs(video.currentTime - s.pos) > 1){ try { video.currentTime = s.pos; } catch(e){} }
-      return;
+    partyCorrect();
+    partyStatusTick();
+    if (p.n % 2 === 0){
+      partyPillRender();
+      if (partyCardOpen() && p.v2) partyMembersRender();
     }
-    // (a host that started again from the top — just now, or since this copy ended: its position fell well behind where it
-    // was then — a stream that cannot seek, ended here, follows by opening afresh)
-    if (mp && mp.ended && mpvStuck()){
-      if (mp.hostAtEnd == null) mp.hostAtEnd = s.pos;
-      if (s.pos < 5 || s.pos < mp.hostAtEnd - 10){ mp.hostAtEnd = null; mpvRetryAsked(); return; }
-    }
-    if (video.paused && !video.error){ try { video.play(); } catch(e){} }   // (a play that failed waits for the viewer's own press)
-    var err;
-    if (s.live){
-      // s.pos is the host's distance behind the live edge; positive err = we're further behind
-      var r = puiRange();
-      if (r.end <= r.start) return;
-      err = (r.end - video.currentTime) - s.pos;
-    } else {
-      err = (s.pos + (Date.now() - s.atLocal)/1000) - video.currentTime;
-    }
-    if (Math.abs(err) > 1.25){
-      if (Date.now() - party.lastSeek > 4000){
-        party.lastSeek = Date.now();
-        try { video.currentTime = video.currentTime + err; } catch(e){}
-      }
-      video.playbackRate = 1;
-    }
-    else if (err > 0.4) video.playbackRate = 1.06;
-    else if (err < -0.4) video.playbackRate = 0.94;
-    else if (Math.abs(err) < 0.15) video.playbackRate = 1;
   }
   function partyConnect(){
     if (!partyPending) return;
@@ -15925,88 +16465,225 @@
       var ws;
       try { ws = new WebSocket(url); }
       catch(e){ partyPending = null; setStatus('Watch party is not available on this device.','err'); return; }
-      ws.onopen = function(){
+      var pend = partyPending;
+      pend.clk = pend.clk || { off: 0, rtt: null, at: 0 };
+      pend.v2 = false;
+      var hello = function(){
         var p = partyPending;
-        if (!p){ try { ws.close(); } catch(e){} return; }
+        if (!p || p !== pend || p.sent){ return; }
+        p.sent = true;
         if (p.kind === 'create'){
           if (!lastPlay){ partyPending = null; try { ws.close(); } catch(e){} return; }
-          ws.send(JSON.stringify({ t:'create', name: partyName(), code: p.code || undefined, stream: partyStreamDesc() }));
+          ws.send(JSON.stringify({ t:'create', name: partyName(), code: p.code || undefined, stream: partyStreamDesc(), v: 2, dev: partyDev() }));
         } else {
-          ws.send(JSON.stringify({ t:'join', code: p.code, name: partyName() }));
+          ws.send(JSON.stringify({ t:'join', code: p.code, name: partyName(), v: 2, dev: partyDev(), rejoin: p.token || undefined }));
         }
       };
-      ws.onmessage = function(ev){ partyMessage(ws, ev); };
+      ws.onopen = function(){
+        if (!partyPending || partyPending !== pend){ try { ws.close(); } catch(e){} return; }
+        pend.sent = false;
+        // the relay's clock first: its answer says it speaks v2 (and gives the first sample); a v1 relay never answers
+        partyClockAsk(ws);
+        setTimeout(hello, 1200);
+      };
+      ws.onmessage = function(ev){
+        var m; try { m = JSON.parse(ev.data); } catch(e){ return; }
+        if (m && m.t === 'clock'){
+          var clk = (party && party.ws === ws) ? party.clk : pend.clk;
+          partyClockAnswer(clk, m);
+          if (!pend.v2){
+            pend.v2 = true;
+            hello();
+            // three more samples, 400 ms apart: the shortest round trip wins
+            [400, 800, 1200].forEach(function(t){ setTimeout(function(){ if (ws.readyState === 1) partyClockAsk(ws); }, t); });
+          }
+          return;
+        }
+        partyMessage(ws, m);
+      };
       ws.onclose = function(){ partyClosed(ws); };
       ws.onerror = function(){};
     });
   }
-  function partyMessage(ws, ev){
-    var m; try { m = JSON.parse(ev.data); } catch(e){ return; }
+  function partyMembersApply(list){
+    var p = party, old = p.members || [];
+    p.members = (list || []).slice(0, 30);
+    p.members.forEach(function(m){ if (m.s === 'ready' && p.waitIgnore[m.id]) delete p.waitIgnore[m.id]; });
+    // joined/left toasts from the membership diff (never for our own arrival)
+    if (old.length){
+      var had = {}; old.forEach(function(m){ had[m.id] = m; });
+      p.members.forEach(function(m){ if (!had[m.id] && m.id !== p.id) setStatus(m.name + ' joined the watch party', 'ok'); delete had[m.id]; });
+      Object.keys(had).forEach(function(id){ if (id !== p.id) setStatus(had[id].name + ' left the watch party', 'info'); });
+    }
+    for (var i = 0; i < p.members.length; i++) if (p.members[i].id === p.id) p.isHost = !!p.members[i].host || p.isHost;
+  }
+  function partyMessage(ws, m){
     if (!m || !m.t) return;
     if (m.t === 'created'){
+      party = mkParty(ws, m.code, true, m);
+      party.stream = lastPlay ? partyStreamDesc() : null;
+      party.key = partyKey(party.stream);
+      party.members = [{ id: party.id, name: partyName(), host: true, s: 'ready', v: 2 }];
       setTimeout(function(){ partyCardToggle(true); }, 400);
-      party = mkParty(ws, m.code, true);
       partyBadge(); puiShow();
       setStatus('Party ' + m.code + ' started — friends can scan the code on screen or open the invite link.','ok');
+      partyPublish(false, false);
       return;
     }
     if (m.t === 'joined'){
-      party = mkParty(ws, m.code, false);
+      var rejoin = partyPending && partyPending.token && partyPending.kind === 'join';
+      party = mkParty(ws, m.code, !!m.host, m);
       party.count = m.count || 1;
-      if (m.state) party.lastState = { playing: !!m.state.playing, pos: Number(m.state.pos)||0, live: !!m.state.live, atLocal: Date.now() - (Number(m.state.age)||0) };
+      if (m.members) partyMembersApply(m.members);
+      if (m.state) party.ps = partyStateOf(m.state);
       partyBadge();
-      setStatus('Joined party ' + m.code + '.','ok');
-      // the host owns the position here — nothing to resume, nothing to remember
-      if (m.stream && m.stream.url && !/^(local:|blob:)/i.test(m.stream.url)){
-        adoptPartyIdentity(m.stream);
-        playUrl(m.stream.url, m.stream.keys || null, m.stream.title || 'Watch party', m.stream.subs || []);
-      } else if (m.stream && (m.stream.local || m.stream.url)) setStatus('The host is playing a file from their own computer — it cannot play here.', 'info');
+      setStatus((rejoin ? 'Back in party ' : 'Joined party ') + m.code + '.','ok');
+      party.stream = m.stream || null;
+      party.key = partyKey(party.stream);
+      // a seat taken back with what it was already playing: nothing to open again
+      if (rejoin && party.key && partyMyKey() === party.key) return;
+      if (party.isHost) return;
+      if (m.stream) partyPlayFor(m.stream);
       return;
     }
     if (!party || ws !== party.ws){
       if (m.t === 'error') partyConnFailed(ws, m.message);
       return;
     }
-    if (m.t === 'state'){
-      party.lastState = { playing: !!m.playing, pos: Number(m.pos)||0, live: !!m.live, atLocal: Date.now() - (Number(m.age)||0) };
-      if (!party.isHost) partyCorrect();
-    } else if (m.t === 'stream'){
-      if (!party.isHost && m.stream && (m.stream.local || /^(local:|blob:)/i.test(m.stream.url || ''))) setStatus('The host is playing a file from their own computer — it cannot play here.', 'info');
-      else if (!party.isHost && m.stream && m.stream.url){
-        setStatus('Host switched streams.','info');
-        party.lastState = { playing:true, pos:0, live:false, atLocal: Date.now() };
-        adoptPartyIdentity(m.stream);
-        playUrl(m.stream.url, m.stream.keys || null, m.stream.title || 'Watch party', m.stream.subs || []);
-      }
+    var p = party;
+    if (m.t === 'state'){ partyOnState(m); }
+    else if (m.t === 'stated'){
+      // the relay's stamp on what we sent: our state holds unless someone else's came after it
+      if (p.mine){ p.mine.st.seq = Number(m.seq) || 0; p.mine.st.at = Number(m.at) || p.mine.st.at; if (!p.ps || p.mine.st.seq >= p.ps.seq) p.ps = p.mine.st; p.mine = null; }
+    }
+    else if (m.t === 'stream'){
+      if (p.isHost || !m.stream) return;
+      var d = m.stream;
+      if (d.local || /^(local:|blob:)/i.test(d.url || '')){ setStatus('The host is playing a file from their own computer — it cannot play here.', 'info'); return; }
+      p.stream = d; p.key = partyKey(d);
+      p.ps = { playing:true, pos:0, live:false, rate:1, waiting:false, at: partyNow(), seq: p.ps ? p.ps.seq : 0, by:'', name:'' };
+      p.own.paused = false; p.own.behind = false;
+      setStatus('The party is now watching ' + (d.name || d.title || 'another title') + '.', 'info');
+      partyPlayFor(d);
     } else if (m.t === 'peers'){
-      var oldNames = party.names || [];
-      party.count = m.count || 1;
-      party.names = (m.names || []).slice(0, 30);
-      // joined/left toasts from the membership diff (never for our own arrival)
-      if (oldNames.length){
-        party.names.forEach(function(n){
-          var i = oldNames.indexOf(n); if (i >= 0) oldNames.splice(i, 1);
-          else setStatus(n + ' joined — ' + party.count + ' watching','ok');
-        });
-        oldNames.forEach(function(n){ setStatus(n + ' left — ' + party.count + ' watching','info'); });
+      p.count = m.count || 1;
+      p.names = (m.names || []).slice(0, 30);
+      if (m.members) partyMembersApply(m.members);
+      else if (!p.v2){
+        var oldNames = p.oldNames || [];
+        if (oldNames.length){
+          p.names.forEach(function(n){ var i = oldNames.indexOf(n); if (i >= 0) oldNames.splice(i, 1); else setStatus(n + ' joined — ' + p.count + ' watching','ok'); });
+          oldNames.forEach(function(n){ setStatus(n + ' left — ' + p.count + ' watching','info'); });
+        }
+        p.oldNames = p.names.slice();
       }
-      partyBadge(); partyCardRender();
+      partyBadge(); if (partyCardOpen()) partyCardRender();
     } else if (m.t === 'react'){
       showReaction(m.emoji, m.name || '');
+    } else if (m.t === 'chat'){
+      var mine = m.cid && p.chat.filter(function(c){ return c.cid === m.cid && c.pend; })[0];
+      if (mine){ mine.pend = false; mine.id = m.id; mine.by = m.by; }
+      else {
+        p.chat.push({ id: m.id, by: m.by, name: m.name, text: m.text });
+        if (p.chat.length > 100) p.chat.splice(0, p.chat.length - 100);
+        if (!partyCardOpen() && m.by !== p.id){ p.unread++; partyBadge(); partyFeed(m.name || 'Guest', m.text || ''); }
+      }
+      if (partyCardOpen()) partyChatRender();
+    } else if (m.t === 'room'){
+      p.hostOnly = !!m.hostOnly;
+      if (p.hostOnly && !p.isHost) setStatus('Only the host can control playback now.', 'info');
+      else if (!p.hostOnly && !p.isHost){ setStatus('Everyone can control playback now.', 'info'); p.own.paused = false; p.own.behind = false; }
+      if (partyCardOpen()) partyCardRender();
+      partyPillRender();
     } else if (m.t === 'host'){
-      party.isHost = true; partyBadge();
+      p.isHost = true; p.own.paused = false; p.own.behind = false; partyBadge();
       setStatus('You are now the party host.','info');
+      if (partyCardOpen()) partyCardRender();
     } else if (m.t === 'end'){
-      endParty(m.reason || 'Party ended.');
+      endParty(p.ending ? 'You ended the watch party.' : (m.reason || 'Party ended.'));
     } else if (m.t === 'error'){
+      if (m.chat && m.cid){ p.chat.forEach(function(c){ if (c.cid === m.cid){ c.pend = false; c.fail = true; } }); partyChatRender(); }
       setStatus(m.message || 'Party error.','err');
     }
   }
+  // ---- what a viewer plays: the host's link, or the same file from their own add-ons ----
+  async function partyFindOwn(d){
+    var cands = await Promise.race([fetchSiblings(d.type, d.id), new Promise(function(r){ setTimeout(function(){ r([]); }, 9000); })]);
+    var i, c, f, want = d.file ? releaseKey(d.file) : '', wantName = String(d.file || '').toLowerCase().replace(/^.*[\/\\]/, '');
+    if (d.hash) for (i = 0; i < cands.length; i++){ c = cands[i]; if (String(c.s.infoHash || '').toLowerCase() === d.hash) return c; }
+    if (want) for (i = 0; i < cands.length; i++){ c = cands[i]; f = rowFileName(c.s); if (f && releaseKey(f) === want) return c; }
+    if (wantName) for (i = 0; i < cands.length; i++){ c = cands[i]; f = rowFileName(c.s); if (f && f.toLowerCase().replace(/^.*[\/\\]/, '') === wantName) return c; }
+    return null;
+  }
+  function partyPlayHost(d){
+    adoptPartyIdentity(d);
+    playUrl(d.url, d.keys || null, d.title || 'Watch party', d.subs || []);
+  }
+  function partyChooseOwn(d){
+    var p = party; if (!p) return;
+    if (video.style.display === 'block'){ playSeq++; partyQuiet(1500); stopPlayer(); }
+    p.choosing = true;
+    openStreams(d.type, d.id, d.name || d.title || '');
+    setStatus('Pick a source — the party is watching ' + (d.file || d.name || d.title || 'this title') + '.', 'info', 8000);
+  }
+  function partyPlayFor(d){
+    var p = party; if (!p) return;
+    p.choosing = false;
+    var own = (getPrefs().partyOwn === true || !d.url) && d.type && d.id;
+    if (!own){
+      if (d.url) partyPlayHost(d);
+      else setStatus('The host keeps their stream to themselves and this title has nothing to look it up by.', 'err');
+      return;
+    }
+    p.choosing = true;
+    setStatus('Looking for this file in your add-ons…', 'info');
+    partyFindOwn(d).then(function(c){
+      if (party !== p || p.stream !== d) return;
+      p.choosing = false;
+      if (c){
+        adoptPartyIdentity(d);
+        ctx.addon = c.a;
+        ctx.playSig = streamSig(c.s, c.a);
+        playStream(c.s);
+        setStatus('Playing your own copy from ' + (c.a.name || 'your add-on') + '.', 'ok');
+      } else if (d.url){
+        setStatus("None of your add-ons has this file — playing the host's link.", 'info');
+        partyPlayHost(d);
+      } else partyChooseOwn(d);
+    });
+  }
+  // ---- the host asks before taking the party to another title ----
+  function partySwitch(d){
+    var p = party; if (!p) return;
+    p.ask = null; p.away = false;
+    p.stream = d; p.key = partyKey(d);
+    p.ps = { playing:true, pos:0, live:false, rate:1, waiting:false, at: partyNow(), seq: p.ps ? p.ps.seq : 0, by: p.id, name:'' };
+    partySend({ t:'stream', stream: d });
+    if (partyCardOpen()) partyCardRender();
+  }
+  /** Called from playUrl: what the host now plays, for the party. */
+  function partyHostPlays(){
+    var p = party; if (!p || !p.isHost || p.ws.readyState !== 1) return;
+    p.hostLocal = !partyShareable();
+    if (p.hostLocal){
+      setTimeout(function(){ if (party && party.hostLocal) setStatus('Your watch party cannot see a file from this computer — they stay where they are until you play a stream.', 'info'); }, 3000);
+      return;
+    }
+    var d = partyStreamDesc(), k = partyKey(d);
+    // the same title (another source of it) or the same show (its next episode) moves the party along by itself;
+    // another title asks first (a v1 room never asked)
+    if (!p.v2 || !p.key || k === p.key || partySameShow(d, p.stream)){ partySwitch(d); return; }
+    p.ask = d; p.away = true;
+    partyCardToggle(true);
+  }
+  $id('pcAskYes').onclick = function(){ if (party && party.ask) { partySwitch(party.ask); setStatus('The party is watching this with you now.', 'ok'); } };
+  $id('pcAskNo').onclick = function(){ if (party){ party.ask = null; partyCardRender(); setStatus('The party keeps watching its title — play it again to rejoin them.', 'info'); } };
+
   function partyConnFailed(ws, message){
     var p = partyPending;
     if (!p){ try { ws.close(); } catch(e){} return; }
     if (p.kind === 'join' && p.wasHost && /No party/i.test(message || '') && lastPlay){
-      p.kind = 'create'; // our room evaporated while we were away — remake it under the same code
+      p.kind = 'create'; p.token = ''; // our room evaporated while we were away — remake it under the same code
       try { ws.close(); } catch(e){}
       return;
     }
@@ -16016,11 +16693,11 @@
   }
   function partyClosed(ws){
     if (party && ws === party.ws){
-      var code = party.code, wasHost = party.isHost, userClosed = party.closing;
-      clearPartyTimers(party); party = null; partyBadge();
+      var code = party.code, wasHost = party.isHost, userClosed = party.closing, token = party.token;
+      clearPartyTimers(party); party = null; partyBadge(); partyPillRender();
       try { video.playbackRate = 1; } catch(e){}
       if (userClosed) return;
-      partyPending = { kind:'join', code: code, wasHost: wasHost, until: Date.now() + 90000 };
+      partyPending = { kind:'join', code: code, wasHost: wasHost, token: token, until: Date.now() + 90000 };
       setStatus('Party connection lost — reconnecting…','info');
       setTimeout(partyConnect, 3000);
       return;
@@ -16063,13 +16740,19 @@
       party = null;
     }
     try { video.playbackRate = 1; } catch(e){}
-    partyBadge();
+    partyBadge(); partyPillRender();
+    var f = $id('partyFeed'); if (f) f.innerHTML = '';
     if (msg) setStatus(msg,'info');
   }
+  // rigs read the party through this (only when asked for, on a device that set party_debug)
+  try { if (LS.getItem('party_debug')) window.__party = function(){ return party ? { v2: party.v2, isHost: party.isHost, n: party.n, statusSig: party.statusSig,
+    key: party.key, myKey: partyMyKey(), ps: party.ps, own: party.own, choosing: party.choosing, hostOnly: party.hostOnly, members: party.members } : null; }; } catch(e){}
   $id('puiParty').onclick = function(){ startParty(); };
   $id('puiPartyBadge').onclick = function(){ partyCardToggle(); };
   $id('puiPartyBadge').addEventListener('keydown', function(e){ if (e.keyCode === 13){ e.preventDefault(); partyCardToggle(); } });
   $id('pcClose').onclick = function(){ partyCardToggle(false); };
+  $id('pcChatSend').onclick = function(){ partyChatSend(); };
+  $id('pcChatIn').addEventListener('keydown', function(e){ if (e.keyCode === 13){ e.preventDefault(); e.stopPropagation(); partyChatSend(); } });
   if (IS_WEBOS){
     var fileBtnEl = document.getElementById('fileBtn');   // no file dialogs on a TV
     if (fileBtnEl) fileBtnEl.style.display = 'none';
@@ -16080,9 +16763,6 @@
     b.onclick = function(){ joinParty(i.value); };
     i.addEventListener('keydown', function(e){ if (e.keyCode === 13){ e.preventDefault(); joinParty(i.value); } });
   })();
-  video.addEventListener('play', function(){ if (party && party.isHost) party.dirty = true; });
-  video.addEventListener('pause', function(){ if (party && party.isHost) party.dirty = true; });
-  video.addEventListener('seeked', function(){ if (party && party.isHost) party.dirty = true; });
   // the stall watchdog reads the element itself, so a plain file and a converted one count the same as a segmented stream
   video.addEventListener('waiting', stallOnWaiting);
   video.addEventListener('seeking', stallOnSeeking);
@@ -17666,6 +18346,8 @@
     segChips('setCountdown', [['5 s',5], ['8 s',8], ['15 s',15]], countdownSecs(), function(v){ setPref('countdown', v); });
     segChips('setStill', [['Off','off'], ['After 3','3'], ['After 5','5']], pr.stillWatching === '3' || pr.stillWatching === '5' ? pr.stillWatching : 'off', function(v){ setPref('stillWatching', v); });
     segChips('setSkip', [['Show button','button'], ['Auto','auto'], ['Off','off']], skipMode(), function(v){ setPref('skip', v); });
+    segChips('setPartyShare', [['On','on'], ['Off','off']], pr.partyShare === false ? 'off' : 'on', function(v){ setPref('partyShare', v !== 'off'); });
+    segChips('setPartyOwn', [['On','on'], ['Off','off']], pr.partyOwn === true ? 'on' : 'off', function(v){ setPref('partyOwn', v === 'on'); });
     segChips('setAdvisory', [['Show','show'], ['Off','off']], pr.advisory === false ? 'off' : 'show', function(v){
       setPref('advisory', v !== 'off');
       if (v === 'off') pgHide();
