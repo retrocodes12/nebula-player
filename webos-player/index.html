@@ -1077,6 +1077,8 @@
   html.tv #partyCard .pc-react button:focus { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
   #partyCard .pc-react button:focus-visible { box-shadow:0 0 0 3px rgba(255,255,255,.5); }
   #partyCard .pc-acts { margin:12px 0 0; }
+  .pc-get { display:block; margin:12px 0 0; color:var(--label2); font-size:calc(12px * var(--ts)); text-decoration:underline; text-underline-offset:3px; }
+  .pc-get[hidden] { display:none; }
   #partyCard .pc-acts .btn { display:block; width:100%; margin:0 0 6px; text-align:left; }
   #partyCard .pc-toggle.on { border-color:var(--ink); }
   #partyCard .pc-danger { color:var(--red); }
@@ -2660,6 +2662,7 @@
       <div class="pc-row pc-chatrow" id="pcChatRow"><input id="pcChatIn" class="focusable field" type="text" maxlength="200" placeholder="Message" autocomplete="off" /><button id="pcChatSend" class="focusable btn" type="button">Send</button></div>
       <div class="pc-react" id="pcReact"></div>
       <div class="pc-acts" id="pcActs"></div>
+      <a class="pc-get" id="pcGet" href="https://play.rifflehq.in/" target="_blank" rel="noopener" hidden>Nebula is free on your phone, TV and computer — see the apps</a>
     </div>
     <button id="partyPill" class="pui-btn focusable" type="button"></button>
     <div id="partyFeed" aria-live="polite"></div>
@@ -3311,8 +3314,10 @@
   var video = document.getElementById('video');
   var statusEl = document.getElementById('status');
   var LS = window.localStorage;
+  // nothing has written storage yet: an empty one is a device opening Nebula for the first time (the usage counter, `hello`)
+  var LS_FRESH = (function(){ try { return LS.length === 0; } catch(e){ return false; } })();
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.11.06.1';
+  var PLAYER_VERSION = '2026.11.07.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -15955,6 +15960,84 @@
   }
   function partyInviteUrl(code){ return 'https://play.rifflehq.in/?party=' + code; }
 
+  // ---- usage counter (11-07) ----
+  // Once a day: which kind of app this is and how many days ago this device first opened Nebula — no identifier, no
+  // title, nothing else; thousands of devices share every value. The server counts how many devices of each age came
+  // each day, which says how many new people come back (play.rifflehq.in/stats). A device that already had Nebula
+  // when this arrived sends 'x': its first day is unknown. Party links add counts of what was done (`e`), never who.
+  // Android sends the same request from Hello.kt; the privacy page calls it "Usage counter".
+  var HELLO_URL = 'https://play.rifflehq.in/hello';
+  function helloSend(q){ try { var im = new Image(); im.src = HELLO_URL + '?s=' + (IS_DESKTOP ? 'desktop' : IS_WEBOS ? 'tv' : 'web') + q + '&_=' + Date.now(); } catch(e){} }
+  function helloEvent(e){ helloSend('&e=' + e); }
+  function helloDay(){ var t = Date.now(); return Math.floor((t - new Date(t).getTimezoneOffset() * 60000) / 86400000); }
+  // The first day lives in storage AND in a small IndexedDB store: an LG TV wipes a web app's storage now and then
+  // (§7), and a wiped TV must not count as a new one. Only an empty storage with no such store yet is a first open.
+  function helloFirst(cb){
+    var first = null, done = false;
+    try { first = LS.getItem('nebulaFirstDay'); } catch(e){}
+    if (first != null) return cb(first);
+    var finish = function(v){ if (done) return; done = true; try { LS.setItem('nebulaFirstDay', v); } catch(e){} cb(v); };
+    var guess = function(){ return LS_FRESH ? String(helloDay()) : 'x'; };
+    setTimeout(function(){ finish(guess()); }, 4000);          // an IndexedDB that never answers
+    try {
+      var made = false, rq = indexedDB.open('nebula-hello', 1);
+      rq.onupgradeneeded = function(){ made = true; rq.result.createObjectStore('kv'); };
+      rq.onerror = function(){ finish(guess()); };
+      rq.onsuccess = function(){
+        try {
+          var st = rq.result.transaction('kv', 'readwrite').objectStore('kv'), g = st.get('first');
+          g.onsuccess = function(){
+            var v = g.result;
+            if (v == null){ v = (LS_FRESH && made) ? String(helloDay()) : 'x'; try { st.put(v, 'first'); } catch(e){} }
+            finish(String(v));
+          };
+          g.onerror = function(){ finish('x'); };
+        } catch(e){ finish('x'); }
+      };
+    } catch(e){ finish(guess()); }
+  }
+  var helloBusy = false;
+  function helloDaily(){
+    try { if (helloBusy || LS.getItem('nebulaHelloDay') === String(helloDay())) return; } catch(e){ return; }
+    helloBusy = true;
+    helloFirst(function(first){
+      helloBusy = false;
+      var today = helloDay();
+      try { if (LS.getItem('nebulaHelloDay') === String(today)) return; LS.setItem('nebulaHelloDay', String(today)); } catch(e){ return; }
+      helloSend('&a=' + (first === 'x' ? 'x' : Math.max(0, today - (+first))));
+    });
+  }
+
+  // ---- after a party joined from an invite link (11-07): offer the apps, once, in a browser ----
+  var partyLink = null, partyOfferT = null;     // { at } from the link's Join tap until that party ends
+  function partyOfferable(){ return !!partyLink && !IS_DESKTOP && !IS_WEBOS && !IS_TV; }
+  function partyOfferApp(){
+    if (!partyOfferable()){ partyLink = null; return; }
+    var stayed = Date.now() - partyLink.at; partyLink = null;
+    if (stayed < 120000) return;                 // a two-minute visit was not watching together
+    try { if (LS.getItem('nebulaAppOffered')) return; } catch(e){ return; }
+    var ua = navigator.userAgent || '', tries = 0;
+    var open = function(url, tag){ return function(){
+      helloEvent('pc' + tag);
+      var a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener';
+      document.body.appendChild(a); a.click(); a.parentNode.removeChild(a);
+    }; };
+    var acts = [];
+    if (/Android/i.test(ua)) acts.push({ icon:'download', label:'Get the Android app', fn: open('https://github.com/retrocodes12/nebula-android/releases/latest/download/Nebula.apk', 'a') });
+    else if (/Windows/i.test(ua)) acts.push({ icon:'download', label:'Get Nebula for Windows', fn: open('https://github.com/retrocodes12/nebula-desktop/releases/latest/download/Nebula-Setup.exe', 'w') });
+    acts.push({ icon:'list', label:'See every app, TVs too', fn: open('https://play.rifflehq.in/', 'l') });
+    // after the film, not over it: wait until the player is closed and nothing else is asking (up to half an hour)
+    clearInterval(partyOfferT);
+    partyOfferT = setInterval(function(){
+      if (++tries > 900){ clearInterval(partyOfferT); return; }
+      if (video.style.display === 'block' || party || partyPending || sheetState.el) return;
+      clearInterval(partyOfferT);
+      try { LS.setItem('nebulaAppOffered', '1'); } catch(e){}
+      helloEvent('pg');
+      openSheet({ title: 'Liked watching together?', sub: 'Nebula is free on your phone, TV and computer.', actions: acts });
+    }, 2000);
+  }
+
   // ---- who may steer, and what the party is doing ----
   function partyHostV2(p){
     p = p || party; if (!p || !p.v2) return false;
@@ -16380,6 +16463,7 @@
     var card = $id('partyCard'); if (!card) return;
     if (!party){ card.classList.remove('open'); return; }
     $id('pcCode').textContent = party.code;
+    $id('pcGet').hidden = !partyOfferable();
     $id('pcLink').textContent = partyInviteUrl(party.code);
     if ($id('pcQr').__code !== party.code){
       try {
@@ -16719,6 +16803,7 @@
     if (!lastPlay || !player || video.style.display !== 'block'){ setStatus('Play something first, then press Party.','err'); return; }
     partyPending = { kind:'create', code:null, wasHost:true, until: Date.now() + 90000 };
     setStatus('Starting party…','info');
+    helloEvent('ps');
     partyConnect();
   }
   function joinParty(code){
@@ -16743,6 +16828,7 @@
     partyBadge(); partyPillRender();
     var f = $id('partyFeed'); if (f) f.innerHTML = '';
     if (msg) setStatus(msg,'info');
+    if (msg && partyLink) partyOfferApp();
   }
   // rigs read the party through this (only when asked for, on a device that set party_debug)
   try { if (LS.getItem('party_debug')) window.__party = function(){ return party ? { v2: party.v2, isHost: party.isHost, n: party.n, statusSig: party.statusSig,
@@ -18723,9 +18809,10 @@
     if (!m) return;
     try { history.replaceState(null, '', location.pathname + location.hash); } catch(e){}
     var code = m[1].toUpperCase();
+    helloEvent('po');
     setTimeout(function(){
       openSheet({ title: 'Join watch party ' + code + '?', sub: 'The host picks what plays, and the party sees your name.',
-        actions: [ { icon: 'play', label: 'Join the party', fn: function(){ joinParty(code); } } ] });
+        actions: [ { icon: 'play', label: 'Join the party', fn: function(){ helloEvent('pj'); joinParty(code); partyLink = { at: Date.now() }; } } ] });
     }, 600);
   })();
   initPersistentProgress();
@@ -18748,7 +18835,9 @@
   // installs from before 10-26 never wrote which account their data belongs to: the one they are signed into
   try { if (cloudLinked() && !LS.getItem('sync_gid')) LS.setItem('sync_gid', cloudLink.gid); } catch(e){}
   if (cloudLinked()) setTimeout(function(){ cloudPullAll(true); profileBoot(); }, 900);
-  setTimeout(function(){ supportLoad(false); }, 1400);   // the support link + wall, for everyone (no credential)
+  setTimeout(function(){ supportLoad(false); }, 1400);
+  setTimeout(helloDaily, 3000); setInterval(helloDaily, 3600000);
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) helloDaily(); });   // the support link + wall, for everyone (no credential)
   // a TV's sign-in QR: play.rifflehq.in/player/?link=CODE opens Profile with the code filled in.
   // Never auto-approve — the person confirms the code is on a screen in front of them.
   (function(){
