@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.07.1",
+  "version": "2026.11.07.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Friends who join your watch party from a link can now find the apps afterwards, plus a small anonymous daily check-in (details on the privacy page)"
+  "notes": "With two profiles, Who's watching now comes up first, and the loading screen follows once you pick"
 }

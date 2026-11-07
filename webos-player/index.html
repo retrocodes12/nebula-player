@@ -2535,6 +2535,11 @@
     </div>
     <div class="boot-bar"><i></i></div>
   </div>
+  <!-- who's watching comes first: with two profiles (or a PIN on this one) the boot screen must not paint before the
+       picker — the main script shows it again once a profile is picked, or at once when no picker is coming (bootHold) -->
+  <script>(function(){ try { var d = JSON.parse(localStorage.getItem('viewers_v1') || 'null'), l = (d && d.list) || [], cur = localStorage.getItem('viewer') === 'b' ? 'b' : 'a', two = false, lock = false;
+    for (var i = 0; i < l.length; i++){ var v = l[i]; if (!v) continue; if (v.id === 'b') two = true; if (v.id === cur && v.lock && /^[0-9a-f]{8}$/.test(String(v.lock.s)) && /^[0-9a-f]{8}$/.test(String(v.lock.h))) lock = true; }
+    if (two || lock) document.getElementById('boot').style.display = 'none'; } catch(e){} })();</script>
 
   <video id="video" autoplay playsinline></video>
   <!-- the desktop's full-format player draws here, over the (then empty) video element -->
@@ -3317,7 +3322,7 @@
   // nothing has written storage yet: an empty one is a device opening Nebula for the first time (the usage counter, `hello`)
   var LS_FRESH = (function(){ try { return LS.length === 0; } catch(e){ return false; } })();
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.11.07.1';
+  var PLAYER_VERSION = '2026.11.07.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -4953,12 +4958,14 @@
     if (!whoOpen) whoShow(null); else whoFrom = null;
   }
   /** At launch: who's watching? — with two profiles, or when the one this device was on has a PIN. */
-  function whoBoot(){ if (viewerList().length === 2 || whoNeedsPin(viewer)) whoShow(null); }
+  function whoBoot(){ if (viewerList().length === 2 || whoNeedsPin(viewer)){ bootHold(); whoShow(null); } }
   function whoClose(id){
     var from = whoFrom;
     whoOpen = false; whoManaging = false; whoEditing = null; whoFrom = null; whoPinOn = null;
     $id('who').classList.remove('on', 'manage', 'editing', 'pin');
-    if (id !== viewer) switchViewer(id, !from); else whoRender();
+    var rebuild = id !== viewer;
+    if (rebuild) switchViewer(id, !from); else whoRender();
+    if (bootHeld) bootResume(rebuild);
     if (from) whoFocus(from); else { try { focusFirst(); } catch(e){} }
   }
   /** The remote inside the picker: arrows to the nearest control that way, OK presses it, Back steps out. */
@@ -6722,9 +6729,26 @@
     // on a TV nothing has focus until the boot screen lets go
     setTimeout(function(){ if (document.activeElement === document.body) focusFirst(); }, 60);
   }
+  // Who's watching comes first (11-07, his "the loading animation should come after the profile is selected"): when the
+  // picker opens at launch the boot screen steps aside, paused, and plays once a profile is picked — until that
+  // profile's Home has painted, or BOOT_MIN when Home was already painted behind the picker for the same profile.
+  var bootHeld = false, bootHomeDone = false;
+  function bootHold(){
+    if (bootGone || bootHeld) return;
+    bootHeld = true; clearTimeout(bootTimer);
+    var el = $id('boot'); if (el) el.style.display = 'none';
+  }
+  function bootResume(rebuilding){
+    if (!bootHeld) return;
+    bootHeld = false;
+    var el = $id('boot'); if (el) el.style.display = '';
+    bootAt = Date.now(); clearTimeout(bootTimer); bootTimer = setTimeout(endBoot, BOOT_MAX);
+    if (!rebuilding && bootHomeDone) bootReady();
+  }
   /** Home has something real to show (or has given up). */
   function bootReady(){
     if (bootGone) return;
+    if (bootHeld){ bootHomeDone = true; return; }
     var waited = Date.now() - bootAt;
     if (waited >= BOOT_MIN) endBoot();
     else { clearTimeout(bootTimer); bootTimer = setTimeout(endBoot, BOOT_MIN - waited); }
@@ -18826,6 +18850,9 @@
   var bootAsk = null; try { if (window.PalmSystem){ shelfNote(window.PalmSystem.launchParams); bootAsk = launchParse(window.PalmSystem.launchParams); } } catch(e){}
   shelfModeApply();
   if (!bootAsk || whoNeedsPin(viewer)) whoBoot();
+  // the early check above the boot screen hid it for a picker that is not coming (a title launched from the TV's home
+  // screen, a storage wipe that took the second profile): it shows now, as it always did
+  if (!bootHeld && !bootGone){ var bootEl = $id('boot'); if (bootEl) bootEl.style.display = ''; }
   if (bootAsk){ launchAsk = bootAsk; launchAskRun(); }
   else setTimeout(lpOffer, 1600);      // the app was closed in the middle of something: offer it back (Nuvio's resume prompt)
   // launched again while running (another title from the home screen): webOS hands the new params over here
