@@ -2,5 +2,5 @@
   "version": "2026.11.07.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "A party guest who came from an invite link is offered the apps once the party ends, and a once-a-day usage counter with no identifier in it tells us how many new people come back (see the privacy page)."
+  "notes": "Friends who join your watch party from a link can now find the apps afterwards, plus a small anonymous daily check-in (details on the privacy page)"
 }
