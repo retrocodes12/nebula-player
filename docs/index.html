@@ -68,6 +68,7 @@
   .pillnav a.gh svg { width:16px; height:16px; fill:currentColor; }
   .pillnav a.gh:hover { color:var(--ink); }
   .pillnav .navcta { height:36px; padding:0 16px; font-size:14px; }
+  .pillnav a.item[hidden] { display:none; }
   @media (max-width:640px){ .pillnav a.item.hide, .pillnav a.gh { display:none; } .pillnav .logo { padding-right:6px; } }
   /* a 360 px phone: "Home" is the page you are on, and the pill has to fit the width with its rounded ends */
   @media (max-width:420px){ .pillnav a.item.on { display:none; } .pillnav a.item { padding:0 10px; } .pillnav .navcta { padding:0 12px; } }
@@ -79,6 +80,9 @@
   .hero .lede { margin:26px auto 0; max-width:36em; color:var(--ink66); font-size:clamp(1.05rem, 1.5vw, 1.31rem); line-height:1.55; }
   .hero .cta { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:34px; }
   .hero .fine { margin-top:22px; color:var(--ink45); font-size:13px; }
+  .hero .sup { margin-top:20px; color:var(--ink66); font-size:15px; }
+  .hero .sup a { color:var(--ink); font-weight:600; text-underline-offset:3px; }
+  .hero .sup + .fine { margin-top:10px; }
   .mock { position:relative; max-width:1152px; margin:64px auto 0; padding:0 24px; }
   .tv { border-radius:22px; background:#15161b; padding:10px; box-shadow:0 30px 90px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.08); }
   .tv .screen { border-radius:14px; overflow:hidden; background:#000; }
@@ -277,6 +281,7 @@
       <a class="item" href="#screens">Download</a>
       <a class="item hide" href="#features">Features</a>
       <a class="item hide" href="#open">Source</a>
+      <a class="item hide" id="supNav" href="support.html" hidden>Support</a>
       <a class="gh" href="https://github.com/retrocodes12/nebula-player" aria-label="GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
       <a class="btn solid navcta" href="./player/">Web player</a>
     </nav>
@@ -288,6 +293,7 @@
       <a class="btn solid" id="smartdl" href="#screens"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.17l3.59-3.58L17 11l-5 5-5-5 1.41-1.41L12 13.17V3zM5 18h14v2H5z"/></svg><span id="smartlabel">Get Nebula</span></a>
       <a class="btn ghost" href="https://github.com/retrocodes12/nebula-player"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>Read the source</a>
     </div>
+    <p class="sup" id="supHero" hidden>Nebula runs on support from the people who use it. <a href="support.html">Support Nebula</a></p>
     <p class="fine">Free to use. Nebula does not host, store or provide any media.</p>
   </div>
   <div class="mock">
@@ -733,12 +739,12 @@
       if (recent) document.getElementById("statReleases").textContent = String(recent);
     })
     .catch(function () {});
-  // Support Nebula: the footer link appears once a support link is configured; the wall lists
+  // Support Nebula: the nav, hero and footer links appear once a support link is configured; the wall lists
   // supporters who chose to be named (their profile name, nothing else)
   fetch("https://play.rifflehq.in/cloud/v1/support")
     .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
     .then(function (s) {
-      if (s && s.url) document.getElementById("supLi").hidden = false;
+      if (s && s.url) ["supLi", "supNav", "supHero"].forEach(function (id) { document.getElementById(id).hidden = false; });
       var names = (s && s.wall || []).map(function (w) { return String(w && w.name || "").slice(0, 40); }).filter(Boolean);
       if (!names.length) return;
       var text = names.length === 1 ? names[0] : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
