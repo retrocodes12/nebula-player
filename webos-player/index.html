@@ -2420,12 +2420,11 @@
     html.mv:not(.rm) .hrow.rin > .card:nth-child(5) { animation-delay:.14s; }
     html.mv:not(.rm) .hrow.rin > .card:nth-child(6) { animation-delay:.175s; }
     html.mv:not(.rm) .hrow.rin > .card:nth-child(n+7) { animation-delay:.21s; }
-    html.mv:not(.rm) .streamsec.rin > .stream { animation:riseIn var(--sp-t) var(--sp) backwards; }
-    html.mv:not(.rm) .streamsec.rin > .stream:nth-child(2) { animation-delay:.03s; }
-    html.mv:not(.rm) .streamsec.rin > .stream:nth-child(3) { animation-delay:.06s; }
-    html.mv:not(.rm) .streamsec.rin > .stream:nth-child(4) { animation-delay:.09s; }
-    html.mv:not(.rm) .streamsec.rin > .stream:nth-child(5) { animation-delay:.12s; }
-    html.mv:not(.rm) .streamsec.rin > .stream:nth-child(n+6) { animation-delay:.15s; }
+    /* a list to choose from is at rest quickly: a short rise, no long spring tail */
+    html.mv:not(.rm) .streamsec.rin > .stream { animation:riseIn .28s var(--decel) backwards; }
+    html.mv:not(.rm) .streamsec.rin > .stream:nth-child(2) { animation-delay:.025s; }
+    html.mv:not(.rm) .streamsec.rin > .stream:nth-child(3) { animation-delay:.05s; }
+    html.mv:not(.rm) .streamsec.rin > .stream:nth-child(n+4) { animation-delay:.075s; }
     /* the loading screen lets go of the page instead of blinking off it */
     html.mv:not(.rm) #boot { transition:opacity .36s var(--ease), transform .36s var(--ease); }   /* endBoot removes it at 0.4 s */
     html.mv:not(.rm) #boot.out { transform:scale(1.04); }
@@ -3439,7 +3438,7 @@
   // nothing has written storage yet: an empty one is a device opening Nebula for the first time (the usage counter, `hello`)
   var LS_FRESH = (function(){ try { return LS.length === 0; } catch(e){ return false; } })();
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.11.10.1';
+  var PLAYER_VERSION = '2026.11.10.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
