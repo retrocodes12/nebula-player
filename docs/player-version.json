@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.10.3",
+  "version": "2026.11.10.5",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Smoother all round: pages, menus and sheets glide into place and the selected tab slides. On a computer, arrows at the edges of a row page it with the mouse. Fixed a hidden spinner that kept every screen redrawing (TVs felt it most) and a page that blinked when you went back quickly."
+  "notes": "On TVs, Autoplay the best stream now reads what your TV can show and tests your connection, then picks the highest quality that will play smoothly. New in Settings › Streams: Aim for, Prioritise, Lowest quality and Connection speed."
 }
