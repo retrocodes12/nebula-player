@@ -1178,6 +1178,15 @@
   .pui-seek:focus-visible .pui-rail { transform:scaleY(1.25); }
   .pui-buf { position:absolute; top:0; left:0; bottom:0; width:0; background:rgba(255,255,255,.38); }
   .pui-fill { position:absolute; top:0; left:0; bottom:0; width:0; background:#fff; }
+  /* chapters (11-10): a thin dark cut in the bar where each chapter starts; its name under the scrub time */
+  .pui-chaps { position:absolute; top:0; left:0; right:0; bottom:0; pointer-events:none; }
+  .pui-chaps i { position:absolute; top:0; bottom:0; width:2px; margin-left:-1px; background:rgba(0,0,0,.6); }
+  html.tv .pui-chaps i { width:3px; margin-left:-1.5px; }
+  .pui-tipc { text-align:center; padding:0 10px 5px; margin-top:-2px; max-width:240px; font-size:calc(12px * var(--ts)); color:rgba(235,235,245,.78);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pui-tipc:empty { display:none; }
+  html.tv .pui-tipc { font-size:calc(16px * var(--ts)); max-width:360px; padding:0 12px 7px; }
+  #puiChapVal { display:inline-block; max-width:9.5em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; }
   .pui-knob { display:none; }
   /* scrub preview: a ghost knob where the jump would land and, above it, one glass card —
      the time and the jump, with a frame of that moment when one can be had */
@@ -1757,6 +1766,35 @@
   .setrow .field { width:auto; flex:0 1 260px; margin:0; }
   .seekr-ctl { display:flex; align-items:center; justify-content:flex-end; flex:0 1 420px; min-width:0; margin-left:auto; }
   .seekr-ctl .field { flex:1 1 auto; min-width:0; margin:0 8px 0 0; font-family:var(--mono); }
+  /* tracking (11-10): the sign-in code beside its QR, in the row itself */
+  .trk-ctl { flex:0 1 560px; flex-wrap:wrap; }
+  .trk-qr { background:#fff; padding:6px; border-radius:8px; line-height:0; margin:4px 14px 4px 0; }
+  .trk-qr svg { width:92px; height:92px; display:block; }
+  .trk-qr:empty { display:none; }
+  /* a title's trailer (11-10): one frame over everything, a close button, the remote's keys passed in */
+  .trl { position:fixed; top:0; left:0; right:0; bottom:0; z-index:190; background:#000; }
+  .trl iframe { position:absolute; top:0; left:0; width:100%; height:100%; border:0; }
+  .trl-x { position:absolute; top:18px; left:18px; z-index:2; background:rgba(28,28,30,.72); color:#fff; border:0; cursor:pointer; }
+  html.tv .trl-x { top:36px; left:48px; }
+  /* ambient slideshow (11-10): the app left alone on a browse screen — artwork full screen, two layers that cross-fade */
+  .amb { position:fixed; top:0; left:0; right:0; bottom:0; z-index:180; background:#000; overflow:hidden; cursor:none; }
+  .amb-img { position:absolute; top:0; left:0; right:0; bottom:0; background-size:cover; background-position:center 22%; opacity:0;
+    transition:opacity 1.4s ease; }
+  .amb-img.on { opacity:1; }
+  html.lite .amb-img, html.rm .amb-img { transition:none; }
+  .amb-shade { position:absolute; left:0; right:0; bottom:0; height:55%; background:linear-gradient(to top, rgba(0,0,0,.82), rgba(0,0,0,0)); }
+  .amb-txt { position:absolute; left:5vw; bottom:7vh; max-width:60vw; color:#fff; }
+  .amb-txt img { display:block; max-width:30vw; max-height:16vh; margin-bottom:1.4vh; }
+  .amb-name { font-size:calc(34px * var(--ts)); font-weight:700; letter-spacing:-.01em; }
+  .amb-sub { font-family:var(--mono); font-size:calc(12px * var(--ts)); letter-spacing:.16em; text-transform:uppercase; color:rgba(235,235,245,.72); margin-top:.9vh; }
+  .amb-clock { position:absolute; right:5vw; bottom:7vh; font-family:var(--mono); font-size:calc(20px * var(--ts)); color:rgba(235,235,245,.78); }
+  html.tv .amb-name { font-size:calc(52px * var(--ts)); }
+  html.tv .amb-sub { font-size:calc(18px * var(--ts)); }
+  html.tv .amb-clock { font-size:calc(30px * var(--ts)); }
+  .trk-code { font-family:var(--mono); font-size:calc(22px * var(--ts)); font-weight:600; letter-spacing:.14em; margin-right:12px; color:var(--label);
+    -webkit-user-select:text; user-select:text; }
+  html.tv .trk-qr svg { width:150px; height:150px; }
+  html.tv .trk-code { font-size:calc(34px * var(--ts)); }
   /* one device per line, remove action at the far end */
   .pdev { display:flex; align-items:center; padding:12px 0; }
   .pdev + .pdev { border-top:1px solid var(--sep); }
@@ -2723,10 +2761,10 @@
         </div>
       </div>
       <div id="puiSeek" class="focusable pui-seek" tabindex="0" aria-label="Seek">
-        <div class="pui-rail"><div id="puiBuf" class="pui-buf"></div><div id="puiFill" class="pui-fill"></div><div id="puiKnob" class="pui-knob"></div></div>
+        <div class="pui-rail"><div id="puiBuf" class="pui-buf"></div><div id="puiFill" class="pui-fill"></div><div id="puiKnob" class="pui-knob"></div><div id="puiChaps" class="pui-chaps"></div></div>
         <!-- scrub preview: the ghost knob and the card above it (time · jump, and a frame when there is one) -->
         <div id="puiGhost" class="pui-ghost"></div>
-        <div id="puiTip" class="pui-tip" aria-hidden="true"><div id="puiTipFrame" class="pui-tipframe"></div><div class="pui-tipline"><span id="puiTipT" class="pui-tipt">0:00</span><span id="puiTipD" class="pui-tipd"></span></div></div>
+        <div id="puiTip" class="pui-tip" aria-hidden="true"><div id="puiTipFrame" class="pui-tipframe"></div><div class="pui-tipline"><span id="puiTipT" class="pui-tipt">0:00</span><span id="puiTipD" class="pui-tipd"></span></div><div id="puiTipC" class="pui-tipc"></div></div>
       </div>
       <!-- elapsed at the left, what is left at the right (press it for the total), then the toolbar -->
       <div class="pui-foot">
@@ -2740,6 +2778,7 @@
           <button id="puiQual" class="focusable pui-btn" style="display:none" title="Quality (q)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M4 7h8.5M16.5 7H20M4 12h2.5M10.5 12H20M4 17h10.5M18.5 17H20"/><circle cx="14.5" cy="7" r="2"/><circle cx="8.5" cy="12" r="2"/><circle cx="16.5" cy="17" r="2"/></svg><span class="pl">Quality</span><span class="pv" id="puiQualVal"></span></button>
           <button id="puiSpeed" class="focusable pui-btn" title="Speed (&lt; and &gt;)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.2 18.2a9 9 0 1 1 13.6 0"/><path d="M12 13.5l4.2-4.7"/><circle cx="12" cy="13.5" r="1.4" fill="currentColor" stroke="none"/></svg><span class="pl">Speed</span><span class="pv" id="puiSpeedVal">1×</span></button>
           <button id="puiFit" class="focusable pui-btn" title="Picture size (v)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M6.5 12h4M6.5 12l1.8-1.8M6.5 12l1.8 1.8M17.5 12h-4M17.5 12l-1.8-1.8M17.5 12l-1.8 1.8"/></svg><span class="pl">Picture</span><span class="pv" id="puiFitVal">Fit</span></button>
+          <button id="puiChap" class="focusable pui-btn" style="display:none" title="Chapters (c)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg><span class="pl">Chapters</span><span class="pv" id="puiChapVal"></span></button>
           <button id="puiStreams" class="focusable pui-btn" title="Another stream for this title" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h11M4 12h11M4 18h7"/><path d="M17 15l3 3-3 3M20 18h-5"/></svg><span class="pl">Streams</span><span class="pv" id="puiStreamsVal"></span></button>
           <button id="puiSleep" class="focusable pui-btn" title="Sleep timer (z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 14.2A8 8 0 0 1 9.8 4.5a8 8 0 1 0 9.7 9.7z"/></svg><span class="pl">Sleep</span><span class="pv" id="puiSleepVal"></span></button>
           <button id="puiParty" class="focusable pui-btn" title="Watch party — watch together in sync"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.2 19a5.8 5.8 0 0 1 11.6 0"/><path d="M15.5 5.3a3.2 3.2 0 0 1 0 5.4M16.8 13.6a5.8 5.8 0 0 1 4 5.4"/></svg><span class="pl">Party</span></button>
@@ -2869,6 +2908,7 @@
         <button id="detPlay" class="focusable btn"><span class="btn-ic"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span id="detPlayLbl">Play</span></button>
         <button id="detEpisodes" class="focusable btn ghost" style="display:none">Episodes</button>
         <button id="detShuffle" class="focusable btn ghost" style="display:none" title="Play a random episode">Surprise me</button>
+        <button id="detTrailer" class="focusable btn ghost" style="display:none">Trailer</button>
         <button id="detList" class="focusable btn ghost">My List</button>
         <button id="detDl" class="focusable btn ghost" style="display:none">Download</button>
         <button id="detRec" class="focusable btn ghost" style="display:none">Recommend</button>
@@ -2968,6 +3008,14 @@
         <div class="setrow">
           <span class="setname">Ratings on posters<small>The little star badges on artwork</small></span>
           <span id="setRatings" class="seg"></span>
+        </div>
+        <div class="setrow" id="rowPosterAddr" data-lvl="all">
+          <span class="setname">Posters from your own address<small id="setPosterAddrSub"></small></span>
+          <span class="seekr-ctl trk-ctl" id="setPosterAddr"></span>
+        </div>
+        <div class="setrow" id="rowAmbient">
+          <span class="setname">Ambient slideshow<small>Left alone on a browse screen, the app shows artwork from your Home rows full screen · Any button or a move of the mouse brings the app back</small></span>
+          <span id="setAmbient" class="seg"></span>
         </div>
       </section>
       <!-- what Home is made of: the showcase, the resume row, then the catalog rows in your order -->
@@ -3147,6 +3195,20 @@
         <div class="setrow" id="rowSeekr">
           <span class="setname">Seekr previews<small id="setSeekrSub"></small></span>
           <span class="seekr-ctl" id="setSeekr"></span>
+        </div>
+        <!-- tracking: the viewer's own Trakt / Simkl / MDBList account, synced through the profile (trackRender). A row shows
+             only when the cloud says that service is set up, or when this profile is already connected to it -->
+        <div class="setrow" id="rowTrakt" style="display:none">
+          <span class="setname">Track on Trakt<small id="setTraktSub"></small></span>
+          <span class="seekr-ctl trk-ctl" id="setTrakt"></span>
+        </div>
+        <div class="setrow" id="rowSimkl" style="display:none">
+          <span class="setname">Track on Simkl<small id="setSimklSub"></small></span>
+          <span class="seekr-ctl trk-ctl" id="setSimkl"></span>
+        </div>
+        <div class="setrow" id="rowMdbl" style="display:none">
+          <span class="setname">Track on MDBList<small id="setMdblSub"></small></span>
+          <span class="seekr-ctl trk-ctl" id="setMdbl"></span>
         </div>
         <div class="setrow" id="rowKb">
           <span class="setname">Keyboard shortcuts<small>Press ? anywhere to see them</small></span>
@@ -3444,6 +3506,18 @@
       <div class="lc-hint">Press any button to choose a stream yourself</div>
     </div>
   </div>
+  <!-- ambient slideshow: artwork from Home, full screen, while nobody touches a browse screen (ambStart) -->
+  <div id="ambient" class="amb" style="display:none" aria-hidden="true">
+    <div id="ambA" class="amb-img"></div><div id="ambB" class="amb-img"></div>
+    <div class="amb-shade"></div>
+    <div class="amb-txt"><img id="ambLogo" alt="" style="display:none"><div id="ambName" class="amb-name"></div><div id="ambSub" class="amb-sub"></div></div>
+    <div id="ambClock" class="amb-clock"></div>
+  </div>
+  <!-- a title's trailer: our own trailer page in a frame (it holds the video), closed by Back or the button -->
+  <div id="trailerBox" class="trl" style="display:none" role="dialog" aria-label="Trailer">
+    <button id="trailerClose" class="focusable pui-round trl-x" type="button" title="Close"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <div id="trailerFrame"></div>
+  </div>
   <div id="status" class="info">Ready.</div>
 
 <script>
@@ -3454,7 +3528,7 @@
   // nothing has written storage yet: an empty one is a device opening Nebula for the first time (the usage counter, `hello`)
   var LS_FRESH = (function(){ try { return LS.length === 0; } catch(e){ return false; } })();
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.11.10.5';
+  var PLAYER_VERSION = '2026.11.10.6';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -4161,6 +4235,8 @@
     return best;
   }
   function goBack(){
+    if (trailerState){ trailerClose(true); return; }      // a trailer is over the page: Back closes it, the page stays
+    if (amb.on){ ambStop(); return; }
     stopPairing(); pfTvStop();
     var was = null;
     // leaving the player — with or without an engine yet: a start still on its way (the relay lookup, the key read,
@@ -4249,6 +4325,7 @@
       [['Q'], 'Quality'],
       [['N'], 'Next episode'],
       [['Z'], 'Sleep timer'],
+      [['C'], 'Chapters, when the file has them'],
       [['I'], 'Playback info'],
       [['F'], 'Fullscreen'],
       [['P'], 'Picture-in-picture', function(){ return !!(document.pictureInPictureEnabled && video.requestPictureInPicture); }],
@@ -4431,6 +4508,7 @@
         if (k===81){ puiKey('puiQual'); e.preventDefault(); return; }
         if (k===78){ puiKey('puiNext'); e.preventDefault(); return; }
         if (k===90){ puiKey('puiSleep'); e.preventDefault(); return; }
+        if (k===67){ puiKey('puiChap'); e.preventDefault(); return; }
         if (k===86 && document.body.classList.contains('playing')){ fitSet(1); e.preventDefault(); return; }
         if (k===80){ puiKey('puiPip'); e.preventDefault(); return; }
       }
@@ -4832,7 +4910,7 @@
   // My List — and, since 10-16, its own add-ons; settings stay the account's. The first profile's history IS the account's history as it always
   // was ('progress', 'library'), so nothing moves for anyone; the second's sits beside it ('progress_b', 'library_b') —
   // in storage, in the mirrors and in the cloud. The list is synced (`viewers`); which profile this device is on is not.
-  var VIEW_KEYS = { progress: 1, library: 1, addons: 1 };   // (add-ons per profile since 10-16)
+  var VIEW_KEYS = { progress: 1, library: 1, addons: 1, track: 1 };   // (add-ons per profile since 10-16; tracking accounts since 11-10)
   var viewer = 'a';
   try { if (LS.getItem('viewer') === 'b') viewer = 'b'; } catch(e){}
   function vkey(k){ return viewer === 'b' && VIEW_KEYS[k] ? k + '_b' : k; }
@@ -4926,7 +5004,7 @@
       the list empty until the new account's arrives. The first profile's own data merges as it always has. */
   function profilesReset(){
     if (viewer === 'b') switchViewer('a', true);   // (still signed into the old account: its unsent changes go there first)
-    ['progress_b', 'library_b', 'addons_b'].forEach(function(k){
+    ['progress_b', 'library_b', 'addons_b', 'track_b'].forEach(function(k){
       try { LS.removeItem(k); } catch(e){}
       mirrorKv(k, k === 'addons_b' ? '[]' : '{}');
     });
@@ -4962,12 +5040,14 @@
     id = id === 'b' ? 'b' : 'a';
     if (id === viewer) return;
     try { if (progCache) mirrorKv(vkey('progress'), JSON.stringify(progCache)); } catch(e){}
-    ['progress', 'library', 'addons'].forEach(function(k){
+    ['progress', 'library', 'addons', 'track'].forEach(function(k){
       clearTimeout(syncTimers[k]);
       if (cloudLinked() && cloudDirty[vkey(k)]) cloudPush(k);
     });
+    try { trackStop(false); trackAuthStop(); } catch(e){}   // what plays was the other profile's watching
     viewer = id; try { LS.setItem('viewer', id); } catch(e){}
     progCache = null; libCache = null; upcomingCache = { at: 0, rows: null };
+    trackCache = null; try { initPersistentTrack(); trackRender(); } catch(e){}
     addonsSyncMeta = null;
     initPersistentProgress(); initPersistentLibrary();
     // this profile's add-ons first (restored or seeded), then the cloud's copy of them and of its history
@@ -6338,6 +6418,51 @@
   }
   /** Poster card. When (a, m, c) are given, clicking first points ctx at that
       addon/catalog (cards on Home and Search live outside the catalog view). */
+  /** Settings › Posters from your own address: an https address with {id} where the title's IMDb id goes ('' = off). */
+  function posterAddr(pr){
+    var v = (pr || getPrefs()).posterAddr;
+    return (typeof v === 'string' && v.length <= 300 && /^https:\/\/[^\s"'<>\\]+$/i.test(v) && v.indexOf('{id}') !== -1) ? v : '';
+  }
+  function ownPoster(meta, pr){
+    var pat = posterAddr(pr); if (!pat) return '';
+    var m = /^(tt\d{5,10})(?::|$)/.exec(String((meta && (meta.imdb_id || meta.id)) || ''));
+    return m ? pat.split('{id}').join(m[1]) : '';
+  }
+  function ownPosterImg(own, fallback, name){
+    return '<img loading="lazy" decoding="async" src="' + esc(own) + '" data-full="' + esc(cardArtSmall(fallback)) + '"' +
+      ' onerror="var f=this.getAttribute(\'data-full\');if(f){this.removeAttribute(\'data-full\');this.src=f;}else this.outerHTML=\'<span class=&quot;thumb-ph&quot;>' + phFor(name) + '</span>\'">';
+  }
+  function posterAddrRender(){
+    var box = $id('setPosterAddr'), sub = $id('setPosterAddrSub'); if (!box || !sub) return;
+    var cur = posterAddr();
+    sub.textContent = cur ? ('On · ' + cur.replace(/^https:\/\//i, '').split('/')[0] + ' · Cards with an IMDb id show its poster; the catalogue’s own is the fallback')
+      : 'Show a poster service’s pictures on cards (ones with ratings on them, say) · Paste its address with {id} where the IMDb id goes';
+    var state = cur ? 'on' : 'off';
+    if (box.getAttribute('data-state') === state) return;
+    var hadFocus = box.contains(document.activeElement);
+    box.setAttribute('data-state', state);
+    box.innerHTML = '';
+    function again(){ try { buildHomeRows(true); } catch(e){} }
+    if (cur){
+      var off = trackBtn(box, 'setPosterAddrOff', 'Turn off', function(){ setPref('posterAddr', ''); posterAddrRender(); again(); setStatus('Posters come from your catalogues again.', 'ok'); });
+      if (hadFocus) off.focus();
+      return;
+    }
+    var inp = document.createElement('input');
+    inp.id = 'setPosterAddrIn'; inp.className = 'focusable field'; inp.type = 'text'; inp.maxLength = 300;
+    inp.autocomplete = 'off'; inp.spellcheck = false; inp.placeholder = 'https://…/{id}.jpg';
+    box.appendChild(inp);
+    var go = trackBtn(box, 'setPosterAddrGo', 'Use', use);
+    function use(){
+      var v = inp.value.trim();
+      if (!posterAddr({ posterAddr: v })){ setStatus('That needs to be an https address with {id} in it.', 'err'); return; }
+      setPref('posterAddr', v); posterAddrRender(); again();
+      setStatus('Cards now show posters from ' + v.replace(/^https:\/\//i, '').split('/')[0] + '.', 'ok');
+      var o = $id('setPosterAddrOff'); if (o) o.focus();
+    }
+    inp.onkeydown = function(ev){ if (ev.keyCode === 13){ use(); ev.preventDefault(); ev.stopPropagation(); } };
+    if (hadFocus) inp.focus();
+  }
   function cardEl(meta, a, m, c){
     var pr = getPrefs();
     // Settings › Wide cards everywhere: the backdrop (or the poster) in a 16:9 frame instead of the poster
@@ -6346,8 +6471,12 @@
     card.setAttribute('data-key', 'c:' + (meta.type || '') + ':' + meta.id);   // found again when its row is rebuilt
     var rate = (meta.imdbRating && pr.ratings !== false) ? '<span class="card-rate">★ '+esc(String(meta.imdbRating))+'</span>' : '';
     var art = wide ? (meta.background || meta.poster) : meta.poster;
+    // Settings › Posters from your own address: that service's poster for a title with an IMDb id (it usually carries
+    // ratings of its own, so our star badge stands down); the catalogue's picture is the fallback if it does not load
+    var own = (!wide && art) ? ownPoster(meta, pr) : '';
+    if (own) rate = '';
     var thumb = art
-      ? '<div class="thumb">'+posterImg(art, meta.name)+rate+'</div>'
+      ? '<div class="thumb">'+(own ? ownPosterImg(own, art, meta.name) : posterImg(art, meta.name))+rate+'</div>'
       : '<div class="thumb"><span class="thumb-ph">'+phFor(meta.name)+'</span>'+rate+'</div>';
     var year = meta.releaseInfo || meta.year || '';
     card.innerHTML = thumb + '<div class="card-label">'+esc(meta.name||meta.id)+'</div>' +
@@ -8912,6 +9041,7 @@
       lbl.textContent = (pr && !pr.done && pr.pos) ? 'Resume' : 'Play';
       play.onclick = function(){ ctx.streamTitle = meta.name || null; openStreams(type, meta.id, meta.name); };
     }
+    trailerSync(meta);
     var on = inLibrary(type, meta.id);
     $id('detList').textContent = on ? '✓ In My List' : '+ My List';
     $id('detList').onclick = function(){
@@ -8919,6 +9049,187 @@
       syncDetButtons();
     };
   }
+  // ---- ambient slideshow (2026-11-10) ----
+  // Settings › Appearance › Ambient slideshow (Off · 2 · 5 · 10 min; off by default, not offered on a phone): a browse
+  // screen nobody has touched for that long is covered by artwork from the Home rows — one backdrop every 12 s with the
+  // title under it and the clock. Never while something plays, a sheet or a trailer is up, a field is being typed in or
+  // the window is hidden. Any key, click, touch or real move of the mouse takes it away (and that key does nothing else).
+  var amb = { timer: null, on: false, list: [], i: 0, slide: null, front: 'A', poked: 0, mx: -1, my: -1 };
+  function ambMins(pr){ var v = Number((pr || getPrefs()).ambient); return (v === 2 || v === 5 || v === 10) ? v : 0; }
+  function ambSettings(pr){
+    var row = $id('rowAmbient'); if (!row) return;
+    if (isPhone()){ row.style.display = 'none'; return; }
+    segChips('setAmbient', [['Off', '0'], ['2 min', '2'], ['5 min', '5'], ['10 min', '10']], String(ambMins(pr)), function(v){ setPref('ambient', Number(v)); ambArm(); });
+  }
+  function ambArm(){
+    clearTimeout(amb.timer); amb.timer = null;
+    var m = ambMins(); if (!m || amb.on || isPhone()) return;
+    amb.timer = setTimeout(ambTry, m * 60000);
+  }
+  function ambBusy(){
+    var ae = document.activeElement, tag = ae && ae.tagName;
+    return !!player || document.body.classList.contains('pui-on') || !!trailerState || !!(sheetState && sheetState.el) || document.hidden ||
+      tag === 'INPUT' || tag === 'TEXTAREA' || !!party;
+  }
+  function ambTry(){ amb.timer = null; if (ambBusy()){ ambArm(); return; } ambStart(); }
+  /** Backdrops of what Home shows: the featured titles first, then the rows' cards — each picture once, shuffled. */
+  function ambPool(){
+    var out = [], seen = {};
+    function add(m){
+      var img = m && typeof m.background === 'string' ? m.background : '';
+      if (!/^https?:\/\//i.test(img) || seen[img] || out.length >= 60) return;
+      seen[img] = 1;
+      var g = Object.prototype.toString.call(m.genres) === '[object Array]' ? m.genres.slice(0, 2).join(' · ') : '';
+      out.push({ img: img, name: String(m.name || ''), logo: typeof m.logo === 'string' && /^https?:\/\//i.test(m.logo) ? m.logo : '',
+        sub: [String(m.releaseInfo || m.year || ''), g].filter(Boolean).join(' · ') });
+    }
+    try { (heroState.items || []).forEach(function(it){ add(it && (it.meta || it)); }); } catch(e){}
+    try { [].forEach.call(document.querySelectorAll('#homeRows .card'), function(c){ if (c.__spot) add(c.__spot.meta); }); } catch(e){}
+    for (var i = out.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)), t = out[i]; out[i] = out[j]; out[j] = t; }
+    return out;
+  }
+  function ambStart(){
+    if (amb.on) return;
+    var list = ambPool();
+    if (list.length < 3){ ambArm(); return; }              // nothing worth showing (no backdrops in these catalogues)
+    amb.on = true; amb.list = list; amb.i = -1; amb.front = 'A';
+    $id('ambA').className = 'amb-img'; $id('ambB').className = 'amb-img';
+    $id('ambient').style.display = '';
+    ambNext();
+    amb.slide = setInterval(ambNext, 12000);
+  }
+  function ambNext(){
+    if (!amb.on) return;
+    amb.i = (amb.i + 1) % amb.list.length;
+    var it = amb.list[amb.i], im = new Image();
+    im.onload = function(){
+      if (!amb.on || amb.list[amb.i] !== it) return;
+      var show = amb.front === 'A' ? $id('ambB') : $id('ambA'), hide = amb.front === 'A' ? $id('ambA') : $id('ambB');
+      show.style.backgroundImage = 'url("' + it.img.replace(/["\\\n]/g, '') + '")';
+      show.className = 'amb-img on'; hide.className = 'amb-img';
+      amb.front = amb.front === 'A' ? 'B' : 'A';
+      var logo = $id('ambLogo'), name = $id('ambName');
+      if (it.logo){ logo.onerror = function(){ logo.style.display = 'none'; name.style.display = ''; }; logo.src = it.logo; logo.style.display = ''; name.style.display = 'none'; }
+      else { logo.style.display = 'none'; name.style.display = ''; }
+      name.textContent = it.name;
+      $id('ambSub').textContent = it.sub;
+      $id('ambClock').textContent = fmtClock(new Date());
+    };
+    im.onerror = function(){ if (amb.on && amb.list.length > 1){ amb.list.splice(amb.i, 1); amb.i--; ambNext(); } };
+    im.src = it.img;
+  }
+  /** [held]: a click woke it — the cover stays a moment more, so the click's second half lands on it, not on a card beneath. */
+  function ambStop(held){
+    if (!amb.on) return;
+    amb.on = false;
+    clearInterval(amb.slide); amb.slide = null;
+    var hide = function(){
+      if (amb.on) return;
+      $id('ambient').style.display = 'none';
+      $id('ambA').style.backgroundImage = ''; $id('ambB').style.backgroundImage = '';
+    };
+    if (held) setTimeout(hide, 350); else hide();
+    amb.list = [];
+    ambArm();
+  }
+  /** Someone is here: the slideshow goes (the key or click that woke it does nothing else), the wait starts over. */
+  function ambPoke(e){
+    if (e && e.type === 'mousemove'){
+      // (a TV's pointer and a resting mouse report moves that are none: only a real one counts)
+      if (amb.mx < 0){ amb.mx = e.clientX; amb.my = e.clientY; return; }
+      if (Math.abs(e.clientX - amb.mx) + Math.abs(e.clientY - amb.my) < 6) return;
+      amb.mx = e.clientX; amb.my = e.clientY;
+    }
+    if (amb.on){
+      var click = !!e && (e.type === 'pointerdown' || e.type === 'touchstart');
+      ambStop(click);
+      if (e && (e.type === 'keydown' || e.type === 'pointerdown')){ try { e.preventDefault(); e.stopPropagation(); } catch(x){} }
+      return;
+    }
+    var now = Date.now();
+    if (now - amb.poked < 1000) return;
+    amb.poked = now;
+    if (ambMins()) ambArm();
+  }
+  ['keydown', 'pointerdown', 'mousemove', 'wheel', 'touchstart'].forEach(function(ev){
+    document.addEventListener(ev, ambPoke, { capture: true, passive: ev === 'wheel' || ev === 'touchstart' || ev === 'mousemove' });
+  });
+  document.addEventListener('visibilitychange', function(){ if (document.hidden) ambStop(); else ambArm(); });
+  // ---- a title's trailer (2026-11-10) ----
+  // A catalogue names a trailer by a video id only (`trailerStreams` [{title, ytId}] or `trailers` [{source, type}]), never
+  // a file. The title page offers "Trailer" when there is one; it plays in a frame over the app — our own trailer page
+  // (docs/trailer.html), which holds the video site's player: a packaged TV app has no web address, and the video site
+  // refuses an embedder without one. Remote and keyboard stay here: OK/Space = play or pause, ←/→ = 10 s, Back = close.
+  var TRAILER_PAGE = ((HTTP_ORIGIN && !IS_DESKTOP) ? SITE : GH_SITE) + '/trailer.html';
+  var trailerState = null;
+  function trailerOf(meta){
+    var ok = function(v){ return typeof v === 'string' && /^[A-Za-z0-9_-]{6,20}$/.test(v) ? v : ''; };
+    var ts = meta && meta.trailerStreams, tr = meta && meta.trailers, i, id;
+    if (Object.prototype.toString.call(ts) === '[object Array]') for (i = 0; i < ts.length; i++){ id = ok(ts[i] && ts[i].ytId); if (id) return id; }
+    if (Object.prototype.toString.call(tr) === '[object Array]'){
+      for (i = 0; i < tr.length; i++){ if (tr[i] && /trailer/i.test(String(tr[i].type || '')) && (id = ok(tr[i].source))) return id; }
+      for (i = 0; i < tr.length; i++){ id = ok(tr[i] && tr[i].source); if (id) return id; }
+    }
+    return '';
+  }
+  function trailerSync(meta){
+    var b = $id('detTrailer'); if (!b) return;
+    var id = trailerOf(meta);
+    b.style.display = id ? '' : 'none';
+    b.onclick = id ? function(){ trailerOpen(id); } : null;
+  }
+  function trailerSay(what){
+    var fr = trailerState && trailerState.frame;
+    try { if (fr && fr.contentWindow) fr.contentWindow.postMessage({ nebulaTrailer: what }, '*'); } catch(e){}
+  }
+  function trailerOpen(id){
+    trailerClose(false);
+    var box = $id('trailerBox'), host = $id('trailerFrame');
+    var fr = document.createElement('iframe');
+    fr.setAttribute('allow', 'autoplay; encrypted-media; fullscreen; picture-in-picture');
+    fr.setAttribute('allowfullscreen', '');
+    fr.setAttribute('title', 'Trailer');
+    fr.src = TRAILER_PAGE + '?v=' + encodeURIComponent(id);
+    host.innerHTML = ''; host.appendChild(fr);
+    box.style.display = '';
+    trailerState = { frame: fr, prev: document.activeElement, keys: null, msg: null, rel: null, armed: !enterDown };
+    trailerState.keys = function(e){
+      var k = e.keyCode;
+      if (k === 461 || k === 10009 || k === 27 || k === 8 || e.key === 'GoBack' || e.key === 'BrowserBack'){ trailerClose(true); }
+      else if (k === 13 || k === 32 || k === 415 || k === 19 || k === 179){
+        // (the OK that opened this is usually still down and repeating: nothing counts until it has been let go)
+        if (k !== 13 || trailerState.armed) trailerSay('toggle');
+      }
+      else if (k === 37 || k === 412) trailerSay('back');
+      else if (k === 39 || k === 417) trailerSay('fwd');
+      else if (k === 9 || k === 116 || k === 123 || e.ctrlKey || e.metaKey || e.altKey) return;    // the browser's own keys pass
+      e.preventDefault(); e.stopPropagation();
+    };
+    trailerState.msg = function(e){
+      if (!trailerState || e.source !== fr.contentWindow || !e.data) return;
+      if (e.data.nebulaTrailer === 'ended') trailerClose(true);
+    };
+    trailerState.rel = function(e){ if (e.keyCode === 13 && trailerState) trailerState.armed = true; };
+    document.addEventListener('keydown', trailerState.keys, true);
+    document.addEventListener('keyup', trailerState.rel, true);
+    window.addEventListener('message', trailerState.msg);
+    try { $id('trailerClose').focus({ preventScroll: true }); } catch(e){ $id('trailerClose').focus(); }
+  }
+  function trailerClose(refocus){
+    var st = trailerState; if (!st) return;
+    trailerState = null;
+    try { if (st.frame.contentWindow) st.frame.contentWindow.postMessage({ nebulaTrailer: 'stop' }, '*'); } catch(e){}
+    document.removeEventListener('keydown', st.keys, true);
+    document.removeEventListener('keyup', st.rel, true);
+    window.removeEventListener('message', st.msg);
+    $id('trailerBox').style.display = 'none';
+    $id('trailerFrame').innerHTML = '';
+    if (refocus){
+      var t = (st.prev && document.body.contains(st.prev) && isShown(st.prev)) ? st.prev : $id('detTrailer');
+      try { t.focus({ preventScroll: true }); } catch(e){ try { t.focus(); } catch(x){} }
+    }
+  }
+  $id('trailerClose').onclick = function(){ trailerClose(true); };
   function openDetail(meta, type){
     type = type || meta.type || 'movie';
     ctx.item = meta;                       // stream/poster identity keys off this
@@ -10388,11 +10699,13 @@
     try { wlSave(); } catch(e){}
     try { socialPublishSoon(); } catch(e){}   // friends see the freshly-watched title
     try { flushProgress(true); } catch(e){}
+    try { trackStop(false); } catch(e){}
     curPlay = null;
     lpMark(null);                      // left the player the normal way: nothing to offer at the next start
     ctx.viaRelay = null; ctx.relaySrc = false;   // the relay's base stays: a late response still maps back
     closeUpNext();
     skipReset();
+    chapReset();
     pgStop();
     stallReset();
     subHdrReset();
@@ -11593,6 +11906,7 @@
     if (mp.error) return;                               // after the sentence mpv let the file go: news that crossed it is old
     if (e.type === 'loaded'){
       mp.loaded = true; mp.tracks = e.tracks || [];
+      chapFromMpv(e.chapters);
       if (e.version) mp.ver = e.version;
       if (mp.reconnecting){ mpvReapply(); return; }
       mpvSubStyle();                                   // mpv's version is known now: the subtitle box in its own terms
@@ -11601,6 +11915,7 @@
       if (mp.wait){ var w = mp.wait; mp.wait = null; w.ok(); }
       return;
     }
+    if (e.type === 'chapters'){ chapFromMpv(e.chapters); return; }
     if (e.type === 'tracks'){ mp.tracks = e.tracks || []; if (mp.loaded) mpvDvNote(); if (puiState.menu === 'subs') subPanelRender(true); return; }
     if (e.type === 'seek'){ if (!mp.seeking){ mp.seeking = true; mpvFire('seeking'); } return; }
     if (e.type === 'seekfail'){
@@ -12185,6 +12500,7 @@
     puiReset(title || '');
     $id('puiSrc').textContent = srcLine(ctx.playSig);   // add-on · plate · provider of what is playing
     pgLoad(curPlay);                   // the content advisory shown as it starts
+    trackBegin();                      // what is reported to the viewer's tracking account, if they connected one
     lpMark(curPlay);                   // (the app closed from here is offered this again at the next start)
     if (curPlay && curPlay.type === 'series'){
       // the show's name on top, "S1 E1 · name" under it; an id alone reads Season · Episode
@@ -12666,7 +12982,8 @@
     INFO: 0x1549A966, TSCALE: 0x2AD7B1, TRACKS: 0x1654AE6B, TRACK: 0xAE, TNUM: 0xD7, TTYPE: 0x83, CODEC: 0x86, LANG: 0x22B59C,
     LANGBCP: 0x22B59D, NAME: 0x536E, FFORCED: 0x55AA, ENCODINGS: 0x6D80, CUES: 0x1C53BB6B, CUEPOINT: 0xBB, CUETIME: 0xB3,
     CUEPOS: 0xB7, CUETRACK: 0xF7, CUECLUSTER: 0xF1, CUEREL: 0xF0, CUEDUR: 0xB2, CLUSTER: 0x1F43B675, BLOCKGROUP: 0xA0,
-    BLOCK: 0xA1, SIMPLEBLOCK: 0xA3, BLOCKDUR: 0x9B };
+    BLOCK: 0xA1, SIMPLEBLOCK: 0xA3, BLOCKDUR: 0x9B, CHAPTERS: 0x1043A770, EDITION: 0x45B9, EDHIDDEN: 0x45BD, EDDEFAULT: 0x45DB,
+    ATOM: 0xB6, CHSTART: 0x91, CHHIDDEN: 0x98, CHENABLED: 0x4598, CHDISPLAY: 0x80, CHSTRING: 0x85 };
   var MKV_TEXT = { 'S_TEXT/UTF8': 'srt', 'S_TEXT/ASCII': 'srt', 'S_TEXT/ASS': 'ass', 'S_TEXT/SSA': 'ass', 'S_TEXT/WEBVTT': 'vtt', 'D_WEBVTT/SUBTITLES': 'vtt' };
   function mkvVint(b, p, keep){
     var first = b[p]; if (first === undefined) return null;
@@ -12716,11 +13033,37 @@
     });
   }
   /** The file's readable subtitle tracks, each with where its lines are: {scale, tracks:[{num, kind, lang, name, forced, points:[{t, cluster, rel, dur}]}]}. */
+  /** The file's chapters [{t (seconds), name}] from its Chapters element: the default edition (else the first shown one),
+      hidden and switched-off chapters left out. A chapter's start is written in nanoseconds whatever the file's scale. */
+  function mkvChapters(b, s, e){
+    var eds = [];
+    mkvKids(b, s, e).forEach(function(ed){
+      if (ed.id !== MKV_ID.EDITION) return;
+      var o = { def: false, hidden: false, list: [] };
+      mkvKids(b, ed.data, ed.end).forEach(function(k){
+        if (k.id === MKV_ID.EDDEFAULT) o.def = mkvUint(b, k.data, k.end) === 1;
+        else if (k.id === MKV_ID.EDHIDDEN) o.hidden = mkvUint(b, k.data, k.end) === 1;
+        else if (k.id === MKV_ID.ATOM){
+          var at = -1, name = '', hid = false, on = true;
+          mkvKids(b, k.data, k.end).forEach(function(x){
+            if (x.id === MKV_ID.CHSTART) at = mkvUint(b, x.data, x.end);
+            else if (x.id === MKV_ID.CHHIDDEN) hid = mkvUint(b, x.data, x.end) === 1;
+            else if (x.id === MKV_ID.CHENABLED) on = mkvUint(b, x.data, x.end) !== 0;
+            else if (x.id === MKV_ID.CHDISPLAY && !name) mkvKids(b, x.data, x.end).forEach(function(d){ if (d.id === MKV_ID.CHSTRING && !name) name = mkvStr(b, d.data, d.end); });
+          });
+          if (at >= 0 && !hid && on) o.list.push({ t: at / 1e9, name: name });
+        }
+      });
+      if (o.list.length) eds.push(o);
+    });
+    var pick = eds.filter(function(x){ return x.def && !x.hidden; })[0] || eds.filter(function(x){ return !x.hidden; })[0] || eds[0];
+    return pick ? pick.list : [];
+  }
   async function mkvIndex(read){
     var head = await read(0, 262144);
     var ebml = mkvEl(head, 0); if (!ebml || ebml.id !== MKV_ID.EBML) throw new Error('not matroska');
     var seg = mkvEl(head, ebml.end); if (!seg || seg.id !== MKV_ID.SEGMENT) throw new Error('no segment');
-    var segStart = seg.data, scale = 1000000, tracks = null, cuesAt = -1, tracksAt = -1, infoAt = -1, gotInfo = false, p;
+    var segStart = seg.data, scale = 1000000, tracks = null, cuesAt = -1, tracksAt = -1, infoAt = -1, gotInfo = false, p, chapters = null, chapAt = -1;
     async function elAt(pos, cap){
       var buf = await read(pos, pos + 65536);
       var el = mkvEl(buf, 0); if (!el || el.end < 0) return null;
@@ -12744,20 +13087,27 @@
             if (sid === MKV_ID.CUES) cuesAt = segStart + spos;
             else if (sid === MKV_ID.TRACKS) tracksAt = segStart + spos;
             else if (sid === MKV_ID.INFO) infoAt = segStart + spos;
+            else if (sid === MKV_ID.CHAPTERS) chapAt = segStart + spos;
           });
         }
         else if (el.id === MKV_ID.INFO){ gotInfo = true; info(head, el); }
         else if (el.id === MKV_ID.TRACKS) tracks = mkvTracks(head, el.data, el.end);
+        else if (el.id === MKV_ID.CHAPTERS) chapters = mkvChapters(head, el.data, el.end);
       }
       if (el.id === MKV_ID.CUES) cuesAt = p;
       p = el.end;
     }
     if (!tracks && tracksAt >= 0){ var tk = await elAt(tracksAt); if (tk && tk.el.id === MKV_ID.TRACKS) tracks = mkvTracks(tk.buf, tk.el.data, tk.el.end); }
     if (!gotInfo && infoAt >= 0){ var inf = await elAt(infoAt); if (inf && inf.el.id === MKV_ID.INFO) info(inf.buf, inf.el); }
+    // the chapter list, when the head did not hold it: one more small read where the file's own index says it is
+    if (!chapters && chapAt >= 0){
+      try { var ch = await elAt(chapAt, 1048576); if (ch && ch.el.id === MKV_ID.CHAPTERS) chapters = mkvChapters(ch.buf, ch.el.data, ch.el.end); } catch(e0){}
+    }
+    chapters = chapters || [];
     var subs = (tracks || []).filter(function(t){ return t.type === 0x11 && t.kind && !t.compressed; });
-    if (!subs.length || cuesAt < 0) return { scale: scale, tracks: [] };
+    if (!subs.length || cuesAt < 0) return { scale: scale, tracks: [], chapters: chapters };
     var c = await elAt(cuesAt, 8388608);
-    if (!c || c.el.id !== MKV_ID.CUES) return { scale: scale, tracks: [] };
+    if (!c || c.el.id !== MKV_ID.CUES) return { scale: scale, tracks: [], chapters: chapters };
     var byNum = {}, listed = {}; subs.forEach(function(t){ t.points = []; byNum[t.num] = t; });
     mkvKids(c.buf, c.el.data, c.el.end).forEach(function(cp){
       if (cp.id !== MKV_ID.CUEPOINT) return;
@@ -12778,7 +13128,7 @@
       });
     });
     // a track the index only partly covers (an FFmpeg-made file indexes video keyframes only) cannot be read this way
-    return { scale: scale, tracks: subs.filter(function(t){ return t.points.length >= 5; }) };
+    return { scale: scale, tracks: subs.filter(function(t){ return t.points.length >= 5; }), chapters: chapters };
   }
   /** Where a line's piece is: its place counts from the cluster's DATA (after the cluster's own id and 1–8 byte size), so
       one read from 5 bytes in covers every header length, and the block that parses there is the one. */
@@ -12936,7 +13286,9 @@
     var rd = innerReader(url);
     inner = { seq: seq, rd: rd };
     return mkvIndex(rd.read).then(function(idx){
-      if (seq !== playSeq || !idx.tracks.length) return;
+      if (seq !== playSeq) return;
+      chapSet(seq, idx.chapters);                       // the file's chapters: marks on the bar, the list, skips from their names
+      if (!idx.tracks.length) return;
       var seen = {};
       var cands = idx.tracks.map(function(t){
         var lang = t.bcp || t.lang || 'und', n = langName(lang) || lang;
@@ -13422,12 +13774,13 @@
     if (puiIsLive()){
       var lag = r.end - t;
       $id('puiTipT').textContent = lag > 12 ? '−' + fmtT(lag) + ' behind live' : 'At the live edge';
-      $id('puiTipD').textContent = '';
+      $id('puiTipD').textContent = ''; $id('puiTipC').textContent = '';
       scrubFrameClear();                       // a live stream never gets a frame
     } else {
       var d = t - video.currentTime;
       $id('puiTipT').textContent = fmtT(t - r.start);
       $id('puiTipD').textContent = Math.abs(d) < 0.5 ? '' : (d > 0 ? '+' : '−') + fmtT(Math.abs(d));
+      var tipC = chapAt(t); $id('puiTipC').textContent = tipC ? tipC.name : '';
       scrubFrameFor(t);
     }
     scrubPlace();
@@ -14270,6 +14623,7 @@
       if (pbEnds && ends) pbEnds.textContent = ends;
     }
     $id('puiClock').textContent = clock;
+    chapPaint(r, t);
   }
   var puiIconWas = null;
   function puiSyncPlayIcon(){
@@ -14930,7 +15284,7 @@
     if (subPanelEl){ subPanelEl.classList.remove('open'); document.body.classList.remove('sp-on'); }
     puiMenuEl.innerHTML = '';
     var t=document.createElement('div'); t.className='qtitle';
-    t.textContent = { quality:'Quality', audio:'Audio', speed:'Speed', sleep:'Sleep timer', fit:'Picture size', streams:'Streams' }[kind];
+    t.textContent = { quality:'Quality', audio:'Audio', speed:'Speed', sleep:'Sleep timer', fit:'Picture size', streams:'Streams', chapters:'Chapters' }[kind];
     puiMenuEl.appendChild(t);
     if (kind==='quality'){
       var tracks = videoTracks(), heights = distinctHeights(tracks);
@@ -15019,6 +15373,9 @@
       puiNote(FIT_NOTES[fm]);
     } else if (kind==='streams'){
       streamsMenuFill();
+    } else if (kind==='chapters'){
+      var chNow = chapAt(video.currentTime);
+      chap.list.forEach(function(c){ menuOpt(fmtT(c.t) + '  ·  ' + c.name, c === chNow, function(){ chapGo(c); }); });
     } else if (kind==='sleep'){
       menuOpt('Off', !sleepState.mode, function(){ sleepSet('', 0); });
       [15,30,45,60,90].forEach(function(m){
@@ -15564,6 +15921,7 @@
     // a viewer hunting for a button that is not there
     $id('puiAudio').style.display = '';
     $id('puiNext').style.display = nextEpisode() ? '' : 'none';
+    $id('puiChap').style.display = (chap.list.length >= 2 && !puiIsLive()) ? '' : 'none';
     // picture-in-picture needs the element's own picture: not while the full-format player draws it
     $id('puiPip').style.display = (!player.mpv && document.pictureInPictureEnabled && HTMLVideoElement.prototype.requestPictureInPicture) ? '' : 'none';
   }
@@ -15625,6 +15983,7 @@
   $id('puiSpeed').onclick = function(){ if (puiState.menu==='speed') closePuiMenu(true); else openPuiMenu('speed', this); };
   $id('puiFit').onclick = function(){ if (puiState.menu==='fit') closePuiMenu(true); else openPuiMenu('fit', this); };
   $id('puiSleep').onclick = function(){ if (puiState.menu==='sleep') closePuiMenu(true); else openPuiMenu('sleep', this); };
+  $id('puiChap').onclick = function(){ if (puiState.menu==='chapters') closePuiMenu(true); else openPuiMenu('chapters', this); };
   $id('puiStreams').onclick = function(){ if (puiState.menu==='streams') closePuiMenu(true); else openPuiMenu('streams', this); };
 
   // ---- fullscreen ----
@@ -15853,6 +16212,452 @@
     if (nextEpisode()) openUpNext(true);
   });
 
+  // ---------- tracking: Trakt · Simkl · MDBList (2026-11-10) ----------
+  // What plays is reported to the viewer's OWN account at a tracking service, once they connect one: it started, it was
+  // paused, it stopped — one call per thing the viewer did, never on a timer (each service moves the clock itself, and at
+  // 80 % marks the title watched). Trakt and Simkl are called straight from here. Trakt's sign-in needs a secret an app
+  // cannot hold, so turning the code into a token (and the daily renewal) passes through our cloud; MDBList refuses a
+  // browser's preflight, so its calls pass through the cloud too (the key in the body, kept nowhere). Signing in is a code
+  // typed or scanned on the service's own page — nothing of theirs is typed here. Which services exist comes from the
+  // cloud (/v1/track/config: public client ids); none set up → no row. The connection is a synced doc per profile
+  // (`track` / `track_b`): connect on a phone and the TV reports too. Copy names the services — the deliberate exception
+  // to "no third-party names" (an account you connect has to be named).
+  var TRAKT_API = 'https://api.trakt.tv', SIMKL_API = 'https://api.simkl.com';
+  var TRACK_SVC = { trakt: 'Trakt', simkl: 'Simkl', mdbl: 'MDBList' };
+  var TRACK_ID_RE = /^[A-Za-z0-9_-]{16,128}$/, TRACK_TOK_RE = /^[A-Za-z0-9._~+\/=-]{16,2048}$/, MDBL_KEY_RE = /^[A-Za-z0-9_-]{8,128}$/;
+  var trackCfg = { trakt: '', simkl: '', mdblist: false, at: 0 };
+  try {
+    var trkBoot = JSON.parse(LS.getItem('track_cfg') || 'null');
+    if (trkBoot && typeof trkBoot === 'object') trackCfg = { trakt: TRACK_ID_RE.test(trkBoot.trakt || '') ? trkBoot.trakt : '',
+      simkl: TRACK_ID_RE.test(trkBoot.simkl || '') ? trkBoot.simkl : '', mdblist: trkBoot.mdblist === true, at: Number(trkBoot.at) || 0 };
+  } catch(e){}
+  var trackCache = null, trackRefreshing = {}, trackAuth = null, trackWarned = {};
+  var trackS = { item: null, sent: '', want: '', timer: null, done: false };
+  function trackTok(v){ return typeof v === 'string' && TRACK_TOK_RE.test(v) ? v : ''; }
+  function trackName(v){ return typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').slice(0, 60) : ''; }
+  function trackClean(o){
+    o = (o && typeof o === 'object') ? o : {};
+    function oauth(x){
+      x = (x && typeof x === 'object') ? x : {};
+      var a = trackTok(x.a);
+      return { a: a, r: a ? trackTok(x.r) : '', exp: a ? (Number(x.exp) || 0) : 0, user: a ? trackName(x.user) : '', at: Number(x.at) || 0 };
+    }
+    var m = (o.mdbl && typeof o.mdbl === 'object') ? o.mdbl : {}, key = (typeof m.key === 'string' && MDBL_KEY_RE.test(m.key)) ? m.key : '';
+    return { trakt: oauth(o.trakt), simkl: oauth(o.simkl), mdbl: { key: key, user: key ? trackName(m.user) : '', at: Number(m.at) || 0 } };
+  }
+  function getTrack(){
+    if (trackCache) return trackCache;
+    var o = null; try { o = JSON.parse(LS.getItem(vkey('track')) || 'null'); } catch(e){}
+    return (trackCache = trackClean(o));
+  }
+  function saveTrack(push){
+    var j = JSON.stringify(getTrack());
+    try { LS.setItem(vkey('track'), j); } catch(e){}
+    mirrorKv(vkey('track'), j);
+    if (push) cloudPushSoon('track');
+  }
+  function trackHasAny(){ var T = getTrack(); return T.trakt.at > 0 || T.simkl.at > 0 || T.mdbl.at > 0; }
+  /** Each service's connection is its own record: the newest of each wins (a disconnect is a record too). */
+  function mergeTrack(remote){
+    var local = getTrack(), r = trackClean(remote), changed = false, localNewer = false;
+    ['trakt', 'simkl', 'mdbl'].forEach(function(k){
+      if (r[k].at > local[k].at){ local[k] = r[k]; changed = true; }
+      else if (local[k].at > r[k].at) localNewer = true;
+    });
+    if (changed){ saveTrack(false); try { trackRender(); } catch(e){} }
+    return { changed: changed, localNewer: localNewer };
+  }
+  function initPersistentTrack(){
+    var k = vkey('track'), has = false; try { has = !!LS.getItem(k); } catch(e){}
+    if (has){ mirrorKv(k, JSON.stringify(getTrack())); return; }
+    idbLoad(k)
+      .then(function(v){ if (v) return v; return db8Load(k); })
+      .then(function(v){
+        if (!v || vkey('track') !== k) return;
+        var c = null; try { c = trackClean(JSON.parse(v)); } catch(e){ return; }
+        if (c.trakt.at > 0 || c.simkl.at > 0 || c.mdbl.at > 0) mergeTrack(c);
+      })
+      .catch(function(){});
+  }
+  /** Which services this server offers (kept 6 h; an old cloud without the route offers none). */
+  function trackConfig(force){
+    if (!force && trackCfg.at && Date.now() - trackCfg.at < 6 * 3600000) return Promise.resolve(trackCfg);
+    return fetch(CLOUD_BASE + '/v1/track/config')
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        if (!j) return trackCfg;
+        trackCfg = { trakt: TRACK_ID_RE.test(j.trakt || '') ? j.trakt : '', simkl: TRACK_ID_RE.test(j.simkl || '') ? j.simkl : '', mdblist: j.mdblist === true, at: Date.now() };
+        try { LS.setItem('track_cfg', JSON.stringify(trackCfg)); } catch(e){}
+        try { trackRender(); } catch(e){}
+        return trackCfg;
+      })
+      .catch(function(){ return trackCfg; });
+  }
+  function trackForm(o){ return Object.keys(o).map(function(k){ return encodeURIComponent(k) + '=' + encodeURIComponent(o[k]); }).join('&'); }
+  function simklQ(){ return '?client_id=' + encodeURIComponent(trackCfg.simkl) + '&app-name=nebula-player&app-version=' + encodeURIComponent(PLAYER_VERSION); }
+  function traktHeaders(tok){
+    var h = { 'Content-Type': 'application/json', 'trakt-api-version': '2', 'trakt-api-key': trackCfg.trakt };
+    if (tok) h.Authorization = 'Bearer ' + tok;
+    return h;
+  }
+  /** The profile's copy first: another device may have renewed (or dropped) the connection since. */
+  function trackPullFirst(){
+    if (!cloudLinked()) return Promise.resolve();
+    var wk = vkey('track');
+    return cloudApi('GET', '/v1/kv/' + wk).then(function(rec){
+      var remote = null; try { remote = JSON.parse(rec.v); } catch(e){}
+      if (remote == null || wk !== vkey('track')) return;
+      syncApplying = true;
+      try { mergeTrack(remote); } finally { syncApplying = false; }
+      cloudRevs[wk] = rec.rev; saveCloudRevs();
+    }).catch(function(){});
+  }
+  /** → {a, r, exp} · '' refused (sign in again) · null not reachable now */
+  function traktRenew(rt){
+    return fetch(CLOUD_BASE + '/v1/trakt/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: rt }) })
+      .then(function(r){
+        if (r.status === 403) return '';
+        if (!r.ok) return null;
+        return r.json().then(function(j){
+          return (j && trackTok(j.access_token)) ? { a: j.access_token, r: trackTok(j.refresh_token),
+            exp: (Number(j.created_at) * 1000 || Date.now()) + (Number(j.expires_in) || 86400) * 1000 } : null;
+        });
+      })
+      .catch(function(){ return null; });
+  }
+  function simklRenew(rt){
+    return fetch(SIMKL_API + '/oauth2/token' + simklQ(), { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: trackForm({ grant_type: 'refresh_token', client_id: trackCfg.simkl, refresh_token: rt }) })
+      .then(function(r){
+        return r.json().then(function(j){
+          if (r.ok && j && trackTok(j.access_token)) return { a: j.access_token, r: trackTok(j.refresh_token) || rt, exp: Date.now() + (Number(j.expires_in) || 604800) * 1000 };
+          return (j && (j.error === 'invalid_grant' || j.error === 'invalid_client')) ? '' : null;
+        }, function(){ return null; });
+      })
+      .catch(function(){ return null; });
+  }
+  /** A token to call the service with ('' when not connected, or it could not be renewed). Renewed with an hour to spare. */
+  function trackToken(svc){
+    var T = getTrack()[svc];
+    if (!T || !T.a) return Promise.resolve('');
+    if (!T.exp || T.exp - Date.now() > 3600000) return Promise.resolve(T.a);
+    if (trackRefreshing[svc]) return trackRefreshing[svc];
+    var done = function(v){ delete trackRefreshing[svc]; return v; };
+    var p = trackPullFirst().then(function(){
+      var N = getTrack()[svc];
+      if (!N.a) return '';
+      if (N.exp - Date.now() > 3600000) return N.a;                                 // another device renewed it meanwhile
+      if (!N.r) return N.exp > Date.now() ? N.a : '';
+      return (svc === 'trakt' ? traktRenew(N.r) : simklRenew(N.r)).then(function(t){
+        if (t === null) return N.exp > Date.now() ? N.a : '';                        // not reachable: the old one while it lives
+        if (!t){ trackDrop(svc, true); return ''; }
+        var S = getTrack()[svc];
+        S.a = t.a; S.r = t.r || S.r; S.exp = t.exp; S.at = Date.now();
+        saveTrack(false);
+        if (cloudLinked()) cloudPush('track');                                      // at once: the old renewal token is dead now
+        return S.a;
+      });
+    }).then(done, function(){ return done(''); });
+    trackRefreshing[svc] = p;
+    return p;
+  }
+  /** One call with the service's token; a 401 looks at the profile's copy once (another device renewed it) before giving up. */
+  function trackCall(svc, make){
+    return trackToken(svc).then(function(tok){
+      if (!tok) return null;
+      return make(tok).then(function(r){
+        if (r.status !== 401) return r;
+        return trackPullFirst().then(function(){
+          var now = getTrack()[svc].a;
+          if (now && now !== tok) return make(now);
+          if (now) trackDrop(svc, true);
+          return r;
+        });
+      });
+    });
+  }
+  function trackDrop(svc, refused){
+    var T = getTrack();
+    T[svc] = svc === 'mdbl' ? { key: '', user: '', at: Date.now() } : { a: '', r: '', exp: 0, user: '', at: Date.now() };
+    saveTrack(true);
+    try { trackRender(); } catch(e){}
+    if (refused) setStatus(TRACK_SVC[svc] + ' asks you to connect again — Settings › Playback.', 'info', 6000);
+  }
+  /** The account's name, for the row (asked once after connecting; the connection works without it). */
+  function trackWho(svc){
+    trackCall(svc, function(tok){
+      return svc === 'trakt' ? fetch(TRAKT_API + '/users/settings', { headers: traktHeaders(tok) })
+        : fetch(SIMKL_API + '/users/settings' + simklQ(), { method: 'POST', headers: { Authorization: 'Bearer ' + tok } });
+    }).then(function(r){ return (r && r.ok) ? r.json() : null; }).then(function(j){
+      var u = j && j.user, name = trackName(u && (u.username || u.name)), T = getTrack();
+      if (!name || !T[svc].a || T[svc].user === name) return;
+      T[svc].user = name; T[svc].at = Date.now();
+      saveTrack(true); trackRender();
+    }).catch(function(){});
+  }
+
+  // -- signing in: a code from the service, shown in the row with its QR; polled until the person approves it there
+  function trackAuthStop(){ if (trackAuth && trackAuth.timer) clearTimeout(trackAuth.timer); trackAuth = null; }
+  function trackAuthArm(){ if (trackAuth) trackAuth.timer = setTimeout(trackAuthPoll, trackAuth.every); }
+  function trackConnect(svc){
+    trackAuthStop();
+    var ask = svc === 'trakt'
+      ? fetch(TRAKT_API + '/oauth/device/code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: trackCfg.trakt }) })
+      : fetch(SIMKL_API + '/oauth2/device' + simklQ(), { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: trackForm({ client_id: trackCfg.simkl, scope: 'media:read media:write' }) });
+    setStatus('Asking ' + TRACK_SVC[svc] + ' for a code…', 'info');
+    ask.then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(function(j){
+      var code = String((j && j.device_code) || ''), user = String((j && j.user_code) || ''), url = String((j && (j.verification_url || j.verification_uri)) || '');
+      if (!code || !user || !/^https:\/\//i.test(url)) throw new Error('answer');
+      var full = /^https:\/\//i.test((j && j.verification_uri_complete) || '') ? String(j.verification_uri_complete)
+        : (svc === 'trakt' ? url.replace(/\/+$/, '') + '/' + encodeURIComponent(user) : url);
+      trackAuth = { svc: svc, code: code, userCode: user.slice(0, 16), url: url, full: full,
+        until: Date.now() + Math.min(900, Math.max(60, Number(j.expires_in) || 600)) * 1000,
+        every: Math.min(30, Math.max(5, Number(j.interval) || 5)) * 1000, timer: null };
+      clearStatus();
+      trackRender();
+      trackAuthArm();
+    }).catch(function(){ setStatus(TRACK_SVC[svc] + ' did not answer — try again in a moment.', 'err'); });
+  }
+  function trackAuthPoll(){
+    var au = trackAuth; if (!au) return;
+    if (Date.now() > au.until){ trackAuthStop(); trackRender(); setStatus('That code ran out — connect again for a new one.', 'info'); return; }
+    var both = function(r){ return r.json().then(function(j){ return { status: r.status, j: j }; }, function(){ return { status: r.status, j: null }; }); };
+    var p = au.svc === 'trakt'
+      ? fetch(CLOUD_BASE + '/v1/trakt/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_code: au.code }) })
+          .then(both).then(function(x){
+            if (x.status === 200 && x.j && x.j.access_token) return { a: x.j.access_token, r: x.j.refresh_token,
+              exp: (Number(x.j.created_at) * 1000 || Date.now()) + (Number(x.j.expires_in) || 86400) * 1000 };
+            if (x.status === 200 && x.j && x.j.pending){ if (x.j.slow) au.every += 5000; return null; }
+            if (x.status === 410) throw new Error(x.j && x.j.error === 'denied' ? 'denied' : 'expired');
+            if (x.status === 503) throw new Error('setup');
+            return null;                                                           // busy, a hiccup: the next poll
+          })
+      : fetch(SIMKL_API + '/oauth2/token' + simklQ(), { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: trackForm({ grant_type: 'urn:ietf:params:oauth:grant-type:device_code', client_id: trackCfg.simkl, device_code: au.code }) })
+          .then(both).then(function(x){
+            if (x.status === 200 && x.j && x.j.access_token) return { a: x.j.access_token, r: x.j.refresh_token || '', exp: Date.now() + (Number(x.j.expires_in) || 604800) * 1000 };
+            var er = x.j && x.j.error;
+            if (er === 'slow_down'){ au.every += 5000; return null; }
+            if (er === 'expired_token') throw new Error('expired');
+            if (x.status === 401) throw new Error('setup');
+            return null;
+          });
+    p.then(function(t){
+      if (trackAuth !== au) return;
+      if (!t || !trackTok(t.a)){ trackAuthArm(); return; }
+      trackAuthStop();
+      getTrack()[au.svc] = { a: t.a, r: trackTok(t.r), exp: t.exp, user: '', at: Date.now() };
+      saveTrack(true); trackRender();
+      setStatus(TRACK_SVC[au.svc] + ' connected.', 'ok');
+      var o = $id(au.svc === 'trakt' ? 'setTraktOff' : 'setSimklOff'); if (o && (IS_TV || kbUsed)) o.focus();
+      trackWho(au.svc);
+      trackResume();
+    }).catch(function(e){
+      if (trackAuth !== au) return;
+      var m = e && e.message;
+      if (m === 'expired' || m === 'denied' || m === 'setup'){
+        trackAuthStop(); trackRender();
+        setStatus(m === 'denied' ? 'The sign-in was declined.' : (m === 'setup' ? TRACK_SVC[au.svc] + ' sign-in is not available right now.' : 'That code ran out — connect again for a new one.'), 'info');
+        return;
+      }
+      trackAuthArm();                                                              // the network: the next poll
+    });
+  }
+
+  // -- reporting what plays
+  /** What a play is to each service (null where it has no id that service knows): films and episodes with an IMDb or
+      TMDB id everywhere; kitsu anime at Simkl (and films at MDBList). Channels, add-ons' own ids: nothing. */
+  function trackItem(play){
+    if (!play || !play.id || !play.type) return null;
+    var id = String(play.id), m, o = { trakt: null, simkl: null, mdbl: null };
+    if ((m = /^(tt\d{5,10})$/.exec(id)) && play.type === 'movie'){
+      o.trakt = { movie: { ids: { imdb: m[1] } } }; o.simkl = { movie: { ids: { imdb: m[1] } } }; o.mdbl = { movie: { ids: { imdb: m[1] } } };
+    } else if ((m = /^(tt\d{5,10}):(\d{1,3}):(\d{1,5})$/.exec(id))){
+      o.trakt = { show: { ids: { imdb: m[1] } }, episode: { season: +m[2], number: +m[3] } };
+      o.simkl = { show: { ids: { imdb: m[1] } }, episode: { season: +m[2], number: +m[3] } };
+      o.mdbl = { show: { ids: { imdb: m[1] }, season: { number: +m[2], episode: { number: +m[3] } } } };
+    } else if ((m = /^tmdb:(\d{1,9})$/.exec(id)) && play.type === 'movie'){
+      o.trakt = { movie: { ids: { tmdb: +m[1] } } }; o.simkl = { movie: { ids: { tmdb: m[1] } } }; o.mdbl = { movie: { ids: { tmdb: +m[1] } } };
+    } else if ((m = /^tmdb:(\d{1,9}):(\d{1,3}):(\d{1,5})$/.exec(id))){
+      o.trakt = { show: { ids: { tmdb: +m[1] } }, episode: { season: +m[2], number: +m[3] } };
+      o.simkl = { show: { ids: { tmdb: m[1] } }, episode: { season: +m[2], number: +m[3] } };
+      o.mdbl = { show: { ids: { tmdb: +m[1] }, season: { number: +m[2], episode: { number: +m[3] } } } };
+    } else if ((m = /^kitsu:(\d{1,9}):(\d{1,5})$/.exec(id))){
+      o.simkl = { anime: { ids: { kitsu: m[1] } }, episode: { number: +m[2] } };
+    } else if ((m = /^kitsu:(\d{1,9})$/.exec(id)) && play.type === 'movie'){
+      o.simkl = { movie: { ids: { kitsu: m[1] } } }; o.mdbl = { movie: { ids: { kitsu: +m[1] } } };
+    } else return null;
+    return o;
+  }
+  function trackOnAny(){ var T = getTrack(); return !!((T.trakt.a && trackCfg.trakt) || (T.simkl.a && trackCfg.simkl) || T.mdbl.key); }
+  /** How far through, 0–100 (−1 while the length is not known). */
+  function trackPct(){
+    var r = puiRange(), span = r.end - r.start;
+    if (!(span > 0) || !isFinite(span)) return -1;
+    return Math.round(Math.max(0, Math.min(100, (video.currentTime - r.start) / span * 100)) * 100) / 100;
+  }
+  /** From playUrl: a new play, nothing said about it yet. */
+  function trackBegin(){
+    clearTimeout(trackS.timer);
+    trackS = { item: trackItem(curPlay), sent: '', want: '', timer: null, done: false };
+  }
+  /** The picture moves / stands still: said 1.5 s later, and only if that still differs from the last thing said — a
+      pause tapped away at once, a stall, a jump are not calls. */
+  function trackWant(state){
+    if (!trackS.item || trackS.done || !curPlay || !trackOnAny()) return;
+    trackS.want = state;
+    clearTimeout(trackS.timer);
+    trackS.timer = setTimeout(trackFlush, 1500);
+  }
+  function trackFlush(){
+    trackS.timer = null;
+    if (!trackS.item || trackS.done || !trackS.want || trackS.want === trackS.sent || puiIsLive()) return;
+    var pct = trackPct(); if (pct < 0) return;
+    trackS.sent = trackS.want;
+    trackSend(trackS.sent, pct, false);
+  }
+  /** The play is over — it ended, or the viewer left: the last word, when anything was said about it. */
+  function trackStop(ended, keepalive){
+    clearTimeout(trackS.timer); trackS.timer = null;
+    if (!trackS.item || trackS.done) return;
+    var said = trackS.sent === 'start' || trackS.sent === 'pause', pct = ended ? 100 : trackPct();
+    trackS.done = true;
+    if (!said || pct < 0 || !trackOnAny()) return;
+    trackSend('stop', pct, !!keepalive);
+  }
+  /** A service connected while something plays: that play counts from now. */
+  function trackResume(){
+    if (!player || !curPlay || trackS.done) return;
+    if (!trackS.item) trackS.item = trackItem(curPlay);
+    trackS.sent = '';
+    if (!video.paused) trackWant('start');
+  }
+  function trackSend(ev, pct, keepalive){
+    var it = trackS.item, T = getTrack();
+    if (!it) return;
+    if (T.trakt.a && trackCfg.trakt && it.trakt) traktScrobble(ev, it.trakt, pct, keepalive);
+    if (T.simkl.a && trackCfg.simkl && it.simkl) simklScrobble(ev, it.simkl, pct, keepalive);
+    if (T.mdbl.key && it.mdbl) mdblScrobble(ev, it.mdbl, pct, keepalive);
+  }
+  function trackBody(item, pct, more){
+    var b = {}; Object.keys(item).forEach(function(k){ b[k] = item[k]; });
+    b.progress = pct;
+    if (more) Object.keys(more).forEach(function(k){ b[k] = more[k]; });
+    return JSON.stringify(b);
+  }
+  /** Trakt has no pause of its own: a stop under 80 % IS its pause (the place is kept), so a pause past 80 % says nothing
+      (the stop that follows marks it watched); under 1 % it refuses the call. A 409 = it was just marked: fine. */
+  function traktScrobble(ev, item, pct, keepalive){
+    if (ev === 'pause' && !(pct >= 1 && pct < 80)) return;
+    if (ev === 'stop' && pct < 1) return;
+    trackCall('trakt', function(tok){
+      return fetch(TRAKT_API + '/scrobble/' + (ev === 'start' ? 'start' : 'stop'), { method: 'POST', headers: traktHeaders(tok), body: trackBody(item, pct), keepalive: !!keepalive });
+    }).catch(function(){});
+  }
+  function simklScrobble(ev, item, pct, keepalive){
+    trackCall('simkl', function(tok){
+      return fetch(SIMKL_API + '/scrobble/' + ev + simklQ(), { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+        body: trackBody(item, pct), keepalive: !!keepalive });
+    }).catch(function(){});
+  }
+  function mdblScrobble(ev, item, pct, keepalive){
+    var key = getTrack().mdbl.key;
+    fetch(CLOUD_BASE + '/v1/mdblist/scrobble', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: trackBody(item, pct, { key: key, event: ev, app_version: PLAYER_VERSION }), keepalive: !!keepalive })
+      .then(function(r){
+        if (r.status === 403 && !trackWarned.mdbl){ trackWarned.mdbl = true; setStatus('MDBList refused your key — check it in Settings › Playback.', 'info', 6000); }
+      })
+      .catch(function(){});
+  }
+  video.addEventListener('playing', function(){ trackWant('start'); });
+  video.addEventListener('pause', function(){ if (!video.ended) trackWant('pause'); });
+  video.addEventListener('ended', function(){ trackStop(true); });
+
+  // -- Settings › Playback: one row a service
+  function trackBtn(box, id, text, fn){
+    var b = document.createElement('button');
+    b.id = id; b.className = 'textbtn focusable'; b.type = 'button'; b.textContent = text; b.onclick = fn;
+    box.appendChild(b);
+    return b;
+  }
+  function trackRowOauth(svc, rowId, boxId, subId, avail){
+    var row = $id(rowId), box = $id(boxId), sub = $id(subId); if (!row || !box || !sub) return;
+    var T = getTrack()[svc], on = !!T.a, au = (trackAuth && trackAuth.svc === svc) ? trackAuth : null, name = TRACK_SVC[svc];
+    row.style.display = (avail || on) ? '' : 'none';
+    sub.textContent = on ? ('Connected' + (T.user ? ' as ' + T.user : '') + ' · The films and episodes you watch are added to your ' + name + ' history' +
+        (cloudLinked() ? ' · Every device on this profile reports' : ''))
+      : au ? ('On a phone or computer, open ' + au.url.replace(/^https:\/\//i, '') + ' and type this code' + (IS_TV ? ' — or scan it' : ''))
+      : ('Adds the films and episodes you watch to your ' + name + ' history · Sign in with a code, nothing is typed here');
+    var state = on ? 'on' : (au ? 'code:' + au.userCode : 'off');
+    if (box.getAttribute('data-state') === state) return;
+    var hadFocus = box.contains(document.activeElement), first = null;
+    box.setAttribute('data-state', state);
+    box.innerHTML = '';
+    if (on) first = trackBtn(box, boxId + 'Off', 'Disconnect', function(){ trackDrop(svc, false); setStatus(name + ' disconnected.', 'ok'); });
+    else if (au){
+      var q = document.createElement('span'); q.className = 'trk-qr';
+      try { var qr = qrcode(0, 'M'); qr.addData(au.full); qr.make(); q.innerHTML = qr.createSvgTag({ cellSize: 3, margin: 0 }); } catch(e){}
+      box.appendChild(q);
+      var c = document.createElement('b'); c.className = 'trk-code'; c.id = boxId + 'Code'; c.textContent = au.userCode; box.appendChild(c);
+      if (!IS_TV) trackBtn(box, boxId + 'Open', 'Open the page', function(){ try { window.open(au.full, '_blank', 'noopener'); } catch(e){} });
+      first = trackBtn(box, boxId + 'Cancel', 'Cancel', function(){ trackAuthStop(); trackRender(); });
+    }
+    else first = trackBtn(box, boxId + 'Go', 'Connect', function(){ trackConnect(svc); });
+    if (hadFocus && first) first.focus();
+  }
+  function trackRowMdbl(){
+    var row = $id('rowMdbl'), box = $id('setMdbl'), sub = $id('setMdblSub'); if (!row || !box || !sub) return;
+    var T = getTrack().mdbl, on = !!T.key;
+    row.style.display = (trackCfg.mdblist || on) ? '' : 'none';
+    sub.textContent = on ? ('Connected' + (T.user ? ' as ' + T.user : '') + ' · key ending ' + T.key.slice(-4) + ' · The films and episodes you watch are added to your MDBList history' +
+        (cloudLinked() ? ' · Every device on this profile reports' : ''))
+      : ('Adds the films and episodes you watch to your MDBList history · Paste your API key from mdblist.com › Preferences' +
+        (IS_TV && cloudLinked() ? ' — easier on your phone or computer: it reaches this TV through your profile' : ''));
+    var state = on ? 'on' : 'off';
+    if (box.getAttribute('data-state') === state) return;
+    var hadFocus = box.contains(document.activeElement);
+    box.setAttribute('data-state', state);
+    box.innerHTML = '';
+    if (on){
+      var off = trackBtn(box, 'setMdblOff', 'Disconnect', function(){ trackDrop('mdbl', false); setStatus('MDBList disconnected.', 'ok'); });
+      if (hadFocus) off.focus();
+      return;
+    }
+    var inp = document.createElement('input');
+    inp.id = 'setMdblKey'; inp.className = 'focusable field'; inp.type = 'text'; inp.maxLength = 128;
+    inp.autocomplete = 'off'; inp.spellcheck = false; inp.placeholder = 'API key';
+    box.appendChild(inp);
+    var go = trackBtn(box, 'setMdblGo', 'Connect', connect);
+    function connect(){
+      var k = inp.value.trim();
+      if (!MDBL_KEY_RE.test(k)){ setStatus('That does not look like an MDBList API key.', 'err'); return; }
+      go.disabled = true; go.textContent = 'Checking…';
+      fetch(CLOUD_BASE + '/v1/mdblist/user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: k }) })
+        .then(function(r){ return r.json().then(function(j){ return { status: r.status, j: j }; }, function(){ return { status: r.status, j: null }; }); })
+        .then(function(x){
+          if (x.status === 200){
+            getTrack().mdbl = { key: k, user: trackName(x.j && x.j.user), at: Date.now() };
+            trackWarned.mdbl = false;
+            saveTrack(true); trackRender();
+            setStatus('MDBList connected.', 'ok');
+            var o = $id('setMdblOff'); if (o) o.focus();
+            trackResume();
+            return;
+          }
+          go.disabled = false; go.textContent = 'Connect';
+          setStatus(x.status === 403 ? 'MDBList does not know that key.' : (x.status === 429 ? 'Too many tries — wait a minute.' : 'MDBList could not be reached — try again in a moment.'), 'err');
+        })
+        .catch(function(){ go.disabled = false; go.textContent = 'Connect'; setStatus('MDBList could not be reached — try again in a moment.', 'err'); });
+    }
+    inp.onkeydown = function(ev){ if (ev.keyCode === 13){ connect(); ev.preventDefault(); ev.stopPropagation(); } };
+    if (hadFocus) inp.focus();
+  }
+  function trackRender(){
+    trackRowOauth('trakt', 'rowTrakt', 'setTrakt', 'setTraktSub', !!trackCfg.trakt);
+    trackRowOauth('simkl', 'rowSimkl', 'setSimkl', 'setSimklSub', !!trackCfg.simkl);
+    trackRowMdbl();
+  }
   // ---- skip intro / recap, and the closing credits as an early Up next ----
   // Segment timestamps come from a community database by way of Nebula Cloud
   // (the database's API answers browsers from its own site only). Asked once
@@ -15995,6 +16800,95 @@
   }
   video.addEventListener('playing', pgTry);
 
+  // ---- chapters (2026-11-10) ----
+  // A file's own chapter list: read from a Matroska file's head with the built-in subtitles (innerStart), or handed over by
+  // the full-format player. Two or more make a list: a cut in the bar at each start, the chapter's name under the time while
+  // scrubbing, a Chapters button (C) that lists them to jump from. Chapters NAMED as a recap, opening or closing credits
+  // also stand in for the skip database where it has nothing for the episode (an anime file's OP/ED) — never on a film.
+  var chap = { seq: -1, list: [], span: 0 };
+  var CH_RECAP = /^(recap|previously(\b.*)?|last time(\b.*)?|the story so far)$/i;
+  var CH_INTRO = /^(op ?\d*|opening( credits| theme| titles?| song)?|intro(duction)?|main titles?|title sequence|titles|theme song)$/i;
+  var CH_OUTRO = /^(ed ?\d*|ending( credits| theme| song)?|outro|credits|end credits|closing( credits)?|end titles?)$/i;
+  var CH_AFTER = /^(preview|pv|next( episode)?( preview)?|next time(\b.*)?)$/i;
+  function chapReset(){
+    chap = { seq: -1, list: [], span: 0 };
+    var m = $id('puiChaps'); if (m) m.innerHTML = '';
+    var b = $id('puiChap'); if (b) b.style.display = 'none';
+    var v = $id('puiChapVal'); if (v) v.textContent = '';
+    var c = $id('puiTipC'); if (c) c.textContent = '';
+  }
+  /** This play's chapters [{t, name}]; fewer than two are not a list. */
+  function chapSet(seq, list){
+    if (seq !== playSeq || Object.prototype.toString.call(list) !== '[object Array]') return;
+    var all = [];
+    list.forEach(function(c){
+      var t = Number(c && c.t);
+      if (isFinite(t) && t >= 0) all.push({ t: t, name: String((c && c.name) || '').replace(/\s+/g, ' ').trim().slice(0, 80) });
+    });
+    all.sort(function(a, b){ return a.t - b.t; });
+    var out = [];
+    all.forEach(function(c){ if (!out.length || c.t - out[out.length - 1].t >= 1) out.push(c); });   // two starts within a second are one
+    if (out.length < 2 || out.length > 400) return;
+    out.forEach(function(c, i){ if (!c.name) c.name = 'Chapter ' + (i + 1); });
+    chap = { seq: seq, list: out, span: 0 };
+    try { puiRefreshButtons(); puiPaint(); } catch(e){}
+    chapSkipApply();
+    if (puiState.menu === 'chapters') openPuiMenu('chapters', puiState.opener);
+  }
+  function chapFromMpv(list){
+    if (Object.prototype.toString.call(list) !== '[object Array]') return;
+    chapSet(playSeq, list.map(function(c){ return { t: c && c.time, name: c && c.title }; }));
+  }
+  /** The chapter second t sits in (null before the first). */
+  function chapAt(t){
+    var cur = null;
+    for (var i = 0; i < chap.list.length; i++){ if (chap.list[i].t <= t + 0.25) cur = chap.list[i]; else break; }
+    return cur;
+  }
+  /** From puiPaint: the cuts in the bar (drawn once per length) and the playing chapter's name on its button. */
+  function chapPaint(r, t){
+    if (!chap.list.length) return;
+    var span = r.end - r.start, box = $id('puiChaps');
+    if (!(span > 0) || puiIsLive()){ if (chap.span){ box.innerHTML = ''; chap.span = 0; } return; }
+    if (Math.abs(chap.span - span) >= 1){
+      chap.span = span;
+      var h = '';
+      chap.list.forEach(function(c){ var x = (c.t - r.start) / span; if (x > 0.004 && x < 0.996) h += '<i style="left:' + (x * 100).toFixed(3) + '%"></i>'; });
+      box.innerHTML = h;
+      chapSkipApply();                       // the length is known now: a chapter's end can be judged
+    }
+    var cur = chapAt(t), v = $id('puiChapVal'), name = cur ? cur.name : '';
+    if (v.textContent !== name) v.textContent = name;
+  }
+  function chapGo(c){
+    var r = puiRange();
+    try { video.currentTime = Math.max(r.start, Math.min(c.t + 0.05, r.end - 1)); } catch(e){}
+    closePuiMenu(true);
+    setStatus(c.name, 'ok');
+    puiTick();
+  }
+  /** {recap, intro, outro} named by the chapters. The closing credits count only when nothing but a preview follows:
+      a scene after the credits is not walked out on. */
+  function chapSegs(){
+    var L = chap.list, r = puiRange(), dur = r.end - r.start, segs = {};
+    if (!(dur > 0)) return segs;
+    for (var i = 0; i < L.length; i++){
+      var c = L[i], end = i + 1 < L.length ? L[i + 1].t : dur, len = end - c.t, n = c.name;
+      if (!segs.recap && CH_RECAP.test(n) && len >= 5 && len <= 300 && c.t < dur / 2) segs.recap = { start: c.t, end: end };
+      else if (!segs.intro && CH_INTRO.test(n) && len >= 10 && len <= 240 && c.t < dur / 2) segs.intro = { start: c.t, end: end };
+      else if (!segs.outro && CH_OUTRO.test(n) && c.t > dur / 2){
+        var rest = L.slice(i + 1);
+        if (rest.every(function(x){ return CH_AFTER.test(x.name); })) segs.outro = { start: c.t, end: dur };
+      }
+    }
+    return segs;
+  }
+  function chapSkipApply(){
+    if (!chap.list.length || skipMode() === 'off' || !curPlay || curPlay.type === 'movie') return;
+    var from = chapSegs(), have = skipState.segs || {}, any = false;
+    ['recap', 'intro', 'outro'].forEach(function(k){ if (!have[k] && from[k]){ have[k] = from[k]; any = true; } });
+    if (any) skipState.segs = have;
+  }
   function skipLoad(id){
     if (skipMode() === 'off' || !/^tt\d+:\d+:\d+$/.test(id || '')) return;
     skipState.id = id;
@@ -16008,6 +16902,7 @@
           if (s && isFinite(s.start) && isFinite(s.end) && s.end - s.start >= 1) segs[k] = { start:+s.start, end:+s.end };
         });
         skipState.segs = segs;
+        chapSkipApply();                    // what the database did not have, the file's chapter names may
       })
       .catch(function(){});
   }
@@ -17451,7 +18346,7 @@
   var cloudDirty = {};
   try { cloudDirty = JSON.parse(LS.getItem('cloud_dirty')||'{}') || {}; } catch(e){}
   var syncApplying = false, syncTimers = {}, lastPullAt = 0;
-  var SYNC_KEYS = ['addons','progress','library','sub_style','ratings','seekr','viewers'];
+  var SYNC_KEYS = ['addons','progress','library','sub_style','ratings','seekr','viewers','track'];
   function cloudLinked(){ return !!(cloudLink && cloudLink.gid && (cloudLink.token || cloudLink.secret)); }
   function saveCloudLink(){ try { if (cloudLink) LS.setItem('cloud_link', JSON.stringify(cloudLink)); else LS.removeItem('cloud_link'); } catch(e){} }
   function saveCloudRevs(){ try { LS.setItem('cloud_revs', JSON.stringify(cloudRevs)); } catch(e){} }
@@ -17524,6 +18419,7 @@
       return JSON.stringify({ style: subStyle, at: at });
     }
     if (key === 'seekr') return JSON.stringify(seekr);
+    if (key === 'track') return JSON.stringify(getTrack());
     if (key === 'viewers') return JSON.stringify(getViewers());
     return null;
   }
@@ -17534,6 +18430,7 @@
     if (key === 'ratings') return Object.keys(getRatings()).length > 0;
     if (key === 'sub_style'){ var at = 0; try { at = Number(LS.getItem('sub_style_at')) || 0; } catch(e){} return at > 0; }
     if (key === 'seekr') return seekr.at > 0;
+    if (key === 'track') return trackHasAny();
     if (key === 'viewers') return (getViewers().at || 0) > 0;
     return false;
   }
@@ -17685,6 +18582,7 @@
     if (key === 'ratings') return mergeRatings(remote);
     if (key === 'sub_style') return mergeSubStyle(remote);
     if (key === 'seekr') return mergeSeekr(remote);
+    if (key === 'track') return mergeTrack(remote);
     if (key === 'viewers') return mergeViewers(remote);
     return { changed: false, localNewer: false };
   }
@@ -18983,6 +19881,9 @@
     segChips('setScrub', [['On', true], ['Off', false]], scrubFramesOn(), function(v){ setPref('scrubFrames', v); });
     if (IS_WEBOS && $id('rowScrub')) $id('rowScrub').style.display = 'none';   // no frames to be had on the TV itself
     seekrRender();
+    trackRender();
+    ambSettings(pr);
+    posterAddrRender();
     // ---- streams ----
     segChips('setStreamSort', [['As listed','listed'], ['Best quality first','quality'], ['Smallest first','size']], pr.streamSort === 'quality' || pr.streamSort === 'size' ? pr.streamSort : 'listed', function(v){ setPref('streamSort', v); });
     segChips('setMinRes', [['Any','any'], ['720p','720'], ['1080p','1080'], ['4K','2160']], pr.minRes === '720' || pr.minRes === '1080' || pr.minRes === '2160' ? pr.minRes : 'any', function(v){ setPref('minRes', v); });
@@ -19279,6 +20180,7 @@
     }
   });
   window.addEventListener('pagehide', function(){
+    try { trackStop(false, true); } catch(e){}
     try { flushProgress(true); } catch(e){}
     try { wlSave(); } catch(e){}
     try { flushCloudNow(); } catch(e){}
@@ -19286,6 +20188,7 @@
   // the desktop shell asks before it closes: the process would end before a keepalive fetch left
   if (window.nebulaDesktop && window.nebulaDesktop.onFlush){
     window.nebulaDesktop.onFlush(function(){
+      try { trackStop(false, true); } catch(e){}
       try { flushProgress(true); } catch(e){}
       try { wlSave(); } catch(e){}
       try { flushCloudNow(); } catch(e){}
@@ -19347,6 +20250,9 @@
   initPersistentLibrary();
   initPersistentRatings();
   initPersistentSeekr();
+  initPersistentTrack();
+  ambArm();
+  setTimeout(function(){ trackConfig(false); }, 4000);   // which tracking services this server offers (asked every 6 h at most)
   buildHomeRows(true);
   // two profiles: who's watching? — not when another app started us to play a title (it plays on the profile this TV
   // was on), unless that profile has a PIN

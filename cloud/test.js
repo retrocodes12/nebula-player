@@ -6,6 +6,7 @@ process.env.GROUP_BURST = '64';           // one more profile since the sports-k
 process.env.SIGNIN_BURST = '100';       // the per-IP limiter would ration the suite; the per-handle one is tested
 process.env.PROFILE_BURST = '1000';      // every profile call here comes from 127.0.0.1: a fast machine ran the suite past 40 (the VPS, 10-25…10-30)
 process.env.SUPPORT_CONFIG_CHECK_MS = '0';
+process.env.TRACK_CONFIG_CHECK_MS = '0';     // the tracking config file is re-read on every call here
 process.env.SOCIAL_BURST = '200';        // friends are mutual since 09-23: two adds per friendship
 process.env.SFRIEND_BURST = '100';
 process.env.SUPPORT_MAIL_SWEEP_MS = '300';   // the receipt e-mail's retry loop, at test speed
@@ -1908,4 +1909,151 @@ test('ranges: where a file redirects is remembered, and asked again once the add
     const whole = await realFetch(base + '/v1/ranges?u=' + encodeURIComponent('https://go.example/ep') + '&r=0-9', { headers: { 'x-forwarded-for': '198.51.100.80' } });
     assert.match(whole.headers.get('cache-control'), /max-age=300/);
   } finally { dnsP.lookup = realLookup; proxyTransport.get = realGet; }
+});
+
+// ---------- the MDBList relay (mdblist.js) ----------
+test('mdblist relay forwards a rebuilt body and maps MDBList answers', async () => {
+  const httpMod = require('http');
+  const seen = [];
+  const up = httpMod.createServer((req, res) => {
+    const chunks = [];
+    req.on('data', (c) => chunks.push(c));
+    req.on('end', () => {
+      const u = new URL(req.url, 'http://x'), k = u.searchParams.get('apikey');
+      seen.push({ method: req.method, path: u.pathname, key: k, body: chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : null });
+      if (k === 'busykey1234') { res.writeHead(429, { 'Retry-After': '42', 'Content-Type': 'application/json' }); return res.end('{}'); }
+      if (k !== 'goodkey1234') { res.writeHead(401, { 'Content-Type': 'application/json' }); return res.end('{"error":"Invalid API key"}'); }
+      if (u.pathname === '/user') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end('{"username":"ana","api_requests":1000}'); }
+      res.writeHead(201, { 'Content-Type': 'application/json' }); res.end('{"action":"start"}');
+    });
+  });
+  await new Promise((ok) => up.listen(0, '127.0.0.1', ok));
+  const port = up.address().port;
+  process.env.MDBLIST_UPSTREAM = 'http://127.0.0.1:' + port;
+  try {
+    let r = await api('POST', '/v1/mdblist/scrobble', { key: 'goodkey1234', event: 'start', movie: { ids: { imdb: 'tt0111161', evil: 'x' }, title: 'x' },
+      progress: 12.3456, app_version: '2026.09.13.2', extra: 1 });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body, { ok: true });
+    assert.deepEqual(seen.pop(), { method: 'POST', path: '/scrobble/start', key: 'goodkey1234',
+      body: { movie: { ids: { imdb: 'tt0111161' } }, progress: 12.35, app_version: '2026.09.13.2' } });
+    r = await api('POST', '/v1/mdblist/scrobble', { key: 'goodkey1234', event: 'stop',
+      show: { ids: { imdb: 'tt0903747', tmdb: '1396' }, season: { number: 1, episode: { number: 2 } } }, progress: 100 });
+    assert.equal(r.status, 200);
+    assert.deepEqual(seen.pop().body, { show: { ids: { imdb: 'tt0903747', tmdb: 1396 }, season: { number: 1, episode: { number: 2 } } }, progress: 100 });
+    // shapes it refuses never reach MDBList
+    const n = seen.length, movie = { ids: { imdb: 'tt0111161' } };
+    for (const bad of [
+      { key: 'goodkey1234', event: 'rewind', movie, progress: 1 },
+      { key: 'short', event: 'start', movie, progress: 1 },
+      { key: 'goodkey/1234', event: 'start', movie, progress: 1 },
+      { key: 'goodkey1234', event: 'start', movie, progress: 101 },
+      { key: 'goodkey1234', event: 'start', movie, progress: '5' },
+      { key: 'goodkey1234', event: 'start', movie: { ids: { imdb: 'nm0000123' } }, progress: 1 },
+      { key: 'goodkey1234', event: 'start', show: { ids: { kitsu: 5 }, season: { number: 1, episode: { number: 1 } } }, progress: 1 },
+      { key: 'goodkey1234', event: 'start', show: { ids: { imdb: 'tt0903747' } }, progress: 1 },
+      { key: 'goodkey1234', event: 'start', movie, show: { ids: { imdb: 'tt0903747' }, season: { number: 1, episode: { number: 1 } } }, progress: 1 },
+    ]) assert.equal((await api('POST', '/v1/mdblist/scrobble', bad)).status, 400, JSON.stringify(bad));
+    assert.equal(seen.length, n);
+    // MDBList's answers in our terms — never a 401, which the apps read as "this device was signed out"
+    r = await api('POST', '/v1/mdblist/scrobble', { key: 'wrongkey1234', event: 'pause', movie: { ids: { tmdb: 278 } }, progress: 50 });
+    assert.equal(r.status, 403);
+    r = await api('POST', '/v1/mdblist/scrobble', { key: 'busykey1234', event: 'pause', movie: { ids: { tmdb: 278 } }, progress: 50 });
+    assert.equal(r.status, 429);
+    assert.equal(r.body.retryAfter, 42);
+    r = await api('POST', '/v1/mdblist/user', { key: 'goodkey1234' });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body, { user: 'ana' });
+    assert.equal(seen.pop().method, 'GET');
+    assert.equal((await api('POST', '/v1/mdblist/user', { key: 'wrongkey1234' })).status, 403);
+    assert.equal((await api('GET', '/v1/mdblist/user')).status, 404);
+  } finally {
+    await new Promise((ok) => up.close(ok));
+  }
+  // MDBList gone → 502, not a hang
+  const r = await api('POST', '/v1/mdblist/scrobble', { key: 'goodkey1234', event: 'start', movie: { ids: { imdb: 'tt0111161' } }, progress: 1 });
+  assert.equal(r.status, 502);
+  delete process.env.MDBLIST_UPSTREAM;
+});
+
+// ---------- tracking sign-in (track.js) ----------
+test('tracking: the config lists what is set up; Trakt codes and renewals pass through with the secret added', async () => {
+  const fsMod = require('fs'), pathMod = require('path'), httpMod = require('http');
+  const cfgFile = pathMod.join(process.env.DATA_DIR, 'track-config.json');
+  // nothing set up: nothing offered, and the token route says so
+  let r = await api('GET', '/v1/track/config');
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body, { trakt: '', simkl: '', mdblist: true });
+  assert.equal((await api('POST', '/v1/trakt/token', { device_code: 'a'.repeat(64) })).status, 503);
+  // an id without its secret is not an offer (the sign-in could not finish)
+  fsMod.writeFileSync(cfgFile, JSON.stringify({ trakt: { id: 'traktclientid0123456789' }, simkl: { id: 'simklclientid0123456789' } }));
+  r = await api('GET', '/v1/track/config');
+  assert.deepEqual(r.body, { trakt: '', simkl: 'simklclientid0123456789', mdblist: true });
+  const seen = [];
+  let answer = () => [400, {}];
+  const up = httpMod.createServer((req, res) => {
+    const chunks = [];
+    req.on('data', (c) => chunks.push(c));
+    req.on('end', () => {
+      const body = JSON.parse(Buffer.concat(chunks).toString() || '{}');
+      seen.push({ path: req.url, body });
+      const [status, out] = answer(req.url, body);
+      res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(out));
+    });
+  });
+  await new Promise((ok) => up.listen(0, '127.0.0.1', ok));
+  process.env.TRAKT_UPSTREAM = 'http://127.0.0.1:' + up.address().port;
+  fsMod.writeFileSync(cfgFile, JSON.stringify({ trakt: { id: 'traktclientid0123456789', secret: 'traktsecret0123456789abc' }, simkl: { id: 'simklclientid0123456789' } }));
+  try {
+    r = await api('GET', '/v1/track/config');
+    assert.deepEqual(r.body, { trakt: 'traktclientid0123456789', simkl: 'simklclientid0123456789', mdblist: true });
+    assert.ok(!JSON.stringify(r.body).includes('traktsecret'), 'the secret is never served');
+    // not approved yet
+    r = await api('POST', '/v1/trakt/token', { device_code: 'd'.repeat(64) });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body, { pending: true });
+    assert.deepEqual(seen.pop(), { path: '/oauth/device/token', body: { code: 'd'.repeat(64), client_id: 'traktclientid0123456789', client_secret: 'traktsecret0123456789abc' } });
+    // polled too fast, declined, used, run out
+    answer = () => [429, {}];
+    assert.deepEqual((await api('POST', '/v1/trakt/token', { device_code: 'd'.repeat(64) })).body, { pending: true, slow: true });
+    for (const [status, error] of [[418, 'denied'], [409, 'used'], [410, 'expired'], [404, 'expired']]) {
+      answer = () => [status, {}];
+      r = await api('POST', '/v1/trakt/token', { device_code: 'd'.repeat(64) });
+      assert.equal(r.status, 410); assert.equal(r.body.error, error);
+    }
+    // approved: only what an app keeps comes back
+    const pair = { access_token: 'a'.repeat(64), refresh_token: 'b'.repeat(64), token_type: 'bearer', expires_in: 86400, scope: 'public', created_at: 1794000000 };
+    answer = () => [200, pair];
+    r = await api('POST', '/v1/trakt/token', { device_code: 'd'.repeat(64) });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body, { access_token: 'a'.repeat(64), refresh_token: 'b'.repeat(64), expires_in: 86400, created_at: 1794000000 });
+    // the daily renewal
+    r = await api('POST', '/v1/trakt/token', { refresh_token: 'b'.repeat(64) });
+    assert.equal(r.status, 200);
+    assert.deepEqual(seen.pop(), { path: '/oauth/token', body: { refresh_token: 'b'.repeat(64), client_id: 'traktclientid0123456789', client_secret: 'traktsecret0123456789abc',
+      redirect_uri: 'urn:ietf:wg:oauth:2.0:oob', grant_type: 'refresh_token' } });
+    // a dead renewal token is a 403 — never a 401, which the apps read as "this device was signed out"
+    for (const status of [400, 401, 403]) {
+      answer = () => [status, { error: 'invalid_grant' }];
+      assert.equal((await api('POST', '/v1/trakt/token', { refresh_token: 'b'.repeat(64) })).status, 403);
+    }
+    answer = () => [500, {}];
+    assert.equal((await api('POST', '/v1/trakt/token', { refresh_token: 'b'.repeat(64) })).status, 502);
+    // an answer that is not a token pair is not passed on
+    answer = () => [200, { access_token: 'x' }];
+    assert.equal((await api('POST', '/v1/trakt/token', { device_code: 'd'.repeat(64) })).status, 502);
+    // shapes it refuses never reach Trakt
+    const n = seen.length;
+    for (const bad of [{}, { device_code: 'short' }, { device_code: 'has space ' + 'd'.repeat(40) }, { refresh_token: 5 }, { device_code: ['x'] }]) {
+      assert.equal((await api('POST', '/v1/trakt/token', bad)).status, 400, JSON.stringify(bad));
+    }
+    assert.equal(seen.length, n);
+  } finally {
+    await new Promise((ok) => up.close(ok));
+  }
+  // Trakt gone → 502, not a hang
+  assert.equal((await api('POST', '/v1/trakt/token', { device_code: 'd'.repeat(64) })).status, 502);
+  delete process.env.TRAKT_UPSTREAM;
+  fsMod.unlinkSync(cfgFile);
+  assert.deepEqual((await api('GET', '/v1/track/config')).body, { trakt: '', simkl: '', mdblist: true });
 });

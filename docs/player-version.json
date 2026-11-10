@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.10.5",
+  "version": "2026.11.10.6",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "On TVs, Autoplay the best stream now reads what your TV can show and tests your connection, then picks the highest quality that will play smoothly. New in Settings › Streams: Aim for, Prioritise, Lowest quality and Connection speed."
+  "notes": "New: chapters. A file that carries them gets marks on the bar, the chapter's name while you scrub and a Chapters list (C) — and an opening or closing credits that a chapter names can be skipped. A Trailer button on title pages. Track what you watch on MDBList from Settings › Playback. In Settings › Appearance: an ambient slideshow for a screen left alone, and posters from an address of your own."
 }

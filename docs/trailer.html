@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trailer</title>
+<style>
+  html, body { margin:0; height:100%; background:#000; overflow:hidden; }
+  iframe { position:absolute; top:0; left:0; width:100%; height:100%; border:0; }
+</style>
+</head>
+<body>
+<!-- A trailer for the Nebula player's title page. The player frames this page (never the video site itself): a packaged
+     TV app has no web address of its own, and the video site will not play for an embedder without one. The player
+     passes the remote's keys in as messages — toggle, back, fwd, stop — and hears "ended" back. Nothing is stored. -->
+<script>
+(function () {
+  var m = /[?&]v=([A-Za-z0-9_-]{6,20})(?:&|$)/.exec(location.search);
+  if (!m) return;
+  var HOST = 'https://www.youtube-nocookie.com';
+  var f = document.createElement('iframe');
+  f.setAttribute('allow', 'autoplay; encrypted-media; fullscreen; picture-in-picture');
+  f.setAttribute('allowfullscreen', '');
+  f.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+  f.setAttribute('title', 'Trailer');
+  f.src = HOST + '/embed/' + m[1] + '?autoplay=1&playsinline=1&rel=0&modestbranding=1&enablejsapi=1&origin=' + encodeURIComponent(location.origin);
+  document.body.appendChild(f);
+  var playing = true, at = 0;
+  function cmd(func, args) {
+    try { f.contentWindow.postMessage(JSON.stringify({ event: 'command', func: func, args: args || [] }), HOST); } catch (e) {}
+  }
+  function up(what) { try { parent.postMessage({ nebulaTrailer: what }, '*'); } catch (e) {} }
+  // the embedded player reports its state and clock once it is told someone listens
+  f.addEventListener('load', function () {
+    try { f.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), HOST); } catch (e) {}
+    up('ready');
+  });
+  window.addEventListener('message', function (e) {
+    if (e.source === f.contentWindow) {
+      if (e.origin !== HOST) return;
+      var d = null;
+      try { d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch (x) { return; }
+      var info = d && d.info;
+      if (!info) return;
+      if (typeof info.currentTime === 'number') at = info.currentTime;
+      if (typeof info.playerState === 'number') {
+        playing = info.playerState === 1 || info.playerState === 3;
+        if (info.playerState === 0) up('ended');
+      }
+      return;
+    }
+    if (e.source !== parent || !e.data || typeof e.data.nebulaTrailer !== 'string') return;
+    var c = e.data.nebulaTrailer;
+    if (c === 'toggle') { cmd(playing ? 'pauseVideo' : 'playVideo'); playing = !playing; }
+    else if (c === 'back') cmd('seekTo', [Math.max(0, at - 10), true]);
+    else if (c === 'fwd') cmd('seekTo', [at + 10, true]);
+    else if (c === 'stop') cmd('stopVideo');
+  });
+})();
+</script>
+</body>
+</html>

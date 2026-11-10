@@ -20,6 +20,8 @@
 //   /v1/profile/*, /v1/tv/*, /v1/device    → profile.js
 //   /v1/social/*                           → friends, below
 //   /v1/support/*                          → support.js (supporter codes, the wall, the support link)
+//   POST /v1/mdblist/scrobble|user         → mdblist.js: relays one person's watching to their MDBList history (key in the body, kept nowhere)
+//   GET  /v1/track/config, POST /v1/trakt/token → track.js: which tracking services are set up; Trakt's code→token and renewal (the secret stays here)
 //   GET  /v1/skip?id=tt…:S:E               → {intro, recap, outro} timestamps (cached, no auth)
 //   GET  /v1/ranges?u=&r=a-b,…          → ranges.js: small byte ranges of a video file (its built-in subtitles), length-prefixed
 //   GET  /v1/universe?id=tt…               → universe.js: the titles it follows / is followed by / spun off (cached a week, no auth)
@@ -860,6 +862,8 @@ const support = require('./support.js')({ DATA_DIR, loadGroup, persistSoon, allo
 const universe = require('./universe.js')({ DATA_DIR, allow });
 const advisory = require('./advisory.js')({ DATA_DIR, allow });
 const ranges = require('./ranges.js')({ allow, json, proxyTargetOk, proxyTransport, proxyBody });
+const mdblist = require('./mdblist.js')({ allow, json, readBody });
+const track = require('./track.js')({ DATA_DIR, allow, json, readBody });
 evict();
 setInterval(evict, 24 * 3600_000).unref();
 
@@ -899,6 +903,8 @@ const server = http.createServer((req, res) => {
   if (universe.handle(p, req, res, ip, u)) return;
   if (advisory.handle(p, req, res, ip, u)) return;
   if (ranges.handle(p, req, res, ip, u)) return;
+  if (mdblist.handle(p, req, res, ip)) return;
+  if (track.handle(p, req, res, ip)) return;
 
   if (p === '/v1/releases' && req.method === 'GET') {
     return void handleReleases(req, res, ip);
