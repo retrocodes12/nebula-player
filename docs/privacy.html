@@ -174,9 +174,9 @@
     and the app tells that service what you watch on that profile: the film's or episode's public catalogue id and
     how far through it is, when it starts, pauses and stops. Trakt and Simkl hear it straight from your device. Two
     things pass through our server: Trakt's sign-in (the one-time code is turned into a token there, and the token
-    is renewed about once a day, because that step needs a secret an app cannot hold) and what is reported to
-    MDBList (its service does not answer a web page directly). The code, the tokens and your MDBList key are passed
-    on and not stored or logged on the way. With a profile, the connection is kept in your synced data so your
+    is renewed about once a day, because that step needs a secret an app cannot hold) and, from the web, TV and
+    desktop apps, what is reported to MDBList (its service does not answer a web page directly; the Android app
+    calls it itself). The code, the tokens and your MDBList key are passed on and not stored or logged on the way. With a profile, the connection is kept in your synced data so your
     other devices report too. Disconnect in the same place and nothing more is sent.</li>
   </ul>
 
