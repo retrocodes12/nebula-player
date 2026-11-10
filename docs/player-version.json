@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.07.2",
+  "version": "2026.11.10.3",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "With two profiles, Who's watching now comes up first, and the loading screen follows once you pick"
+  "notes": "Smoother all round: pages, menus and sheets glide into place and the selected tab slides. On a computer, arrows at the edges of a row page it with the mouse. Fixed a hidden spinner that kept every screen redrawing (TVs felt it most) and a page that blinked when you went back quickly."
 }
