@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.11.1",
+  "version": "2026.11.11.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "New on TVs: Library › On your computer. What you downloaded in Nebula on a Windows or Linux computer shows up on your TV and plays straight from that computer, with its subtitles and your place in it — and sound the TV cannot play is converted on the way. Turn on Settings › Playback › Share with your TV on the computer, signed in to the same profile."
+  "notes": "Fixed on TVs: sound converted by your computer no longer cuts out. A heavy film filled the TV’s memory half a minute in and went silent; it is now sent as one steady stream that the TV reads at its own pace, so the short stalls every few seconds are gone too. A film this TV cannot take that way (some disc copies) now plays on without sound and says so, instead of freezing. Update Nebula on the computer as well (1.117.1)."
 }

@@ -3529,7 +3529,7 @@
   // nothing has written storage yet: an empty one is a device opening Nebula for the first time (the usage counter, `hello`)
   var LS_FRESH = (function(){ try { return LS.length === 0; } catch(e){ return false; } })();
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.11.11.1';
+  var PLAYER_VERSION = '2026.11.11.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -10035,7 +10035,7 @@
     var title = show ? parts.slice(1).join(' · ') : r.name;
     var line = dlSize(Number(r.bytes) || 0);
     // a film whose only named sound is DTS: this TV plays it silent unless that computer converts it
-    if (streamNoSound(pcStream(r))) line += (pcFrom.sound && soundCodecOk(pcFrom)) ? ' · sound through ' + soundHelperName(pcFrom) : ' · no sound on this TV (DTS)';
+    if (streamNoSound(pcStream(r))) line += (pcFrom.sound && soundCodecOk(pcFrom) && !tvNoPic[r.key]) ? ' · sound through ' + soundHelperName(pcFrom) : ' · no sound on this TV (DTS)';
     var poster = /^https?:\/\//i.test(r.poster || '') ? r.poster : '';
     main.innerHTML = (poster ? '<img class="dl-thumb" loading="lazy" src="' + esc(poster) + '" onerror="this.remove()">' : '<span class="dl-thumb"></span>') +
       '<span class="ep-main"><span class="stream-name">' + esc(title) + '</span><span class="ep-sub dl-line">' + esc(line) + '</span></span>';
@@ -11083,18 +11083,112 @@
   /** How the file is named to whoever converts it: its address — or, for the sharing computer's own download, its key there
       (that computer reads the copy from its disk; it would refuse to fetch an address on this network, its own included). */
   function tcSrcQ(url, lan){ return pcCopyOf(url, lan) ? 'dl=' + pcCopyKey(url) : 'src=' + encodeURIComponent(url); }
-  /** A TV's media memory is small (a 4K remux runs 40–80 Mbps): pieces of ~40 MB, ~80 MB ahead, 15 s kept behind. */
-  function tvBytesPerSec(){ var b = tc && tc.info && tc.info.bitrate; return b > 0 ? b / 8 : 5e6; }
+  /** A TV's media memory is small: his LG holds about 150 MB of picture and then refuses the next append (measured 11-11:
+      a 30 Mbps film filled it 39 s in, the pump asked for the same piece in a loop, and the sound was lost half a minute
+      into the film). So a computer's stream is counted in BYTES, at what it weighed lately rather than the file's average
+      (an opening can run well above it): about 95 MB in all, what has to stay behind the playhead taken off first
+      (tvBehindNeed), the rest held ahead. Each time the element still says it is full, that shrinks (tc.mem).
+      A phone's pieces (tc.rx) are sized as they always were. */
+  function tvBytesPerSec(){ var b = tc && tc.info && tc.info.bitrate; return Math.max(b > 0 ? b / 8 : 5e6, (tc && tc.rate) || 0); }
+  function tvMem(){ return (tc && tc.mem) || 1; }
   function tvPieceLen(){ return Math.max(4, Math.min(TC_LEN_RUN, Math.floor(40e6 / tvBytesPerSec()))); }
+  /** What stays behind the playhead cannot simply be "a few megabytes": a removal on this engine runs on to the next
+      picture the stream can be entered at, so a cut inside a group of pictures takes the rest of the group with it — the
+      part under the playhead included (his LG, 11-11: a Blu-ray H.264 film whose entry points are minutes apart lost its
+      whole picture buffer to one trim). So what is behind goes one whole group at a time, and only once the playhead is
+      further on than the longest group this stream could have: 12 s (an encoder's usual ceiling is about ten), or a
+      fifth more than the longest one seen. Short groups seen so far promise nothing — the same 4K film showed groups of
+      one second and of nearly six. */
+  function tvGroupMax(){ return Math.max(12, ((tc && tc.gopMax) || 0) * 1.2); }
+  function tvBehindNeed(){ return tvGroupMax() + 1; }
+  // A computer's piece is ONE conversion for as long as it will make it (an older Nebula there stops at 30 s): where two
+  // pieces meet, his LG leaves a tenth of a second out of the picture buffer and stalls ~0.4 s over it — at 6 s pieces the
+  // film flickered every few seconds (seen on the TV, 11-11). So the piece is long and is READ at the pace the memory allows:
+  // while enough is held ahead the pump stops reading, and the conversion on the computer simply waits with it.
+  var TV_ASK_LEN = 1800;
+  /** Seconds held ahead of the playhead, every range counted. */
+  function tvHeldAhead(){ var s = 0; try { var b = tcBuf(), t = video.currentTime; for (var i = 0; i < b.length; i++) if (b.end(i) > t) s += b.end(i) - Math.max(b.start(i), t); } catch(e){} return s; }
+  /** The furthest second that has landed. */
+  function tvLandedEnd(){ var e = 0; try { var b = tcBuf(); for (var i = 0; i < b.length; i++) if (b.end(i) > e) e = b.end(i); } catch(x){} return e; }
+  /** Where the picture that is joined to the playhead ends: the end of the range the playhead is in, 0 when it is in none. */
+  function tvJoinedEnd(){ try { var b = tc.sb.buffered, t = video.currentTime; for (var i = 0; i < b.length; i++) if (b.start(i) <= t + 0.6 && b.end(i) > t) return b.end(i); } catch(e){} return 0; }
+  /** What may be held ahead, in seconds of this film at what it weighs now. */
+  function tvAheadSecs(){ return Math.max(6, Math.floor(95e6 * tvMem() / tvBytesPerSec() - tvBehindNeed())); }
+  /** What the film weighs per second where it is being read: taken over every four seconds that land, the heaviest of the last three. */
+  function tvRateNote(from, got){
+    var end = tvLandedEnd(), m = tc.rmark;
+    if (!m || m.from !== from){ tc.rmark = { from: from, bytes: got, end: end }; return; }
+    if (end - m.end >= 4){ tc.rates = (tc.rates || []).concat([(got - m.bytes) / (end - m.end)]).slice(-3); tc.rate = Math.max.apply(null, tc.rates); tc.rmark = { from: from, bytes: got, end: end }; }
+  }
+  /** Let go of what is behind the playhead: a range wholly behind it, or else the first group of pictures — and that only
+      when the playhead is safely past where the group could end (tvBehindNeed). What the buffer starts at afterwards says
+      how long the group was. */
+  async function tvTrimBehind(){
+    if (!tc || !tc.sb) return false;
+    try {
+      var vb = tc.sb.buffered, t = video.currentTime; if (!vb.length) return false;
+      var S = vb.start(0);
+      if (vb.end(0) < t - 1){ await tcRemove(0, vb.end(0) + 0.01); return true; }
+      if (t - S <= tvBehindNeed()) return false;
+      await tcRemoveFrom(tc.sb, 0, S + 0.05);
+      var nb = tc.sb.buffered, S2 = nb.length ? nb.start(0) : -1;
+      if (S2 > S + 0.01){
+        tc.gopMax = Math.max(tc.gopMax || 0, S2 - S);
+        if (tc.sbA) await tcRemoveFrom(tc.sbA, 0, Math.max(0, Math.min(S2, t - 1)));
+        return true;
+      }
+    } catch(e){}
+    return false;
+  }
+  /** Ranges that lie wholly behind this second go (a seek left them there). */
+  async function tvDropBehind(ct){
+    try { var vb = tc.sb.buffered, e = 0; for (var i = 0; i < vb.length; i++) if (vb.end(i) < ct - 1) e = vb.end(i); if (e > 0) await tcRemove(0, e + 0.01); } catch(x){}
+  }
+  // A film whose picture this engine cannot keep (found on his LG with a Blu-ray H.264 remux: it takes the picture only from
+  // certain frames, minutes apart in such a file, drops everything up to the next one after every start or seek, and
+  // loses the lot when anything behind is let go): the sound is there well past the playhead and the picture is not.
+  // Then the film plays on as it is — silent, said in a sentence — and is not sent to the computer again.
+  var tvNoPic = {};
+  try { tvNoPic = JSON.parse(LS.getItem('tv_nopic_v1') || '{}') || {}; } catch(e){ tvNoPic = {}; }
+  function tvNoPicKey(u){ return pcCopyKey(u) || cleanUrl(String(u || '')); }
+  function tvPictureGone(){
+    try {
+      var t = video.currentTime, vb = tc.sb.buffered, ab = tc.sbA.buffered, i, pic = false, snd = 0;
+      for (i = 0; i < vb.length; i++) if (vb.start(i) <= t + 0.6 && vb.end(i) > t + 0.2) pic = true;
+      for (i = 0; i < ab.length; i++) if (ab.start(i) <= t + 0.6 && ab.end(i) > t) snd = Math.max(snd, ab.end(i) - t);
+      if (pic || snd < 8){ tc.noPicAt = 0; return false; }
+      if (!tc.noPicAt){ tc.noPicAt = Date.now(); return false; }
+      return Date.now() - tc.noPicAt > 3500;
+    } catch(e){ return false; }
+  }
+  function tvNoPicture(line){
+    if (!tc || !tc.lan || !lastPlay) return;
+    var k = tvNoPicKey(lastPlay.url), keys = Object.keys(tvNoPic);
+    if (keys.length > 60) delete tvNoPic[keys[0]];
+    tvNoPic[k] = Date.now();
+    try { LS.setItem('tv_nopic_v1', JSON.stringify(tvNoPic)); } catch(e){}
+    tvSoundLost('', line || 'The sound of this film cannot be converted for this TV: its picture can only be picked up at a few points, too far apart. Playing it as it is, without sound.');
+  }
+  /** Between two reads of the computer's piece: wait while enough is held ahead. */
+  async function tvPace(session, my, ctl, from, got){
+    tvRateNote(from, got);
+    var live = function(){ return tc === session && tc.gen === my && !ctl.signal.aborted; };
+    while (live() && tvHeldAhead() > tvAheadSecs()){
+      if (tvPictureGone()){ tvNoPicture(); return; }
+      await tvTrimBehind(); await tcWait(250);
+    }
+    if (live() && tvPictureGone()){ tvNoPicture(); return; }
+    if (live()) await tvTrimBehind();
+  }
   /** The computer stopped converting (gone from the network, its FFmpeg failed, the TV refused what it made): the file
       plays on as it is from where it was — in silence, which the silence watch then says — and that computer is not asked
       again for this file for two minutes. */
-  function tvSoundLost(why){
+  function tvSoundLost(why, line){
     if (!tc || !tc.lan || !lastPlay) return;
     var at = 0; try { at = video.currentTime || 0; } catch(e){}
     ctx.soundOffFor = lastPlay.url; ctx.soundOffAt = Date.now();
     ctx.swapAt = at > 1 ? at : 0;
-    setStatus(soundHelperName(tc.lan) + ' stopped converting the sound (' + (why || 'no answer') + ') — playing on without it.', 'err', 7000);
+    setStatus(line || (soundHelperName(tc.lan) + ' stopped converting the sound (' + (why || 'no answer') + ') — playing on without it.'), 'err', line ? 10000 : 7000);
     playUrl(lastPlay.url, lastPlay.keys, lastPlay.title, lastPlay.subs, lastPlay.mime);
   }
   /** The marks on a list already drawn, once the computer is known (it is looked for while the list loads). */
@@ -11148,11 +11242,35 @@
   /** How far ahead the converter runs: Settings › Buffer ahead when set, the stock 45 s otherwise, never past what the element's memory took last time. */
   function tcAheadGoal(){
     var goal = Math.min(Math.max(TC_AHEAD, bufferSecs()), (tc && tc.aheadCap) || 240);
-    return (tc && tc.lan) ? Math.max(8, Math.min(goal, Math.floor(80e6 / tvBytesPerSec()))) : goal;
+    // a TV: what is held ahead once the next piece has landed (the pump asks only when that piece fits under it)
+    return (tc && tc.lan) ? (tc.rx ? Math.max(8, Math.min(goal, Math.floor(80e6 / tvBytesPerSec()))) : tvAheadSecs()) : goal;
   }
   /** The element's media memory is full (a quota error mid-append): aim lower for the rest of this session, trim harder behind the playhead, and let the pump refill from tc.next on a clean parser. */
   async function tcQuota(){
     if (!tc) return;
+    if (tc.lan && !tc.rx){
+      // a TV and a computer's stream: hold less from here on, let go of every whole group behind the playhead, and WAIT
+      // before asking again — the stream is taken up from what has landed once the playhead has made room. Asking at
+      // once, as this did, met the same full buffer every time, and each ask started a conversion on the computer.
+      // Full four times inside a minute: this TV's memory is too small for this film — what must stay behind the playhead
+      // (tvBehindNeed) leaves no room ahead, so it would run dry, be refused and start over every few seconds (rig, a
+      // 60 MB buffer at 30 Mbps: a quarter of real time). Then the film plays as it is, said in a sentence, and is not
+      // sent to the computer again.
+      var qn = Date.now(); tc.fullAt = (tc.fullAt || []).filter(function(x){ return qn - x < 60000; }); tc.fullAt.push(qn);
+      if (tc.fullAt.length >= 4){ tvNoPicture('This TV does not have the memory to keep this film’s picture while its sound is converted. Playing it as it is, without sound.'); return; }
+      tc.mem = Math.max(0.3, tvMem() * 0.65);
+      tc.holdUntil = Date.now() + 2500;
+      tcCut();
+      for (var qi = 0; qi < 60; qi++){ if (!(await tvTrimBehind())) break; }
+      // …and of anything a seek left in a range of its own further on. Never the tail of the range the playhead is in:
+      // cutting that and then resuming past the cut left a hole the playhead stopped at (rig, 60 MB, 11-11).
+      var je = tvJoinedEnd();
+      if (je > 0) await tcRemove(je + 0.5, 1e9);
+      // the stream is taken up from where the picture joined to the playhead ends NOW, after the trims
+      je = tvJoinedEnd();
+      tc.next = je > 0 ? Math.max(0, je - 0.25) : Math.max(0, Math.floor(video.currentTime));
+      return;
+    }
     tc.aheadCap = Math.max(20, Math.floor(Math.min(tcAhead(), tcAheadGoal()) * 0.6));
     tcCut();
     await tcRemove(0, Math.max(0, video.currentTime - 10));
@@ -11190,12 +11308,19 @@
         var dur = tc.info.duration || 0;
         if (dur && tc.next >= dur - 0.25){ tcFinish(); break; }
         if (tc.flush){ tc.flush = false; await tcRemove(0, 1e9); }
-        if (tcAhead() > tcAheadGoal()){ await tcWait(800); continue; }
+        // a TV: after a full buffer nothing is asked for a moment, and a piece is asked only when it fits under what may be held ahead
+        if (tc.lan && !tc.rx){
+          // (a seek away from what is held: the old place's ranges would sit in that memory for nothing, far from the playhead)
+          if (tc.trimFar){ tc.trimFar = false; var ct = video.currentTime; await tvDropBehind(ct); await tcRemove(ct + tcAheadGoal() + 2, 1e9); }
+          if (tc.holdUntil && Date.now() < tc.holdUntil){ await tcWait(300); continue; }
+          if (tvHeldAhead() > tvAheadSecs()){ await tcWait(500); continue; }       // the long stream is begun when there is room
+        }
+        else if (tcAhead() > tcAheadGoal()){ await tcWait(800); continue; }
         if (tc.rx){ await rxStep(session, my); continue; }      // a phone converts the sound: picture here, sound from it
         var ctl = new AbortController(); tc.ctl = ctl; var pend = null;
         // (a TV: full pieces from the first — a 10 s first piece stalled ~1.4 s at its end on his LG, the next piece's seeks
         // over the internet taking 3–5 s; the picture still comes with the first fragment)
-        var from = tc.next, len = tc.lan ? tvPieceLen() : (tc.warm ? TC_LEN_RUN : TC_LEN), got = 0, r = null;
+        var from = tc.next, len = tc.lan ? (tc.rx ? tvPieceLen() : TV_ASK_LEN) : (tc.warm ? TC_LEN_RUN : TC_LEN), got = 0, r = null;
         tc.pieceFrom = from;
         try { r = await fetch(tcSegUrl(from, len), { signal: ctl.signal }); } catch(e){ if (ctl.signal.aborted) continue; throw e; }
         if (r.status === 503 && tc.lan && (tc.busy = (tc.busy || 0) + 1) < 20){ await tcWait(700); continue; }   // the computer is finishing the last piece (a seek)
@@ -11216,9 +11341,12 @@
               if (tc !== session || tc.gen !== my || ctl.signal.aborted) break;
             }
             if (p < buf.length) pend = buf.subarray(p);
+            if (tc === session && tc.gen === my && !ctl.signal.aborted && tc.lan && !tc.rx) await tvPace(session, my, ctl, from, got);
           }
         } catch(e){
-          if (e && e.name === 'QuotaExceededError') await tcQuota();   // the buffer is full, not broken: back off and refill
+          if (e && e.name === 'QuotaExceededError'){
+            await tcQuota();                                           // the buffer is full, not broken: back off and refill (a TV's long stream: tcQuota says where to take it up)
+          }
           else if (!ctl.signal.aborted) throw e;                       // a cut piece throws from the reader: that is the restart, not a fault
         }
         if (tc !== session || tc.gen !== my) break;
@@ -11226,10 +11354,16 @@
         if (!got) throw new Error('empty piece');
         // the piece ran from the keyframe before `from` up to from+len; carry on from what actually landed
         var end = 0; try { var bb = tcBuf(); for (var k = 0; k < bb.length; k++) if (bb.start(k) <= from + 0.5 && bb.end(k) > end) end = bb.end(k); } catch(e){}
+        // (a TV has let go of the piece's beginning long before its end: what landed last is where it ended — and a piece
+        // that ended with nothing landed did so because the film did)
+        if (tc.lan && !tc.rx){ end = tvLandedEnd(); if (!(end > from + 0.75)) end = tc.info.duration || (from + len); }
         tc.next = end > from + 0.75 ? end - 0.25 : from + len; tc.warm = true;
         tcGapJump();
-        var keep = tc.lan ? 15 : 50;
-        try { var b = tcBuf(); if (b.length && b.start(0) < video.currentTime - keep - 20) await tcRemove(0, video.currentTime - keep); } catch(e){}
+        if (tc.lan && !tc.rx) await tvTrimBehind();
+        else {
+          var keep = tc.lan ? 15 : 50;
+          try { var b = tcBuf(); if (b.length && b.start(0) < video.currentTime - keep - 20) await tcRemove(0, video.currentTime - keep); } catch(e){}
+        }
       }
     } catch(e){
       if (tc === session && tc.gen === my){
@@ -11255,8 +11389,16 @@
     var t = video.currentTime;
     try { var b = tcBuf(); for (var i = 0; i < b.length; i++) if (b.start(i) <= t && b.end(i) >= t + 1) return; } catch(e){}   // already here
     // the piece in flight starts at or just before the target: let it land rather than fetch the same seconds again
-    if (tc.ctl && !tc.ctl.signal.aborted && t >= tc.pieceFrom && t < tc.pieceFrom + TC_LEN - 1){ tc.done = false; tcPump(); return; }
+    // (a TV's long piece: only when the target is just ahead of what has landed — its beginning was let go long ago, so
+    // "starts at or before the target" says nothing about whether those seconds will still come)
+    // (before its first bytes have landed, the piece's own first second stands for "what has landed": a film that resumes
+    // mid-way seeks there as its metadata arrives, and with nothing landed yet this cancelled the piece and asked again)
+    // (…and a target INSIDE what has landed, only not yet a second deep, is simply being filled)
+    var le = (tc.lan && !tc.rx) ? Math.max(tvLandedEnd(), tc.pieceFrom || 0) : 0, inside = false;
+    try { var b2 = tcBuf(); for (var j = 0; j < b2.length; j++) if (b2.start(j) <= t + 0.1 && b2.end(j) >= t) inside = true; } catch(e){}
+    if (tc.ctl && !tc.ctl.signal.aborted && t >= tc.pieceFrom && ((tc.lan && !tc.rx) ? (inside || (t >= le - 0.5 && t < le + 8)) : (t < tc.pieceFrom + TC_LEN - 1))){ tc.done = false; tcPump(); return; }
     tc.next = Math.max(0, Math.floor(t)); tc.done = false; tc.warm = false;
+    if (tc.lan && !tc.rx) tc.trimFar = true;
     tcCut();
     tcPump();
   }
@@ -12671,7 +12813,7 @@
       if (rl && relayMode() === 'auto' && !pcCopy){ ctx.viaRelay = rl; ctx.relayBase = rl.base; }
       // …and the same computer converts sound this TV cannot play (Auto and Sound only) — not for a file it just failed;
       // with no such computer, a phone that converts sound (it sends the sound only; the TV reads the picture itself)
-      var soundOff = ctx.soundOffFor === rawUrl && Date.now() - (ctx.soundOffAt || 0) < 120000;
+      var soundOff = (ctx.soundOffFor === rawUrl && Date.now() - (ctx.soundOffAt || 0) < 120000) || !!tvNoPic[tvNoPicKey(rawUrl)];
       if (rl && rl.sound && !soundOff) ctx.soundVia = rl;
       else if (ph && !soundOff) ctx.soundVia = ph;
     }
