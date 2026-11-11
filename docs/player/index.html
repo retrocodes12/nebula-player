@@ -2187,6 +2187,7 @@
   .dl-acts { flex:0 0 auto; margin-left:12px; white-space:nowrap; }
   .dl-acts .chip { margin-left:8px; }
   .dl-empty { color:var(--label2); font-size:calc(14px * var(--ts)); margin:18px 0; max-width:560px; }   /* Stream details and Badges are parts of a design now */
+  html.tv .dl-empty { font-size:calc(19px * var(--ts)); line-height:1.45; max-width:980px; margin:26px 0 22px; }   /* On your computer: read from a sofa */
   @media (max-width:700px){
     .sc-opt { width:100%; margin-right:0; }
     .sc-prev { height:160px; }
@@ -3148,7 +3149,7 @@
           <span id="setRelay" class="seg"></span>
         </div>
         <div class="setrow" id="setShareRow" style="display:none">
-          <span class="setname">Share with your TV<small id="setShareSub">Fetch and hold video for the TV on your network · Both signed in to the same profile · Windows may ask to allow Nebula on your network</small></span>
+          <span class="setname">Share with your TV<small id="setShareSub">Fetch and hold video for the TV on your network, and play this computer’s downloads on it · Both signed in to the same profile · Windows may ask to allow Nebula on your network</small></span>
           <span id="setShare" class="seg"></span>
         </div>
         <div class="setrow" data-lvl="all">
@@ -8084,7 +8085,8 @@
     wrap.innerHTML = '';
     // the three shelves as one segmented pill; Friends waits at the foot as a quiet hairline row
     var tabs = document.createElement('div'); tabs.className = 'seg'; tabs.id = 'libTabs';
-    [['list','My List'], ['cw','Continue Watching'], ['up','Upcoming']].concat(DL ? [['dl','Downloads']] : []).forEach(function(t){
+    if (libTab === 'pc' && !relayTv()) libTab = 'list';
+    [['list','My List'], ['cw','Continue Watching'], ['up','Upcoming']].concat(DL ? [['dl','Downloads']] : []).concat(pcTabOn() ? [['pc','On your computer']] : []).forEach(function(t){
       var c = prefChip(t[1], libTab === t[0], function(){ libTab = t[0]; renderLibraryTab(true); });
       c.setAttribute('data-tab', t[0]); tabs.appendChild(c);
     });
@@ -8093,7 +8095,9 @@
     if (libTab === 'list') renderLibList(body);
     else if (libTab === 'cw') renderLibContinue(body);
     else if (libTab === 'dl' && DL) renderLibDownloads(body);
+    else if (libTab === 'pc'){ renderLibPc(body); pcRefresh(false); }
     else renderUpcoming(body);
+    pcTabWatch();
     var fr = document.createElement('div'); fr.id = 'friendsSec'; fr.className = 'lib-friends'; wrap.appendChild(fr);
     renderFriends(fr);
     if (fromTab && (IS_TV || kbUsed)){
@@ -9850,6 +9854,16 @@
       body.innerHTML = '<p class="dl-empty">Nothing downloaded yet. A film’s page has Download; an episode’s has it in its menu (hold, or the ⋯), and a season above its episodes.</p>';
       return;
     }
+    dlShelves(body, mine, dlLibRow);
+    // …and where else they play (the TV finds this computer through the profile)
+    var tvp = document.createElement('p'); tvp.className = 'dl-empty dl-tv';
+    var sh = relayShare || (relayApi && relayApi.info()) || {};
+    tvp.textContent = sh.on ? 'These play on your TV too: Nebula there › Library › On your computer.'
+      : 'To watch these on your TV, turn on Settings › Playback › Share with your TV.';
+    if (relayApi) body.appendChild(tvp);
+  }
+  /** One shelf per film or show, a show's episodes in order; [rowFn] draws a row. */
+  function dlShelves(body, mine, rowFn){
     var TAG = /^S(\d+)(?:E(\d+))?$/i, groups = {}, order = [];
     mine.forEach(function(r){
       var parts = String(r.name || '').split(' · '), show = parts.length > 1 && TAG.test(parts[1]) ? parts[0] : '';
@@ -9863,7 +9877,7 @@
       g.rows.sort(function(x, y){ return num(x) - num(y); });
       if (g.rows.length > 1 || g.rows[0].type === 'series') shelfHead(body, g.title, g.rows.length + (g.rows.length === 1 ? ' episode' : ' episodes'));
       var list = document.createElement('div'); list.className = 'streams eplist dl-list'; body.appendChild(list);
-      g.rows.forEach(function(r){ list.appendChild(dlLibRow(r)); });
+      g.rows.forEach(function(r){ list.appendChild(rowFn(r)); });
     });
   }
   function dlLibRow(r){
@@ -9902,6 +9916,138 @@
     var shown = Array.prototype.map.call(body.querySelectorAll('.dl-row'), function(w){ return w.getAttribute('data-dlkey'); }).sort().join();
     if (shown !== mine.map(function(r){ return r.key; }).sort().join()){ renderLibDownloads(body); return; }
     mine.forEach(function(r){ var w = body.querySelector('.dl-row[data-dlkey="' + r.key + '"]'); if (w) dlLibRowFill(w, r); });
+  }
+
+  // ---------- On your computer (TV; 11-11, his "play downloaded videos on my laptop nebula in my tv nebula") ----------
+  // A Nebula on a computer keeps downloads (above); a TV has nowhere to keep a film. While that computer shares with the TV
+  // (its Settings › Playback › Share with your TV — the listener, token and profile of Play through your PC) it lists its
+  // finished copies and serves the files. Library › On your computer shows them here; a row plays the copy straight from
+  // that computer with the subtitles kept beside it, under the title's own resume point and ticks; sound this TV cannot
+  // play (DTS) is converted there from its disk, as for a streamed film (tvSoundCandidate). It works whatever Play through
+  // your PC is set to: that row decides how streams from the internet are fetched, and this is the computer's own file.
+  var pcRows = [], pcFrom = null, pcState = '', pcAt = 0, pcBusy = null, pcFor = '';
+  var RE_PC_COPY = /^http:\/\/((?:\d{1,3}\.){3}\d{1,3}):\d{2,5}\/relay\/dl\/([0-9a-f]{16})\//;
+  /** The key of a computer's saved copy, when this address is one (a private address on this network, nothing else). */
+  function pcCopyKey(u){ var m = RE_PC_COPY.exec(String(u || '')); return m && relayLanHost(m[1]) ? m[2] : ''; }
+  /** …and it is THIS computer's copy: it can convert its sound, named by the key. */
+  function pcCopyOf(u, lan){ return !!(lan && !lan.phone && pcCopyKey(u) && String(u).indexOf(lan.base + '/relay/dl/') === 0); }
+  /** The player's source line for such a copy: the computer it is kept on. */
+  function pcSrcLine(u){ return pcCopyKey(u) && pcFrom && String(u).indexOf(pcFrom.base + '/') === 0 ? 'On ' + soundHelperName(pcFrom) : ''; }
+  /** The tab is there once a computer has shared with this profile. */
+  function pcTabOn(){ return relayTv() && (relayUsable(relayDoc) || pcRows.length > 0 || libTab === 'pc'); }
+  /** A computer that starts sharing while Library is open brings its tab in (the cloud is asked at most once a minute). */
+  function pcTabWatch(){
+    if (!relayTv() || !cloudLinked()) return;
+    var had = pcTabOn();
+    relayPull(false).then(function(){
+      var v = document.querySelector('.view.active'), tabs = $id('libTabs'), body = $id('libBody'), ae = document.activeElement;
+      if (pcTabOn() === had || !(v && v.id === 'view-library') || !tabs) return;
+      if (body && body.contains(ae)) return;            // the remote is in the list: the tab arrives with the next visit
+      renderLibraryTab(tabs.contains(ae));
+    });
+  }
+  function pcSet(rows, from, state){ pcRows = rows; pcFrom = from; pcState = state; pcAt = Date.now(); pcFor = viewer; }
+  /** This viewer's finished downloads on the sharing computer — asked at most every 20 s, at once when asked by hand. */
+  function pcPull(force){
+    if (!relayTv()) return Promise.resolve(pcRows);
+    if (pcBusy) return pcBusy;
+    if (!force && pcAt && pcFor === viewer && Date.now() - pcAt < 20000) return Promise.resolve(pcRows);
+    var who = viewer;
+    var find = (relayLive && Date.now() - relayLive.at < 300000) ? Promise.resolve(relayLive) : relayFind();
+    pcBusy = find.then(function(live){
+      if (!live){ pcSet([], null, relayUsable(relayDoc) ? 'away' : 'none'); return; }
+      if (!live.dl){ pcSet([], live, 'old'); return; }
+      return fetchTimeout(live.base + '/relay/dl/list?v=' + who + '&k=' + encodeURIComponent(live.token), 6000)
+        .then(function(r){ if (!r.ok) throw new Error('list ' + r.status); return r.json(); })
+        .then(function(j){
+          var rows = ((j && j.items) || []).filter(function(r){
+            return r && /^[0-9a-f]{16}$/.test(r.key || '') && r.id && r.type && /^\.[a-z0-9]{2,5}$/i.test(r.ext || '');
+          });
+          pcSet(rows, live, 'ok');
+        }, function(){
+          // it answered a moment ago and does not now: looked for afresh next time, not trusted for five minutes
+          if (relayLive === live) relayLive = null;
+          pcSet([], null, 'away');
+        });
+    }).then(function(){ pcBusy = null; return pcRows; }, function(){ pcBusy = null; return pcRows; });
+    return pcBusy;
+  }
+  /** The stream a saved copy plays as: its address on that computer, the names its row had, the subtitles kept with it. */
+  function pcStream(r){
+    var base = pcFrom.base + '/relay/dl/' + r.key, k = '?k=' + encodeURIComponent(pcFrom.token);
+    return { url: base + '/video' + r.ext + k, name: r.streamName || r.source || '', title: r.streamTitle || '',
+      subtitles: (r.subs || []).map(function(x){ return { id: 'pc' + x.i, url: base + '/sub/' + x.i + (/^\.(srt|vtt)$/i.test(x.ext || '') ? x.ext.toLowerCase() : '') + k, lang: x.lang }; }),
+      behaviorHints: { filename: r.fileName || '' } };
+  }
+  /** Play a copy kept on the computer: the ordinary play of that title (its resume point, its ticks), read from there. */
+  function pcPlay(r, fresh, chosen){
+    if (!pcFrom) return;
+    var poster = /^https?:\/\//i.test(r.poster || '') ? r.poster : '';
+    ctx.item = { id: r.id, type: r.type, name: r.name, poster: poster, posterShape: 'poster', background: '' };
+    ctx.seriesEpisodes = null; ctx.epIndex = -1; ctx.seriesName = ''; ctx.seriesId = ''; ctx.seriesPoster = ''; ctx.seriesBack = '';
+    setPlayIdentity(r.type, r.id, r.name);
+    // [chosen]: Resume or Start over was just picked on the row's sheet — not asked a second time
+    ctx.streamTitle = r.name; ctx.startOver = fresh === true; ctx.resumeChosen = fresh === true || chosen === true;
+    if (getPrefs().resume === 'over' && !chosen && !ctx.startOver && resumeAt(r.type, r.id)) ctx.startOver = true;   // Settings: always from the beginning
+    var s = pcStream(r);
+    var go = function(){ ctx.playSig = null; playStream(s); if (r.type === 'series') hydrateSeriesChain(r.type, r.id); };
+    if (resumeAskDue()) resumeAsk(go); else go();
+  }
+  function pcSig(){ return [viewer, pcFor, pcAt ? pcState : 'wait', pcFrom ? pcFrom.base : ''].concat(pcRows.map(function(r){ return r.key; })).join('|'); }
+  /** Library › On your computer. */
+  function renderLibPc(body){
+    body.innerHTML = ''; body.__pcSig = pcSig();
+    var name = pcFrom ? soundHelperName(pcFrom) : String((relayDoc && relayDoc.name) || 'your computer').slice(0, 22);
+    function note(text, again){
+      var p = document.createElement('p'); p.className = 'dl-empty'; p.textContent = text; body.appendChild(p);
+      if (!again) return;
+      var b = document.createElement('button'); b.className = 'chip focusable'; b.id = 'pcAgain'; b.textContent = 'Look again';
+      b.onclick = function(){ b.textContent = 'Looking…'; pcRefresh(true); };
+      body.appendChild(b);
+    }
+    if (!pcAt || pcFor !== viewer){ note('Looking for your computer…'); return; }
+    if (pcState === 'ok' && pcRows.length){
+      var bytes = 0; pcRows.forEach(function(r){ bytes += Number(r.bytes) || 0; });
+      shelfHead(body, 'On ' + name, pcRows.length + (pcRows.length === 1 ? ' download' : ' downloads') + ' · ' + dlSize(bytes));
+      dlShelves(body, pcRows, pcLibRow);
+    }
+    else if (pcState === 'ok') note('Nothing is downloaded on ' + name + ' yet. Download a film or an episode in Nebula there, and it plays here from that computer.', true);
+    else if (pcState === 'old') note(name + ' is sharing, but its Nebula is too old to show its downloads here. Update Nebula on it.', true);
+    else if (pcState === 'away') note(name + ' does not answer right now. Check it is on, Nebula is open on it, and it is on the same network as this TV.', true);
+    else note('No computer is sharing with this TV. In Nebula for Windows or Linux, signed in to this profile, turn on Settings › Playback › Share with your TV.', true);
+  }
+  /** Ask again and redraw only when something changed (a redraw drops the remote's focus; it is put back on the list). */
+  function pcRefresh(force){
+    pcPull(force).then(function(){
+      var v = document.querySelector('.view.active'), body = $id('libBody');
+      if (!(v && v.id === 'view-library' && libTab === 'pc' && body)) return;
+      if (body.__pcSig === pcSig() && !$id('pcAgain')) return;
+      var had = !!(document.activeElement && body.contains(document.activeElement));
+      renderLibPc(body);
+      if (had){ var f = body.querySelector('.focusable'); if (f){ try { f.focus({ preventScroll: true }); } catch(e){ f.focus(); } } }
+    });
+  }
+  function pcLibRow(r){
+    var wrap = document.createElement('div'); wrap.className = 'dl-row'; wrap.setAttribute('data-dlkey', r.key);
+    var main = document.createElement('button'); main.className = 'stream focusable dl-main';
+    var parts = String(r.name || '').split(' · ');
+    var show = parts.length > 1 && /^S\d+/i.test(parts[1]);
+    var title = show ? parts.slice(1).join(' · ') : r.name;
+    var line = dlSize(Number(r.bytes) || 0);
+    // a film whose only named sound is DTS: this TV plays it silent unless that computer converts it
+    if (streamNoSound(pcStream(r))) line += (pcFrom.sound && soundCodecOk(pcFrom)) ? ' · sound through ' + soundHelperName(pcFrom) : ' · no sound on this TV (DTS)';
+    var poster = /^https?:\/\//i.test(r.poster || '') ? r.poster : '';
+    main.innerHTML = (poster ? '<img class="dl-thumb" loading="lazy" src="' + esc(poster) + '" onerror="this.remove()">' : '<span class="dl-thumb"></span>') +
+      '<span class="ep-main"><span class="stream-name">' + esc(title) + '</span><span class="ep-sub dl-line">' + esc(line) + '</span></span>';
+    bindCard(main, function(){ pcPlay(r); }, function(){
+      var at = resumeAt(r.type, r.id);
+      openSheet({ title: show ? parts[0] : (r.name || ''), sub: [show ? parts.slice(1).join(' · ') : '', 'On ' + soundHelperName(pcFrom), dlSize(Number(r.bytes) || 0)].filter(Boolean).join('  ·  '),
+        poster: poster, shape: 'poster',
+        actions: [{ icon: 'play', label: at > 0 ? 'Resume from ' + fmtT(at) : 'Play', fn: function(){ pcPlay(r, false, true); } }]
+          .concat(at > 0 ? [{ icon: 'restart', label: 'Start over', fn: function(){ pcPlay(r, true, true); } }] : []) });
+    });
+    wrap.appendChild(main);
+    return wrap;
   }
 
   // ---------- streams ----------
@@ -10906,9 +11052,10 @@
   function soundHelperName(h){ var n = String((h && h.name) || 'your PC'); return n.length > 22 ? n.slice(0, 21) + '…' : n; }
   /** The engine takes what that computer makes: the codec it says it makes, in fragmented MP4. */
   function soundCodecOk(h){ try { return !!(h && h.sound && window.MediaSource && MediaSource.isTypeSupported('audio/mp4; codecs="' + h.sound + '"')); } catch(e){ return false; } }
-  /** A plain file from the internet (never a playlist, a manifest, a key, a file on this network), on a TV with such a computer. */
+  /** A plain file from the internet (never a playlist, a manifest, a key, a file on this network), on a TV with such a computer
+      — or one of that computer's own downloads, which it converts from its disk (pcCopyOf). */
   function tvSoundCandidate(url, keys){
-    return !!ctx.soundVia && !keys && /^https?:\/\//i.test(url) && !/\.(mpd|m3u8?)(\?|#|$)/i.test(url) && relayWorth(url) && soundCodecOk(ctx.soundVia) &&
+    return !!ctx.soundVia && !keys && /^https?:\/\//i.test(url) && !/\.(mpd|m3u8?)(\?|#|$)/i.test(url) && (relayWorth(url) || pcCopyOf(url, ctx.soundVia)) && soundCodecOk(ctx.soundVia) &&
       // a phone: the TV reads the picture itself — never with the add-on's headers (a page cannot send them), Matroska only
       (!ctx.soundVia.phone || (!ctx.playHeaders && !/\.(mp4|m4v|mov|ts|m2ts|avi)(\?|#|$)/i.test(url)));
   }
@@ -10930,9 +11077,12 @@
   }
   /** The probe: on this computer's own shell (desktop), or the TV's sharing computer. */
   function tcProbeUrl(url, c){
-    var q = 'src=' + encodeURIComponent(url) + tcHdrs(c && c.h);
+    var q = tcSrcQ(url, c && c.lan) + tcHdrs(c && c.h);
     return (c && c.lan) ? c.lan.base + '/relay/probe?' + q + '&k=' + encodeURIComponent(c.lan.token) : location.origin + '/probe?' + q;
   }
+  /** How the file is named to whoever converts it: its address — or, for the sharing computer's own download, its key there
+      (that computer reads the copy from its disk; it would refuse to fetch an address on this network, its own included). */
+  function tcSrcQ(url, lan){ return pcCopyOf(url, lan) ? 'dl=' + pcCopyKey(url) : 'src=' + encodeURIComponent(url); }
   /** A TV's media memory is small (a 4K remux runs 40–80 Mbps): pieces of ~40 MB, ~80 MB ahead, 15 s kept behind. */
   function tvBytesPerSec(){ var b = tc && tc.info && tc.info.bitrate; return b > 0 ? b / 8 : 5e6; }
   function tvPieceLen(){ return Math.max(4, Math.min(TC_LEN_RUN, Math.floor(40e6 / tvBytesPerSec()))); }
@@ -10981,7 +11131,7 @@
   }
   function tcMime(){ return 'video/mp4; codecs="' + tcVideoCodec() + ', mp4a.40.2"'; }
   function tcSegUrl(t, len){
-    var q = 'src=' + encodeURIComponent(tc.src) + '&t=' + t + '&len=' + len + '&a=' + tc.a + '&v=' + tc.vmode +
+    var q = tcSrcQ(tc.src, tc.lan) + '&t=' + t + '&len=' + len + '&a=' + tc.a + '&v=' + tc.vmode +
       '&vc=' + encodeURIComponent(tc.info.video.codec || '') + '&vh=' + (tc.info.video.height || 0) + '&st=' + (tc.info.start || 0) + tcHdrs(tc.h);
     if (!tc.lan) return location.origin + '/seg?' + q;
     // the TV's computer: the track's channels (5.1 at most comes back) and whether it already is what the TV takes
@@ -12439,7 +12589,7 @@
       try { if (r.body && r.body.cancel) r.body.cancel(); } catch(e){}
     } catch(e){}
     if (own >= 200 && own < 300) return /text\/html/i.test(ct) ? 'page' : 'serves';
-    if (debridLink(url)) return own >= 400 && own !== 429 ? 'refused' : '';   // never asked from our server (debridLink)
+    if (debridLink(url) || pcCopyKey(url)) return own >= 400 && own !== 429 ? 'refused' : '';   // never asked from our server (debridLink; a computer's download)
     try {
       var r2 = await ask(CLOUD_BASE + '/v1/ranges?u=' + encodeURIComponent(url) + '&r=0-15', {}, 15000);
       if (r2.ok) return 'serves';
@@ -12498,7 +12648,7 @@
     } : null;
     show('player');
     puiReset(title || '');
-    $id('puiSrc').textContent = srcLine(ctx.playSig);   // add-on · plate · provider of what is playing
+    $id('puiSrc').textContent = srcLine(ctx.playSig) || pcSrcLine(rawUrl);   // add-on · plate · provider of what is playing (or the computer it is kept on)
     pgLoad(curPlay);                   // the content advisory shown as it starts
     trackBegin();                      // what is reported to the viewer's tracking account, if they connected one
     lpMark(curPlay);                   // (the app closed from here is offered this again at the next start)
@@ -12513,9 +12663,12 @@
     // Play through your PC (TV): the sharing computer, when one answers — settled before the engine is built
     ctx.viaRelay = null; ctx.relayBase = ''; ctx.relaySrc = false; ctx.soundVia = null;
     if (/^https?:\/\//i.test(rawUrl)){
-      var found = await Promise.all([relayResolve(), phoneResolve()]), rl = found[0], ph = found[1];
+      // one of the sharing computer's own downloads (Library › On your computer): read from it as it is — nothing is routed
+      // through its cache — and its sound converted there whatever Play through your PC is set to
+      var pcCopy = !!pcCopyKey(rawUrl);
+      var found = await Promise.all([relayResolve(pcCopy), phoneResolve()]), rl = found[0], ph = pcCopy ? null : found[1];
       if (seq !== playSeq) return;
-      if (rl && relayMode() === 'auto'){ ctx.viaRelay = rl; ctx.relayBase = rl.base; }
+      if (rl && relayMode() === 'auto' && !pcCopy){ ctx.viaRelay = rl; ctx.relayBase = rl.base; }
       // …and the same computer converts sound this TV cannot play (Auto and Sound only) — not for a file it just failed;
       // with no such computer, a phone that converts sound (it sends the sound only; the TV reads the picture itself)
       var soundOff = ctx.soundOffFor === rawUrl && Date.now() - (ctx.soundOffAt || 0) < 120000;
@@ -13208,7 +13361,7 @@
       later piece asks the address it redirected to (PenguPlay's hop to its file store cost ~0.8 s a piece, measured
       from the Founder's network — most of the minute a built-in track took to come on). */
   function innerReader(url){
-    var rd = { via: 'direct', target: url, base: url, own: debridLink(url) };
+    var rd = { via: 'direct', target: url, base: url, own: debridLink(url) || !!pcCopyKey(url) };   // (a computer's download: an address on this network)
     if (ctx.viaRelay && relayLive === ctx.viaRelay && relayWorth(url)) rd.target = rd.base = relayUrl(url);
     async function one(s, e, again){
       var at = rd.target, ctl = new AbortController(), timer = setTimeout(function(){ ctl.abort(); }, 15000);
@@ -14819,6 +14972,7 @@
     if (video.playbackRate !== 1) row('Speed', video.playbackRate + '×');
     if (lastPlay && lastPlay.keys) row('Encryption', 'Decrypted on device');
     if (ctx.viaRelay && !(tc && tc.lan)) row('Via', ctx.viaRelay.name + ' on your network');
+    if (lastPlay && pcSrcLine(lastPlay.url)) row('From', pcSrcLine(lastPlay.url).replace(/^On /, '') + ' · a download kept there');
     if (tc && tc.lan){ var ta = (tc.info.audio || [])[tc.a] || {}; row('Sound', 'Converted by ' + soundHelperName(tc.lan) + ' · ' + (FF_AUDIO_NAMES[String(ta.codec || '').toLowerCase()] || String(ta.codec || '').toUpperCase()) + ' → ' + (tc.lan.sound === 'ec-3' ? 'Dolby Digital Plus' : tc.lan.sound)); }
     if (subOffset || subScale !== 1) row('Subtitle timing', (subOffset > 0 ? '+' : (subOffset < 0 ? '−' : '')) + Math.abs(subOffset).toFixed(1) + ' s' + (subScale !== 1 ? ' · speed matched' : '') + (subSynced ? ' · set automatically' : ''));
     var html = '';
@@ -15682,7 +15836,9 @@
   var relayDoc = null, relayLive = null, relayDeadAt = 0, relayPullAt = 0, relayShare = null, relayPubSig = '', relayPubOn = false;
   // auto = every stream through the computer + its sound conversion; sound = only the sound this TV cannot play; off = neither
   function relayMode(){ var v = getPrefs().relay; return v === 'off' ? 'off' : v === 'sound' ? 'sound' : 'auto'; }
-  function relayWanted(){ return IS_TV && !IS_DESKTOP && location.protocol !== 'https:' && relayMode() !== 'off'; }
+  /** A TV that can reach a computer on its network at all (never the web player: an https page may not fetch plain http). */
+  function relayTv(){ return IS_TV && !IS_DESKTOP && location.protocol !== 'https:'; }
+  function relayWanted(){ return relayTv() && relayMode() !== 'off'; }
   function relayLoadDoc(){ try { relayDoc = JSON.parse(LS.getItem('relay_v1') || 'null'); } catch(e){ relayDoc = null; } if (relayDoc && typeof relayDoc !== 'object') relayDoc = null; }
   function relaySaveDoc(){ try { if (relayDoc) LS.setItem('relay_v1', JSON.stringify(relayDoc)); else LS.removeItem('relay_v1'); } catch(e){} }
   /** A sharing computer is on this TV's own network: only a private LAN address is ever probed or played through. The list
@@ -15725,22 +15881,27 @@
             // what the computer makes for sound this TV cannot play (an older desktop says nothing: no conversion)
             // (picture and sound apart — `split` — is the only form an LG takes; a computer without it is no help here)
             var snd = j && j.sound && j.sound.split === true && /^[a-z0-9.-]{2,16}$/i.test(String(j.sound.codec || '')) ? String(j.sound.codec) : '';
-            if (j && j.ok) finish({ base: base, token: d.token, name: d.name || j.name || 'Your PC', at: Date.now(), sound: snd }); else miss();
+            // …and whether it shows this TV its downloads (Library › On your computer; an older desktop says nothing)
+            if (j && j.ok) finish({ base: base, token: d.token, name: d.name || j.name || 'Your PC', at: Date.now(), sound: snd, dl: !!(j.dl && j.dl.v >= 1) }); else miss();
           }, miss);
       });
     });
   }
-  /** The relay for the next play: the one that answered lately, else the cloud + a probe — never more than ~2.6 s of waiting. */
-  function relayResolve(){
-    if (!relayWanted()) return Promise.resolve(null);
-    if (relayLive && Date.now() - relayLive.at < 300000) return Promise.resolve(relayLive);
-    if (Date.now() < relayDeadAt) return Promise.resolve(null);
-    var work = relayPull(false).then(function(d){ return relayProbe(d || relayDoc); }).then(function(live){
+  /** The cloud's word, then a probe of every address: the sharing computer or null, however long that takes. */
+  function relayFind(){
+    return relayPull(false).then(function(d){ return relayProbe(d || relayDoc); }).then(function(live){
       relayLive = live; if (!live) relayDeadAt = Date.now() + 120000;
       relayStatusRender();
       return live;
     }).catch(function(){ return null; });
-    return Promise.race([work, new Promise(function(ok){ setTimeout(function(){ ok(null); }, 2600); })]);
+  }
+  /** The relay for the next play: the one that answered lately, else the cloud + a probe — never more than ~2.6 s of waiting.
+      [any]: the computer itself is what is being played from (one of its downloads) — found even with Play through your PC off. */
+  function relayResolve(any){
+    if (!(any ? relayTv() : relayWanted())) return Promise.resolve(null);
+    if (relayLive && Date.now() - relayLive.at < 300000) return Promise.resolve(relayLive);
+    if (Date.now() < relayDeadAt) return Promise.resolve(null);
+    return Promise.race([relayFind(), new Promise(function(ok){ setTimeout(function(){ ok(null); }, 2600); })]);
   }
   // A phone converts sound too (Nebula for Android › Settings › Playback › Convert sound for your TV): found the same way,
   // through the profile (`sound_v1`, the computer's shape: name, hosts, port, token), and asked at its own address. A phone
@@ -15846,7 +16007,7 @@
       var s = relayShare || relayApi.info() || {};
       if (s.error) sh.textContent = 'Could not share: ' + s.error;
       else if (s.on) sh.textContent = 'Sharing as ' + (s.name || 'this PC') + (s.hosts && s.hosts.length ? ' · ' + s.hosts.join(' · ') + ' port ' + s.port : '') + (s.bytes ? ' · holding ' + fmtMB(s.bytes) : '') + (cloudLinked() ? '' : ' · Sign in so your TV can find this computer');
-      else sh.textContent = 'Fetch and hold video for the TV on your network, and convert sound it cannot play (DTS) · Both signed in to the same profile · Windows may ask to allow Nebula on your network';
+      else sh.textContent = 'Fetch and hold video for the TV on your network, convert sound it cannot play (DTS), and play this computer’s downloads on it · Both signed in to the same profile · Windows may ask to allow Nebula on your network';
     }
   }
   function relayShareChips(){
@@ -17262,7 +17423,7 @@
     return d;
   }
   /** A file on the host's own computer (a granted name, a blob) means nothing on a viewer's: it is never sent to a party. */
-  function partyShareable(){ return !!(lastPlay && lastPlay.url) && !/^(local:|blob:)/i.test(lastPlay.url); }
+  function partyShareable(){ return !!(lastPlay && lastPlay.url) && !/^(local:|blob:)/i.test(lastPlay.url) && !pcCopyKey(lastPlay.url); }
   /** The file name of what plays, as its row named it (playStream keeps it). */
   function partyFileName(){ return String(ctx.playFile || ''); }
   function partyStreamDesc(){
