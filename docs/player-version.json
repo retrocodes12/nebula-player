@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.10.6",
+  "version": "2026.11.11.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "New: chapters. A file that carries them gets marks on the bar, the chapter's name while you scrub and a Chapters list (C) — and an opening or closing credits that a chapter names can be skipped. A Trailer button on title pages. Track what you watch on MDBList from Settings › Playback. In Settings › Appearance: an ambient slideshow for a screen left alone, and posters from an address of your own."
+  "notes": "New on TVs: Library › On your computer. What you downloaded in Nebula on a Windows or Linux computer shows up on your TV and plays straight from that computer, with its subtitles and your place in it — and sound the TV cannot play is converted on the way. Turn on Settings › Playback › Share with your TV on the computer, signed in to the same profile."
 }
