@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.11.2",
+  "version": "2026.11.12.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Fixed on TVs: sound converted by your computer no longer cuts out. A heavy film filled the TV’s memory half a minute in and went silent; it is now sent as one steady stream that the TV reads at its own pace, so the short stalls every few seconds are gone too. A film this TV cannot take that way (some disc copies) now plays on without sound and says so, instead of freezing. Update Nebula on the computer as well (1.117.1)."
+  "notes": "New on TVs and in the browser: a disc copy’s own subtitles. Many Blu-ray copies carry their subtitles as pictures, which Nebula could not show there. They are now listed in the Subtitles panel as Built in and drawn where the disc puts them. Off, your preferred language and the timing nudge work on them; size and colour do not, because they are pictures."
 }
