@@ -2747,7 +2747,7 @@
         <span id="puiLiveBadge" class="pui-live hot" style="display:none">LIVE</span>
         <button id="puiInfo" class="focusable pui-round" title="Playback info (i)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></button>
         <button id="puiPip" class="focusable pui-round" style="display:none" title="Picture-in-picture (p)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="12" width="7" height="5" rx="1" fill="currentColor" stroke="none"/></svg></button>
-        <button id="puiMini" class="focusable pui-round" style="display:none" title="Mini player — small window that stays on top (shift m)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9l7 6M15 11v4h-4"/></svg></button>
+        <button id="puiMini" class="focusable pui-round" style="display:none" title="Mini player: small window that stays on top (shift m)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9l7 6M15 11v4h-4"/></svg></button>
         <button id="puiFull" class="focusable pui-round" style="display:none" title="Fullscreen (f)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4H4v4M16 4h4v4M8 20H4v-4M16 20h4v-4"/></svg></button>
       </div>
     </div>
@@ -2779,7 +2779,7 @@
       <!-- elapsed at the left, what is left at the right (press it for the total), then the toolbar -->
       <div class="pui-foot">
         <span id="puiTimeL" class="pui-time">0:00</span>
-        <button id="puiTimeR" class="pui-time focusable" type="button" title="Time left — press for the total">--:--</button>
+        <button id="puiTimeR" class="pui-time focusable" type="button" title="Time left. Press for the total">--:--</button>
         <div class="pui-barwrap"><div id="puiBar" class="pui-bar">
           <button id="puiGoLive" class="focusable pui-btn" style="display:none" title="Jump to the live edge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle class="live-dot" cx="12" cy="12" r="2.6" stroke="none"/><path d="M8.2 8.2a5.4 5.4 0 0 0 0 7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6M5.4 5.4a9.3 9.3 0 0 0 0 13.2M18.6 5.4a9.3 9.3 0 0 1 0 13.2"/></svg><span class="pl">Go live</span></button>
           <button id="puiNext" class="focusable pui-btn" style="display:none" title="Next episode (n)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5.5v13l9.5-6.5z" fill="currentColor" stroke="none"/><path d="M18.5 5.5v13"/></svg><span class="pl">Next ›</span></button>
@@ -2791,7 +2791,7 @@
           <button id="puiChap" class="focusable pui-btn" style="display:none" title="Chapters (c)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg><span class="pl">Chapters</span><span class="pv" id="puiChapVal"></span></button>
           <button id="puiStreams" class="focusable pui-btn" title="Another stream for this title" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h11M4 12h11M4 18h7"/><path d="M17 15l3 3-3 3M20 18h-5"/></svg><span class="pl">Streams</span><span class="pv" id="puiStreamsVal"></span></button>
           <button id="puiSleep" class="focusable pui-btn" title="Sleep timer (z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 14.2A8 8 0 0 1 9.8 4.5a8 8 0 1 0 9.7 9.7z"/></svg><span class="pl">Sleep</span><span class="pv" id="puiSleepVal"></span></button>
-          <button id="puiParty" class="focusable pui-btn" title="Watch party — watch together in sync"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.2 19a5.8 5.8 0 0 1 11.6 0"/><path d="M15.5 5.3a3.2 3.2 0 0 1 0 5.4M16.8 13.6a5.8 5.8 0 0 1 4 5.4"/></svg><span class="pl">Party</span></button>
+          <button id="puiParty" class="focusable pui-btn" title="Watch party: watch together in sync"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.2 19a5.8 5.8 0 0 1 11.6 0"/><path d="M15.5 5.3a3.2 3.2 0 0 1 0 5.4M16.8 13.6a5.8 5.8 0 0 1 4 5.4"/></svg><span class="pl">Party</span></button>
         </div></div>
       </div>
     </div>
@@ -2831,7 +2831,7 @@
       <div class="pc-row pc-chatrow" id="pcChatRow"><input id="pcChatIn" class="focusable field" type="text" maxlength="200" placeholder="Message" autocomplete="off" /><button id="pcChatSend" class="focusable btn" type="button">Send</button></div>
       <div class="pc-react" id="pcReact"></div>
       <div class="pc-acts" id="pcActs"></div>
-      <a class="pc-get" id="pcGet" href="https://play.rifflehq.in/" target="_blank" rel="noopener" hidden>Nebula is free on your phone, TV and computer — see the apps</a>
+      <a class="pc-get" id="pcGet" href="https://play.rifflehq.in/" target="_blank" rel="noopener" hidden>Nebula is free on your phone, TV and computer. See the apps</a>
     </div>
     <button id="partyPill" class="pui-btn focusable" type="button"></button>
     <div id="partyFeed" aria-live="polite"></div>
@@ -3118,7 +3118,7 @@
           <span id="setSkip" class="seg"></span>
         </div>
         <div class="setrow">
-          <span class="setname">Content advisory<small>What a film or show contains — violence, language, frightening scenes, nudity, drink and drugs — shown for a few seconds as it starts · From public viewer ratings, looked up by title</small></span>
+          <span class="setname">Content advisory<small>What a film or show contains (violence, language, frightening scenes, nudity, drink and drugs), shown for a few seconds as it starts · From public viewer ratings, looked up by title</small></span>
           <span id="setAdvisory" class="seg"></span>
         </div>
         <div class="setrow" data-lvl="all">
@@ -3154,7 +3154,7 @@
           <span id="setBuffer" class="seg"></span>
         </div>
         <div class="setrow" id="setRelayRow" style="display:none">
-          <span class="setname">Play through your PC<small id="setRelaySub">A computer on your network that is sharing fetches and holds the video for this TV — far more than the TV's own memory can</small></span>
+          <span class="setname">Play through your PC<small id="setRelaySub">A computer on your network that is sharing fetches and holds the video for this TV, far more than the TV's own memory can</small></span>
           <span id="setRelay" class="seg"></span>
         </div>
         <div class="setrow" id="setShareRow" style="display:none">
@@ -3262,7 +3262,7 @@
         </div>
         <!-- autoplay the best stream (TVs): Play on a film or episode starts its best stream; the rows under it show only when it is on -->
         <div class="setrow tvonly" id="rowBestPlay">
-          <span class="setname">Autoplay the best stream<small>Play on a film or episode starts its best stream — no list</small></span>
+          <span class="setname">Autoplay the best stream<small>Play on a film or episode starts its best stream, no list</small></span>
           <span id="setBestPlay" class="seg"></span>
         </div>
         <div class="setrow tvonly ap-sub">
@@ -3387,7 +3387,7 @@
           <button id="setUpdBtn" class="textbtn focusable">Check for updates</button>
         </div>
         <p class="sub privacy-link" style="margin:10px 0 0">
-          No email, no tracking — a profile is optional. <a href="https://play.rifflehq.in/privacy.html" target="_blank" rel="noopener" style="color:inherit">How Nebula handles your data</a>.
+          No email, no tracking. A profile is optional. <a href="https://play.rifflehq.in/privacy.html" target="_blank" rel="noopener" style="color:inherit">How Nebula handles your data</a>.
         </p>
       </section>
         </div>
@@ -3428,7 +3428,7 @@
     <div class="section-title">Your add-ons</div>
     <div id="addonList" class="addons"></div>
     <p class="sub privacy-link" style="margin:26px 0 0">
-      No email, no tracking — a profile is optional. <a href="https://play.rifflehq.in/privacy.html" target="_blank" rel="noopener" style="color:inherit">How Nebula handles your data</a>.
+      No email, no tracking. A profile is optional. <a href="https://play.rifflehq.in/privacy.html" target="_blank" rel="noopener" style="color:inherit">How Nebula handles your data</a>.
     </p>
   </div>
 
@@ -3439,7 +3439,7 @@
       <div id="qrbox"></div>
       <ol class="pairsteps">
         <li>On your phone, open the <b>Camera</b> and point it at this QR code.</li>
-        <li>Tap the link that appears — it opens a small page.</li>
+        <li>Tap the link that appears. It opens a small page.</li>
         <li>Paste your add-on's <b>manifest URL</b> and tap <b>Send to TV</b>.</li>
         <li>It appears here automatically. Waiting…</li>
         <div class="pairurl" id="pairUrlText"></div>
@@ -3538,7 +3538,7 @@
   // nothing has written storage yet: an empty one is a device opening Nebula for the first time (the usage counter, `hello`)
   var LS_FRESH = (function(){ try { return LS.length === 0; } catch(e){ return false; } })();
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.11.12.1';
+  var PLAYER_VERSION = '2026.11.13.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -4847,7 +4847,7 @@
       s.at['https://opensubtitles-v3.strem.io/manifest.json'] = 1;
       saveAddonsSync();
       renderAddons();
-      setStatus('Starter add-ons installed — Home is filling up.','ok');
+      setStatus('Starter add-ons installed. Home is filling up.','ok');
       // real names + logos fill in as the manifests answer
       getAddons().forEach(function(a){
         getJson(a.url).then(function(m){
@@ -4882,7 +4882,7 @@
       saveAddonsSync();
       renderAddons();
       buildHomeRows(true);
-      setStatus('Starter add-ons restored — Home is filling up.','ok');
+      setStatus('Starter add-ons restored. Home is filling up.','ok');
     } catch(e){}
   }
   /** Every add-on restore path ends here: the list is now whatever it is going
@@ -5282,7 +5282,7 @@
   }
   function whoPinKey(k){
     var p = whoPinOn; if (!p || p.pw) return;
-    if (p.mode === 'check' && Date.now() < whoPinWaitUntil){ whoPinMsg('Too many tries — wait 30 seconds.'); return; }
+    if (p.mode === 'check' && Date.now() < whoPinWaitUntil){ whoPinMsg('Too many tries. Wait 30 seconds.'); return; }
     if (k === 'del'){ p.typed = p.typed.slice(0, -1); whoPinDraw(); return; }
     if (!/^[0-9]$/.test(k) || p.typed.length >= 4) return;
     p.typed += k; whoPinDraw();
@@ -5296,12 +5296,12 @@
         if (v && viewerLocked(v) && pinHash(v.lock.s, pin) === v.lock.h){ whoPinFails = 0; whoUnlocked[p.id] = true; whoPinEnd(); p.done(); return; }
         if (!viewerLocked(v)){ whoPinEnd(); p.done(); return; }   // (its PIN was removed elsewhere meanwhile)
         p.typed = ''; whoPinFails++;
-        if (whoPinFails >= 5){ whoPinFails = 0; whoPinWaitUntil = Date.now() + 30000; whoPinMsg('Too many tries — wait 30 seconds.'); }
+        if (whoPinFails >= 5){ whoPinFails = 0; whoPinWaitUntil = Date.now() + 30000; whoPinMsg('Too many tries. Wait 30 seconds.'); }
         else whoPinMsg('Wrong PIN.');
         whoPinDraw(); return;
       }
       if (p.first === null){ p.first = pin; p.typed = ''; whoPinMsg('', false); whoPinDraw(); return; }
-      if (pin !== p.first){ p.first = null; p.typed = ''; whoPinMsg("The PINs didn't match — try again."); whoPinDraw(); return; }
+      if (pin !== p.first){ p.first = null; p.typed = ''; whoPinMsg("The PINs didn't match. Try again."); whoPinDraw(); return; }
       whoPinEnd(); p.done(pin);
     }, 140);
   }
@@ -5324,7 +5324,7 @@
     p.pw = true; p.typed = ''; whoPinMsg('', false); whoPinDraw();
     var box = $id('whoPinPw');
     if (!(cloudLinked() && profile)){
-      box.innerHTML = '<p>Sign in to your Nebula account on this device first — its password resets the PIN.</p>';
+      box.innerHTML = '<p>Sign in to your Nebula account on this device first. Its password resets the PIN.</p>';
       whoFocus($id('whoPinCancel')); return;
     }
     box.innerHTML = '<p>Enter the password of your Nebula account (@' + esc(profile.handle || '') + ') to remove this profile’s PIN.</p>' +
@@ -5338,12 +5338,12 @@
       cloudApi('POST', '/v1/profile/check', { password: f.value }).then(function(){
         if (whoPinOn !== p) return;
         viewerSetLock(p.id, null);
-        setStatus('PIN removed — add a new one from Manage Profiles.', 'ok', 4000);
+        setStatus('PIN removed. Add a new one from Manage Profiles.', 'ok', 4000);
         whoPinEnd(); p.done();
       }, function(e){
         if (whoPinOn !== p) return;
         go.disabled = false; go.textContent = 'Remove the PIN';
-        whoPinMsg(e && e.status === 403 ? 'Wrong password.' : e && e.status === 429 ? 'Too many tries — wait a minute.' : 'Could not reach Nebula. Try again.');
+        whoPinMsg(e && e.status === 403 ? 'Wrong password.' : e && e.status === 429 ? 'Too many tries. Wait a minute.' : 'Could not reach Nebula. Try again.');
         if (e && e.status === 403){ f.value = ''; }
       });
     };
@@ -5944,9 +5944,9 @@
     var dismissed = false; try { dismissed = !!(LS && s.latest && LS.getItem('nebulaUpdDismiss') === s.latest); } catch(e){}
     var newer = !!(s.latest && s.latest !== s.version);   // a version was found: the banner may speak, even about a failure
     var show = false, label = '', btn = '';
-    if (s.state === 'available'){ show = !dismissed; label = 'Nebula ' + s.latest + ' is available' + (s.notes ? ' — ' + s.notes : '') + '.'; btn = 'Update'; }
-    else if (s.state === 'downloading'){ show = !dismissed; label = 'Downloading Nebula ' + s.latest + ' — ' + s.percent + '%' + (s.total ? ' of ' + fmtMB(s.total) : '') + '…'; }
-    else if (s.state === 'ready'){ show = !dismissed; label = 'Nebula ' + s.latest + ' is downloaded' + updElevatedLine(s, ' — ') + (s.elevated ? ' to install it' : '') + '.'; btn = s.kind === 'portable' ? 'Open the new version' : 'Restart to update'; }
+    if (s.state === 'available'){ show = !dismissed; label = 'Nebula ' + s.latest + ' is available' + (s.notes ? ': ' + s.notes : '') + '.'; btn = 'Update'; }
+    else if (s.state === 'downloading'){ show = !dismissed; label = 'Downloading Nebula ' + s.latest + ' · ' + s.percent + '%' + (s.total ? ' of ' + fmtMB(s.total) : '') + '…'; }
+    else if (s.state === 'ready'){ show = !dismissed; label = 'Nebula ' + s.latest + ' is downloaded' + updElevatedLine(s, ': ') + (s.elevated ? ' to install it' : '') + '.'; btn = s.kind === 'portable' ? 'Open the new version' : 'Restart to update'; }
     else if (s.state === 'installing'){ show = true; label = 'Installing Nebula ' + s.latest + '…'; }
     else if (s.state === 'error' && newer){ show = !dismissed; label = s.error || 'Could not update.'; btn = 'Try again'; }
     $id('updText').textContent = label;
@@ -5967,7 +5967,7 @@
     var s = updState || {}, line = 'Version ' + s.version + ' · ' + updKindWord(s.kind), label = 'Check for updates', busy = false;
     if (s.state === 'checking'){ line += ' · checking…'; busy = true; }
     else if (s.state === 'available'){ line += ' · ' + s.latest + ' is available'; label = 'Update'; }
-    else if (s.state === 'downloading'){ line += ' · downloading ' + s.latest + ' — ' + s.percent + '%'; label = 'Downloading…'; busy = true; }
+    else if (s.state === 'downloading'){ line += ' · downloading ' + s.latest + ', ' + s.percent + '%'; label = 'Downloading…'; busy = true; }
     else if (s.state === 'ready'){ line += ' · ' + s.latest + ' downloaded' + updElevatedLine(s, ' · '); label = s.kind === 'portable' ? 'Open the new version' : 'Restart to update'; }
     else if (s.state === 'installing'){ line += ' · installing'; busy = true; }
     else if (s.state === 'current'){ line += ' · up to date'; }
@@ -6001,7 +6001,7 @@
           if (LS && LS.getItem('nebulaUpdDismiss') === j.version) return;
           var banner = document.getElementById('updBanner');
           document.getElementById('updText').textContent =
-            'Nebula update available' + (j.notes ? ' — ' + j.notes : '') + '.';
+            'Nebula update available' + (j.notes ? ': ' + j.notes : '') + '.';
           // the desktop app is updated by a new installer, not by the web player the site link opens
           document.getElementById('updGet').href = IS_DESKTOP
             ? (j.windows || 'https://github.com/retrocodes12/nebula-desktop/releases/latest')
@@ -6111,7 +6111,7 @@
     spec.rows().forEach(function(r, i){
       r.className = r.className.replace(' lifted', '') + (i === idx ? ' lifted' : '');
     });
-    if (idx !== null) setStatus('Moving it — use up and down, then OK to drop.', 'info');
+    if (idx !== null) setStatus('Moving it. Use up and down, then OK to drop.', 'info');
   }
   function liftStep(dir){
     if (liftIdx === null || !liftSpec) return;
@@ -6204,7 +6204,7 @@
         saveAddons(arr); renderAddons();
         try { renderContinue(); } catch(e){}   // its titles leave (or rejoin) Continue watching
         var again = wrap.querySelectorAll('.addon-tog')[idx]; if (again && (IS_TV || kbUsed)){ try { again.focus({ preventScroll: true }); } catch(e){ again.focus(); } }
-        setStatus((arr[idx].name || 'Add-on') + (arr[idx].off ? ' is off — it feeds nothing until you switch it back on.' : ' is on.'), 'ok');
+        setStatus((arr[idx].name || 'Add-on') + (arr[idx].off ? ' is off. It feeds nothing until you switch it back on.' : ' is on.'), 'ok');
       };
       card.appendChild(tog);
       var del = document.createElement('button'); del.className='addon-del focusable'; del.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>'; del.title='Remove';
@@ -6462,7 +6462,7 @@
     inp.id = 'setPosterAddrIn'; inp.className = 'focusable field'; inp.type = 'text'; inp.maxLength = 300;
     inp.autocomplete = 'off'; inp.spellcheck = false; inp.placeholder = 'https://…/{id}.jpg';
     box.appendChild(inp);
-    var go = trackBtn(box, 'setPosterAddrGo', 'Use', use);
+    trackBtn(box, 'setPosterAddrGo', 'Use', use);
     function use(){
       var v = inp.value.trim();
       if (!posterAddr({ posterAddr: v })){ setStatus('That needs to be an https address with {id} in it.', 'err'); return; }
@@ -6551,7 +6551,7 @@
         list.innerHTML='<div class="empty">No items in this catalog.</div>';
         setStatus('No items.','info'); return;
       }
-      setStatus(catShown + (catDone ? ' items' : ' items — scroll for more'), 'ok');
+      setStatus(catShown + (catDone ? ' items' : ' items · scroll for more'), 'ok');
       if (!more) focusFirst();
       // a short first page leaves nothing to scroll, so top it up
       if (!catDone) setTimeout(function(){
@@ -7012,6 +7012,7 @@
     clearInterval(heroState.timer); heroState.timer = null;
     var ms = heroIntervalMs(); if (!ms) return;
     heroState.timer = setInterval(function(){
+      if (document.hidden) return;                   // nobody is looking: no picture is fetched or swapped for a hidden tab
       var v = document.querySelector('.view.active');
       if (!v || v.id !== 'view-home' || !heroState.items.length) return;
       if (document.activeElement && $id('homeHero').contains(document.activeElement)) return; // don't rotate under the cursor
@@ -7315,8 +7316,8 @@
       var allOff = allAddons.length > 0;
       wrap.innerHTML = '<div class="panel" id="homeEmpty">' +
         '<div class="brand"><span class="brand-name">Nebula</span></div>' +
-        '<p class="tagline" style="margin:.6rem 0 1.2rem">' + (allOff ? 'Every add-on is switched off — turn one back on and its catalogs fill this screen.'
-          : 'Nothing here yet — add an add-on and its catalogs fill this screen.') + '</p>' +
+        '<p class="tagline" style="margin:.6rem 0 1.2rem">' + (allOff ? 'Every add-on is switched off. Turn one back on and its catalogs fill this screen.'
+          : 'Nothing here yet. Add an add-on and its catalogs fill this screen.') + '</p>' +
         '<button class="btn focusable" id="homeAddBtn">' + (allOff ? 'Open add-ons' : 'Add an add-on') + '</button></div>';
       document.getElementById('homeAddBtn').onclick = function(){ setTab('addons'); };
       // an empty list this early usually means the mirrors have not answered yet
@@ -7411,7 +7412,7 @@
     wrap.innerHTML = '';
     if (!q){ searchJump = false; searchIdle(); return; }
     var addons = activeAddons();
-    if (!addons.length){ wrap.innerHTML='<div class="empty">Add an add-on first — then one search covers everything it has.</div>'; return; }
+    if (!addons.length){ wrap.innerHTML='<div class="empty">Add an add-on first, then one search covers everything it has.</div>'; return; }
     setStatus('Searching…','info');
     // stand-in section until the first add-on answers
     wrap.innerHTML = '<div id="searchSkel"><div class="sk-head"></div><div class="grid">' + skeletons(8) + '</div></div>';
@@ -7520,7 +7521,7 @@
     var intro = document.createElement('div');
     intro.innerHTML = '<div class="lbl">' + (addons.length ? 'One search · ' + addons.length + ' add-on' + (addons.length > 1 ? 's' : '') : 'Nothing to search yet') + '</div>' +
       '<p>' + (addons.length ? 'Titles, series and episodes from every add-on you have added, in one place.'
-        : 'Add an add-on first — then one search covers everything it has.') + '</p>';
+        : 'Add an add-on first, then one search covers everything it has.') + '</p>';
     while (intro.firstChild) box.appendChild(intro.firstChild);
     if (addons.length){
       var chips = document.createElement('div'); chips.className = 'chips';
@@ -7782,14 +7783,14 @@
   function socialEnable(){
     // a profile IS the identity friends look for
     if (!profile){
-      setStatus('Friends find each other by @handle — sign in or create a profile first.', 'info');
+      setStatus('Friends find each other by @handle. Sign in or create a profile first.', 'info');
       show('profile');
       return;
     }
     cloudApi('POST', '/v1/social/enable', { name: socialName() }).then(function(r){
       social = { on: true, code: r.code || null, handle: r.handle || profile.handle, name: socialName() };
       socialSave(); socialPublishSoon(); renderLibraryTab();
-      setStatus('Friends is on — people add you as @' + (r.handle || profile.handle) + '.', 'ok');
+      setStatus('Friends is on. People add you as @' + (r.handle || profile.handle) + '.', 'ok');
     }).catch(function(){ setStatus('Could not reach the server.', 'err'); });
   }
   function socialDisable(){
@@ -7797,7 +7798,7 @@
     social = null;
     socialSave();
     renderLibraryTab();
-    setStatus('Friends is off — what you shared is gone from the server.', 'info');
+    setStatus('Friends is off. What you shared is gone from the server.', 'info');
   }
   function socialPublishSoon(){
     if (!socialOn()) return;
@@ -7875,7 +7876,7 @@
     if (!socialOn()){
       var p = document.createElement('div'); p.className = 'fr-quiet';
       p.innerHTML = '<p><b>Friends</b>Rate what you watch, see what your friends are watching and trade recommendations. ' +
-        'Turning it on shares your ratings, recent watches and My List with your friends — people you add by @handle who add you back — and no one else.</p>' +
+        'Turning it on shares your ratings, recent watches and My List with your friends (people you add by @handle who add you back) and no one else.</p>' +
         '<button class="btn ghost focusable" id="frOn">' + (profile ? 'Turn on Friends' : 'Sign in to use Friends') + '</button>';
       wrap.appendChild(p);
       $id('frOn').onclick = socialEnable;
@@ -7886,11 +7887,11 @@
     var me = document.createElement('span'); me.className = 'fr-code';
     if (profile){
       me.setAttribute('data-lbl', 'You are'); me.textContent = '@' + profile.handle;
-      me.title = 'Your handle — friends enter this to add you';
+      me.title = 'Your handle: friends enter this to add you';
     } else {
       // an install from before profiles: the old friend code still works
       me.setAttribute('data-lbl', 'Your code'); me.textContent = social.code || '';
-      me.title = 'Your friend code — friends enter this to add you';
+      me.title = 'Your friend code: friends enter this to add you';
     }
     head.appendChild(t); head.appendChild(me);
     wrap.appendChild(head);
@@ -7992,7 +7993,7 @@
         var friends = (rs[0] && rs[0].friends) || [];
         if (!friends.length){
           var e2 = document.createElement('div'); e2.className = 'empty';
-          e2.textContent = 'No friends yet — add someone by @handle and what they watch shows up here.';
+          e2.textContent = 'No friends yet. Add someone by @handle and what they watch shows up here.';
           body.appendChild(e2);
           return;
         }
@@ -8022,7 +8023,7 @@
             [].slice.call(cards.children).forEach(function(k){ k.className = k.className.replace(' on',''); });
             if (socialOpenCode !== key) return;
             c.className += ' on';
-            if (f.pending){ var e5 = document.createElement('div'); e5.className='empty'; e5.textContent = 'They have not added you back yet — once they do, you see each other’s watching here.'; detail.appendChild(e5); return; }
+            if (f.pending){ var e5 = document.createElement('div'); e5.className='empty'; e5.textContent = 'They have not added you back yet. Once they do, you see each other’s watching here.'; detail.appendChild(e5); return; }
             if (!prof){ var e3 = document.createElement('div'); e3.className='empty'; e3.textContent = 'Nothing shared yet.'; detail.appendChild(e3); return; }
             friendRow(detail, (f.name || 'They') + ' watched recently',
               (prof.recent||[]).map(function(r){ return r && r.type === 'series'
@@ -8072,7 +8073,7 @@
       var m = detCur.meta, type = detCur.type;
       cloudApi('GET', '/v1/social/friends').then(function(r){
         var fr = (r.friends || []).filter(function(f){ return !f.pending; });   // only a friendship both sides made carries one
-        if (!fr.length){ setStatus('Add a friend first — Library › Friends.', 'info'); return; }
+        if (!fr.length){ setStatus('Add a friend first: Library › Friends.', 'info'); return; }
         openSheet({
           title: m.name || '', sub: 'Recommend to…', poster: m.poster || '', shape: m.posterShape || 'poster',
           actions: fr.slice(0, 8).map(function(f){
@@ -8165,7 +8166,7 @@
     var out = row.t <= Date.now();
     el.innerHTML = poster + '<span><span class="stream-name">' + esc(s.name) + '</span>' +
       '<span class="stream-sub"><span class="up-tag">' + esc(epTag(v)) + '</span>' +
-      esc(v.name || v.title || '') + (out ? '' : ' — not out yet') + '</span></span>';
+      esc(v.name || v.title || '') + (out ? '' : ' · not out yet') + '</span></span>';
     el.onclick = function(){
       var a = addonByUrl(s.addonUrl);
       if (a) ctx.addon = a;
@@ -8428,7 +8429,7 @@
     return { size: size, bitrate: bitrate, seeds: seeds, langs: langs, provider: provider,
              desc: desc.join(' · ') };
   }
-  // a debrid service's tag in a row's name: "[TB⚡]", "[TB⬇️]", "[TB+]", "[RD download]", "[TB🔄]" (streamCard says it in words)
+  // a debrid service's tag in a row's name: "[TB⚡]", "[TB⬇️]", "[TB+]", "[RD download]", "[TB🔄]" (streamCardBuild says it in words)
   var RE_DEB_TAG = /\[[A-Za-z]{2,3} ?(?:\u26A1|\+|\u2B07|\u23F3|download|\uD83D\uDD04)[^\]]*\]/gi;
   var RE_EMOJI = /[\u2190-\u21FF\u2300-\u27BF\u2B00-\u2BFF\uFE0F\u200D]|[\uD83C-\uDBFF][\uDC00-\uDFFF]/g;
   var RE_RES = /\b(4k|2160p|uhd|1080p|fhd|720p|480p|360p)\b/ig;
@@ -8526,7 +8527,7 @@
     ['release', 'Release', 'Everything, the file’s name at the foot', scWith(SC_ALL, { layout:'stack', dense:false })],
     ['compact', 'Compact', 'Marks and sources, no file name', scWith(SC_ALL, { layout:'stack', dense:true, service:0, file:0 })],
     ['line', 'One line', 'Quality, title, size and the add-on', scWith(SC_ALL, { layout:'row', dense:true, seeds:0, marks:0, langs:0, service:0, file:0 })],
-    ['minimal', 'Minimal', 'Quality, title and size — nothing else', scWith(SC_ALL, { layout:'row', dense:true, tags:0, seeds:0, marks:0, langs:0, addon:0, service:0, play:0, file:0 })],
+    ['minimal', 'Minimal', 'Quality, title and size, nothing else', scWith(SC_ALL, { layout:'row', dense:true, tags:0, seeds:0, marks:0, langs:0, addon:0, service:0, play:0, file:0 })],
     ['classic', 'Classic', 'The quality plate in front', null],
     ['custom', 'Custom', 'Yours: pick the layout and every part', null]
   ];
@@ -8634,12 +8635,6 @@
       // the add-on's mark (Settings › Streams): its initial in a ring on a TV, or its name on every screen; CSS hides it elsewhere
       (addonName ? '<span class="s-src" title="' + esc(addonName) + '">' + esc(getPrefs().addonMark === 'name' ? addonName : addonInitial(addonName)) + '</span>' : '');
     return { cls: cls, html: html };
-  }
-  function streamCard(s, addon){
-    var built = streamCardBuild(s, addon, scSpec());
-    var card = document.createElement('button'); card.className = built.cls + ' focusable';
-    card.innerHTML = built.html;
-    return streamCardWire(card, s, addon);
   }
   /** An add-on's whole answer in one pass: one string, parsed once (a card each, parsed one at a time, was ~4 ms a row on
       an LG — 2 s for an answer of 500), then each button gets its stream. Returns the buttons in order. */
@@ -9729,7 +9724,7 @@
     if (v) v.classList.toggle('saving', on);
     if (el){
       el.classList.toggle('on', on);
-      el.textContent = !on ? '' : dlPick.plan ? 'Choose a source for Season ' + dlPick.plan.season + ' — the other episodes get the same one'
+      el.textContent = !on ? '' : dlPick.plan ? 'Choose a source for Season ' + dlPick.plan.season + '. The other episodes get the same one'
         : 'Choose a source to download';
     }
   }
@@ -9771,7 +9766,7 @@
     function next(){
       if (i >= plan.rest.length){
         dlSeasonBusy = ''; dlRepaint();
-        setStatus(missing.length ? queued + ' of ' + total + ' downloading · no matching source for ' + missing.length + ' (' + missing.slice(0, 2).join(', ') + (missing.length > 2 ? '…' : '') + ') — download those from their own sheet'
+        setStatus(missing.length ? queued + ' of ' + total + ' downloading · no matching source for ' + missing.length + ' (' + missing.slice(0, 2).join(', ') + (missing.length > 2 ? '…' : '') + '). Download those from their own sheet'
           : 'Season ' + plan.season + ': all ' + queued + ' episodes downloading · Library › Downloads', missing.length ? 'info' : 'ok', 8000);
         return;
       }
@@ -10163,7 +10158,7 @@
     }
     $id('srBtn').onclick = function(){
       ctx.startOver = !ctx.startOver; ctx.resumeChosen = true; paint();
-      setStatus(ctx.startOver ? 'Pick a stream — it starts from the beginning.' : 'Pick a stream — it resumes from ' + fmtT(at) + '.', 'ok');
+      setStatus(ctx.startOver ? 'Pick a stream. It starts from the beginning.' : 'Pick a stream. It resumes from ' + fmtT(at) + '.', 'ok');
     };
     paint(); box.classList.add('show');
   }
@@ -10344,7 +10339,7 @@
       if (!row && apMode !== 'best') row = list.querySelector('.stream:not(.skel):not(.slow):not(.nwr):not(.nosnd)') || list.querySelector('.stream:not(.skel):not(.nosnd)') || list.querySelector('.stream:not(.skel)');
       if (!row){
         lcHide();
-        if (apMode === 'best' && apPrefs().min && list.querySelector('.stream:not(.skel)')) setStatus('No stream here reaches your lowest quality — pick one from the list.', 'info', 6000);
+        if (apMode === 'best' && apPrefs().min && list.querySelector('.stream:not(.skel)')) setStatus('No stream here reaches your lowest quality. Pick one from the list.', 'info', 6000);
         return;
       }
       if (apMode === 'best') lcPick(row); else setStatus('Playing the best stream for you.', 'info');
@@ -10382,7 +10377,7 @@
         : waiting.length === 2 ? '<b>' + esc(waiting[0]) + '</b> and <b>' + esc(waiting[1]) + '</b>'
         : '<b>' + waiting.length + ' add-ons</b>';
       waitEl.innerHTML = '<span class="s-spin" aria-hidden="true"></span><span>Still asking ' + names +
-        (waitSlow ? ' — some add-ons take up to a minute' : '') + '</span>';
+        (waitSlow ? ' · some add-ons take up to a minute' : '') + '</span>';
       waitEl.className = 's-waitline on';
     }
     function waitDone(name){ var i = waiting.indexOf(name); if (i >= 0) waiting.splice(i, 1); waitRender(); }
@@ -10421,7 +10416,7 @@
           list.appendChild(esBlock('addons', 'No streaming add-on yet', 'None of your add-ons plays this. Add a streaming add-on.',
             'Add-ons', function(){ setTab('addons'); }, 'streamsAddons'));
         else if (live)
-          list.appendChild(esBlock('signal', 'No streams right now', 'No add-on has a stream for this yet — the event may be offline, or it may turn up later.',
+          list.appendChild(esBlock('signal', 'No streams right now', 'No add-on has a stream for this yet. The event may be offline, or it may turn up later.',
             'Try again', retry, 'streamsRetry'));
         else
           list.appendChild(esBlock('signal', 'No streams for this yet', 'None of your add-ons has a stream for this. Try again in a moment.',
@@ -10462,7 +10457,7 @@
         if (waitName){ waiting.push(waitName); waitRender(); if (apMode === 'best') lcAsk(waitName); }
         var slowT = setTimeout(function(){
           var w = boxPending && box.querySelector('.s-wait small');
-          if (w) w.textContent = 'Still looking — some add-ons take up to a minute';
+          if (w) w.textContent = 'Still looking. Some add-ons take up to a minute';
         }, 12000);
         var u = a.base + '/stream/' + encodeURIComponent(type) + '/' + encodeURIComponent(id) + '.json';
         return streamJson(u).then(function(d){
@@ -10632,7 +10627,6 @@
     var rows = Array.prototype.slice.call(list.querySelectorAll('.stream:not(.skel)')).filter(function(r){ return r.__s && !debridHeld(r.__s) && apFloorOk(r.__s, ap); });
     return bestRank(rows, function(r){ return r.__s; });
   }
-  function bestStreamRow(list){ return bestStreamRows(list)[0] || null; }
   // ---- Netflix-style play (shelf mode): the best stream that actually starts ----
   /** Settings › Streams › Autoplay the best stream, on a TV only (off by default). A TV whose home screen is Shelf — it
       starts Nebula with {shelf:1} — had it on before the setting existed and keeps it until the viewer chooses. */
@@ -10697,9 +10691,9 @@
         var bits = [pl ? (pl.r === '1080' || pl.r === '720' ? pl.r + 'p' : pl.r) : '', srcName(c), streamInstant(c.s) ? 'Instant' : '',
           b ? (b >= 1e9 ? (b / 1e9).toFixed(1) + ' GB' : Math.round(b / 1e6) + ' MB') : '',
           seen[lk(c)] > 1 ? host(c.s.url) : ''].filter(Boolean);   // look-alikes say where they come from
-        var label = bits.join(' · ') + (srcFailed.urls[c.s.url] && c.s.url !== now ? ' — did not play'
-          : debridState(c.s) === 'wait' ? ' — not ready yet'
-          : (streamNoSound(c.s) && !soundHelper()) ? ' — no sound on this TV' : '');
+        var label = bits.join(' · ') + (srcFailed.urls[c.s.url] && c.s.url !== now ? ' · did not play'
+          : debridState(c.s) === 'wait' ? ' · not ready yet'
+          : (streamNoSound(c.s) && !soundHelper()) ? ' · no sound on this TV' : '');
         menuOpt(label, c.s.url === now, function(){
           closePuiMenu(false);
           if (c.s.url === now) return;
@@ -10794,7 +10788,7 @@
     briefSeq = playSeq;
     srcFailedNote(lastPlay ? lastPlay.url : '');
     if (bestNext(playSeq, 'brief')) return;
-    setStatus('This source sent a short message instead of the film — its service could not hand the file over. Try another stream.', 'err');
+    setStatus('This source sent a short message instead of the film. Its service could not hand the file over. Try another stream.', 'err');
     stallOffer('fail');
   }
   video.addEventListener('loadedmetadata', briefCheck);
@@ -11038,9 +11032,9 @@
   /** The shell could not read it either: what the host did, when it is known. */
   function tcRefusedLine(c){
     var f = c.fail || {}, code = c.code || 3016;
-    if (f.http) return 'This stream cannot play here — its host answered ' + f.http + ' when this player asked for the file. Try another source. (' + code + ')';
-    if (f.notmedia) return 'This stream cannot play here — its host sent a page instead of the video. Try another source. (' + code + ')';
-    if (c.info && !c.info.video) return 'This stream cannot play here — it has no video track this player can use. Try another source. (' + code + ')';
+    if (f.http) return 'This stream cannot play here. Its host answered ' + f.http + ' when this player asked for the file. Try another source. (' + code + ')';
+    if (f.notmedia) return 'This stream cannot play here. Its host sent a page instead of the video. Try another source. (' + code + ')';
+    if (c.info && !c.info.video) return 'This stream cannot play here. It has no video track this player can use. Try another source. (' + code + ')';
     return playErrorLine(code, '');
   }
   // ---- sound for the TV: an LG drops a DTS film's audio without a word (the picture plays, no audio track is listed —
@@ -11197,7 +11191,7 @@
     var at = 0; try { at = video.currentTime || 0; } catch(e){}
     ctx.soundOffFor = lastPlay.url; ctx.soundOffAt = Date.now();
     ctx.swapAt = at > 1 ? at : 0;
-    setStatus(line || (soundHelperName(tc.lan) + ' stopped converting the sound (' + (why || 'no answer') + ') — playing on without it.'), 'err', line ? 10000 : 7000);
+    setStatus(line || (soundHelperName(tc.lan) + ' stopped converting the sound (' + (why || 'no answer') + '). Playing on without it.'), 'err', line ? 10000 : 7000);
     playUrl(lastPlay.url, lastPlay.keys, lastPlay.title, lastPlay.subs, lastPlay.mime);
   }
   /** The marks on a list already drawn, once the computer is known (it is looked for while the list loads). */
@@ -12157,7 +12151,7 @@
     }
     // (a resume point this stream could not honour, learnt from its state rather than from mpv's refusal: said, and kept)
     if (mp.startAt > 0 && !mp.keepFrom && mp.loaded && !mp.reconnecting && s.seekable === false && !s.live && (s.t || 0) < mp.startAt - 5){
-      mp.keepFrom = mp.startAt; setStatus('This source can only play from the beginning — your place is kept.', 'info');
+      mp.keepFrom = mp.startAt; setStatus('This source can only play from the beginning. Your place is kept.', 'info');
     }
     if (mp.loaded && !mp.reconnecting && !mp.error && /^\d+$/.test(String(s.aid || ''))) mp.aid = String(s.aid);   // what a reconnect goes back to
     if (mp.pending != null && ((!s.seeking && s.t != null && Math.abs(s.t - mp.pending) < 1.5) || Date.now() - mp.pendingAt > 8000)){
@@ -12224,7 +12218,7 @@
       // said — by playUrl when the play has not begun yet, else here, over its "Resumed from"
       if (mp.startAt > 0 && !mp.keepFrom && !mp.reconnecting && mp.pending == null && !mp.seeking){
         mp.keepFrom = mp.startAt;
-        if (mp.loaded) setStatus('This source can only play from the beginning — your place is kept.', 'info');
+        if (mp.loaded) setStatus('This source can only play from the beginning. Your place is kept.', 'info');
         return;
       }
       // mpv could not jump there (a stream that cannot seek, past what it holds): the play stays where it is, and says so once
@@ -12358,7 +12352,7 @@
   function mpvErrLine(e){
     var d = String((e && (e.detail || e.error)) || ''), m = /HTTP error (\d{3})|\b(4\d\d|5\d\d) (Forbidden|Not Found|Gone|Unauthorized|Service Unavailable)/i.exec(d);
     try { if (d) console.warn('[full-format] ' + d); } catch(x){}
-    if (m) return 'This stream cannot play here — its host answered ' + (m[1] || m[2]) + '. Try another source.';
+    if (m) return 'This stream cannot play here. Its host answered ' + (m[1] || m[2]) + '. Try another source.';
     if (/recognize file format|no video or audio|unrecognized/i.test(d)) return 'This link is not a film this player can open. Try another source.';
     if (/stopped unexpectedly/i.test(d)) return 'The player stopped unexpectedly. Try again, or another source.';
     if (/before the end|stopped sending/i.test(d)) return 'The stream stopped before the end. Try again, or another source.';
@@ -12661,11 +12655,11 @@
       // a phone was there but could not take this file: the TV has to read the picture itself, and could not
       var pf = c0 && c0.lan && c0.lan.phone && c0.seq === playSeq && c0.fail ? String(c0.fail.error || '') : '';
       if (pf){
-        setStatus('No sound: this TV cannot play this file’s audio (' + tvHint + '), and ' + soundHelperName(c0.lan) + ' could not convert it — the TV could not read this file from its host (' + pf + '). Pick another stream — Dolby Digital Plus and AAC play here.', 'err', 9000);
+        setStatus('No sound: this TV cannot play this file’s audio (' + tvHint + '), and ' + soundHelperName(c0.lan) + ' could not convert it. The TV could not read this file from its host (' + pf + '). Pick another stream: Dolby Digital Plus and AAC play here.', 'err', 9000);
         stallOffer('sound');
         return;
       }
-      setStatus('No sound: this TV cannot play this file’s audio (' + tvHint + '). Pick another stream — Dolby Digital Plus and AAC play here' +
+      setStatus('No sound: this TV cannot play this file’s audio (' + tvHint + '). Pick another stream: Dolby Digital Plus and AAC play here' +
         (tvHint === 'DTS' && !soundHelper() ? ', or Nebula on your computer or Android phone can convert it (Settings › Playback › Play through your PC).' : '.'), 'err', 9000);
       stallOffer('sound');
       return;
@@ -12693,11 +12687,11 @@
     // 3016: the media element itself refused the source — a format this device cannot decode, or a host that
     // answered with a page instead of the file (add-ons flag such rows "not web-ready")
     // (failWhy then asks the host which of the two it was, and words it again)
-    if (code === 3016) return 'This stream would not start — its host may have refused it, or its format cannot play on this device. Try another source. (3016)';
-    if (code === 1001) return 'The source did not answer with a stream — it may be down or expired. Try another source. (1001' + detail + ')';
+    if (code === 3016) return 'This stream would not start. Its host may have refused it, or its format cannot play on this device. Try another source. (3016)';
+    if (code === 1001) return 'The source did not answer with a stream. It may be down or expired. Try another source. (1001' + detail + ')';
     if (code === 1002) return 'The source would not let this player read it. Try another source. (1002)';
     // the rest used to read "Failed to load (NNNN)" — a reason nobody could act on (his "reason unknown" errors, 10-17)
-    if (code === 1003) return 'The source took too long to answer — it may be busy. Try again or another source. (1003)';
+    if (code === 1003) return 'The source took too long to answer. It may be busy. Try again or another source. (1003)';
     if (code === 4000 || code === 4001 || code === 4005) return 'The source answered with something that is not a video. Try another source. (' + code + detail + ')';
     if (code === 4032 || code === 4040) return 'This stream’s format cannot play on this ' + (IS_TV ? 'TV' : 'device') + '. Try another source. (' + code + detail + ')';
     if (code >= 3014 && code <= 3019) return 'This ' + (IS_TV ? 'TV' : 'device') + '’s player could not take a piece of this stream. Try another source. (' + code + detail + ')';
@@ -12762,7 +12756,7 @@
       var a = await hostAnswer(cleanUrl(url));
       if (seq !== playSeq) return;
       var line = '';
-      if (a === 'refused') line = (host || 'Its host') + ' would not send this file — it may be rate-limited, expired or taken down. Try another source. (3016)';
+      if (a === 'refused') line = (host || 'Its host') + ' would not send this file. It may be rate-limited, expired or taken down. Try another source. (3016)';
       else if (a === 'page') line = (host || 'Its host') + ' answered with a web page instead of the video. Try another source. (3016)';
       else if (a === 'serves') line = 'This file’s format cannot play on this ' + (IS_TV ? 'TV' : 'device') + '. Try another source. (3016)';
       if (line) setStatus(line, 'err');
@@ -12967,7 +12961,7 @@
       subHdrDetect();                    // Settings › Subtitles › In HDR video   // live is known only now (Auto keeps a bigger lead on live streams)
       // the safety net: a file that looked ordinary but Chromium cannot voice restarts through the shell
       if (tcLater) tcCheckProbe(tcc).then(function(){ tcDecide(tcc, seq); });
-      if (briefSeq !== seq) setStatus(swapName ? ('Switched to ' + swapName + '.') : startAt ? (mpvKeptPlace() ? 'This source can only play from the beginning — your place is kept.' : 'Resumed from ' + fmtT(startAt) + '.') : (fresh ? 'Starting from the beginning.' : 'Playing.'), 'ok');
+      if (briefSeq !== seq) setStatus(swapName ? ('Switched to ' + swapName + '.') : startAt ? (mpvKeptPlace() ? 'This source can only play from the beginning. Your place is kept.' : 'Resumed from ' + fmtT(startAt) + '.') : (fresh ? 'Starting from the beginning.' : 'Playing.'), 'ok');
       if (tc && tc.lan) setStatus('Sound converted by ' + soundHelperName(tc.lan) + (startAt > 1 ? ' · from ' + fmtT(startAt) : '') + '.', 'ok', 6000);
       try { await video.play(); } catch(e){}
       $id('puiSpin').style.display = 'none';
@@ -15051,7 +15045,7 @@
       .then(function(res){
         if (res.status === 401){
           skDead = key;
-          if (!skWarned){ skWarned = true; setStatus('Seekr turned your key down — add it again in Settings › Playback.', 'err', 7000); }
+          if (!skWarned){ skWarned = true; setStatus('Seekr turned your key down. Add it again in Settings › Playback.', 'err', 7000); }
           throw 0;
         }
         if (res.status === 429){ skHoldUntil = Date.now() + 30 * 60000; throw 0; }   // the day's allowance or the rate: quiet
@@ -15210,7 +15204,7 @@
       ? 'Connected · key ending ' + seekr.key.slice(-4) + ' · Pictures while you scrub films and episodes' +
         (cloudLinked() ? ' · Every device on your profile uses it' : '')
       : 'Pictures while you scrub films and episodes, at once · Paste your own free key from seekr.tv' +
-        (IS_TV ? (cloudLinked() ? ' — easier on your phone or computer: it reaches this TV through your profile' : '') : '');
+        (IS_TV ? (cloudLinked() ? '. Easier on your phone or computer: it reaches this TV through your profile' : '') : '');
     if (box.getAttribute('data-state') === state) return;
     var hadFocus = box.contains(document.activeElement);
     box.setAttribute('data-state', state);
@@ -15230,7 +15224,7 @@
     go.id = 'setSeekrGo'; go.className = 'textbtn focusable'; go.type = 'button'; go.textContent = 'Connect';
     function connect(){
       var k = inp.value.trim().toLowerCase();
-      if (!SEEKR_KEY_RE.test(k)){ setStatus('That does not look like a Seekr key — it starts with sk_live_.', 'err'); return; }
+      if (!SEEKR_KEY_RE.test(k)){ setStatus('That does not look like a Seekr key. It starts with sk_live_.', 'err'); return; }
       go.disabled = true; go.textContent = 'Checking…';
       // the check costs nothing from the key's daily allowance
       fetch(SEEKR_API + '/v1/keys/validate', { headers: { 'X-API-Key': k }, cache: 'no-store' })
@@ -15419,7 +15413,7 @@
     sleepRender();
     if (upnextState.open) closeUpNext();
     try { video.pause(); } catch(e){}
-    setStatus('Sleep timer — paused.', 'ok');
+    setStatus('Sleep timer: paused.', 'ok');
     puiShow();
   }
 
@@ -15486,7 +15480,7 @@
     var b = $id('puiInfo'); if (b) b.classList.toggle('on', pinfoOn);
   }
   function fmtBits(bps){
-    if (!bps || !isFinite(bps)) return '—';
+    if (!bps || !isFinite(bps)) return '-';
     return bps >= 1e6 ? (bps/1e6).toFixed(bps >= 10e6 ? 0 : 1) + ' Mb/s' : Math.round(bps/1e3) + ' kb/s';
   }
   function codecName(c){
@@ -15510,7 +15504,7 @@
     var w = (st && st.width) || video.videoWidth || 0, h = (st && st.height) || video.videoHeight || 0;
     var out = [];
     function row(k, v, warn){ if (v === '' || v == null) return; out.push([k, v, !!warn]); }
-    var res = (w && h) ? (w + '×' + h) : '—';
+    var res = (w && h) ? (w + '×' + h) : '-';
     if (act && act.frameRate) res += ' · ' + Math.round(act.frameRate) + ' fps';
     if (act && act.hdr && /pq|hlg|smpte2084/i.test(String(act.hdr))) res += ' · HDR';
     if (player && player.mpv && mp && /^(pq|hlg)$/.test(String(mp.st.gamma || ''))) res += mp.dv ? ' · Dolby Vision' : ' · HDR';   // tone-mapped for this screen (the shell's shader)
@@ -15797,7 +15791,7 @@
   /** Why the browser cannot hear this play, or '' when it can. */
   function ssDeaf(){
     if (mp) return 'The full-format player keeps its sound to itself.';
-    if (video.muted || video.volume === 0) return 'Turn the sound on first — the sync listens for voices.';
+    if (video.muted || video.volume === 0) return 'Turn the sound on first. The sync listens for voices.';
     var u = lastPlay && lastPlay.url, mse = false;
     try { mse = !!tc || (player && player.getLoadMode && player.getLoadMode() === shaka.Player.LoadMode.MEDIA_SOURCE); } catch(e){}
     // a file played straight from another site is sound the page may play but not listen to
@@ -15826,7 +15820,7 @@
   function ssFinish(msg, kind){ ssStop(); if (msg) setStatus(msg, kind || 'info'); }
   /** The panel's button: start, or stop one that is running. */
   function ssToggle(){
-    if (ss){ ssFinish(ss.phase === 'follow' ? 'Stopped following — the timing stays as it is.' : 'Stopped syncing — the timing is as it was.'); return; }
+    if (ss){ ssFinish(ss.phase === 'follow' ? 'Stopped following. The timing stays as it is.' : 'Stopped syncing. The timing is as it was.'); return; }
     if (!player || !document.body.classList.contains('playing')){ setStatus('Start the video first.', 'info'); return; }
     var live = false; try { live = !!player.isLive(); } catch(e){}
     if (live){ setStatus('Live streams cannot be synced.', 'info'); return; }
@@ -15840,7 +15834,7 @@
       vad: null, surround: false, buf: null, lastT: -1, startedAt: Date.now(), timer: null, ctl: null, busy: false };
     if (src) ssRead(ss, src);
     else if (!ssListen(ss)) return;
-    setStatus(ss.kind === 'read' ? 'Syncing subtitles — reading the sound ahead of you…' : 'Syncing subtitles — keep watching, this listens for a minute or two.', 'info');
+    setStatus(ss.kind === 'read' ? 'Syncing subtitles: reading the sound ahead of you…' : 'Syncing subtitles. Keep watching, this listens for a minute or two.', 'info');
     ssPaint();
   }
   /** One energy frame at media second t. */
@@ -15864,7 +15858,7 @@
   function ssTry(s){
     if (ss !== s) return;
     if (s.seq !== playSeq){ ssStop(); return; }
-    if (s.loud < -90){ ssFinish(s.kind === 'read' ? 'Could not hear anything in this file.' : 'Could not hear this stream — it may not allow it here.', 'err'); return; }
+    if (s.loud < -90){ ssFinish(s.kind === 'read' ? 'Could not hear anything in this file.' : 'Could not hear this stream. It may not allow it here.', 'err'); return; }
     var tcue = ssTrackCues();
     if (!tcue || tcue.key !== s.key || !tcue.cues){ ssFinish('The subtitles changed, so the sync stopped. Start it again for these.'); return; }
     var fol = s.phase === 'follow', from = fol ? Math.max(0, s.vals.length - SS_FOLLOW_W * SS_HZ) : 0;
@@ -15889,14 +15883,14 @@
       setSubOffset(r.off, r.scale, true);
       var said = !subOffset ? 'they were already in time' : (Math.abs(subOffset).toFixed(1) + ' s ' + (subOffset > 0 ? 'later' : 'earlier'));
       // listening goes on for the rest of the play: a file cut from another broadcast drifts a few seconds at each break
-      if (s.kind === 'listen'){ s.phase = 'follow'; s.run = []; setStatus('Subtitles synced — ' + said + (r.scale !== 1 ? ', speed matched' : '') + '. Following the voices from here.', 'ok'); ssPaint(); return; }
+      if (s.kind === 'listen'){ s.phase = 'follow'; s.run = []; setStatus('Subtitles synced: ' + said + (r.scale !== 1 ? ', speed matched' : '') + '. Following the voices from here.', 'ok'); ssPaint(); return; }
       ssStop();
-      setStatus('Subtitles synced — ' + said + (r.scale !== 1 ? ', speed matched' : '') + '.', 'ok');
+      setStatus('Subtitles synced: ' + said + (r.scale !== 1 ? ', speed matched' : '') + '.', 'ok');
       return;
     }
     if (fol){ ssPaint(); return; }
     if (s.heard >= SS_MAX * SS_HZ || (s.kind === 'read' && s.ended)){
-      ssFinish('Could not match these subtitles to the voices — they may be for another version of the video. The timing is as it was.', 'err');
+      ssFinish('Could not match these subtitles to the voices. They may be for another version of the video. The timing is as it was.', 'err');
       return;
     }
     ssPaint();
@@ -16078,7 +16072,7 @@
         if (one) menuOpt(one, true, function(){ closePuiMenu(true); });
         if (audioSilentNoted){
           var hint = audioCodecHint(ctx.playRow || '');
-          puiNote('Its audio' + (hint ? ' (' + hint + ')' : '') + ' cannot be decoded on this device — there is no sound. Pick a stream with AAC audio.');
+          puiNote('Its audio' + (hint ? ' (' + hint + ')' : '') + ' cannot be decoded on this device. There is no sound. Pick a stream with AAC audio.');
         } else puiNote('This stream carries one audio track.');
       }
     } else if (kind==='speed'){
@@ -16244,7 +16238,7 @@
       spRow(hostL, spBtn(cls, '<span class="sp-lbl">' + esc(n) + '</span><span class="sp-count">' + (g.tracks.length + g.cands.length) + '</span>' + SP_CHECK,
         function(){ spState.lang = n; subPanelRender(true); }));
     });
-    if (!m.names.length && !subState.loading) spNote(hostL, subState.asked ? 'No subtitles for this title.' : 'No subtitle add-on installed — add one on the Add-ons tab.');
+    if (!m.names.length && !subState.loading) spNote(hostL, subState.asked ? 'No subtitles for this title.' : 'No subtitle add-on installed. Add one on the Add-ons tab.');
     hostT.innerHTML = '';
     var g2 = spState.lang ? m.by[spState.lang] : null;
     if (g2){
@@ -16292,7 +16286,7 @@
     var sync = spBtn('sp-opt' + (!subOffset && subScale === 1 ? ' on' : ''), '<span class="sp-lbl">Back in sync</span>' + SP_CHECK, function(){ ssStop(); setSubOffset(0, 1); });
     sync.setAttribute('data-sync', '1');
     spRow(host, sync);
-    spNote(host, IS_WEBOS ? 'If the words arrive before the voices, nudge them later.' : 'If the words arrive before the voices, nudge them later — or let the player match them to the voices (experimental: it can take a few minutes, and may not find the timing).');
+    spNote(host, IS_WEBOS ? 'If the words arrive before the voices, nudge them later.' : 'If the words arrive before the voices, nudge them later, or let the player match them to the voices (experimental: it can take a few minutes, and may not find the timing).');
     var k2 = document.createElement('div'); k2.className = 'sp-sub'; k2.textContent = 'Appearance'; host.appendChild(k2);
     SUB_ORDER.forEach(function(k){ subSetRow(k, host); });
     subRefreshRows();
@@ -16552,19 +16546,19 @@
   /** The relay stopped answering: forget it for two minutes and say so once. */
   function relayDrop(){
     relayLive = null; relayDeadAt = Date.now() + 120000;
-    if (ctx.viaRelay){ ctx.viaRelay = null; setStatus('Your PC stopped answering — playing direct.', 'info', 5000); }
+    if (ctx.viaRelay){ ctx.viaRelay = null; setStatus('Your PC stopped answering. Playing direct.', 'info', 5000); }
     relayStatusRender();
   }
   function relayStatusRender(){
     var tv = $id('setRelaySub'), sh = $id('setShareSub'); if (!tv) return;
     if (IS_TV && !IS_DESKTOP){
       var line;
-      if (relayMode() === 'off') line = 'Off — the TV fetches video itself';
+      if (relayMode() === 'off') line = 'Off: the TV fetches video itself';
       else if (relayLive && relayMode() === 'sound') line = relayLive.sound ? relayLive.name + ' converts sound this TV cannot play (DTS) · ' + relayLive.base.replace(/^http:\/\//, '')
         : relayLive.name + ' is sharing, but its Nebula is too old to convert sound · Update it';
       else if (relayLive) line = relayLive.name + ' is sharing' + (relayLive.sound ? ' and converts sound this TV cannot play (DTS)' : '') + ' · ' + relayLive.base.replace(/^http:\/\//, '');
       else if (relayUsable(relayDoc)) line = (relayDoc.name || 'Your PC') + ' was sharing but does not answer right now · Check it is on, and on the same network';
-      else if (!cloudLinked()) line = 'Sign in here and on the computer — that is how the TV finds it';
+      else if (!cloudLinked()) line = 'Sign in here and on the computer. That is how the TV finds it';
       else line = 'No computer is sharing right now · Turn it on in Nebula for Windows or Linux › Settings › Playback';
       // a phone converting sound: on its own when no computer answers, else as a second line
       if (phoneLive && relayMode() !== 'off' && Date.now() - phoneLive.at < 300000)
@@ -16848,7 +16842,7 @@
       var pf = ctx.pickedFrom, same = !pf || isTwin(nr.pick, pf, nr.addon);
       el.textContent = (same ? '' : 'Closest match · ') + sigLabel(streamSig(nr.pick, nr.addon)) + (same ? ' · Ready' : '');
     }
-    else el.textContent = nr.failed ? 'No stream found yet — Play opens the list' : 'Finding a stream…';
+    else el.textContent = nr.failed ? 'No stream found yet. Play opens the list' : 'Finding a stream…';
   }
   // Settings › Still watching?: after N episodes rolled on by themselves the card asks instead of counting
   var autoRun = 0;
@@ -16935,7 +16929,7 @@
     puiShow();
     if (sleepState.mode === 'ep'){     // the night ends here, as asked
       sleepClear(); sleepState.fired = true;
-      setStatus('Sleep timer — stopping here.', 'ok');
+      setStatus('Sleep timer: stopping here.', 'ok');
       return;
     }
     if (nextEpisode()) openUpNext(true);
@@ -17110,7 +17104,7 @@
     T[svc] = svc === 'mdbl' ? { key: '', user: '', at: Date.now() } : { a: '', r: '', exp: 0, user: '', at: Date.now() };
     saveTrack(true);
     try { trackRender(); } catch(e){}
-    if (refused) setStatus(TRACK_SVC[svc] + ' asks you to connect again — Settings › Playback.', 'info', 6000);
+    if (refused) setStatus(TRACK_SVC[svc] + ' asks you to connect again: Settings › Playback.', 'info', 6000);
   }
   /** The account's name, for the row (asked once after connecting; the connection works without it). */
   function trackWho(svc){
@@ -17146,11 +17140,11 @@
       clearStatus();
       trackRender();
       trackAuthArm();
-    }).catch(function(){ setStatus(TRACK_SVC[svc] + ' did not answer — try again in a moment.', 'err'); });
+    }).catch(function(){ setStatus(TRACK_SVC[svc] + ' did not answer. Try again in a moment.', 'err'); });
   }
   function trackAuthPoll(){
     var au = trackAuth; if (!au) return;
-    if (Date.now() > au.until){ trackAuthStop(); trackRender(); setStatus('That code ran out — connect again for a new one.', 'info'); return; }
+    if (Date.now() > au.until){ trackAuthStop(); trackRender(); setStatus('That code ran out. Connect again for a new one.', 'info'); return; }
     var both = function(r){ return r.json().then(function(j){ return { status: r.status, j: j }; }, function(){ return { status: r.status, j: null }; }); };
     var p = au.svc === 'trakt'
       ? fetch(CLOUD_BASE + '/v1/trakt/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_code: au.code }) })
@@ -17187,7 +17181,7 @@
       var m = e && e.message;
       if (m === 'expired' || m === 'denied' || m === 'setup'){
         trackAuthStop(); trackRender();
-        setStatus(m === 'denied' ? 'The sign-in was declined.' : (m === 'setup' ? TRACK_SVC[au.svc] + ' sign-in is not available right now.' : 'That code ran out — connect again for a new one.'), 'info');
+        setStatus(m === 'denied' ? 'The sign-in was declined.' : (m === 'setup' ? TRACK_SVC[au.svc] + ' sign-in is not available right now.' : 'That code ran out. Connect again for a new one.'), 'info');
         return;
       }
       trackAuthArm();                                                              // the network: the next poll
@@ -17295,7 +17289,7 @@
     fetch(CLOUD_BASE + '/v1/mdblist/scrobble', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: trackBody(item, pct, { key: key, event: ev, app_version: PLAYER_VERSION }), keepalive: !!keepalive })
       .then(function(r){
-        if (r.status === 403 && !trackWarned.mdbl){ trackWarned.mdbl = true; setStatus('MDBList refused your key — check it in Settings › Playback.', 'info', 6000); }
+        if (r.status === 403 && !trackWarned.mdbl){ trackWarned.mdbl = true; setStatus('MDBList refused your key. Check it in Settings › Playback.', 'info', 6000); }
       })
       .catch(function(){});
   }
@@ -17316,7 +17310,7 @@
     row.style.display = (avail || on) ? '' : 'none';
     sub.textContent = on ? ('Connected' + (T.user ? ' as ' + T.user : '') + ' · The films and episodes you watch are added to your ' + name + ' history' +
         (cloudLinked() ? ' · Every device on this profile reports' : ''))
-      : au ? ('On a phone or computer, open ' + au.url.replace(/^https:\/\//i, '') + ' and type this code' + (IS_TV ? ' — or scan it' : ''))
+      : au ? ('On a phone or computer, open ' + au.url.replace(/^https:\/\//i, '') + ' and type this code' + (IS_TV ? ', or scan it' : ''))
       : ('Adds the films and episodes you watch to your ' + name + ' history · Sign in with a code, nothing is typed here');
     var state = on ? 'on' : (au ? 'code:' + au.userCode : 'off');
     if (box.getAttribute('data-state') === state) return;
@@ -17342,7 +17336,7 @@
     sub.textContent = on ? ('Connected' + (T.user ? ' as ' + T.user : '') + ' · key ending ' + T.key.slice(-4) + ' · The films and episodes you watch are added to your MDBList history' +
         (cloudLinked() ? ' · Every device on this profile reports' : ''))
       : ('Adds the films and episodes you watch to your MDBList history · Paste your API key from mdblist.com › Preferences' +
-        (IS_TV && cloudLinked() ? ' — easier on your phone or computer: it reaches this TV through your profile' : ''));
+        (IS_TV && cloudLinked() ? '. Easier on your phone or computer: it reaches this TV through your profile' : ''));
     var state = on ? 'on' : 'off';
     if (box.getAttribute('data-state') === state) return;
     var hadFocus = box.contains(document.activeElement);
@@ -17375,9 +17369,9 @@
             return;
           }
           go.disabled = false; go.textContent = 'Connect';
-          setStatus(x.status === 403 ? 'MDBList does not know that key.' : (x.status === 429 ? 'Too many tries — wait a minute.' : 'MDBList could not be reached — try again in a moment.'), 'err');
+          setStatus(x.status === 403 ? 'MDBList does not know that key.' : (x.status === 429 ? 'Too many tries. Wait a minute.' : 'MDBList could not be reached. Try again in a moment.'), 'err');
         })
-        .catch(function(){ go.disabled = false; go.textContent = 'Connect'; setStatus('MDBList could not be reached — try again in a moment.', 'err'); });
+        .catch(function(){ go.disabled = false; go.textContent = 'Connect'; setStatus('MDBList could not be reached. Try again in a moment.', 'err'); });
     }
     inp.onkeydown = function(ev){ if (ev.keyCode === 13){ connect(); ev.preventDefault(); ev.stopPropagation(); } };
     if (hadFocus) inp.focus();
@@ -17742,9 +17736,9 @@
     else sgFix(Math.min(at, sgEdge(sg.from) - 1));           // the clock had stuck on the asked second: back onto the picture
     if (sg.start && t > 5){
       sg.keepFrom = t;
-      setStatus('This file cannot start from ' + fmtT(t) + ' on this TV — it is playing from the beginning, and your place is kept.', 'info', 9000);
+      setStatus('This file cannot start from ' + fmtT(t) + ' on this TV. It is playing from the beginning, and your place is kept.', 'info', 9000);
     } else if (!sg.said){
-      setStatus('This TV cannot jump that far in this file — only within what it has loaded.', 'info', 7000);
+      setStatus('This TV cannot jump that far in this file, only within what it has loaded.', 'info', 7000);
     }
     sg.said = true;
     if (!stall.offered && !stall.busy && curPlay && curPlay.id) stallOffer('seek');
@@ -17823,7 +17817,7 @@
     try { if (!puiIsLive()){ var r = puiRange(); at = Math.max(0, video.currentTime - r.start); } } catch(e){}
     var again = lastPlay;
     try { flushProgress(true); } catch(e){}
-    setStatus('The stream dropped — reconnecting…', 'info');
+    setStatus('The stream dropped. Reconnecting…', 'info');
     try { $id('puiSpin').style.display = ''; } catch(e){}
     fetchSiblings(cur.type, cur.id).catch(function(){ return []; }).then(function(cands){
       if (seq !== playSeq) return;                               // the viewer moved on meanwhile
@@ -17876,7 +17870,7 @@
     if (my !== playSeq) return;
     stall.offered = true;
     if (c) srcShow(c, why);
-    else if (!why) setStatus('This source keeps stalling — another stream from the list may do better.', 'info', 7000);
+    else if (!why) setStatus('This source keeps stalling. Another stream from the list may do better.', 'info', 7000);
   }
   // the rows that would not play for this title, this sitting: the pill never offers one again, so a press cannot bounce
   // between two refused files
@@ -17946,8 +17940,8 @@
     try { window.nebulaDesktop.setMiniMode(miniOn); } catch(e){}
     var mb = $id('puiMini');
     mb.innerHTML = miniOn ? MINI_ICON_OUT : MINI_ICON_IN;
-    mb.title = miniOn ? 'Leave the mini player (shift m)' : 'Mini player — small window that stays on top (shift m)';
-    setStatus(miniOn ? 'Mini player — window stays on top.' : 'Mini player off.','ok');
+    mb.title = miniOn ? 'Leave the mini player (shift m)' : 'Mini player: small window that stays on top (shift m)';
+    setStatus(miniOn ? 'Mini player: window stays on top.' : 'Mini player off.','ok');
   }
   if (document.pictureInPictureEnabled && video.requestPictureInPicture) $id('puiPip').style.display = '';
   if (window.nebulaDesktop && window.nebulaDesktop.setMiniMode) $id('puiMini').style.display = '';
@@ -18383,7 +18377,6 @@
     if (st.behind != null) o.behind = st.behind;
     partySend(o);
   }
-  function partyMember(id){ for (var i = 0; i < party.members.length; i++) if (party.members[i].id === id) return party.members[i]; return null; }
   /** Members on the party's title still loading or buffering (the ones the party waits for). */
   function partyWaiters(ignore){
     var p = party, out = [];
@@ -18670,7 +18663,7 @@
   function partyConnect(){
     if (!partyPending) return;
     if (partyPending.kind === 'create' && lastPlay && !partyShareable()){
-      partyPending = null; setStatus('A watch party needs a stream everyone can open — a file from this computer cannot be shared.', 'err'); return;
+      partyPending = null; setStatus('A watch party needs a stream everyone can open. A file from this computer cannot be shared.', 'err'); return;
     }
     partyServer(function(url){
       if (!partyPending) return;
@@ -18738,7 +18731,7 @@
       party.members = [{ id: party.id, name: partyName(), host: true, s: 'ready', v: 2 }];
       setTimeout(function(){ partyCardToggle(true); }, 400);
       partyBadge(); puiShow();
-      setStatus('Party ' + m.code + ' started — friends can scan the code on screen or open the invite link.','ok');
+      setStatus('Party ' + m.code + ' started. Friends can scan the code on screen or open the invite link.','ok');
       partyPublish(false, false);
       return;
     }
@@ -18771,7 +18764,7 @@
     else if (m.t === 'stream'){
       if (p.isHost || !m.stream) return;
       var d = m.stream;
-      if (d.local || /^(local:|blob:)/i.test(d.url || '')){ setStatus('The host is playing a file from their own computer — it cannot play here.', 'info'); return; }
+      if (d.local || /^(local:|blob:)/i.test(d.url || '')){ setStatus('The host is playing a file from their own computer. It cannot play here.', 'info'); return; }
       p.stream = d; p.key = partyKey(d);
       p.ps = { playing:true, pos:0, live:false, rate:1, waiting:false, at: partyNow(), seq: p.ps ? p.ps.seq : 0, by:'', name:'' };
       p.own.paused = false; p.own.behind = false;
@@ -18784,8 +18777,8 @@
       else if (!p.v2){
         var oldNames = p.oldNames || [];
         if (oldNames.length){
-          p.names.forEach(function(n){ var i = oldNames.indexOf(n); if (i >= 0) oldNames.splice(i, 1); else setStatus(n + ' joined — ' + p.count + ' watching','ok'); });
-          oldNames.forEach(function(n){ setStatus(n + ' left — ' + p.count + ' watching','info'); });
+          p.names.forEach(function(n){ var i = oldNames.indexOf(n); if (i >= 0) oldNames.splice(i, 1); else setStatus(n + ' joined · ' + p.count + ' watching','ok'); });
+          oldNames.forEach(function(n){ setStatus(n + ' left · ' + p.count + ' watching','info'); });
         }
         p.oldNames = p.names.slice();
       }
@@ -18836,7 +18829,7 @@
     if (video.style.display === 'block'){ playSeq++; partyQuiet(1500); stopPlayer(); }
     p.choosing = true;
     openStreams(d.type, d.id, d.name || d.title || '');
-    setStatus('Pick a source — the party is watching ' + (d.file || d.name || d.title || 'this title') + '.', 'info', 8000);
+    setStatus('Pick a source. The party is watching ' + (d.file || d.name || d.title || 'this title') + '.', 'info', 8000);
   }
   function partyPlayFor(d){
     var p = party; if (!p) return;
@@ -18859,7 +18852,7 @@
         playStream(c.s);
         setStatus('Playing your own copy from ' + (c.a.name || 'your add-on') + '.', 'ok');
       } else if (d.url){
-        setStatus("None of your add-ons has this file — playing the host's link.", 'info');
+        setStatus("None of your add-ons has this file. Playing the host's link.", 'info');
         partyPlayHost(d);
       } else partyChooseOwn(d);
     });
@@ -18878,7 +18871,7 @@
     var p = party; if (!p || !p.isHost || p.ws.readyState !== 1) return;
     p.hostLocal = !partyShareable();
     if (p.hostLocal){
-      setTimeout(function(){ if (party && party.hostLocal) setStatus('Your watch party cannot see a file from this computer — they stay where they are until you play a stream.', 'info'); }, 3000);
+      setTimeout(function(){ if (party && party.hostLocal) setStatus('Your watch party cannot see a file from this computer. They stay where they are until you play a stream.', 'info'); }, 3000);
       return;
     }
     var d = partyStreamDesc(), k = partyKey(d);
@@ -18889,7 +18882,7 @@
     partyCardToggle(true);
   }
   $id('pcAskYes').onclick = function(){ if (party && party.ask) { partySwitch(party.ask); setStatus('The party is watching this with you now.', 'ok'); } };
-  $id('pcAskNo').onclick = function(){ if (party){ party.ask = null; partyCardRender(); setStatus('The party keeps watching its title — play it again to rejoin them.', 'info'); } };
+  $id('pcAskNo').onclick = function(){ if (party){ party.ask = null; partyCardRender(); setStatus('The party keeps watching its title. Play it again to rejoin them.', 'info'); } };
 
   function partyConnFailed(ws, message){
     var p = partyPending;
@@ -18910,7 +18903,7 @@
       try { video.playbackRate = 1; } catch(e){}
       if (userClosed) return;
       partyPending = { kind:'join', code: code, wasHost: wasHost, token: token, until: Date.now() + 90000 };
-      setStatus('Party connection lost — reconnecting…','info');
+      setStatus('Party connection lost. Reconnecting…','info');
       setTimeout(partyConnect, 3000);
       return;
     }
@@ -19472,7 +19465,7 @@
   function syncPanelRender(){
     var st = pfState(), el = $id('syncStatus'); if (!el) return;
     el.textContent = st === 'in'
-      ? 'Signed in as @' + profile.handle + ' — add-ons, progress, My List and subtitle style follow you to every device you sign in on.'
+      ? 'Signed in as @' + profile.handle + '. Add-ons, progress, My List and subtitle style follow you to every device you sign in on.'
       : st === 'legacy' ? 'Syncing with a link code from an earlier version. Add a profile to sign in by @handle on new devices.'
       : 'Add-ons, progress and your list stay on this device until you sign in with a profile.';
     $id('syncOpen').textContent = st === 'in' ? 'Manage profile' : (st === 'legacy' ? 'Add a profile' : 'Sign in');
@@ -19493,7 +19486,6 @@
     var k = Object.prototype.hasOwnProperty.call(SUP_MARKS, kind) ? kind : 'star';
     return '<span class="sup-star" role="img" aria-label="Supporter"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + SUP_MARKS[k] + '</svg></span>';
   }
-  var SUP_STAR = supMark('star');
   // the monthly plan ranks with Supporter Plus while it runs (the server ends it with the subscription)
   var SUP_TIERS = { supporter: ['Supporter', 1], plus: ['Supporter Plus', 2], founder: ['Founder', 3], monthly: ['Monthly Supporter', 2] };
   function supRank(){ return isSupporter() && SUP_TIERS[profile.tier] ? SUP_TIERS[profile.tier][1] : (isSupporter() ? 1 : 0); }
@@ -19545,11 +19537,11 @@
   }
   function supErr(e){
     if (!e || !e.status) return 'Could not reach the server.';
-    if (e.status === 429) return 'Too many tries — give it a minute.';
+    if (e.status === 429) return 'Too many tries. Give it a minute.';
     var m = e.body && e.body.error;
-    if (m === 'code not found') return 'That code was not found — check it against the thank-you note.';
+    if (m === 'code not found') return 'That code was not found. Check it against the thank-you note.';
     if (m === 'already a supporter') return isSupporter() && supRank() > 1 ? 'That code is for a tier you already have.' : 'You’re already a supporter.';
-    if (m === 'no profile' || e.status === 401) return 'Sign in first — the supporter mark lives on your profile, so it follows you to every device.';
+    if (m === 'no profile' || e.status === 401) return 'Sign in first. The supporter mark lives on your profile, so it follows you to every device.';
     return 'Something went wrong (' + e.status + ').';
   }
   function joinNames(list){
@@ -19623,7 +19615,7 @@
   var recapPick = null;                                     // which month the card shows (null = the newest with anything in it)
   function recapHtml(){
     var ks = Object.keys(wlLoad()).sort().reverse().filter(function(k){ return !!recapOf(k); });
-    if (!ks.length) return '<p class="tagline" style="margin-top:6px">Nothing yet this month — your recap fills in as you watch. It stays on this device.</p>';
+    if (!ks.length) return '<p class="tagline" style="margin-top:6px">Nothing yet this month. Your recap fills in as you watch. It stays on this device.</p>';
     var k = recapPick && ks.indexOf(recapPick) >= 0 ? recapPick : ks[0], r = recapOf(k);
     var h = '<div class="recap"><div class="recap-kick">Your ' + esc(r.month) + (r.year !== new Date().getFullYear() ? ' ' + r.year : '') + ' on Nebula</div>' +
       '<div class="recap-big">' + esc(hoursText(r.total)) + '<small> watched</small></div>' +
@@ -19640,7 +19632,7 @@
       ks.forEach(function(x){ var rr = recapOf(x); h += '<button class="chip focusable' + (x === k ? ' on' : '') + '" type="button" data-recap="' + esc(x) + '">' + esc(rr.month) + '</button>'; });
       h += '</div>';
     }
-    return h + '<p class="tagline" style="margin-top:8px">Worked out on this device from what it played — never sent anywhere.</p>';
+    return h + '<p class="tagline" style="margin-top:8px">Worked out on this device from what it played. Never sent anywhere.</p>';
   }
 
   // The vote on what gets built next (GET/POST /v1/support/vote): one open round, one changeable ballot per Plus-level
@@ -19656,7 +19648,7 @@
     voteSt.busy = true;
     cloudApi('POST', '/v1/support/vote', { option: id }).then(function(r){
       voteSt.data = r; voteSt.at = Date.now();
-      setStatus('Your vote is in — you can change it until the vote closes.', 'ok');
+      setStatus('Your vote is in. You can change it until the vote closes.', 'ok');
     }).catch(function(e){
       var m = e && e.body && e.body.error;
       setStatus(m === 'vote needs plus' ? 'Voting is for Supporter Plus, Founders and Monthly supporters.' : m === 'no vote open' ? 'That vote has just closed.' : supErr(e), 'err');
@@ -19672,7 +19664,7 @@
     if (!v) return '<p class="tagline" style="margin-top:6px">Loading the vote…</p>';
     var r = v.round, h = '';
     if (!r){
-      h += '<p class="tagline" style="margin-top:6px">No vote open right now — the next one shows up here.</p>';
+      h += '<p class="tagline" style="margin-top:6px">No vote open right now. The next one shows up here.</p>';
       if (v.last && v.last.winner) h += '<p class="tagline" style="margin-top:4px">Last time, supporters chose <b>' + esc(v.last.winner.title) + '</b>.</p>';
       return h;
     }
@@ -19705,16 +19697,16 @@
   function betaHtml(){
     if (IS_BETA) return '<p class="tagline" style="margin-top:6px">You are on the early build (' + esc(PLAYER_VERSION) + '). Thank you for trying it first.</p>' +
       '<div class="row" style="margin-top:8px"><a class="btn ghost focusable" href="' + esc(SITE + '/player/') + '">Back to the regular player</a></div>';
-    if (IS_TV) return '<p class="tagline" style="margin-top:6px">Early builds come to Android and the web first — open ' + esc('play.rifflehq.in/player/beta') + ' in a browser.</p>';
+    if (IS_TV) return '<p class="tagline" style="margin-top:6px">Early builds come to Android and the web first. Open ' + esc('play.rifflehq.in/player/beta') + ' in a browser.</p>';
     var i = betaSt.info;
-    return '<p class="tagline" style="margin-top:6px">' + (i ? 'Early build ' + esc(i.version) + (i.notes ? ' — ' + esc(i.notes) : '') :
-      i === false ? 'No early build right now — the next one shows up here, a few days before everyone gets it.' :
+    return '<p class="tagline" style="margin-top:6px">' + (i ? 'Early build ' + esc(i.version) + (i.notes ? ': ' + esc(i.notes) : '') :
+      i === false ? 'No early build right now. The next one shows up here, a few days before everyone gets it.' :
       'The next version of this player, a few days before everyone gets it. It is tested, just newer.') + '</p>' +
       (i !== false ? '<div class="row" style="margin-top:8px"><button id="supBeta" class="btn ghost focusable" type="button">Open the early build</button></div>' : '');
   }
 
   /** The monthly plan's own row: where it stands, and the private link to cancel or change the card. */
-  var SUB_WORDS = { trialing: 'Free week', active: 'Active', past_due: 'Payment failed — update your card', paused: 'Paused' };
+  var SUB_WORDS = { trialing: 'Free week', active: 'Active', past_due: 'Payment failed. Update your card', paused: 'Paused' };
   function subHtml(){
     if (!profile || !profile.subStatus) return '';
     var h = '<div class="setrow"><span class="setname">Monthly plan<small>' + esc(SUB_WORDS[profile.subStatus] || profile.subStatus) + ' · cancel or change your card any time</small></span>';
@@ -19731,7 +19723,7 @@
     if (!founders.length && !others.length){ el.innerHTML = ''; return; }
     el.innerHTML = '<div class="lbl" style="margin-top:18px">Thank you</div><p class="sub" style="margin:6px 0 0">Nebula is kept going by ' +
       (founders.length ? 'its Founders, ' + esc(joinNames(founders)) + (others.length ? ', and by ' : '') : '') +
-      (others.length ? esc(joinNames(others)) : '') + (supportCfg.count > w.length ? ' — and ' + (supportCfg.count - w.length) + ' more who keep it quiet' : '') + '.</p>';
+      (others.length ? esc(joinNames(others)) : '') + (supportCfg.count > w.length ? ', and ' + (supportCfg.count - w.length) + ' more who keep it quiet' : '') + '.</p>';
   }
 
   function supportRender(){
@@ -19740,7 +19732,7 @@
     if (isSupporter()){
       var since = profile.since ? new Date(profile.since).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
       h += '<div class="sup-head">You’re a ' + esc(supTierName()) + supMine() + '</div>' +
-        '<p class="tagline" style="margin-top:4px">' + (since ? 'Since ' + esc(since) + '. ' : '') + 'Thank you — this is what keeps Nebula going.</p>' +
+        '<p class="tagline" style="margin-top:4px">' + (since ? 'Since ' + esc(since) + '. ' : '') + 'Thank you. This is what keeps Nebula going.</p>' +
         '<div class="setrow"><span class="setname">Your name on the wall<small>In Settings › Support on every device, and on the website</small></span><span id="supWallSeg" class="seg"></span></div>';
       if (rank >= 2) h += '<div class="setrow"><span class="setname">Your mark<small>Beside your name, for you and your friends</small></span><span id="supMarkSeg" class="seg"></span></div>';
       h += subHtml();
@@ -19752,35 +19744,35 @@
         var vq = voteSt.data && voteSt.data.round ? voteSt.data.round.title : '';
         h += '<div class="lbl" style="margin-top:22px">More with Supporter Plus or the monthly plan</div>' +
           '<p class="tagline" style="margin-top:6px">' + (vq ? 'Supporters are voting on “' + esc(vq) + '”. ' : '') +
-          'A vote on what gets built next, early builds, and a private recap of your month — with Supporter Plus, or monthly from $1.50.</p>';
+          'A vote on what gets built next, early builds, and a private recap of your month, with Supporter Plus, or monthly from $1.50.</p>';
       }
       if (rank < 3 && supportCfg.url){
         h += '<div class="setrow" style="display:block"><span class="setname" style="display:block">Raise your tier' +
           '<small>' + (rank < 2 ? 'Supporter Plus, or monthly from $1.50: any accent colour, your own mark, early builds, the vote, your monthly recap. ' : '') + 'Founder: the Founders list, a gold ring, Nebula Sports without the sponsor prompt.</small></span>';
         h += IS_TV
-          ? '<div class="sup-tv"><div id="supQr" aria-hidden="true"></div><div><div class="sup-url">' + SUPPORT_SHORT + '</div><p class="tagline" style="margin-top:4px">Open it on your phone — it takes a minute.</p></div></div>'
+          ? '<div class="sup-tv"><div id="supQr" aria-hidden="true"></div><div><div class="sup-url">' + SUPPORT_SHORT + '</div><p class="tagline" style="margin-top:4px">Open it on your phone. It takes a minute.</p></div></div>'
           : '<div class="row" style="margin-top:10px"><button id="supGo" class="btn ghost focusable" type="button">See the tiers</button></div>';
         h += '</div>';
       }
     } else {
       h += '<p class="tagline" style="margin-top:4px">Every feature stays free for everyone. Supporting keeps the sync server and the site running, and you get a ' +
-        'small thank-you: a mark beside your name, more accent colours, your name on the wall if you like — and with Supporter Plus or the monthly plan ' +
+        'small thank-you: a mark beside your name, more accent colours, your name on the wall if you like, and with Supporter Plus or the monthly plan ' +
         '(from $1.50), a vote on what gets built next, early builds and a private recap of your month.</p>';
       if (supportCfg.url){
         h += IS_TV
           ? '<div class="sup-tv"><div id="supQr" aria-hidden="true"></div><div><div class="sup-url">' + SUPPORT_SHORT + '</div>' +
-            '<p class="tagline" style="margin-top:4px">Open it on your phone — it takes a minute.' + (pfState() === 'in' ? ' The code lands on this profile by itself.' : '') + '</p></div></div>'
+            '<p class="tagline" style="margin-top:4px">Open it on your phone. It takes a minute.' + (pfState() === 'in' ? ' The code lands on this profile by itself.' : '') + '</p></div></div>'
           : '<div class="row"><button id="supGo" class="btn focusable" type="button">Support Nebula</button></div>';
       }
     }
     if (rank < 3){
       h += '<div class="setrow" style="display:block"><span class="setname" style="display:block">Have a supporter code?' +
-        '<small>It comes with the thank-you. One code, typed once on any signed-in device — the mark follows your profile.</small></span>';
+        '<small>It comes with the thank-you. One code, typed once on any signed-in device. The mark follows your profile.</small></span>';
       h += pfState() === 'in'
         ? '<div class="row" style="margin-top:10px"><input id="supCode" class="field focusable" type="text" placeholder="NEB-XXXX-XXXX" maxlength="14" ' +
           'autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" style="width:auto;flex:0 1 240px">' +
           '<button id="supRedeem" class="btn ghost focusable" type="button">Redeem</button></div>'
-        : '<p class="tagline" style="margin-top:8px">Sign in first — the supporter mark lives on your profile, so it follows you to every device.</p>' +
+        : '<p class="tagline" style="margin-top:8px">Sign in first. The supporter mark lives on your profile, so it follows you to every device.</p>' +
           '<div class="row" style="margin-top:8px"><button id="supSignIn" class="btn ghost focusable" type="button">Sign in</button></div>';
       h += '</div>';
     }
@@ -19847,7 +19839,7 @@
           return profileRefresh();
         }).then(function(){
           settingsRender();                        // the Appearance swatches unlock
-          setStatus('You’re a ' + supTierName() + ' — thank you. ' + (supRank() >= 2 ? 'Any colour is yours in Appearance.' : 'Three more accents are yours in Appearance.'), 'ok');
+          setStatus('You’re a ' + supTierName() + '. Thank you. ' + (supRank() >= 2 ? 'Any colour is yours in Appearance.' : 'Three more accents are yours in Appearance.'), 'ok');
           supportLoad(true);
         }).catch(function(e){ pfBusy('supRedeem', null); setStatus(supErr(e), 'err'); });
       };
@@ -19857,7 +19849,7 @@
   // ---- profile view ----
   function pfErr(e, fallback){
     if (!e || !e.status) return 'Could not reach the server.';
-    if (e.status === 429) return 'Too many tries — give it a minute.';
+    if (e.status === 429) return 'Too many tries. Give it a minute.';
     var m = e.body && e.body.error;
     if (m === 'handle taken') return 'That handle is taken.';
     if (m === 'bad handle') return 'Handles are 3–20 letters, numbers or underscores.';
@@ -19865,7 +19857,7 @@
     if (m === 'wrong handle or password') return 'Wrong handle or password.';
     if (m === 'wrong handle or key') return 'That handle and recovery key don’t match.';
     if (m === 'wrong password') return 'Wrong password.';
-    if (m === 'already has a profile') return 'This group already has a profile — it will show up here in a moment.';
+    if (m === 'already has a profile') return 'This group already has a profile. It will show up here in a moment.';
     return fallback || 'Something went wrong (' + e.status + ').';
   }
   function pfWhen(t){
@@ -19926,12 +19918,12 @@
   function pfRenderOut(body, st){
     var h = '';
     if (st === 'legacy'){
-      h += '<p class="sub">This device syncs with a link code from an earlier version. Give it a profile — everything ' +
+      h += '<p class="sub">This device syncs with a link code from an earlier version. Give it a profile. Everything ' +
         'you’ve synced stays exactly where it is, and every device signs in by handle from now on.' +
         (IS_TV ? ' Easiest from a linked phone or computer: this TV picks the profile up on its own.' : '') + '</p>';
     } else {
       h += '<p class="sub">Your add-ons, progress, My List and ratings follow you to every device you sign in on. ' +
-        'No email, no tracking — a profile is optional.</p>';
+        'No email, no tracking. A profile is optional.</p>';
     }
     var modes = st === 'legacy'
       ? [['attach', 'Add a profile'], ['signin', 'Sign in to another']]
@@ -19972,18 +19964,18 @@
       pfBusy('pfGo', 'Signing in…');
       cloudPublic('POST', '/v1/profile/signin', { handle: handle, password: pw, device: deviceInfo() }).then(function(r){
         cloudAdopt(r, false);
-        setStatus('Signed in as @' + r.profile.handle + ' — pulling your things…', 'ok');
+        setStatus('Signed in as @' + r.profile.handle + '. Pulling your things…', 'ok');
         profileRender();
       }).catch(function(e){ pfBusy('pfGo', null); setStatus(pfErr(e), 'err'); });
     };
   }
   function pfPanelCreate(p, attach){
     p.innerHTML = '<div class="lbl">' + (attach ? 'Add a profile to this device’s group' : 'Create a profile') + '</div>' +
-      pfField('pfHandle', 'text', 'Choose a handle — letters, numbers, _', ' autocomplete="username" maxlength="21"') +
-      pfField('pfName', 'text', 'Display name — what friends see', ' autocomplete="nickname" maxlength="40"') +
-      pfField('pfPass', 'password', 'Password — 8 characters or more', ' autocomplete="new-password"') +
+      pfField('pfHandle', 'text', 'Choose a handle: letters, numbers, _', ' autocomplete="username" maxlength="21"') +
+      pfField('pfName', 'text', 'Display name: what friends see', ' autocomplete="nickname" maxlength="40"') +
+      pfField('pfPass', 'password', 'Password: 8 characters or more', ' autocomplete="new-password"') +
       '<div class="row"><button id="pfGo" class="btn focusable">' + (attach ? 'Add profile' : 'Create profile') + '</button></div>' +
-      '<p class="sub" style="margin:6px 0 0">No email. You’ll get a recovery key once — it’s the only way back in if you forget the password.</p>';
+      '<p class="sub" style="margin:6px 0 0">No email. You’ll get a recovery key once. It’s the only way back in if you forget the password.</p>';
     pfEnter(['pfHandle', 'pfName', 'pfPass'], 'pfGo');
     $id('pfGo').onclick = function(){
       var handle = pfHandleVal('pfHandle'), name = $id('pfName').value.trim(), pw = $id('pfPass').value;
@@ -20003,7 +19995,7 @@
     p.innerHTML = '<div class="lbl">Reset your password</div>' +
       pfField('pfHandle', 'text', '@handle', ' autocomplete="username"') +
       pfField('pfKey', 'text', 'Recovery key', ' autocapitalize="characters"') +
-      pfField('pfPass', 'password', 'New password — 8 characters or more', ' autocomplete="new-password"') +
+      pfField('pfPass', 'password', 'New password: 8 characters or more', ' autocomplete="new-password"') +
       '<div class="row"><button id="pfGo" class="btn focusable">Reset password</button>' +
       '<button id="pfBackIn" class="textbtn focusable">Back to sign in</button></div>' +
       '<p class="sub" style="margin:6px 0 0">This signs out every other device and gives you a fresh recovery key.</p>';
@@ -20018,7 +20010,7 @@
       cloudPublic('POST', '/v1/profile/recover', { handle: handle, key: key, password: pw, device: deviceInfo() }).then(function(r){
         pfRecovery = r.recovery;
         cloudAdopt(r, false);
-        setStatus('Password reset — you’re signed in.', 'ok');
+        setStatus('Password reset. You’re signed in.', 'ok');
         profileRender();
       }).catch(function(e){ pfBusy('pfGo', null); setStatus(pfErr(e), 'err'); });
     };
@@ -20028,7 +20020,7 @@
     p.innerHTML = '<div class="lbl">Sign in with a code</div>' +
       '<div class="ptv"><div id="pqr"></div><div class="ptv-col">' +
       '<div class="pcode off" id="pfCode">······</div>' +
-      '<p class="tagline" id="pfCodeHint">On a phone or computer where you’re signed in, open <b>Settings › Profile › Link a TV</b> and type this code — or scan it with your phone.</p>' +
+      '<p class="tagline" id="pfCodeHint">On a phone or computer where you’re signed in, open <b>Settings › Profile › Link a TV</b> and type this code, or scan it with your phone.</p>' +
       '<div class="row"><button id="pfCodeNew" class="textbtn focusable">Get a new code</button></div>' +
       '</div></div>';
     $id('pfCodeNew').onclick = pfTvStart;
@@ -20040,7 +20032,7 @@
     var codeEl = $id('pfCode'), qrEl = $id('pqr'); if (!codeEl) return;
     codeEl.textContent = '······'; codeEl.className = 'pcode off';
     if (qrEl){ qrEl.innerHTML = ''; qrEl.style.display = ''; }
-    var hint = $id('pfCodeHint'); if (hint) hint.textContent = 'On a phone or computer where you’re signed in, open Settings › Profile › Link a TV and type this code — or scan it with your phone.';
+    var hint = $id('pfCodeHint'); if (hint) hint.textContent = 'On a phone or computer where you’re signed in, open Settings › Profile › Link a TV and type this code, or scan it with your phone.';
     cloudPublic('POST', '/v1/tv', { device: deviceInfo() }).then(function(r){
       if (!$id('pfCode')) return;                      // left the view meanwhile
       pfTv = { code: r.code, poll: r.poll, until: Date.now() + (r.ttl || 600) * 1000 };
@@ -20051,7 +20043,7 @@
       } catch(e){ if ($id('pqr')) $id('pqr').style.display = 'none'; }
       pfTvTimer = setInterval(pfTvPoll, 3000);
     }).catch(function(e){
-      if ($id('pfCode')) $id('pfCode').textContent = '— — —';
+      if ($id('pfCode')) $id('pfCode').textContent = '· · ·';
       setStatus(pfErr(e, 'Could not get a code.'), 'err');
     });
   }
@@ -20063,7 +20055,7 @@
       if (!pfTv || r.pending) return;
       pfTvStop();
       cloudAdopt(r, false);
-      setStatus('Signed in as @' + r.profile.handle + ' — pulling your things…', 'ok');
+      setStatus('Signed in as @' + r.profile.handle + '. Pulling your things…', 'ok');
       profileRender();
     }).catch(function(e){
       if (e.status === 404){ pfTvStop(); pfCodeExpired(); }
@@ -20072,7 +20064,7 @@
   function pfCodeExpired(){
     var c = $id('pfCode'); if (!c) return;
     c.textContent = 'Expired'; c.className = 'pcode off';
-    var hint = $id('pfCodeHint'); if (hint) hint.textContent = 'That code has expired — get a new one.';
+    var hint = $id('pfCodeHint'); if (hint) hint.textContent = 'That code has expired. Get a new one.';
   }
   function pfRenderRecovery(body){
     body.innerHTML = '<div class="phead"><span class="pav big" style="' + (profile ? avStyle(profile.avatar) : '') + '">' +
@@ -20080,7 +20072,7 @@
       '</div><div class="phandle">' + (profile ? '@' + esc(profile.handle) : '') + '</div></div></div>' +
       '<div class="panel"><div class="lbl">Your recovery key</div>' +
       '<p class="tagline">Write it down or keep it somewhere safe. It is shown once, and it is the only way to reset your ' +
-      'password — there is no email to send one to.</p>' +
+      'password. There is no email to send one to.</p>' +
       '<div class="pkey">' + esc(pfRecovery) + '</div>' +
       '<div class="row"><button id="pfKeyDone" class="btn focusable">I’ve saved it</button></div></div>';
     $id('pfKeyDone').onclick = function(){ pfRecovery = null; profileRender(); };
@@ -20105,7 +20097,7 @@
       '<div class="row"><button id="pfPwBtn" class="btn ghost focusable">Change password</button></div></div>' +
       '<p class="sub" style="margin:6px 0 0">Changing it signs out every other device.</p></div>';
     h += '<div class="panel"><div class="lbl">This device</div>' +
-      '<p class="tagline" style="margin-top:6px">Signing out leaves everything on this device in place — it just stops following your profile.</p>' +
+      '<p class="tagline" style="margin-top:6px">Signing out leaves everything on this device in place. It just stops following your profile.</p>' +
       '<div class="row"><button id="pfOut" class="btn ghost focusable">Sign out</button>' +
       '<button id="pfDel" class="textbtn focusable pdanger">Delete profile…</button></div><div id="pfDelBox"></div></div>';
     body.innerHTML = h;
@@ -20150,13 +20142,13 @@
         pfDevicesRender();
       }).catch(function(e){
         pfBusy('pfLinkGo', null);
-        setStatus(e.status === 404 ? 'That code was not found — it may have expired. Get a new one on the TV.' : pfErr(e), 'err');
+        setStatus(e.status === 404 ? 'That code was not found. It may have expired. Get a new one on the TV.' : pfErr(e), 'err');
       });
     };
     pfDevicesRender();
     $id('pfPwBtn').onclick = function(){
       $id('pfPwBox').innerHTML = pfField('pfPwCur', 'password', 'Current password', ' autocomplete="current-password"') +
-        pfField('pfPwNew', 'password', 'New password — 8 characters or more', ' autocomplete="new-password"') +
+        pfField('pfPwNew', 'password', 'New password: 8 characters or more', ' autocomplete="new-password"') +
         '<div class="row"><button id="pfPwGo" class="btn focusable">Save password</button>' +
         '<button id="pfPwCancel" class="textbtn focusable">Cancel</button></div>';
       $id('pfPwCancel').onclick = profileRender;
@@ -20167,7 +20159,7 @@
         pfBusy('pfPwGo', 'Saving…');
         cloudApi('POST', '/v1/profile/password', { current: cur, next: nx, device: deviceInfo() }).then(function(r){
           if (r.token){ cloudLink = { gid: cloudLink.gid, token: r.token }; saveCloudLink(); }
-          setStatus('Password changed — every other device is signed out.', 'ok');
+          setStatus('Password changed. Every other device is signed out.', 'ok');
           profileRender();
         }).catch(function(e){ pfBusy('pfPwGo', null); setStatus(pfErr(e), 'err'); });
       };
@@ -20532,7 +20524,7 @@
       var swatchFor = function(a, need, what){
         var ok = rank >= need, b = document.createElement('button');
         b.className = 'swatch focusable' + (ok && pr.accent === a[1] ? ' on' : '') + (ok ? '' : ' lock');
-        b.style.background = a[1]; b.title = a[0] + (ok ? '' : ' — ' + what);
+        b.style.background = a[1]; b.title = a[0] + (ok ? '' : ': ' + what);
         b.setAttribute('aria-label', b.title);
         b.onclick = ok
           ? function(){ setPref('accent', a[1]); }
@@ -20654,7 +20646,7 @@
     var asub = $id('setAddonsSub'), allAdd = getAddons(), an = allAdd.length, offN = allAdd.filter(function(a){ return a.off; }).length;
     if (asub) asub.textContent = an
       ? an + ' add-on' + (an === 1 ? '' : 's') + (offN ? ' · ' + (an - offN) + ' on · ' + offN + ' off' : '') + ' · Add, remove and rank them'
-      : 'None yet — add one and its catalogs fill Home';
+      : 'None yet. Add one and its catalogs fill Home';
     profileCardRender();
     if (keepGrp){
       var grp = $id(keepGrp), again = null;
@@ -20737,8 +20729,8 @@
     list.innerHTML = '';
     if (!items.length){
       list.innerHTML = '<div class="empty">' + (getAddons().length
-        ? 'Nothing to arrange yet — your add-ons have no catalogs.'
-        : 'Add an add-on first — its catalogs become rows here.') + '</div>';
+        ? 'Nothing to arrange yet. Your add-ons have no catalogs.'
+        : 'Add an add-on first. Its catalogs become rows here.') + '</div>';
       return;
     }
     items.forEach(function(it, idx){
@@ -20835,8 +20827,8 @@
       function(v){ if (v === 'mpv' && !engOk) return; setPref('engine', v); });
     $id('setEngineSub').textContent = engOk
       ? 'Full-format plays every file, every sound and subtitle track, the way a desktop player does · Built-in uses the app’s streaming engine · From the next play'
-      : (winBox ? 'Full-format could not start on this computer — reinstalling Nebula puts back what it needs'
-        : linuxBox ? 'Full-format needs a video library this computer does not have — install the libmpv2 package (libmpv1 on Ubuntu 22.04 and systems like it), then restart Nebula'
+      : (winBox ? 'Full-format could not start on this computer. Reinstalling Nebula puts back what it needs'
+        : linuxBox ? 'Full-format needs a video library this computer does not have. Install the libmpv2 package (libmpv1 on Ubuntu 22.04 and systems like it), then restart Nebula'
         : 'Full-format is not available on this computer') + ' · Until then the built-in engine plays';
   }
   $id('filePick').onchange = function(){

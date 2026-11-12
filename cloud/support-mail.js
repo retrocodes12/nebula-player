@@ -47,7 +47,7 @@ module.exports = function attach(deps) {
     const mono = (t) => { T.push(t, ''); H.push('<p style="margin:0 0 14px;padding:12px 14px;background:#f3f3f5;border-radius:10px;font:15px/1.4 ui-monospace,Menlo,Consolas,monospace;word-break:break-all">' + esc(t) + '</p>'); };
     const button = (label, url) => { T.push(label + ': ' + url, ''); H.push('<p style="margin:0 0 14px"><a href="' + esc(url) + '" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#e50914;color:#fff;text-decoration:none;font-weight:600">' + esc(label) + '</a></p>'); };
 
-    p("You're a " + name + ' — thank you for supporting Nebula.', '<h1 style="margin:0 0 18px;font-size:22px;line-height:1.3">' + esc("You're a " + name + ' — thank you for supporting Nebula.') + '</h1>');
+    p("You're a " + name + '. Thank you for supporting Nebula.', '<h1 style="margin:0 0 18px;font-size:22px;line-height:1.3">' + esc("You're a " + name + '. Thank you for supporting Nebula.') + '</h1>');
     if (hasKey) {
       head('Your key');
       p('No sponsor prompt, on every device you add it to.');
@@ -59,7 +59,7 @@ module.exports = function attach(deps) {
       p('Then remove the free add-on, so you do not see two of everything.');
     } else if (rec.order && (rec.sportsError || rec.sportsTriedAt)) {
       head('Your key');
-      p(page ? 'Your key is still being made. Your thank-you page shows it the moment it is ready:' : 'Your key is still being made — reply to this e-mail and it will be sent to you.');
+      p(page ? 'Your key is still being made. Your thank-you page shows it the moment it is ready:' : 'Your key is still being made. Reply to this e-mail and it will be sent to you.');
       if (page) button('Open your thank-you page', page);
     }
     if (rec.state === 'granted' || rec.code) {
@@ -71,10 +71,10 @@ module.exports = function attach(deps) {
         // a Founder's place on the Founders list needs a name, and the name lives on a profile (2026-10-25: four of the
         // five Founders so far bought from the add-on, never redeemed, and so were on no list)
         if (rec.tier === 'founder') {
-          p('Put your name on the Founders list from your thank-you page — no profile needed. The gold ring and the player perks live on a Nebula profile: add this code to one from the same page, or type it into Settings › Support in Nebula Player.');
+          p('Put your name on the Founders list from your thank-you page, no profile needed. The gold ring and the player perks live on a Nebula profile: add this code to one from the same page, or type it into Settings › Support in Nebula Player.');
           if (page) button('Add it to a profile', page);
         } else {
-          p('Want your name on the wall? Add it from your thank-you page. Use Nebula Player too? Type this code into Settings › Support on any device you are signed in to — or add it to a profile from your thank-you page. It puts the ' + name + ' thank-you on your profile.');
+          p('Want your name on the wall? Add it from your thank-you page. Use Nebula Player too? Type this code into Settings › Support on any device you are signed in to, or add it to a profile from your thank-you page. It puts the ' + name + ' thank-you on your profile.');
         }
       }
     }

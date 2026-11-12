@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Privacy — Nebula</title>
+<title>Privacy · Nebula</title>
 <meta name="description" content="What Nebula stores, what its servers see, and what never happens with your data.">
 <style>
   :root {
@@ -46,7 +46,7 @@
   <div class="date">Effective 11 November 2026</div>
 
   <div class="card">
-    <p><b>The short version:</b> Nebula has no sign-up, no email, no ads, no analytics services and no trackers — the only
+    <p><b>The short version:</b> Nebula has no sign-up, no email, no ads, no analytics services and no trackers. The only
     count it keeps is a once-a-day usage counter with no identifier in it (below).
     Your library, watch progress and settings live on your device. A Nebula Profile is optional: it is a
     handle you choose and a password, nothing else, and it exists only so your own devices can share what
@@ -55,7 +55,7 @@
   </div>
 
   <h2>What stays on your device</h2>
-  <p>Your add-on list, watch progress, My List, subtitle style and player settings are stored locally —
+  <p>Your add-on list, watch progress, My List, subtitle style and player settings are stored locally:
   in your browser's storage on the web, and in app storage on Android, Windows, Linux and LG TVs. You can clear
   them at any time by removing items in the app, clearing site data, or uninstalling. Signing out of a
   profile never deletes what is on the device.</p>
@@ -63,29 +63,29 @@
   <h2>What our server sees</h2>
   <ul>
     <li><b>Ordinary web logs.</b> Like every web server, ours (play.rifflehq.in) keeps standard access
-    logs — IP address, browser type, requested URL and time — used only to keep the service running and
+    logs (IP address, browser type, requested URL and time), used only to keep the service running and
     to stop abuse, and to count, as totals only, how many devices use Nebula each day (addresses are kept for that
     only as salted hashes). They are rotated automatically and kept for about two weeks.</li>
     <li><b>Usage counter.</b> Once a day each app tells our server which kind of app it is (Android, LG TV,
     computer or web), on Android whether it is a phone or a TV, and how many days ago Nebula was first opened on
-    that device — just that number, or “unknown”. No identifier, no titles, nothing about what you watch: thousands
+    that device: just that number, or “unknown”. No identifier, no titles, nothing about what you watch: thousands
     of devices send the same values. We add them up to see how many new people come back after a day, a week and
     a month. If you opened a watch party from an invite link in a browser, it also counts that the link was
-    opened, joined, and — once — whether you were shown and tapped the offer of the apps, again with nothing that
+    opened, joined, and, once, whether you were shown and tapped the offer of the apps, again with nothing that
     says who. These requests are ordinary web log lines like the ones above.</li>
     <li><b>Update checks.</b> The app fetches a small version file on launch to offer updates. That is a
     normal web request with no identifiers in it. Android and the Mac and iPhone apps check our releases feed
     instead (the Apple apps fall back to GitHub if it does not answer), and the desktop app asks GitHub for the
     newest release and downloads it from there when you ask it to.</li>
-    <li><b>A profile — only if you create one.</b> A profile is a handle (3–20 letters, numbers or
+    <li><b>A profile: only if you create one.</b> A profile is a handle (3–20 letters, numbers or
     underscores), a display name, a colour, and a password. We never ask for an email address, a phone
     number or a real name. The password is stored only as a salted scrypt hash, and so is the one-time
-    recovery key you are shown when you create the profile — we cannot read either, and we cannot reset a
+    recovery key you are shown when you create the profile. We cannot read either, and we cannot reset a
     password without the key. Each device you sign in on gets its own token, named after the device
     ("LG TV", "Chrome on Windows", "Linux PC") so you can recognise and remove it from the Devices list; changing your
     password signs every other device out. Signing a TV in uses a six-character code that expires after
     ten minutes and only works once a device that is already signed in approves it.</li>
-    <li><b>Sync — what a profile carries.</b> With a profile, your add-on list, watch progress, My List,
+    <li><b>Sync: what a profile carries.</b> With a profile, your add-on list, watch progress, My List,
     ratings, subtitle style, a Seekr key if you added one, a tracking connection if you made one (that service's sign-in token, or your MDBList key) and the names of who's-watching profiles are stored on our server so your other devices can pull them. A
     profile's PIN is stored there only as a scrambled check value, never the digits; four digits cannot be truly hidden, so treat it
     as a lock for the household, not a password. <i>Forgot PIN?</i> sends your account password to our server, which only answers
@@ -93,15 +93,15 @@
     to the profile, not to you. Devices that were linked with a code in an earlier version keep working the
     same way until they add a profile. Data that goes unused is deleted automatically after about 13
     months, and deleting the profile removes all of it at once.</li>
-    <li><b>Friends — only if you turn it on.</b> Friends shares your display name, your recent titles,
+    <li><b>Friends: only if you turn it on.</b> Friends shares your display name, your recent titles,
     your ratings and your list with your friends, and no one else. A friendship needs both sides: adding
     someone by handle only asks them, they see your display name and handle in their list of asks, and
-    nothing you watch is shared with them — or theirs with you — until they add you back. Removing a friend
+    nothing you watch is shared with them (or theirs with you) until they add you back. Removing a friend
     ends it for both of you, and turning Friends off deletes what was shared from the server immediately.</li>
-    <li><b>Supporting Nebula — only if you choose to.</b> Payments happen at a payment service
+    <li><b>Supporting Nebula: only if you choose to.</b> Payments happen at a payment service
     (Pocketsflow), not with us; we never see card or bank details. When a payment completes, the service
-     tells our server the order number and which tier was bought, and — if you opened the support page from
-     the app — which profile it was for; our server keeps the order number, the tier, since when, and the
+     tells our server the order number and which tier was bought, and, if you opened the support page from
+     the app, which profile it was for; our server keeps the order number, the tier, since when, and the
      mark you picked. Monthly Supporter also stores the payment service's subscription identifier, its status
      and the link where you manage or cancel it (shown only to you, on the thank-you page and your own profile), so
      cancellation can remove the monthly thank-you; it creates no install key. One-time tiers are permanent. Every one-time order also creates a Nebula Sports install key: the sports server keeps that
@@ -110,17 +110,17 @@
     signed in, a one-time code for the app is shown on the thank-you page as well and kept until it is used.
     For a one-time order our server also keeps the e-mail address the payment service reports with it, and sends one e-mail
     to it: your receipt, with the key and the code, through an e-mail delivery service (Resend). The address
-    is used for nothing else — no newsletters, no marketing — and is deleted with the order record after 400 days. If you vote on what gets built next (Supporter Plus, Founders and the monthly plan), our server keeps which option your profile chose in each round, only to count the votes; other supporters see the totals, never who voted for what. The monthly recap in Settings › Support is worked out on your device from what it played — how long, which titles, which days — and that record stays on the device: it is never synced to your profile or sent to us. Your name appears on the wall (in the app and on this site)
-    only if you switch it on — except on the Founders list, where a Founder is named by default, because a place on it
+    is used for nothing else (no newsletters, no marketing) and is deleted with the order record after 400 days. If you vote on what gets built next (Supporter Plus, Founders and the monthly plan), our server keeps which option your profile chose in each round, only to count the votes; other supporters see the totals, never who voted for what. The monthly recap in Settings › Support is worked out on your device from what it played (how long, which titles, which days), and that record stays on the device: it is never synced to your profile or sent to us. Your name appears on the wall (in the app and on this site)
+    only if you switch it on, except on the Founders list, where a Founder is named by default, because a place on it
     is what that tier is for. Either way it is your profile's display name and nothing else, and you can switch it off
     at any time in Settings › Support. Nothing else changes: every feature stays free.</li>
-    <li><b>Watch party — only if you start or join one.</b> The relay passes the stream link (unless the host
+    <li><b>Watch party: only if you start or join one.</b> The relay passes the stream link (unless the host
     turns Share my stream off), playback positions, each member's party name and what they are doing (watching,
     buffering, behind), reactions and chat messages between party members while the party is open. It keeps the
     last 100 chat messages of a party in memory so someone joining late can read them, and a random id for your
     device so a member the host removed stays out of that party. Rooms disappear when everyone leaves, or after
     12 hours at most; nothing about a party is written to disk.</li>
-    <li><b>Share with your TV (the Windows and Linux apps) — only if you switch it on.</b> So that your TV
+    <li><b>Share with your TV (the Windows and Linux apps): only if you switch it on.</b> So that your TV
     can find this computer, the app stores in your profile the computer's name (as the computer calls itself),
     its addresses on your home network, the port it listens on and a random key the TV must present. Your
     TV reads them from your profile; switching sharing off replaces them with a note that it is off.</li>
@@ -130,8 +130,8 @@
     converted. This stays inside your home network: nothing about it reaches our server, and the computer writes nothing
     of it to disk. The computer only fetches films from the internet, never from other devices on your network.</li>
     <li><b>Your computer's downloads on your TV (the Windows and Linux apps, while sharing is on).</b> A TV on your
-    home network that is signed in to the same profile can list what Nebula has downloaded on that computer — the
-    titles, sizes and posters — and play it, with the subtitles kept beside it. Only finished downloads of the profile
+    home network that is signed in to the same profile can list what Nebula has downloaded on that computer (the
+    titles, sizes and posters) and play it, with the subtitles kept beside it. Only finished downloads of the profile
     being watched are listed, and nothing else on the computer can be reached this way. It stays inside your home
     network: the list and the films go from the computer to the TV and nowhere else, nothing about it reaches our
     server, and switching sharing off stops it.</li>
@@ -149,10 +149,10 @@
     <li><b>Subtitles inside a video file.</b> A TV's or a browser's player cannot list the subtitle tracks
     inside a file, so the app reads them itself: small pieces of the file (its index, then a few kilobytes per
     line). When the file's host will not let the app read them directly, our server fetches those pieces for
-    it — the file's address passes through, only byte ranges are read (never the whole file), and nothing is
+    it: the file's address passes through, only byte ranges are read (never the whole file), and nothing is
     kept beyond the ordinary logs above.</li>
     <li><b>Why a stream would not start.</b> When a video file will not start, the app asks the file's host for its
-    first few bytes, and — when the host will not answer the app itself — asks our server to try the same, so it can tell
+    first few bytes, and, when the host will not answer the app itself, asks our server to try the same, so it can tell
     you whether the host refused the file or the format cannot play on your device. The file's address passes through our
     server as above; nothing else about you is sent, and nothing is kept beyond the ordinary logs above.</li>
     <li><b>Sync automatically (experimental).</b> Matching subtitles to the voices happens on your device:
@@ -176,7 +176,7 @@
     your country's); nothing else about you. Our server answers from a cache (kept two weeks) or looks it up in a
     public mirror of a film database's certificates and parents-guide votes, which then sees only that title id
     and our server's address. Settings › Playback › Content advisory turns off what shows as a title starts.</li>
-    <li><b>Tracking — only if you connect an account.</b> Connect Trakt, Simkl or MDBList in Settings › Playback
+    <li><b>Tracking: only if you connect an account.</b> Connect Trakt, Simkl or MDBList in Settings › Playback
     and the app tells that service what you watch on that profile: the film's or episode's public catalogue id and
     how far through it is, when it starts, pauses and stops. Trakt and Simkl hear it straight from your device. Two
     things pass through our server: Trakt's sign-in (the one-time code is turned into a token there, and the token
@@ -189,30 +189,30 @@
   <h2>Third parties</h2>
   <ul>
     <li><b>Your add-ons are independent services.</b> When you browse, search or play, Nebula sends those
-    requests to the add-ons you installed — they see the titles you look up and the streams you request,
+    requests to the add-ons you installed. They see the titles you look up and the streams you request,
     under their own privacy practices. The starter add-ons are independent community-run services
     for catalogs and subtitles, and you can remove them.</li>
     <li><b>Artwork and metadata</b> load directly from your catalog add-ons and their image hosts.</li>
-    <li><b>Seekr — only if you add your own key.</b> With a key from seekr.tv in Settings › Playback, the
+    <li><b>Seekr: only if you add your own key.</b> With a key from seekr.tv in Settings › Playback, the
     app asks Seekr directly for the scrub pictures of the film or episode you are watching: it sends your key,
     the title's id (an IMDb or TMDB number, plus season and episode) and the video's length, and loads the
     pictures from Seekr's servers. Nothing of it passes through ours. Seekr handles that under its own
     privacy policy. Disconnect in the same place to stop.</li>
-    <li><b>Trakt, Simkl, MDBList — only if you connect them.</b> Each receives what you watch on the profile you
+    <li><b>Trakt, Simkl, MDBList: only if you connect them.</b> Each receives what you watch on the profile you
     connected (see Tracking above), under its own privacy policy, until you disconnect.</li>
-    <li><b>Trailers — only when you press Trailer.</b> A title's trailer plays from YouTube, in its
+    <li><b>Trailers: only when you press Trailer.</b> A title's trailer plays from YouTube, in its
     privacy-enhanced player (youtube-nocookie.com), inside a frame on a small page of ours. YouTube then sees your
     address and which trailer you played, under Google's privacy policy. Nothing loads from it before you press
     the button.</li>
-    <li><b>Posters from your own address — only if you set one.</b> With an address in Settings › Appearance,
+    <li><b>Posters from your own address: only if you set one.</b> With an address in Settings › Appearance,
     cards ask that service for a poster by each title's IMDb id, so it sees which titles are on your screen and
     your address, under its own privacy policy. Turn it off in the same place.</li>
-    <li><b>Speed tests (Android) — only when you start one.</b> Settings › Playback › Connection speed
+    <li><b>Speed tests (Android): only when you start one.</b> Settings › Playback › Connection speed
     downloads test data from Cloudflare's speed test (speed.cloudflare.com) for about 8 seconds, so
     Cloudflare sees your address under its own privacy policy. Testing a stream's speed fetches the first
     seconds of that stream from its own host, the way playing it would. The results stay on your device.</li>
     <li><b>Speed tests (TVs, Autoplay the best stream).</b> With Autoplay the best stream on and Prioritise set to
-    Balanced or Smooth, the TV app tests the connection the same way — about 6 seconds of test data from speed.cloudflare.com —
+    Balanced or Smooth, the TV app tests the connection the same way (about 6 seconds of test data from speed.cloudflare.com)
     at most twice a day, when it is about to pick a stream, and whenever you press Test now in Settings › Streams.
     Cloudflare sees your address under its own privacy policy. The result stays on your TV.</li>
     <li><b>Downloads and updates</b> are served from GitHub, which keeps its own logs under its own
@@ -230,7 +230,7 @@
     <li><b>Other people see your address.</b> While a P2P stream plays, your device connects directly to
     the other devices sharing that same file, and to public trackers and the wider peer network that
     introduce you to them. All of them see your IP address and the identifier of the file you asked for.
-    That is how this kind of sharing works everywhere, not something Nebula adds — but it is the reason
+    That is how this kind of sharing works everywhere, not something Nebula adds, but it is the reason
     the switch starts off. Anyone watching such a network, including rights holders, can see it too.</li>
     <li><b>You share back while you watch.</b> The parts you have already received are offered to other
     people in the same exchange for as long as the player is open, at a limited rate. It stops when you
@@ -244,7 +244,7 @@
 
   <h2>What never happens</h2>
   <ul>
-    <li>No email, no phone number, no real name — a profile is a handle and a password, and even that
+    <li>No email, no phone number, no real name. A profile is a handle and a password, and even that
     is optional. We do not try to learn who you are, and nothing we keep is tied to a real name unless you
     typed one in yourself (a display name, or what your computer calls itself when you share it with your TV).</li>
     <li>No analytics, tracking pixels or fingerprinting, in the apps or on this site.</li>

@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.12.1",
+  "version": "2026.11.13.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "New on TVs and in the browser: a disc copy’s own subtitles. Many Blu-ray copies carry their subtitles as pictures, which Nebula could not show there. They are now listed in the Subtitles panel as Built in and drawn where the disc puts them. Off, your preferred language and the timing nudge work on them; size and colour do not, because they are pictures."
+  "notes": "Small fixes: the featured titles on Home no longer change while the window is out of sight, and a little unused code is gone."
 }

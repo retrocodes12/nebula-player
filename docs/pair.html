@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Send add-on to TV — Nebula</title>
+<title>Send add-on to TV · Nebula</title>
 <style>
   * { box-sizing: border-box; }
   html, body { margin:0; min-height:100%; background:#0b0b0b; color:#eee;
@@ -73,7 +73,7 @@
       var body = xorEnc(url, key);
       var r = await fetch('https://ntfy.sh/' + topic, { method:'POST', body: body });
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      setMsg('✓ Sent! Check your TV — it should appear now.','ok');
+      setMsg('✓ Sent! Check your TV. It should appear now.','ok');
     } catch(e){
       setMsg('Could not send: ' + e.message + '. Check your connection and try again.','err');
     } finally { btn.disabled = false; }
