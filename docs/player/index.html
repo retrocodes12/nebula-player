@@ -1006,6 +1006,12 @@
   video::-webkit-media-text-track-container { transition:transform .28s var(--ease); }
   body.pui-on video::-webkit-media-text-track-container { transform:translateY(-228px); }
   html.tv body.pui-on video::-webkit-media-text-track-container { transform:translateY(-288px); }
+  /* picture subtitles (pgsDraw): the disc's plane laid over the picture, each picture a canvas placed in it; one in the
+     lower half steps up with the controls exactly as a text line does */
+  #pgsLayer { position:fixed; z-index:1; display:none; pointer-events:none; }
+  #pgsLayer canvas { position:absolute; display:block; transition:transform .28s var(--ease); }
+  body.pui-on #pgsLayer canvas.low { transform:translateY(-228px); }
+  html.tv body.pui-on #pgsLayer canvas.low { transform:translateY(-288px); }
 
   /* ---- player chrome — Apple TV layout ----
      Frosted-glass circles for transport and window controls, a thick rounded
@@ -1918,6 +1924,7 @@
     /* no room between the transport and the rail here: the toast takes the free band under the top row */
     body.pui-on #status { top:80px; bottom:auto; }
     body.pui-on video::-webkit-media-text-track-container { transform:translateY(-150px) !important; }
+    body.pui-on #pgsLayer canvas.low { transform:translateY(-150px); }
   }
   /* a phone holds every control only as icons: with their names the bar ran off the edge (upright at Quality, on its
      side under the time pill) and the rest waited behind a scroll nothing showed. Each keeps its name in its title;
@@ -2698,6 +2705,8 @@
   <video id="video" autoplay playsinline></video>
   <!-- the desktop's full-format player draws here, over the (then empty) video element -->
   <canvas id="mpvView"></canvas>
+  <!-- picture subtitles (a Blu-ray's): drawn here, over the picture and under the controls -->
+  <div id="pgsLayer" aria-hidden="true"></div>
   <!-- scrub preview: a silent second copy of a plain progressive stream that only ever seeks, for the frame in the tip -->
   <video id="puiShadow" muted playsinline preload="metadata" tabindex="-1"></video>
 
@@ -13092,6 +13101,7 @@
   var subState = { seq:0, loading:false, asked:0, list:[], loaded:{}, urls:[], trackSrc:{}, hand:0, pick:0, busy:{}, streamReady:null, inner:[], innerReady:null };
   function resetSubs(){
     subState.urls.forEach(function(u){ try { URL.revokeObjectURL(u); } catch(e){} });
+    pgsReset();
     subState = { seq:0, loading:false, asked:0, list:[], loaded:{}, urls:[], trackSrc:{}, hand:0, pick:0, busy:{}, streamReady:null, inner:[], innerReady:null };
   }
   // the viewer's last subtitle choice and the title it was made on ({id, url} — url = the add-on file picked, '' = Off or a
@@ -13272,13 +13282,16 @@
   // 6 of 6 complete files on this laptop, and an FFmpeg-made one too — indexes every subtitle line with its exact place,
   // so the tracks are read here with small range requests: the header, the index (Cues), then one ~8 KB piece per line,
   // the lines around the playhead first. The host is asked straight; one that will not answer this page goes through the
-  // cloud (/v1/ranges: pieces only, never the file). Picture subtitles (PGS, VobSub) and compressed tracks are not read.
+  // cloud (/v1/ranges: pieces only, never the file). Compressed text tracks and VobSub are not read; a Blu-ray's picture
+  // subtitles (PGS) are — the same index, drawn on their own layer ("picture subtitles" below).
   var MKV_ID = { EBML: 0x1A45DFA3, SEGMENT: 0x18538067, SEEKHEAD: 0x114D9B74, SEEK: 0x4DBB, SEEKID: 0x53AB, SEEKPOS: 0x53AC,
     INFO: 0x1549A966, TSCALE: 0x2AD7B1, TRACKS: 0x1654AE6B, TRACK: 0xAE, TNUM: 0xD7, TTYPE: 0x83, CODEC: 0x86, LANG: 0x22B59C,
     LANGBCP: 0x22B59D, NAME: 0x536E, FFORCED: 0x55AA, ENCODINGS: 0x6D80, CUES: 0x1C53BB6B, CUEPOINT: 0xBB, CUETIME: 0xB3,
     CUEPOS: 0xB7, CUETRACK: 0xF7, CUECLUSTER: 0xF1, CUEREL: 0xF0, CUEDUR: 0xB2, CLUSTER: 0x1F43B675, BLOCKGROUP: 0xA0,
     BLOCK: 0xA1, SIMPLEBLOCK: 0xA3, BLOCKDUR: 0x9B, CHAPTERS: 0x1043A770, EDITION: 0x45B9, EDHIDDEN: 0x45BD, EDDEFAULT: 0x45DB,
-    ATOM: 0xB6, CHSTART: 0x91, CHHIDDEN: 0x98, CHENABLED: 0x4598, CHDISPLAY: 0x80, CHSTRING: 0x85 };
+    ATOM: 0xB6, CHSTART: 0x91, CHHIDDEN: 0x98, CHENABLED: 0x4598, CHDISPLAY: 0x80, CHSTRING: 0x85,
+    ENCODING: 0x6240, ENCTYPE: 0x5033, ENCSCOPE: 0x5032, COMPRESSION: 0x5034, COMPALGO: 0x4254, COMPSET: 0x4255 };
+  var MKV_PICS = 'S_HDMV/PGS';                           // picture subtitles (a Blu-ray's): drawn here, on their own layer (pgs*)
   var MKV_TEXT = { 'S_TEXT/UTF8': 'srt', 'S_TEXT/ASCII': 'srt', 'S_TEXT/ASS': 'ass', 'S_TEXT/SSA': 'ass', 'S_TEXT/WEBVTT': 'vtt', 'D_WEBVTT/SUBTITLES': 'vtt' };
   function mkvVint(b, p, keep){
     var first = b[p]; if (first === undefined) return null;
@@ -13321,11 +13334,31 @@
         else if (k.id === MKV_ID.LANGBCP) t.bcp = mkvStr(b, k.data, k.end);
         else if (k.id === MKV_ID.NAME) t.name = mkvStr(b, k.data, k.end);
         else if (k.id === MKV_ID.FFORCED) t.forced = !!mkvUint(b, k.data, k.end);
-        else if (k.id === MKV_ID.ENCODINGS) t.compressed = true;
+        else if (k.id === MKV_ID.ENCODINGS){ t.compressed = true; t.comp = mkvComp(b, k.data, k.end); }
       });
-      t.kind = MKV_TEXT[t.codec] || '';
+      t.kind = MKV_TEXT[t.codec] || (t.codec === MKV_PICS ? 'pgs' : '');
       return t;
     });
+  }
+  /** How a track's blocks are packed, when it is one plain compression of the blocks themselves: {algo: 0 (zlib) | 3 (the
+      first bytes of every block left out), add: those bytes}. Anything else (encrypted, two steps, another method) → null. */
+  function mkvComp(b, s, e){
+    var encs = mkvKids(b, s, e).filter(function(k){ return k.id === MKV_ID.ENCODING; });
+    if (encs.length !== 1) return null;
+    var type = 0, scope = 1, algo = -1, add = null;
+    mkvKids(b, encs[0].data, encs[0].end).forEach(function(k){
+      if (k.id === MKV_ID.ENCTYPE) type = mkvUint(b, k.data, k.end);
+      else if (k.id === MKV_ID.ENCSCOPE) scope = mkvUint(b, k.data, k.end);
+      else if (k.id === MKV_ID.COMPRESSION){
+        algo = 0;
+        mkvKids(b, k.data, k.end).forEach(function(x){
+          if (x.id === MKV_ID.COMPALGO) algo = mkvUint(b, x.data, x.end);
+          else if (x.id === MKV_ID.COMPSET) add = b.slice(x.data, x.end);
+        });
+      }
+    });
+    if (type !== 0 || !(scope & 1) || (algo !== 0 && algo !== 3)) return null;
+    return { algo: algo, add: add };
   }
   /** The file's readable subtitle tracks, each with where its lines are: {scale, tracks:[{num, kind, lang, name, forced, points:[{t, cluster, rel, dur}]}]}. */
   /** The file's chapters [{t (seconds), name}] from its Chapters element: the default edition (else the first shown one),
@@ -13399,7 +13432,8 @@
       try { var ch = await elAt(chapAt, 1048576); if (ch && ch.el.id === MKV_ID.CHAPTERS) chapters = mkvChapters(ch.buf, ch.el.data, ch.el.end); } catch(e0){}
     }
     chapters = chapters || [];
-    var subs = (tracks || []).filter(function(t){ return t.type === 0x11 && t.kind && !t.compressed; });
+    // text as it is written; pictures also when packed the usual way (mkvmerge deflates them unless told not to)
+    var subs = (tracks || []).filter(function(t){ return t.type === 0x11 && t.kind && (!t.compressed || (t.kind === 'pgs' && t.comp)); });
     if (!subs.length || cuesAt < 0) return { scale: scale, tracks: [], chapters: chapters };
     var c = await elAt(cuesAt, 8388608);
     if (!c || c.el.id !== MKV_ID.CUES) return { scale: scale, tracks: [], chapters: chapters };
@@ -13585,7 +13619,10 @@
       chapSet(seq, idx.chapters);                       // the file's chapters: marks on the bar, the list, skips from their names
       if (!idx.tracks.length) return;
       var seen = {};
-      var cands = idx.tracks.map(function(t){
+      // words before pictures (they take the viewer's size and colour), each kind in the file's own order
+      var order = idx.tracks.filter(function(t){ return t.kind !== 'pgs'; }).concat(idx.tracks.filter(function(t){ return t.kind === 'pgs'; }));
+      var cands = order.map(function(t){
+        if (t.kind === 'pgs') t.points.sort(function(a, b){ return a.t - b.t; });
         var lang = t.bcp || t.lang || 'und', n = langName(lang) || lang;
         var label = n + (t.forced || /forced/i.test(t.name) ? ' · Forced' : (/sdh|hearing|\bcc\b/i.test(t.name) ? ' · SDH' : ''));
         seen[label] = (seen[label] || 0) + 1;
@@ -13683,7 +13720,8 @@
       cs.sort(function(a, b){ return rank(a) - rank(b); });
       for (var i = 0; i < cs.length && i < 3; i++){
         if (seq !== playSeq || !player || Object.keys(subState.busy).length) break;
-        await innerPieces(cs[i], innerFirst(cs[i]).first);
+        if (cs[i].mkv.t.kind === 'pgs') await pgsWarm(cs[i]);
+        else await innerPieces(cs[i], innerFirst(cs[i]).first);
       }
     } catch(e){} finally { innerWarming = false; }
   }
@@ -13708,6 +13746,392 @@
       var again = lines.failed.filter(function(p){ var k = innerKey(p); tries[k] = (tries[k] || 0) + 1; return tries[k] <= 2; });
       if (again.length){ left = left.concat(again); if (!lines.read) await pause(2000); }
     }
+  }
+  // ---- picture subtitles (2026.11.12) ----
+  // A Blu-ray's subtitles are pictures, not words: every change on screen is one "display set" — what to show, a palette,
+  // the pictures run-length packed — and mkvmerge indexes each set like a line of text. So the reader above fetches them,
+  // a window around the playhead at a time (a film's sets are 20–40 MB: never all of them), and they are drawn on a layer
+  // over the picture, placed and scaled as the disc's plane was. The track itself is an empty text track, so the panel,
+  // Off, the autoload and "one track showing" treat it like any other, and the timing nudge moves it. The look is the
+  // disc's (only the HDR dimming applies). Measured on two real remuxes: sets of 40 B (a clear) to 45 KB, one per block.
+  var PGS_FIRST = 32768, PGS_FIRST_CLOUD = 2048, PGS_MAX = 4194304, PGS_AHEAD = 90, PGS_KEEP_BEHIND = 24, PGS_KEEP_AHEAD = 120;
+  var INF_LBASE = [3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59,67,83,99,115,131,163,195,227,258],
+      INF_LEXT = [0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0],
+      INF_DBASE = [1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577],
+      INF_DEXT = [0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13],
+      INF_ORDER = [16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15], infFixed = null;
+  function infTable(lens, off, n){
+    var count = new Uint16Array(16), symbol = new Uint16Array(n), offs = new Uint16Array(16), i;
+    for (i = 0; i < n; i++) count[lens[off + i]]++;
+    count[0] = 0;
+    for (i = 1; i < 16; i++) offs[i] = offs[i - 1] + count[i - 1];
+    for (i = 0; i < n; i++) if (lens[off + i]) symbol[offs[lens[off + i]]++] = i;
+    return { count: count, symbol: symbol };
+  }
+  /** zlib-packed bytes → what they hold; null when they are not that. Small and in one go: the TVs this runs on have no
+      decompressor of their own to ask, and a display set is tens of kilobytes. */
+  function mkvInflate(src){
+    if (!src || src.length < 6 || (src[0] & 15) !== 8 || ((src[0] << 8) | src[1]) % 31 || (src[1] & 32)) return null;
+    var p = 2, hold = 0, have = 0, out = new Uint8Array(Math.max(4096, src.length * 4)), n = 0;
+    function bits(k){
+      while (have < k){ if (p >= src.length) throw new Error('short'); hold |= src[p++] << have; have += 8; }
+      var v = hold & ((1 << k) - 1); hold >>>= k; have -= k; return v;
+    }
+    function sym(t){
+      var code = 0, first = 0, index = 0;
+      for (var len = 1; len < 16; len++){
+        code |= bits(1);
+        var c = t.count[len];
+        if (code - c < first) return t.symbol[index + (code - first)];
+        index += c; first = (first + c) << 1; code <<= 1;
+      }
+      throw new Error('code');
+    }
+    function room(k){
+      if (n + k <= out.length) return;
+      if (n + k > 33554432) throw new Error('big');
+      var o = new Uint8Array(Math.max(out.length * 2, n + k)); o.set(out.subarray(0, n)); out = o;
+    }
+    try {
+      for (var last = 0; !last; ){
+        last = bits(1);
+        var type = bits(2), i;
+        if (type === 0){
+          hold = 0; have = 0;                              // the rest of this byte is padding
+          if (p + 4 > src.length) throw new Error('short');
+          var len = src[p] | (src[p + 1] << 8); p += 4;
+          if (p + len > src.length) throw new Error('short');
+          room(len); out.set(src.subarray(p, p + len), n); n += len; p += len;
+          continue;
+        }
+        if (type === 3) throw new Error('type');
+        var lt, dt;
+        if (type === 1){
+          if (!infFixed){
+            var fl = new Uint8Array(318);
+            for (i = 0; i < 144; i++) fl[i] = 8;
+            for (; i < 256; i++) fl[i] = 9;
+            for (; i < 280; i++) fl[i] = 7;
+            for (; i < 288; i++) fl[i] = 8;
+            for (; i < 318; i++) fl[i] = 5;
+            infFixed = [infTable(fl, 0, 288), infTable(fl, 288, 30)];
+          }
+          lt = infFixed[0]; dt = infFixed[1];
+        } else {
+          var nl = bits(5) + 257, nd = bits(5) + 1, nc = bits(4) + 4, cl = new Uint8Array(19), lens = new Uint8Array(nl + nd);
+          for (i = 0; i < nc; i++) cl[INF_ORDER[i]] = bits(3);
+          var ct = infTable(cl, 0, 19);
+          for (i = 0; i < nl + nd; ){
+            var s = sym(ct), rep = 0, val = 0;
+            if (s < 16){ lens[i++] = s; continue; }
+            if (s === 16){ if (!i) throw new Error('rep'); val = lens[i - 1]; rep = 3 + bits(2); }
+            else if (s === 17) rep = 3 + bits(3);
+            else rep = 11 + bits(7);
+            if (i + rep > nl + nd) throw new Error('rep');
+            while (rep--) lens[i++] = val;
+          }
+          lt = infTable(lens, 0, nl); dt = infTable(lens, nl, nd);
+        }
+        for (;;){
+          var c = sym(lt);
+          if (c < 256){ room(1); out[n++] = c; continue; }
+          if (c === 256) break;
+          c -= 257; if (c >= 29) throw new Error('len');
+          var run = INF_LBASE[c] + bits(INF_LEXT[c]), d = sym(dt);
+          if (d >= 30) throw new Error('dist');
+          var back = INF_DBASE[d] + bits(INF_DEXT[d]);
+          if (back > n) throw new Error('dist');
+          room(run);
+          for (var from = n - back; run--; ) out[n++] = out[from++];
+        }
+      }
+    } catch(e){ return null; }
+    return out.slice(0, n);                                // its own bytes only: sets are kept, the working room is not
+  }
+  /** The piece that holds a picture set's block. Asked of the host itself, most sets fit in the first read (one that clears
+      the screen is 40 bytes, a line of words 5–45 KB) and a longer one is read on to its end (pgsRead). Through the cloud
+      [small] the first read is only enough to see what is there — half the sets are clears — so the server carries the
+      sets' own bytes and little more (32 KB a point would be ~80 MB a film through it). */
+  function pgsPiece(pt, small){ var a = pt.cluster + pt.rel + 5; return [a, a + 8 + (small ? PGS_FIRST_CLOUD : PGS_FIRST)]; }
+  /** The display set in a piece: the set · {need: n} when the block runs n bytes from the piece's start · null when no
+      set is there. As mkvBlockAt: the block sits 0–7 bytes in, by the cluster's own header length. */
+  function pgsBlockAt(buf, t){
+    for (var h = 0; h < 8 && buf; h++){
+      var el = mkvEl(buf, h);
+      if (!el || (el.id !== MKV_ID.BLOCKGROUP && el.id !== MKV_ID.SIMPLEBLOCK) || el.end < 0 || el.end > PGS_MAX) continue;
+      var blk = el.id === MKV_ID.SIMPLEBLOCK ? el : mkvEl(buf, el.data);   // a group's block comes first in it
+      if (el.id === MKV_ID.BLOCKGROUP && el.end <= buf.length){
+        blk = null;
+        mkvKids(buf, el.data, el.end).forEach(function(k){ if (k.id === MKV_ID.BLOCK) blk = k; });
+      }
+      if (!blk || (el.id === MKV_ID.BLOCKGROUP && blk.id !== MKV_ID.BLOCK)) continue;
+      var tn = mkvVint(buf, blk.data, false);
+      if (!tn || tn.v !== t.num) continue;
+      if (el.end > buf.length) return { need: el.end };
+      if (blk.end > el.end || blk.data + tn.len + 3 > blk.end || (buf[blk.data + tn.len + 2] & 0x06)) continue;
+      var data = buf.subarray(blk.data + tn.len + 3, blk.end);          // after the track number, 16-bit time, flags
+      if (!t.comp) data = buf.slice(blk.data + tn.len + 3, blk.end);    // (a copy: a kept set must not hold its 32 KB piece)
+      else if (t.comp.algo === 0) data = mkvInflate(data);
+      else if (t.comp && t.comp.add && t.comp.add.length){
+        var whole = new Uint8Array(t.comp.add.length + data.length);
+        whole.set(t.comp.add); whole.set(data, t.comp.add.length); data = whole;
+      }
+      var set = data && pgsSet(data);
+      if (set) return set;
+    }
+    return null;
+  }
+  /** A display set's segments → {w, h, pcs, state, pal, objs:[{id, x, y, crop}], pals:{id: entries}, ods:{id:{w, h, parts}}};
+      null when the bytes are not segments from end to end (bytes that happened to parse at a wrong header length). */
+  function pgsSet(b){
+    var set = { w: 0, h: 0, pcs: false, state: 0, pal: 0, objs: [], pals: {}, ods: {} }, p = 0;
+    function u16(at){ return (b[at] << 8) | b[at + 1]; }
+    while (p + 3 <= b.length){
+      var type = b[p], s = p + 3, e = s + u16(p + 1), len = e - s;
+      if (e > b.length) return null;
+      if (type === 0x16){                                  // what is on the screen from this moment
+        if (len < 11) return null;
+        set.pcs = true; set.w = u16(s); set.h = u16(s + 2); set.state = b[s + 7] & 0xC0; set.pal = b[s + 9];
+        for (var n = b[s + 10], q = s + 11; n-- > 0 && q + 8 <= e; ){
+          var o = { id: u16(q), x: u16(q + 4), y: u16(q + 6), crop: null }, cut = b[q + 3] & 0x80;
+          q += 8;
+          if (cut){ if (q + 8 > e) break; o.crop = [u16(q), u16(q + 2), u16(q + 4), u16(q + 6)]; q += 8; }
+          set.objs.push(o);
+        }
+      }
+      else if (type === 0x14){ if (len >= 2) set.pals[b[s]] = b.subarray(s + 2, e); }   // a palette: [index, Y, Cr, Cb, alpha]…
+      else if (type === 0x15){                             // a picture, perhaps over several segments
+        if (len < 4) return null;
+        var id = u16(s);
+        if (b[s + 3] & 0x80){ if (len < 11) return null; set.ods[id] = { w: u16(s + 7), h: u16(s + 9), parts: [b.subarray(s + 11, e)] }; }
+        else if (set.ods[id]) set.ods[id].parts.push(b.subarray(s + 4, e));
+      }
+      else if (type !== 0x17 && type !== 0x80) return null;   // (windows and the set's end carry nothing needed here)
+      p = e;
+    }
+    return (p === b.length && p > 0) ? set : null;
+  }
+  /** A picture's run-length data → one palette index per pixel, row by row. */
+  function pgsPixels(ods){
+    var w = ods.w, h = ods.h, px = new Uint8Array(w * h), x = 0, y = 0, parts = ods.parts, pi = 0, b = parts[0], p = 0;
+    function next(){ while (b && p >= b.length){ b = parts[++pi]; p = 0; } return b ? b[p++] : -1; }
+    while (y < h){
+      var c = next(); if (c < 0) break;
+      var run = 1;
+      if (c === 0){
+        var f = next(); if (f < 0) break;
+        if (f === 0){ x = 0; y++; continue; }             // the row ends
+        run = f & 0x3F;
+        if (f & 0x40){ var lo = next(); if (lo < 0) break; run = (run << 8) | lo; }
+        if (f & 0x80){ c = next(); if (c < 0) break; }
+      }
+      if (c && x < w) px.fill(c, y * w + x, y * w + Math.min(w, x + run));
+      x += run;
+    }
+    return px;
+  }
+  /** A palette's entries → 256 colours as a canvas stores them (R, G, B, A in memory order). They are video colours:
+      BT.709 for an HD plane, BT.601 below it, 16–235. [dim] < 1 darkens them (Settings › Subtitles › In HDR video). */
+  function pgsColours(ents, hd, dim){
+    var pal = new Uint32Array(256), kr = hd ? 1.793 : 1.596, kgb = hd ? 0.213 : 0.392, kgr = hd ? 0.533 : 0.813, kb = hd ? 2.112 : 2.017;
+    function c8(v){ v = Math.round(v * dim); return v < 0 ? 0 : v > 255 ? 255 : v; }
+    for (var i = 0; i + 5 <= ents.length; i += 5){
+      var y = 1.164 * (ents[i + 1] - 16), cr = ents[i + 2] - 128, cb = ents[i + 3] - 128;
+      pal[ents[i]] = ((ents[i + 4] << 24) | (c8(y + kb * cb) << 16) | (c8(y - kgb * cb - kgr * cr) << 8) | c8(y + kr * cr)) >>> 0;
+    }
+    return pal;
+  }
+  /** What a track shows from its point i on. A set may only move, fade or clear what an earlier one brought, so the sets
+      back to the last one that draws the screen afresh (most do) are read together.
+      → null (nothing) · 'wait' (not read yet) · {w, h, objs:[{x, y, crop, ods, pal}]}. */
+  function pgsCompose(t, i){
+    var pg = t.pg, sets = pg.sets, from = i, lack = null, pcs = null, ods = {}, pals = {}, j, k;
+    if (i < 0) return null;
+    if (sets[i] === undefined) return 'wait';
+    while (from > 0 && i - from < 16 && !(sets[from] && sets[from].pcs && sets[from].state)){
+      if (sets[from - 1] === undefined){ lack = from - 1; break; }
+      from--;
+    }
+    var last = from;
+    for (j = from; j <= i; j++){
+      var s = sets[j]; if (!s) continue;
+      if (s.pcs) pcs = s;
+      for (k in s.ods) ods[k] = s.ods[k];
+      for (k in s.pals) pals[k] = s.pals[k];
+      last = j;
+    }
+    if (pcs && !pcs.objs.length) return null;
+    var out = pcs ? { w: pcs.w, h: pcs.h, objs: [], id: from + '-' + last } : null;   // id: the same screen is not drawn twice
+    if (pcs) pcs.objs.forEach(function(o){ if (ods[o.id] && pals[pcs.pal]) out.objs.push({ x: o.x, y: o.y, crop: o.crop, ods: ods[o.id], pal: pals[pcs.pal] }); });
+    if (out && out.objs.length === pcs.objs.length && pcs.w && pcs.h) return out;
+    if (lack != null){ pg.back = lack; return 'wait'; }   // what it refers to is in a set not read yet: pgsFeed fetches it
+    return (out && out.objs.length && pcs.w && pcs.h) ? out : null;
+  }
+  // on: the picture tracks of this play by their track label; shown: the moment last looked at; drawn: the screen that is up
+  var pgs = { seq: -1, on: {}, timer: 0, shown: '', drawn: '', plane: null }, pgsEl = null;
+  function pgsLayer(){ return pgsEl || (pgsEl = $id('pgsLayer')); }
+  function pgsBox(){ return { sets: {}, fail: {}, rev: 0, run: false, hold: 0, miss: 0, back: null }; }
+  function pgsReset(){
+    if (pgs.timer) clearInterval(pgs.timer);
+    pgs = { seq: -1, on: {}, timer: 0, shown: '', drawn: '', plane: null };
+    pgsDraw(null);
+  }
+  /** A picture track that became one of the player's tracks: drawn from now on whenever it is the track showing. */
+  function pgsTrack(label, c){
+    if (pgs.seq !== playSeq){ pgsReset(); pgs.seq = playSeq; }
+    pgs.on[label] = c;
+    if (!pgs.timer) pgs.timer = setInterval(pgsTick, 100);
+    pgsTick();
+  }
+  function pgsShowing(){
+    for (var k = 0; k < video.textTracks.length; k++){
+      var tr = video.textTracks[k];
+      if (tr.mode === 'showing' && pgs.on[tr.label]) return pgs.on[tr.label];
+    }
+    return null;
+  }
+  /** The last index point at or before a moment (in the file's own time units); −1 before the first. */
+  function pgsAt(t, at){
+    var pts = t.points, lo = 0, hi = pts.length - 1, i = -1;
+    while (lo <= hi){ var mid = (lo + hi) >> 1; if (pts[mid].t <= at){ i = mid; lo = mid + 1; } else hi = mid - 1; }
+    return i;
+  }
+  /** The playhead in the file's time units, the viewer's timing nudge taken off (shown time = the file's × scale + offset). */
+  function pgsNow(c){ return ((video.currentTime || 0) - subOffset) / (subScale || 1) / c.mkv.scale; }
+  /** Ten times a second while a picture track exists: which set the playhead is in, and that set on the screen. */
+  function pgsTick(){
+    if (!player || pgs.seq !== playSeq){ pgsReset(); return; }
+    var c = pgsShowing();
+    if (!c){ if (pgs.shown || pgs.drawn){ pgs.shown = pgs.drawn = ''; pgsDraw(null); } return; }
+    var t = c.mkv.t, pg = t.pg || (t.pg = pgsBox()), now = pgsNow(c), i = pgsAt(t, now);
+    pgsFeed(c, i);
+    // a set left up for a minute is one whose clearing set the file never indexed
+    var late = i >= 0 && (now - t.points[i].t) * c.mkv.scale > 60, dim = subHdrOn() ? subStyle.hdr : '';
+    var key = c.url + '|' + i + '|' + pg.rev + '|' + (late ? 1 : 0) + '|' + dim;
+    if (key === pgs.shown){ pgsPlace(); return; }
+    pgs.shown = key;
+    var view = late ? null : pgsCompose(t, i);
+    if (view === 'wait') view = null;                    // a set not read yet: the one before it is over either way
+    var drawn = view ? c.url + '|' + view.id + '|' + dim : '';
+    if (drawn === pgs.drawn){ pgsPlace(); return; }      // the same screen (more sets were read, nothing on it changed)
+    pgs.drawn = drawn;
+    pgsDraw(view);
+  }
+  /** Keeps the sets around the playhead read — from just behind it to a minute and a half ahead, the nearest first, one
+      batch in flight — and lets go of what is far from it. */
+  function pgsFeed(c, i){
+    var t = c.mkv.t, pg = t.pg, pts = t.points;
+    if (pg.run || Date.now() < pg.hold || !inner.rd || inner.seq !== playSeq) return;
+    var from = Math.max(0, i - 2), want = [], lim = inner.rd.via === 'cloud' ? 48 : 12, end = pgsNow(c) + PGS_AHEAD / c.mkv.scale;
+    if (pg.back != null){ if (pg.back < from && pg.back >= i - 24) from = Math.max(0, pg.back); pg.back = null; }
+    for (var j = from; j < pts.length && want.length < lim; j++){
+      if (j > i + 1 && pts[j].t > end) break;              // (the next set is read however far off: it is the next thing shown)
+      if (pg.sets[j] === undefined && (pg.fail[j] || 0) < 3) want.push(j);
+    }
+    if (!want.length) return;
+    pg.run = true;
+    var seq = playSeq;
+    pgsRead(c, want).then(function(res){
+      if (seq !== playSeq) return;
+      var got = res.filter(function(r){ return r !== false; }).length;
+      // nothing came: the host is not answering — wait (2 s, then longer) rather than give these sets up
+      if (!got){ pg.miss++; pg.hold = Date.now() + Math.min(30000, 2000 * pg.miss); return; }
+      pg.miss = 0;
+      want.forEach(function(j, k){ if (res[k] === false) pg.fail[j] = (pg.fail[j] || 0) + 1; else pg.sets[j] = res[k]; });
+      var at = pgsAt(t, pgsNow(c));
+      for (var key in pg.sets){ var n = +key; if (n < at - PGS_KEEP_BEHIND || n > at + PGS_KEEP_AHEAD) delete pg.sets[key]; }
+      pg.rev++;
+    }, function(){ pg.miss++; pg.hold = Date.now() + Math.min(30000, 2000 * pg.miss); }).then(function(){
+      pg.run = false;
+      if (seq === playSeq) pgsTick();
+    });
+  }
+  /** The sets at these points of a track → for each: the set · null (none there) · false (could not be fetched). */
+  async function pgsRead(c, idxs){
+    var t = c.mkv.t, rd = inner.rd, pts = idxs.map(function(j){ return t.points[j]; });
+    // a link only this device may read has no way round through the cloud: after a miss the host itself is asked again
+    if (rd.own && rd.via === 'cloud') rd.via = 'direct';
+    var small = rd.via === 'cloud';
+    var bufs = await rd.many(pts.map(function(pt){ return pgsPiece(pt, small); })), out = [], more = [], at = [];
+    bufs.forEach(function(b, k){
+      var r = b ? pgsBlockAt(b, t) : false;
+      if (r && r.need){ var a = pgsPiece(pts[k])[0]; more.push([a + b.length, a + r.need]); at.push(k); r = false; }
+      out.push(r);
+    });
+    if (more.length){
+      var rest = await rd.many(more);
+      at.forEach(function(k, n){
+        if (!rest[n]) return;
+        var whole = new Uint8Array(bufs[k].length + rest[n].length);
+        whole.set(bufs[k]); whole.set(rest[n], bufs[k].length);
+        var r = pgsBlockAt(whole, t);
+        out[k] = (r && r.need) ? null : r;
+      });
+    }
+    return out;
+  }
+  /** The first sets of a picture track, around the playhead — read when the panel opens and when the track is picked.
+      Resolves false when the file gave none of them. */
+  async function pgsWarm(c){
+    var t = c.mkv.t, pg = t.pg || (t.pg = pgsBox()), i = pgsAt(t, pgsNow(c)), want = [];
+    for (var j = Math.max(0, i - 1); j < t.points.length && want.length < 6; j++) if (pg.sets[j] === undefined) want.push(j);
+    if (!want.length) return true;
+    var res = await pgsRead(c, want);
+    want.forEach(function(j, k){ if (res[k] !== false && pg.sets[j] === undefined) pg.sets[j] = res[k]; });
+    pg.rev++;
+    return res.some(function(r){ return !!r; });
+  }
+  /** A picture track as a file the engine can take: an empty one — the track is only its place in the list, and its
+      pictures are drawn by pgsTick while it shows. Null when the file would not give its first sets. */
+  async function pgsBlob(c){
+    if (!(await pgsWarm(c))) return null;
+    var u = URL.createObjectURL(new Blob(['WEBVTT\n\n'], { type: 'text/vtt' }));
+    subState.urls.push(u);
+    return { url: u, mime: 'text/vtt' };
+  }
+  /** A composed screen onto the layer (null clears it). Each picture is its own canvas, placed in the plane by
+      percentages, so the layer only has to follow the picture's box (pgsPlace). */
+  function pgsDraw(view){
+    var host = pgsLayer(); if (!host) return;
+    while (host.firstChild) host.removeChild(host.firstChild);
+    pgs.plane = null;
+    if (!view){ host.style.display = 'none'; return; }
+    var dim = subHdrOn() ? Number(subVal('hdr', subStyle.hdr)[2]) : 1;
+    if (!(dim > 0 && dim < 1)) dim = 1;
+    view.objs.forEach(function(o){
+      var w = o.ods.w, h = o.ods.h, cx = 0, cy = 0, cw = w, ch = h;
+      if (!w || !h || w * h > 16777216) return;
+      if (o.crop){ cx = Math.min(o.crop[0], w); cy = Math.min(o.crop[1], h); cw = Math.min(o.crop[2], w - cx); ch = Math.min(o.crop[3], h - cy); }
+      if (!cw || !ch) return;
+      var px = pgsPixels(o.ods), pal = pgsColours(o.pal, view.h >= 600, dim);
+      var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+      var g = cv.getContext('2d'), img = g.createImageData(cw, ch), d = new Uint32Array(img.data.buffer), at = 0;
+      for (var y = 0; y < ch; y++) for (var p = (cy + y) * w + cx, e = p + cw; p < e; p++) d[at++] = pal[px[p]];
+      g.putImageData(img, 0, 0);
+      cv.style.left = (o.x / view.w * 100) + '%'; cv.style.top = (o.y / view.h * 100) + '%';
+      cv.style.width = (cw / view.w * 100) + '%'; cv.style.height = (ch / view.h * 100) + '%';
+      if (o.y + ch / 2 > view.h / 2) cv.className = 'low';   // in the lower half: it steps up with the controls, as text does
+      host.appendChild(cv);
+    });
+    if (!host.firstChild){ host.style.display = 'none'; return; }
+    pgs.plane = { w: view.w, h: view.h, box: '' };
+    pgsPlace();
+    host.style.display = 'block';
+  }
+  /** The layer over the picture: the disc's plane, scaled to cover the picture and centred on it — a film cut to a wide
+      shape keeps a 16:9 plane, so its lines may sit in the bars, as on the disc. Follows Fit / Fill / Stretch. */
+  function pgsPlace(){
+    var pl = pgs.plane; if (!pl) return;
+    var r = video.getBoundingClientRect(), vw = video.videoWidth || pl.w, vh = video.videoHeight || pl.h, m = fitMode();
+    if (!r.width || !r.height) return;
+    var k = m === 'fill' ? Math.max(r.width / vw, r.height / vh) : Math.min(r.width / vw, r.height / vh);
+    var pw = m === 'stretch' ? r.width : vw * k, ph = m === 'stretch' ? r.height : vh * k;
+    var s = Math.max(pw / pl.w, ph / pl.h), lw = m === 'stretch' ? pw : pl.w * s, lh = m === 'stretch' ? ph : pl.h * s;
+    var box = [r.left + (r.width - lw) / 2, r.top + (r.height - lh) / 2, lw, lh].map(function(v){ return Math.round(v * 10) / 10; });
+    if (box.join(',') === pl.box) return;
+    pl.box = box.join(',');
+    var host = pgsLayer();
+    host.style.left = box[0] + 'px'; host.style.top = box[1] + 'px'; host.style.width = box[2] + 'px'; host.style.height = box[3] + 'px';
   }
   /** The element's own track for a label, when it has one (a file the browser draws itself; not the streaming engine's). */
   function nativeTrackFor(label){
@@ -13759,8 +14183,8 @@
     function stale(){ return gone() || run.serial !== subState.pick || (run.auto && subState.hand !== autoAt); }
     try {
       if (!auto) setStatus(reading, 'info');
-      var seen = {};
-      var blob = c.mkv ? await innerBlob(c, seen) : await fetchSubBlob(c.url);
+      var seen = {}, pics = !!(c.mkv && c.mkv.t.kind === 'pgs');
+      var blob = pics ? await pgsBlob(c) : c.mkv ? await innerBlob(c, seen) : await fetchSubBlob(c.url);
       if (!blob) throw new Error('empty');
       if (stale()) return false;
       var label = subFreeLabel(c.label);
@@ -13768,6 +14192,7 @@
       if (gone()) return false;
       subState.loaded[c.url] = label;                 // the track it became (a press on a card the panel just replaced finds it)
       subState.trackSrc[label] = c.addon || 'Add-on';   // the card's badge once it is a track
+      if (pics) pgsTrack(label, c);                   // its pictures are drawn whenever this track is the one showing
       var nt = nativeTrackFor(label);
       if (stale()){
         // outranked while it was being added: it stays in the list, but it must not come up showing beside the choice
@@ -15351,6 +15776,7 @@
     var tracks = video.textTracks; if (!tracks) return null;
     for (i = 0; i < tracks.length; i++){
       var tr = tracks[i]; if (tr.mode !== 'showing') continue;
+      if (pgs.on[tr.label]) return { key: 'tt:' + i + ':' + (tr.label || ''), cues: null };   // the disc's pictures: no words to match to the voices
       var out = [], cs = tr.cues || [];
       for (var j = 0; j < cs.length; j++){
         var c = cs[j], a = c.__n0 != null ? c.__n0 : c.startTime, b = c.__n1 != null ? c.__n1 : c.endTime;
