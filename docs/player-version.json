@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.14.2",
+  "version": "2026.11.15.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Up to six profiles on an account, each with a picture and its own settings, and settings now follow a profile to its other devices. A profile can use the first profile's add-ons or keep its own. Removing a profile deletes everything of it."
+  "notes": "Press a cast member, a director or a writer on a title page to see their films and series, with Films, Series, Directed and Written filters."
 }
