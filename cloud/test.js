@@ -315,6 +315,112 @@ test('advisory: the votes settle each level, most severe first, one upstream cal
   }
 });
 
+test('people: a name on a title is that title\'s person; their films and series come back best known first, kept', async () => {
+  const hits = [];
+  let refuse = false;
+  const uri = (q) => ({ type: 'uri', value: 'http://www.wikidata.org/entity/' + q });
+  const lit = (v) => ({ type: 'literal', value: String(v) });
+  const work = (tt, name, date, type, links, roles, orig) => {
+    const r = { w: uri('Q9' + tt.slice(2)), imdb: lit(tt), type: uri(type), l: lit(links), roles: lit(roles) };
+    if (name) r.n = lit(name);
+    if (orig) r.o = lit(orig);
+    if (date) r.date = lit(date + '-01-01T00:00:00Z');
+    return r;
+  };
+  const stub = require('http').createServer((req, res) => {
+    const u = new URL(req.url, 'http://x');
+    const q = u.searchParams.get('query') || '';
+    const kind = u.pathname === '/api' ? 'search' : /wdt:P345 "tt/.test(q) ? 'title' : /VALUES \?p/.test(q) ? 'pick' : 'works';
+    hits.push({ kind, q, search: u.searchParams.get('search'), ua: req.headers['user-agent'] });
+    if (refuse) { res.writeHead(429, { 'Retry-After': '120' }); return res.end('slow down'); }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    if (kind === 'search') {
+      return res.end(JSON.stringify({ search: u.searchParams.get('search') === 'Nobody Atall' ? [] : [
+        { id: 'Q700', label: 'Jane Roe', match: { type: 'label', text: 'Jane Roe' } },          // a politician: no credits
+        { id: 'Q701', label: 'Jane Roe', match: { type: 'label', text: 'Jane Roe' } },          // the director
+        { id: 'Q702', label: 'Jane Roe University', match: { type: 'label', text: 'Jane Roe University' } },
+        { id: 'Q703', label: 'J. Roe', match: { type: 'alias', text: 'Jane Roe' } },            // an alias, fewer credits
+      ] }));
+    }
+    let bindings = [];
+    if (kind === 'title') bindings = [
+      { p: uri('Q500'), pLabel: lit('John Smith') }, { p: uri('Q501'), pLabel: lit('Renée O’Connor') },
+      { p: uri('Q502'), pLabel: lit('Q502') },                                                 // no English name: not a match for anything
+    ];
+    if (kind === 'pick') bindings = [{ p: uri('Q701'), n: lit(12) }, { p: uri('Q703'), n: lit(3) }];
+    if (kind === 'works') bindings = /wd:Q777 /.test(q) ? [] : [
+      work('tt0000201', 'The Big One', 1994, 'Q11424', 107, 'cast'),
+      work('tt0000202', 'A Show', 2008, 'Q5398426', 90, 'cast,director'),
+      work('tt0000201', 'The Big One (again)', 1994, 'Q11424', 80, 'cast'),                     // the same title twice
+      work('tt0000203', '', 2001, 'Q202866', 70, 'writer', 'Only An Original Title'),
+      work('tt0000204', 'An Episode', 2010, 'Q21191270', 60, 'cast'),                           // not a film or a series
+      work('tt0000205', '', 2012, 'Q11424', 50, 'cast'),                                        // no name at all
+      work('nm0000001', 'Not A Title', 2012, 'Q11424', 40, 'cast'),
+      work('tt0000206', 'Undated', '', 'Q1259759', 30, 'director'),
+    ];
+    res.end(JSON.stringify({ results: { bindings } }));
+  });
+  await new Promise((ok) => stub.listen(0, '127.0.0.1', ok));
+  const at = 'http://127.0.0.1:' + stub.address().port;
+  process.env.PEOPLE_UPSTREAM = at + '/sparql';
+  process.env.PEOPLE_SEARCH_UPSTREAM = at + '/api';
+  const get = (n, t) => fetch(base + '/cloud/v1/person?n=' + encodeURIComponent(n) + (t ? '&t=' + t : ''), { headers: { 'X-Forwarded-For': '203.0.113.88' } });
+  try {
+    // two callers at once share the upstream calls: one for the title's people, one for the person's titles
+    const rs = await Promise.all([get('John Smith', 'tt0000001'), get('john  smith', 'tt0000001')]);
+    assert.deepEqual(rs.map((r) => r.status), [200, 200]);
+    const j = await rs[0].json();
+    assert.equal(j.id, 'Q500'); assert.equal(j.name, 'John Smith');
+    assert.deepEqual(j.items, [
+      { id: 'tt0000201', name: 'The Big One', year: 1994, type: 'movie', as: ['cast'] },
+      { id: 'tt0000202', name: 'A Show', year: 2008, type: 'series', as: ['cast', 'director'] },
+      { id: 'tt0000203', name: 'Only An Original Title', year: 2001, type: 'movie', as: ['writer'] },
+      { id: 'tt0000206', name: 'Undated', year: null, type: 'series', as: ['director'] },
+    ]);
+    assert.deepEqual(hits.map((h) => h.kind), ['title', 'works']);
+    assert.match(hits[0].ua, /^NebulaCloud\//);                                // says who it is, with no person in it
+    assert.match(hits[1].q, /wd:Q500 /);
+    assert.match(rs[0].headers.get('cache-control'), /max-age=86400/);
+    assert.equal(rs[0].headers.get('access-control-allow-origin'), '*');
+    // kept: the same person again costs nothing, and accents or punctuation in a name do not matter
+    assert.equal((await get('John Smith', 'tt0000001')).status, 200);
+    assert.equal((await (await get('Renee OConnor', 'tt0000001')).json()).id, 'Q501');
+    assert.deepEqual(hits.map((h) => h.kind), ['title', 'works', 'works']);
+    // a name the title does not list is looked up by itself: the person of that exact name with the most credits
+    const jr = await (await get('Jane Roe', 'tt0000001')).json();
+    assert.equal(jr.id, 'Q701'); assert.equal(jr.name, 'Jane Roe');
+    assert.deepEqual(hits.slice(3).map((h) => h.kind), ['search', 'pick', 'works']);
+    assert.match(hits[4].q, /wd:Q700 wd:Q701 wd:Q703/);                        // never the university
+    // …and with no title at all
+    assert.equal((await (await get('Jane Roe')).json()).id, 'Q701');
+    assert.equal(hits.length, 6);
+    // nobody by that name
+    const none = await get('Nobody Atall', 'tt0000001');
+    assert.equal(none.status, 404); assert.deepEqual(await none.json(), { error: 'unknown' });
+    // bad requests never reach the upstream
+    const n0 = hits.length;
+    assert.equal((await get('', 'tt0000001')).status, 400);
+    assert.equal((await get('x'.repeat(81))).status, 400);
+    assert.equal((await get('!!!')).status, 400);
+    assert.equal((await get('John Smith', 'tt1; DROP')).status, 400);
+    assert.equal((await get('John Smith', 'nm0000001')).status, 400);
+    assert.equal(hits.length, n0);
+    // a name is never put into a query: it is only compared with what came back
+    assert.equal(hits.some((h) => h.kind !== 'search' && /John|Jane|Renee|Nobody/.test(h.q)), false);
+    // the upstream refuses: a person never asked for is unavailable (with how long), kept answers still serve
+    refuse = true;
+    const un = await get('Someone New', 'tt0000002');
+    assert.equal(un.status, 503); assert.ok(Number(un.headers.get('retry-after')) >= 30);
+    const n1 = hits.length;
+    assert.equal((await get('Another One', 'tt0000003')).status, 503);         // …and nothing more is asked while it cools
+    assert.equal(hits.length, n1);
+    assert.equal((await get('John Smith', 'tt0000001')).status, 200);
+  } finally {
+    stub.close();
+    delete process.env.PEOPLE_UPSTREAM; delete process.env.PEOPLE_SEARCH_UPSTREAM;
+  }
+});
+
 test('universe: one trimmed upstream call per title, kept, and a refusal stops the asking', async () => {
   const fs = require('fs'), path = require('path');
   const hits = [];
