@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.13.1",
+  "version": "2026.11.14.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Small fixes: the featured titles on Home no longer change while the window is out of sight, and a little unused code is gone."
+  "notes": "Up to six profiles on an account, each with a picture and its own settings, and settings now follow a profile to its other devices. A profile can use the first profile's add-ons or keep its own. Removing a profile deletes everything of it."
 }
