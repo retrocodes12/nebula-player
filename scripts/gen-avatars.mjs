@@ -5,6 +5,8 @@
 //
 //   node scripts/gen-avatars.mjs            prints {id: path} as JSON
 //   node scripts/gen-avatars.mjs --js       prints the player's `var WHO_PICS = [...]` rows
+//   node scripts/gen-avatars.mjs --kt       prints the Android app's WhoPics.kt table
+//   node scripts/gen-avatars.mjs --swift    prints the Apple apps' WhoPics.swift table
 //   node scripts/gen-avatars.mjs --sheet    prints an HTML contact sheet (look at it before shipping a change)
 
 const K = 0.5522847498;                                  // a quarter circle as one cubic
@@ -209,6 +211,16 @@ if (arg === '--js') {
   console.log('  var WHO_PICS = [');
   ORDER.forEach((id) => console.log("    ['" + id + "', '" + NAMES[id] + "', '" + out[id] + "'],"));
   console.log('  ];');
+} else if (arg === '--kt') {
+  console.log('    // (generated: nebula-player scripts/gen-avatars.mjs --kt; the same strings the web player and the Apple apps draw)');
+  console.log('    val ALL: List<Pic> = listOf(');
+  ORDER.forEach((id) => console.log('        Pic("' + id + '", "' + NAMES[id] + '", "' + out[id] + '"),'));
+  console.log('    )');
+} else if (arg === '--swift') {
+  console.log('    // (generated: nebula-player scripts/gen-avatars.mjs --swift; the same strings the web player and the Android app draw)');
+  console.log('    public static let all: [WhoPic] = [');
+  ORDER.forEach((id) => console.log('        WhoPic(id: "' + id + '", name: "' + NAMES[id] + '", path: "' + out[id] + '"),'));
+  console.log('    ]');
 } else if (arg === '--sheet') {
   const cols = ['#E50914', '#0A84FF', '#30D158', '#BF5AF2', '#FF9F0A', '#FF375F', '#F2F2F7', '#636366'];
   const rgba = (h, a) => { const n = parseInt(h.slice(1), 16); return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + a + ')'; };
