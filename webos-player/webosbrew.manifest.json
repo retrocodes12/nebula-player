@@ -1,15 +1,15 @@
 {
   "id": "com.nebula.player",
-  "version": "1.127.1",
+  "version": "1.128.0",
   "type": "web",
   "title": "Nebula",
-  "appDescription": "Nebula: add-on browser + player for webOS. An Apple TV-style player (glass controls, thick rounded scrubber, remaining time), a pause board that shows what is playing and what is next, a playback-info HUD, subtitle timing nudges, a picture-quality policy, a live-edge button, a sleep timer (by minutes or when the episode ends), Start over for anything in progress, Surprise me on series pages, a featured hero board, a TV guide of the live and upcoming events your add-ons list, a Home you arrange yourself (pick the rows and their order), recent searches, a full keyboard shortcut set with a ? sheet on computers, full-bleed title pages with logo art and cast, My List with an upcoming-episode calendar, resume and Continue Watching, next-episode autoplay that keeps your source and quality (the next stream is chosen before this one ends), a Nebula Profile that carries your add-ons, progress and My List to every device (sign the TV in with a code from your phone, no email), friends by @handle, subtitle appearance controls, and search across every catalogue. Opens full on first run. Plays and decrypts every format.",
+  "appDescription": "Nebula: add-on browser + player for webOS. An Apple TV-style player (glass controls, thick rounded scrubber, remaining time), a pause board that shows what is playing and what is next, a playback-info HUD, subtitle timing nudges, a picture-quality policy, a live-edge button, a sleep timer (by minutes or when the episode ends), Start over for anything in progress, Surprise me on series pages, a featured hero board, a TV guide of the live and upcoming events your add-ons list, a Home you arrange yourself (pick the rows and their order), recent searches, a full keyboard shortcut set with a ? sheet on computers, full-bleed title pages with logo art and cast, My List with an upcoming-episode calendar, resume and Continue Watching, next-episode autoplay that keeps your source and quality (the next stream is chosen before this one ends), a Nebula Profile that carries your add-ons, progress and My List to every device (sign the TV in with a code from your phone, no email), up to six who's-watching profiles with their own pictures, add-ons and settings, friends by @handle, subtitle appearance controls, and search across every catalogue. Opens full on first run. Plays and decrypts every format.",
   "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
   "sourceUrl": "https://github.com/retrocodes12/nebula-player",
   "rootRequired": false,
-  "ipkUrl": "https://play.rifflehq.in/ipk/com.nebula.player_1.127.1_all.ipk",
+  "ipkUrl": "https://play.rifflehq.in/ipk/com.nebula.player_1.128.0_all.ipk",
   "ipkHash": {
-    "sha256": "8b865501124c83ed99eed004e35eb624846274b01d4f5bbebbddfed45b8ff8c0"
+    "sha256": "0605e69008e87e5632eec6ad6a3f0969b1d7a9b7493214b04c8b757e0880259a"
   },
-  "ipkSize": 1396388
+  "ipkSize": 1407904
 }
