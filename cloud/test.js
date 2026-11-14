@@ -317,7 +317,8 @@ test('advisory: the votes settle each level, most severe first, one upstream cal
 
 test('people: a name on a title is that title\'s person; their films and series come back best known first, kept', async () => {
   const hits = [];
-  let refuse = false;
+  let refuse = false, hang = 0;
+  const hung = [];
   const uri = (q) => ({ type: 'uri', value: 'http://www.wikidata.org/entity/' + q });
   const lit = (v) => ({ type: 'literal', value: String(v) });
   const work = (tt, name, date, type, links, roles, orig) => {
@@ -332,6 +333,7 @@ test('people: a name on a title is that title\'s person; their films and series 
     const q = u.searchParams.get('query') || '';
     const kind = u.pathname === '/api' ? 'search' : /wdt:P345 "tt/.test(q) ? 'title' : /VALUES \?p/.test(q) ? 'pick' : 'works';
     hits.push({ kind, q, search: u.searchParams.get('search'), ua: req.headers['user-agent'] });
+    if (hang > 0) { hang--; hung.push(res); return; }                          // no answer at all: the caller gives up in its own time
     if (refuse) { res.writeHead(429, { 'Retry-After': '120' }); return res.end('slow down'); }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     if (kind === 'search') {
@@ -407,17 +409,32 @@ test('people: a name on a title is that title\'s person; their films and series 
     assert.equal(hits.length, n0);
     // a name is never put into a query: it is only compared with what came back
     assert.equal(hits.some((h) => h.kind !== 'search' && /John|Jane|Renee|Nobody/.test(h.q)), false);
+    // one slow answer is asked once more, and fails only its own request: the next person is asked as usual
+    process.env.PEOPLE_TIMEOUT_MS = '150';
+    hang = 1;                                                                  // the next query gets no answer in time
+    const slow = await get('John Smith', 'tt0000009');                         // (a title not asked for yet)
+    assert.equal(slow.status, 200);                                            // …the second try answered
+    assert.deepEqual(hits.slice(-2).map((h) => h.kind), ['title', 'title']);
+    hang = 2;                                                                  // both tries of the next query hang
+    const n2 = hits.length;
+    const dead = await get('Jane Roe', 'tt0000010');
+    assert.equal(dead.status, 200);                                            // that title's people stayed unknown: the name alone found her (kept from before)
+    assert.equal(hits.length, n2 + 2);
+    assert.equal((await get('Renee OConnor', 'tt0000011')).status, 200);       // …and nothing is paused: the next title is asked
+    assert.equal(hits.length, n2 + 3);
+    delete process.env.PEOPLE_TIMEOUT_MS;
     // the upstream refuses: a person never asked for is unavailable (with how long), kept answers still serve
     refuse = true;
     const un = await get('Someone New', 'tt0000002');
-    assert.equal(un.status, 503); assert.ok(Number(un.headers.get('retry-after')) >= 30);
+    assert.equal(un.status, 503); assert.ok(Number(un.headers.get('retry-after')) >= 60);
     const n1 = hits.length;
     assert.equal((await get('Another One', 'tt0000003')).status, 503);         // …and nothing more is asked while it cools
     assert.equal(hits.length, n1);
     assert.equal((await get('John Smith', 'tt0000001')).status, 200);
   } finally {
+    hung.forEach((r) => { try { r.destroy(); } catch (e) {} });
     stub.close();
-    delete process.env.PEOPLE_UPSTREAM; delete process.env.PEOPLE_SEARCH_UPSTREAM;
+    delete process.env.PEOPLE_UPSTREAM; delete process.env.PEOPLE_SEARCH_UPSTREAM; delete process.env.PEOPLE_TIMEOUT_MS;
   }
 });
 

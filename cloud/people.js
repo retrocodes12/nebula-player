@@ -9,8 +9,9 @@
 //   - a person's titles are ONE query, kept a week (nothing found: a day; a failure: five minutes), and the kept
 //     answers are written to `<DATA_DIR>/people.json` so a restart or a deploy does not ask again;
 //   - callers asking for the same thing at once share one upstream call;
-//   - when the upstream refuses or cannot be reached, every miss stops asking for five minutes (longer if it says
-//     so) and a kept answer past its week is served instead.
+//   - a query that gets no answer in time is asked once more, and that is all: one slow answer fails one request,
+//     not everyone's. When the upstream REFUSES (429, 5xx), or four tries in a row came to nothing, every miss stops
+//     asking for a while (as long as it says, a minute otherwise) and a kept answer past its week is served instead.
 // No pictures are fetched or passed on: the app draws posters from its own image host by title id, and people
 // are shown by their initial (the photographs there carry licences that need a credit line this app has no place for).
 // Nothing about the caller is kept or forwarded; the request carries a name and, when there is one, a title id.
@@ -29,12 +30,13 @@ const SEARCH = () => process.env.PEOPLE_SEARCH_UPSTREAM || 'https://www.wikidata
 // Wikimedia asks every client to say who it is; the site's address, never a person's
 const UA = 'NebulaCloud/1.0 (+https://play.rifflehq.in)';
 const HIT_MS = 7 * 24 * 3600_000, NONE_MS = 24 * 3600_000, FAIL_MS = 5 * 60_000;
-const COOL_MS = 5 * 60_000, COOL_MAX_MS = 15 * 60_000;
+const COOL_MS = 60_000, COOL_MAX_MS = 15 * 60_000;
+const FAILS_TO_COOL = 4;              // tries in a row with no answer before the asking pauses
 const MAX_PEOPLE = 1500;              // ≈ 6 KB each → ≤ 9 MB held
 const MAX_TITLES = 1500, MAX_NAMES = 3000;
 const MAX_ITEMS = 80;
 const MAX_UPSTREAM_BYTES = 768 * 1024;
-const TIMEOUT_MS = 12000;
+const TIMEOUT_MS = () => Number(process.env.PEOPLE_TIMEOUT_MS) || 12000;
 const SAVE_EVERY_MS = 10 * 60_000;
 const CLIENT_MAX_AGE = 24 * 3600;
 
@@ -81,6 +83,7 @@ module.exports = function people({ DATA_DIR, allow }) {
   const names = new Map();      // normalised name -> {until, q: 'Q…' | ''}
   const pending = new Map();    // key -> Promise
   let coolUntil = 0;
+  let fails = 0;                // tries in a row that got no answer (a refusal counts by itself)
   let dirty = false;
 
   try {
@@ -115,27 +118,36 @@ module.exports = function people({ DATA_DIR, allow }) {
     return p;
   }
 
-  /** One GET upstream. Resolves the parsed JSON, or null (and, on a refusal or no answer, starts the cool-down). */
-  async function ask(url) {
-    if (Date.now() < coolUntil) return null;
+  /** One try. {json} · {refused: ms to wait} · {} for no answer in time or a broken one. */
+  async function tryOnce(url) {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS());
     try {
       const r = await fetch(url, { signal: ctrl.signal, headers: { Accept: 'application/sparql-results+json, application/json', 'User-Agent': UA } });
       if (!r.ok) {
-        const after = Number(r.headers.get('retry-after')) || 0;
-        if (r.status === 429 || r.status >= 500) coolUntil = Date.now() + Math.min(COOL_MAX_MS, Math.max(COOL_MS, after * 1000));
-        return null;
+        try { await r.arrayBuffer(); } catch (e) {}
+        if (r.status !== 429 && r.status < 500) return {};
+        return { refused: Math.min(COOL_MAX_MS, Math.max(COOL_MS, (Number(r.headers.get('retry-after')) || 0) * 1000)) };
       }
       const text = await r.text();
-      if (text.length > MAX_UPSTREAM_BYTES) return null;
-      return JSON.parse(text);
+      if (text.length > MAX_UPSTREAM_BYTES) return {};
+      return { json: JSON.parse(text) };
     } catch (e) {
-      coolUntil = Date.now() + COOL_MS;
-      return null;
+      return {};
     } finally {
       clearTimeout(timer);
     }
+  }
+  /** One GET upstream, asked once more when the first try got no answer. Resolves the parsed JSON, or null. */
+  async function ask(url) {
+    for (let n = 0; n < 2; n++) {
+      if (Date.now() < coolUntil) return null;
+      const r = await tryOnce(url);
+      if (r.json) { fails = 0; return r.json; }
+      if (r.refused) { fails = 0; coolUntil = Date.now() + r.refused; return null; }
+      if (++fails >= FAILS_TO_COOL) { fails = 0; coolUntil = Date.now() + COOL_MS; return null; }
+    }
+    return null;
   }
   const sparql = (q) => ask(SPARQL() + '?format=json&query=' + encodeURIComponent(q));
   const rows = (j) => (j && j.results && Array.isArray(j.results.bindings) ? j.results.bindings : null);
@@ -242,7 +254,8 @@ module.exports = function people({ DATA_DIR, allow }) {
     if (!name || name.length > 80 || !norm(name)) return send(res, 400, '{"error":"bad name"}');
     if (tt && !/^tt\d{5,10}$/.test(tt)) return send(res, 400, '{"error":"bad id"}');
     if (!allow('person', ip, 30, 20)) return send(res, 429, '{"error":"rate limited"}', 0, 30);
-    const unavailable = () => send(res, 503, '{"error":"unavailable"}', 0, Math.max(30, Math.ceil((coolUntil - Date.now()) / 1000)));
+    // (how long: the pause the upstream asked for, else a few seconds, for one slow answer)
+    const unavailable = () => send(res, 503, '{"error":"unavailable"}', 0, Math.max(5, Math.ceil((coolUntil - Date.now()) / 1000)));
     let who = null;
     if (tt) {
       const map = await titlePeople(tt);
