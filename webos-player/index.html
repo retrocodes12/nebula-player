@@ -1684,8 +1684,8 @@
   #who h2 { font-size:calc(32px * var(--ts)); font-weight:700; letter-spacing:-.025em; margin:22px 0 60px; color:var(--label); text-align:center; }
   html.tv #who h2 { font-size:calc(46px * var(--ts)); margin:26px 0 56px; }
   html.tv .who-mark { font-size:calc(34px * var(--ts)); }
-  .who-row { display:flex; flex-wrap:wrap; justify-content:center; max-width:460px; }
-  html.tv .who-row { max-width:700px; }
+  .who-row { display:flex; flex-wrap:wrap; justify-content:center; max-width:700px; }
+  html.tv .who-row { max-width:1100px; }
   .who-tile { display:flex; flex-direction:column; align-items:center; width:180px; margin:0 20px 36px; padding:0; background:none; border:0;
     color:var(--label); cursor:pointer; font:inherit; outline:none; }
   html.tv .who-tile { width:250px; margin:0 50px 36px; }
@@ -1717,11 +1717,59 @@
   .who-btn.solid:hover { color:#000; }
   html.tv .who-btn:focus { box-shadow:0 0 0 3px var(--bg), 0 0 0 6px #fff; }
   .who-btn:focus-visible { box-shadow:0 0 0 3px var(--bg), 0 0 0 6px #fff; }
-  #whoEdit { display:none; flex-direction:column; align-items:center; width:100%; max-width:360px; }
+  /* four profiles or more: smaller circles, so six sit in one line on a TV or a desktop and three across on a phone */
+  #who.many .who-row { max-width:1240px; }
+  #who.many .who-tile { width:150px; margin:0 14px 30px; }
+  #who.many .who-av { width:134px; height:134px; }
+  #who.many .who-mono { width:122px; height:122px; font-size:calc(50px * var(--ts)); }
+  html.tv #who.many .who-row { max-width:1700px; }
+  html.tv #who.many .who-tile { width:210px; margin:0 30px 36px; }
+  html.tv #who.many .who-av { width:192px; height:192px; }
+  html.tv #who.many .who-mono { width:174px; height:174px; font-size:calc(72px * var(--ts)); }
+  .who-pic { width:56%; height:56%; display:block; }
+  .rw-av .who-pic { width:62%; height:62%; }
+  #whoEdit { display:none; flex-direction:column; align-items:center; width:100%; max-width:380px; }
+  .who-ed { display:flex; flex-direction:column; align-items:center; width:100%; }
+  .who-ed-a, .who-ed-b { display:flex; flex-direction:column; align-items:center; width:100%; }
+  .who-ed-btns { display:flex; flex-wrap:wrap; justify-content:center; }
+  .who-ed-btns .who-btn { margin:16px 6px 0; }
+  #who #whoEdit .who-mono { width:112px; height:112px; font-size:calc(46px * var(--ts)); }
+  /* the pictures: Nebula's own set, drawn in the profile's colour; the first choice is the plain letter */
+  #whoEdPic { display:flex; flex-wrap:wrap; justify-content:center; margin:4px 0 14px; max-width:380px; }
+  .who-popt { width:42px; height:42px; margin:4px; padding:0; border-radius:50%; border:1.5px solid var(--line); background:var(--surface); color:var(--label2);
+    display:flex; align-items:center; justify-content:center; font:inherit; font-weight:700; font-size:calc(16px * var(--ts)); cursor:pointer; outline:none; }
+  .who-popt svg { width:22px; height:22px; display:block; }
+  .who-popt:hover { color:var(--label); }
+  .who-popt.on { background:#F2F2F7; border-color:#F2F2F7; color:#000; }
+  html.tv .who-popt:focus { border-color:#fff; box-shadow:0 0 0 3px var(--bg), 0 0 0 6px #fff; }
+  .who-popt:focus-visible { border-color:#fff; box-shadow:0 0 0 3px var(--bg), 0 0 0 6px #fff; }
+  /* whose add-ons: one row that flips between the two answers */
+  .who-sw { display:flex; align-items:center; justify-content:space-between; width:100%; margin-top:6px; padding:13px 18px; border-radius:14px;
+    border:1px solid var(--line); background:var(--surface); color:var(--label2); font:inherit; font-size:calc(15px * var(--ts)); cursor:pointer; outline:none; text-align:left; }
+  .who-sw b { color:var(--label); font-weight:600; margin-left:14px; text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  html.tv .who-sw:focus { border-color:#fff; box-shadow:0 0 0 3px var(--bg), 0 0 0 6px #fff; }
+  .who-sw:focus-visible { border-color:#fff; box-shadow:0 0 0 3px var(--bg), 0 0 0 6px #fff; }
+  @media (min-width:900px){
+    #who #whoEdit .who-mono { width:132px; height:132px; font-size:calc(54px * var(--ts)); }
+    #whoEdit { max-width:860px; }
+    .who-ed { flex-direction:row; align-items:flex-start; justify-content:center; }
+    .who-ed-a { width:300px; margin-right:64px; }
+    .who-ed-b { width:400px; }
+  }
+  html.tv #whoEdit { max-width:1100px; }
+  html.tv .who-ed-a { width:360px; margin-right:90px; }
+  html.tv .who-ed-b { width:520px; }
+  html.tv #whoEdPic { max-width:520px; }
+  html.tv .who-popt { width:54px; height:54px; margin:6px; font-size:calc(20px * var(--ts)); }
+  html.tv .who-popt svg { width:28px; height:28px; }
+  html.tv .who-sw { font-size:calc(20px * var(--ts)); padding:16px 22px; }
+  html.tv #who #whoEdit h2 { margin-bottom:34px; }
+  html.tv #who #whoEdit .who-mono { width:174px; height:174px; font-size:calc(72px * var(--ts)); }
+  html.tv .who-note { font-size:calc(17px * var(--ts)); }
   #who.editing #whoEdit { display:flex; }
   #who.editing .who-pick { display:none; }
   .who-pick { display:flex; flex-direction:column; align-items:center; }
-  #whoEdit .who-mono { margin:6px 0 26px; }
+  #whoEdit .who-mono { margin:6px 0 22px; }
   #whoEdName { width:100%; }
   #whoEdAv { display:flex; flex-wrap:wrap; justify-content:center; margin:20px 0 16px; }
   #whoEdAv .swatch { margin:4px 6px; width:32px; height:32px; }
@@ -2688,7 +2736,7 @@
 <body>
   <!-- Boot screen. Static markup, above the script, so it paints on the first
        frame — the whole point is that nobody ever sees an empty Home. -->
-  <div id="who" role="dialog" aria-label="Who's watching?"><div class="who-pick"><div class="who-mark"><i>◆</i>Nebula</div><h2>Who's watching?</h2><div class="who-row" id="whoRow"></div><button type="button" id="whoManage" class="who-btn focusable">Manage Profiles</button></div><div id="whoEdit"><h2>Edit profile</h2><span id="whoEdMono" class="who-mono"></span><input id="whoEdName" class="focusable field" type="text" maxlength="24" autocomplete="off" /><div id="whoEdAv"></div><button type="button" id="whoEdPin" class="who-btn focusable">Add a PIN</button><button type="button" id="whoEdSave" class="who-btn solid focusable">Save</button><button type="button" id="whoEdPinOff" class="who-btn danger focusable">Remove PIN</button><button type="button" id="whoEdDel" class="who-btn danger focusable">Remove profile</button><p class="who-note">Each profile keeps its own Continue Watching, resume points, My List and add-ons. Settings are shared.</p></div><div id="whoPin"><span id="whoPinMono" class="who-mono"></span><h2 id="whoPinH">Enter the PIN</h2><div class="who-dots" id="whoPinDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div><p class="who-msg" id="whoPinMsg" role="status"></p><div class="who-keys" id="whoPinKeys"></div><div id="whoPinPw"></div><button type="button" id="whoPinForgot" class="textbtn focusable">Forgot PIN?</button><button type="button" id="whoPinCancel" class="who-btn focusable">Cancel</button></div></div>
+  <div id="who" role="dialog" aria-label="Who's watching?"><div class="who-pick"><div class="who-mark"><i>◆</i>Nebula</div><h2>Who's watching?</h2><div class="who-row" id="whoRow"></div><button type="button" id="whoManage" class="who-btn focusable">Manage Profiles</button></div><div id="whoEdit"><h2>Edit profile</h2><div class="who-ed"><div class="who-ed-a"><span id="whoEdMono" class="who-mono"></span><input id="whoEdName" class="focusable field" type="text" maxlength="24" autocomplete="off" aria-label="Name" /><div id="whoEdAv" role="group" aria-label="Colour"></div></div><div class="who-ed-b"><div id="whoEdPic" role="group" aria-label="Picture"></div><button type="button" id="whoEdShare" class="who-sw focusable"></button><div class="who-ed-btns"><button type="button" id="whoEdPin" class="who-btn focusable">Add a PIN</button><button type="button" id="whoEdSave" class="who-btn solid focusable">Save</button></div><button type="button" id="whoEdPinOff" class="who-btn danger focusable">Remove PIN</button><button type="button" id="whoEdDel" class="who-btn danger focusable">Remove profile</button></div></div><p class="who-note" id="whoEdNote">Each profile keeps its own Continue Watching, resume points, My List, add-ons and settings.</p></div><div id="whoPin"><span id="whoPinMono" class="who-mono"></span><h2 id="whoPinH">Enter the PIN</h2><div class="who-dots" id="whoPinDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div><p class="who-msg" id="whoPinMsg" role="status"></p><div class="who-keys" id="whoPinKeys"></div><div id="whoPinPw"></div><button type="button" id="whoPinForgot" class="textbtn focusable">Forgot PIN?</button><button type="button" id="whoPinCancel" class="who-btn focusable">Cancel</button></div></div>
   <div id="boot">
     <div class="boot-mark">
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6 21.4 12 12 21.4 2.6 12 12 2.6Z"/></svg>
@@ -2696,11 +2744,15 @@
     </div>
     <div class="boot-bar"><i></i></div>
   </div>
-  <!-- who's watching comes first: with two profiles (or a PIN on this one) the boot screen must not paint before the
-       picker — the main script shows it again once a profile is picked, or at once when no picker is coming (bootHold) -->
-  <script>(function(){ try { var d = JSON.parse(localStorage.getItem('viewers_v1') || 'null'), l = (d && d.list) || [], cur = localStorage.getItem('viewer') === 'b' ? 'b' : 'a', two = false, lock = false;
-    for (var i = 0; i < l.length; i++){ var v = l[i]; if (!v) continue; if (v.id === 'b') two = true; if (v.id === cur && v.lock && /^[0-9a-f]{8}$/.test(String(v.lock.s)) && /^[0-9a-f]{8}$/.test(String(v.lock.h))) lock = true; }
-    if (two || lock) document.getElementById('boot').style.display = 'none'; } catch(e){} })();</script>
+  <!-- who's watching comes first: with more than one profile (or a PIN on this one) the boot screen must not paint
+       before the picker — the main script shows it again once a profile is picked, or at once when no picker is coming
+       (bootHold) -->
+  <script>(function(){ try { var L = localStorage, d = JSON.parse(L.getItem('viewers_v1') || 'null'), p = JSON.parse(L.getItem('people_v1') || 'null'),
+      l = ((d && d.list) || []).slice(0, 2).concat((p && p.list) || []), cur = L.getItem('viewer'), many = false, locks = {}, here = {};
+    for (var i = 0; i < l.length; i++){ var v = l[i]; if (!v || !/^[a-f]$/.test(String(v.id))) continue; here[v.id] = 1; if (v.id !== 'a') many = true;
+      if (v.lock && /^[0-9a-f]{8}$/.test(String(v.lock.s)) && /^[0-9a-f]{8}$/.test(String(v.lock.h))) locks[v.id] = 1; }
+    if (!here[cur]) cur = 'a';
+    if ((many && L.getItem('who_ask') !== '0') || locks[cur]) document.getElementById('boot').style.display = 'none'; } catch(e){} })();</script>
 
   <video id="video" autoplay playsinline></video>
   <!-- the desktop's full-format player draws here, over the (then empty) video element -->
@@ -2970,10 +3022,14 @@
           <span class="pcard-txt"><span class="pcard-name" id="setProfileName">Profile</span><small id="setProfileSub"></small></span>
           <span class="pcard-chev" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
         </button>
-        <!-- who's watching: up to two profiles on one account, each with its own history (whoRender) -->
+        <!-- who's watching: up to six profiles on one account, each with its own history, add-ons and settings (whoRender) -->
         <div class="setrow" id="setWhoRow">
-          <span class="setname">Who's watching<small id="setWhoSub">Each profile keeps its own Continue Watching, resume points, My List and add-ons · Settings are shared</small></span>
+          <span class="setname">Who's watching<small id="setWhoSub">Each profile keeps its own Continue Watching, My List, add-ons and settings</small></span>
           <button id="setWhoOpen" class="textbtn focusable">Profiles</button>
+        </div>
+        <div class="setrow" id="setWhoAskRow" style="display:none">
+          <span class="setname">When Nebula opens<small>Ask who's watching, or go straight to the profile this device was last on · A profile with a PIN always asks</small></span>
+          <span id="setWhoAsk" class="seg"></span>
         </div>
       </section>
       <section class="con-sec panel" data-sec="appearance">
@@ -3415,7 +3471,7 @@
     <div class="panel" id="syncPanel">
       <div class="lbl">Sync between devices</div>
       <p class="sub" id="syncStatus" style="margin:8px 0 0"></p>
-      <div class="row"><button id="syncOpen" class="focusable btn ghost">Open Profile</button></div>
+      <div class="row"><button id="syncOpen" class="focusable btn ghost">Open Profile</button><button id="syncNow" class="focusable btn ghost" style="display:none">Sync now</button></div>
     </div>
     <div class="panel" id="partyPanel">
       <div class="lbl">Watch party</div>
@@ -4717,15 +4773,15 @@
   // So every save is mirrored to IndexedDB AND to webOS's system database (DB8,
   // which lives outside the webkit profile), and boot restores from a mirror
   // whenever localStorage comes up empty. On web/desktop the DB8 calls no-op.
-  /** Where this profile's add-ons live (10-16: each who's-watching profile has its own): the first profile's are the
-      account's list as it always was ('addons'), the second's sit beside them ('addons_b') — in storage, the mirrors and
-      the cloud. Read straight from storage too: boot code can ask before the profile block further down has run. */
+  /** Where this profile's add-ons live: the first profile's are the account's list as it always was ('addons'); every
+      other profile's sit beside them under its letter ('addons_b' … 'addons_f') in storage, the mirrors and the cloud,
+      unless that profile is set to use the first profile's list. Read straight from storage too: boot code can ask
+      before the profile block further down has run. */
   function addonsKey(){
-    var v = (typeof viewer === 'string') ? viewer : null;
-    if (!v){ try { v = LS.getItem('viewer') === 'b' ? 'b' : 'a'; } catch(e){ v = 'a'; } }
-    return v === 'b' ? 'addons_b' : 'addons';
+    var v = (typeof viewer === 'string') ? viewer : viewerStored();
+    return (v === 'a' || viewerShares(v)) ? 'addons' : 'addons_' + v;
   }
-  function addonsSyncKey(){ return addonsKey() === 'addons_b' ? 'addons_sync_b' : 'addons_sync'; }
+  function addonsSyncKey(){ var k = addonsKey(); return k === 'addons' ? 'addons_sync' : 'addons_sync_' + k.slice(7); }
   function getAddons(){ try { return JSON.parse(LS.getItem(addonsKey())||'[]'); } catch(e){ return []; } }
   /** The add-ons that feed anything: one switched off (`off`) stays installed and ranked but is never asked. */
   function activeAddons(){ return getAddons().filter(function(a){ return a && !a.off; }); }
@@ -4734,7 +4790,7 @@
     var json = JSON.stringify(a);
     try { LS.setItem(addonsKey(), json); } catch(e){}
     mirrorAddons(json);
-    if (!syncApplying && addonsKey() === 'addons_b') addonsSeedDrop();   // a change by hand: the list is this profile's own now, not a stand-in
+    if (!syncApplying && addonsKey() !== 'addons') addonsSeedDrop();   // a change by hand: the list is this profile's own now, not a stand-in
     syncNoteAddonsDiff(prev, a);
     cloudPushSoon('addons');
     manifestCache = {};                        // a changed add-on list invalidates cached manifests
@@ -4901,7 +4957,7 @@
       .then(function(v){
         var arr = null; try { arr = v ? JSON.parse(v) : null; } catch(e){}
         // the second profile with nothing stored anywhere starts from a copy of the first's (profileAddonsSeed)
-        if ((!arr || !arr.length) && addonsKey() === 'addons_b' && profileAddonsSeed(false)){ finishAddonRestore(); return; }
+        if ((!arr || !arr.length) && addonsKey() !== 'addons' && profileAddonsSeed(false)){ finishAddonRestore(); return; }
         if (!arr || !arr.length){ seedDefaults(); finishAddonRestore(); return; }   // truly first run — not a wiped TV
         // union with whatever was added while the restore was in flight
         var now = getAddons(), merged = now.slice();
@@ -4915,16 +4971,22 @@
         finishAddonRestore();
       });
   }
-  // ---------- who's watching (two profiles on one account, 2026-10-15) ----------
-  // An account holds up to two profiles. Each keeps its own watch history — Continue Watching, resume points, ticks,
-  // My List — and, since 10-16, its own add-ons; settings stay the account's. The first profile's history IS the account's history as it always
-  // was ('progress', 'library'), so nothing moves for anyone; the second's sits beside it ('progress_b', 'library_b') —
-  // in storage, in the mirrors and in the cloud. The list is synced (`viewers`); which profile this device is on is not.
-  var VIEW_KEYS = { progress: 1, library: 1, addons: 1, track: 1 };   // (add-ons per profile since 10-16; tracking accounts since 11-10)
-  var viewer = 'a';
-  try { if (LS.getItem('viewer') === 'b') viewer = 'b'; } catch(e){}
-  function vkey(k){ return viewer === 'b' && VIEW_KEYS[k] ? k + '_b' : k; }
-  var viewersDoc = null;
+  // ---------- who's watching (profiles on one account: two since 2026-10-15, six since 2026-11-14) ----------
+  // An account holds up to six profiles. Each keeps its own watch history (Continue Watching, resume points, ticks,
+  // My List), its own add-ons (or, by choice, the first profile's), its own tracking accounts and its own settings.
+  // The first profile's documents ARE the account's as they always were ('progress', 'library', 'addons'…), so nothing
+  // moves for anyone; every other profile's sit beside them under its letter ('progress_b' … 'progress_f') in
+  // storage, in the mirrors and in the cloud. Two synced lists say who exists: `viewers` (the first two, in the shape
+  // older apps read and rewrite) and `people` (profiles three to six, and what the older shape has no room for: a
+  // picture, "use the first profile's add-ons", and `born`, the stamp that tells a profile from a later one in the
+  // same slot). Which profile this device is on is never synced.
+  var VIEW_KEYS = { progress: 1, library: 1, addons: 1, track: 1, settings: 1 };
+  var PER_PROFILE = ['progress', 'library', 'addons', 'track', 'settings'];
+  var WHO_MAX = 6, WHO_REST = ['b', 'c', 'd', 'e', 'f'];
+  var WHO_NTH = { b: 2, c: 3, d: 4, e: 5, f: 6 };
+  var WHO_AV_DEF = { b: '#0A84FF', c: '#30D158', d: '#BF5AF2', e: '#FF9F0A', f: '#FF375F' };
+  function viewerIdOk(id){ return typeof id === 'string' && /^[a-f]$/.test(id); }
+  var viewersDoc, peopleDoc;      // (no starting value on purpose: boot code further up may already have read them)
   function getViewers(){
     if (viewersDoc) return viewersDoc;
     var d = null; try { d = JSON.parse(LS.getItem('viewers_v1') || 'null'); } catch(e){}
@@ -4936,31 +4998,107 @@
     try { LS.setItem('viewers_v1', JSON.stringify(d)); } catch(e){}
     if (stamp) cloudPushSoon('viewers');
   }
-  /** The profiles, the first always there: [{id: 'a' | 'b', name, av}]. */
+  /** The second list as far as it can be trusted: {at, list: [{id: 'c'…'f', name, av, lock?}], x: {id: {pic?, share?, born?}}}. */
+  function peopleNorm(d){
+    var out = { at: 0, list: [], x: {} };
+    if (!d || typeof d !== 'object') return out;
+    out.at = Number(d.at) || 0;
+    if (Object.prototype.toString.call(d.list) === '[object Array]') d.list.forEach(function(v){
+      if (v && typeof v === 'object' && viewerIdOk(v.id) && v.id > 'b') out.list.push(v);
+    });
+    if (d.x && typeof d.x === 'object') ['a', 'b', 'c', 'd', 'e', 'f'].forEach(function(id){
+      var x = Object.prototype.hasOwnProperty.call(d.x, id) ? d.x[id] : null;
+      if (!x || typeof x !== 'object') return;
+      var o = {};
+      if (typeof x.pic === 'string' && /^[a-z]{1,16}$/.test(x.pic)) o.pic = x.pic;
+      if (x.share && id !== 'a') o.share = 1;
+      if (Number(x.born) > 0) o.born = Number(x.born);
+      out.x[id] = o;
+    });
+    return out;
+  }
+  function getPeople(){
+    if (peopleDoc) return peopleDoc;
+    var d = null; try { d = JSON.parse(LS.getItem('people_v1') || 'null'); } catch(e){}
+    peopleDoc = peopleNorm(d);
+    return peopleDoc;
+  }
+  function savePeople(stamp){
+    var d = getPeople(); if (stamp) d.at = Date.now();
+    try { LS.setItem('people_v1', JSON.stringify(d)); } catch(e){}
+    if (stamp) cloudPushSoon('people');
+  }
+  /** This profile uses the first profile's add-ons instead of a list of its own. */
+  function viewerShares(id){
+    if (!viewerIdOk(id) || id === 'a') return false;
+    var x = getPeople().x[id];
+    return !!(x && x.share);
+  }
+  /** The profiles, the first always there, in order: [{id: 'a'…'f', name, av, lock?, pic?, share?, born?}]. Copies:
+      change one and hand the list to viewerSetList. */
   function viewerList(){
-    var out = [], seen = {};
-    getViewers().list.forEach(function(v){ if (v && (v.id === 'a' || v.id === 'b') && !seen[v.id]){ seen[v.id] = 1; out.push(v); } });
-    if (!seen.a) out.push({ id: 'a', name: '' });
+    var out = [], seen = {}, px = getPeople().x;
+    var take = function(v, lo, hi){
+      if (!v || !viewerIdOk(v.id) || v.id < lo || v.id > hi || seen[v.id]) return;
+      seen[v.id] = 1;
+      var x = px[v.id] || {}, o = { id: v.id, name: v.name, av: v.av };
+      if (viewerLocked(v)) o.lock = { s: v.lock.s, h: v.lock.h };
+      if (x.pic) o.pic = x.pic;
+      if (x.share) o.share = 1;
+      if (x.born) o.born = x.born;
+      out.push(o);
+    };
+    getViewers().list.forEach(function(v){ take(v, 'a', 'b'); });
+    getPeople().list.forEach(function(v){ take(v, 'c', 'f'); });
+    if (!seen.a){ var o0 = { id: 'a', name: '' }; if (px.a && px.a.pic) o0.pic = px.a.pic; out.push(o0); }
     out.sort(function(x, y){ return x.id < y.id ? -1 : 1; });
     return out;
   }
+  function viewerById(id){ var l = viewerList(); for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
+  /** The profile this device was last on, if it still exists (else the first). */
+  function viewerStored(){
+    var v = null; try { v = LS.getItem('viewer'); } catch(e){}
+    if (!viewerIdOk(v) || v === 'a') return 'a';
+    return viewerById(v) ? v : 'a';
+  }
+  var viewer = viewerStored();
+  function vkeyOf(k, id){
+    if (!VIEW_KEYS[k] || id === 'a') return k;
+    if (k === 'addons' && viewerShares(id)) return 'addons';
+    return k + '_' + id;
+  }
+  function vkey(k){ return vkeyOf(k, viewer); }
   function viewerName(v){
     var n = v && String(v.name || '').trim(); if (n) return n;
-    return v && v.id === 'b' ? 'Profile 2' : ((typeof profile !== 'undefined' && profile && profile.name) || 'You');
+    return v && v.id !== 'a' ? 'Profile ' + (WHO_NTH[v.id] || 2) : ((typeof profile !== 'undefined' && profile && profile.name) || 'You');
   }
   // the first profile wears the account's colour until it is given one of its own (the picker's editor)
   function viewerAv(v){
     if (v && /^#[0-9a-f]{6}$/i.test(String(v.av || ''))) return v.av;
-    return v && v.id === 'b' ? '#0A84FF' : ((typeof profile !== 'undefined' && profile && profile.avatar) || '#636366');
+    return v && v.id !== 'a' ? (WHO_AV_DEF[v.id] || '#0A84FF') : ((typeof profile !== 'undefined' && profile && profile.avatar) || '#636366');
   }
   function viewerCur(){ var l = viewerList(); for (var i = 0; i < l.length; i++) if (l[i].id === viewer) return l[i]; return l[0]; }
+  /** Write the profiles back: the first two into `viewers` (name, colour, PIN: all an older app knows), the rest and
+      everyone's extras into `people`. Only a list that really changed is stamped and sent. */
   function viewerSetList(list){
-    getViewers().list = list.map(function(v){
+    var basic = function(v){
       var o = { id: v.id, name: String(v.name || '').slice(0, 24), av: v.av || '' };
       if (viewerLocked(v)) o.lock = { s: v.lock.s, h: v.lock.h };   // (an older app drops this when it rewrites the list)
       return o;
+    };
+    var two = [], more = [], x = {};
+    list.forEach(function(v){
+      if (!v || !viewerIdOk(v.id)) return;
+      (v.id <= 'b' ? two : more).push(basic(v));
+      var e = {};
+      if (whoPicPath(v.pic)) e.pic = v.pic;
+      if (v.share && v.id !== 'a') e.share = 1;
+      if (Number(v.born) > 0) e.born = Number(v.born);
+      if (e.pic || e.share || e.born) x[v.id] = e;
     });
-    saveViewers(true);
+    var vd = getViewers(), pd = getPeople();
+    if (JSON.stringify(two) !== JSON.stringify(vd.list)){ vd.list = two; saveViewers(true); }
+    if (JSON.stringify([more, x]) !== JSON.stringify([pd.list, pd.x])){ pd.list = more; pd.x = x; savePeople(true); }
   }
   // ---- the profile PIN (2026-10-23): four digits in front of a profile, a lock for the household, not security —
   // `lock` {s: salt, h: hash} rides in the synced list; the same hash on every app (brief pin-2026-10-23.md). A
@@ -4977,7 +5115,6 @@
     while (out.length < 8) out += Math.floor(Math.random() * 16).toString(16);
     return out.slice(0, 8);
   }
-  function viewerById(id){ var l = viewerList(); for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
   /** Profiles let in on this run (their PIN typed, or locked here): memory only, so every launch asks again. */
   var whoUnlocked = {};
   function whoNeedsPin(id){ return viewerLocked(viewerById(id)) && !whoUnlocked[id]; }
@@ -4987,42 +5124,130 @@
     viewerSetList(l);
     whoUnlocked[id] = true;
   }
-  /** On to the other profile: what this one changed is kept and sent up under its own names first, then the other's
-      history is read (storage, the mirrors after a wipe, the cloud) and everything showing a history is drawn again. */
-  /** The second profile, the first time it is used here with no add-ons stored: a copy of the first profile's list AND of
-      its add/remove stamps — the stamps as they were, not "now", so a removal another device made in this profile's own
-      synced list is newer and still wins. true when it seeded.
+  /** A profile other than the first, the first time it is used here with no add-ons stored: a copy of the first
+      profile's list AND of its add/remove stamps — the stamps as they were, not "now", so a removal another device made
+      in this profile's own synced list is newer and still wins. true when it seeded.
       `sure`: the account was asked and holds no list for this profile. Without that (signed out, no answer, a launch)
-      the copy is only a stand-in (`addons_b_seed`, this device only): the account's own list, when a pull finds one,
-      replaces it whole — merged, the first profile's add-ons went up into the second's (10-26). */
+      the copy is only a stand-in (`addons_<id>_seed`, this device only): the account's own list, when a pull finds one,
+      replaces it whole — merged, the first profile's add-ons went up into the other's (10-26). */
   function profileAddonsSeed(sure){
     try {
-      if (LS.getItem('addons_b') !== null) return false;
+      var k = addonsKey(); if (k === 'addons') return false;
+      if (LS.getItem(k) !== null) return false;
       var a = LS.getItem('addons'); if (!a || a === '[]') return false;
-      LS.setItem('addons_b', a);
-      LS.setItem('addons_sync_b', LS.getItem('addons_sync') || '{}');
-      if (sure) LS.removeItem('addons_b_seed'); else LS.setItem('addons_b_seed', '1');
+      LS.setItem(k, a);
+      LS.setItem(addonsSyncKey(), LS.getItem('addons_sync') || '{}');
+      if (sure) LS.removeItem(k + '_seed'); else LS.setItem(k + '_seed', '1');
       addonsSyncMeta = null;
-      mirrorKv('addons_b', a);
+      mirrorKv(k, a);
       return true;
     } catch(e){ return false; }
   }
-  function addonsSeedHeld(){ try { return addonsKey() === 'addons_b' && !!LS.getItem('addons_b_seed'); } catch(e){ return false; } }
-  function addonsSeedDrop(){ try { LS.removeItem('addons_b_seed'); } catch(e){} }
-  /** This device's data now belongs to another account (signed into a different one): the second profile — its name,
-      PIN, history and add-ons — was the old account's and must not go up into the new one. Back on the first profile,
-      the list empty until the new account's arrives. The first profile's own data merges as it always has. */
-  function profilesReset(){
-    if (viewer === 'b') switchViewer('a', true);   // (still signed into the old account: its unsent changes go there first)
-    ['progress_b', 'library_b', 'addons_b', 'track_b'].forEach(function(k){
+  function addonsSeedHeld(){ try { var k = addonsKey(); return k !== 'addons' && !!LS.getItem(k + '_seed'); } catch(e){ return false; } }
+  function addonsSeedDrop(){ try { var k = addonsKey(); if (k !== 'addons') LS.removeItem(k + '_seed'); } catch(e){} }
+  /** A profile's own things off THIS device: storage, the mirrors, and whatever was waiting to be sent. */
+  function profileWipe(id){
+    if (!viewerIdOk(id) || id === 'a') return;
+    ['progress_', 'library_', 'addons_', 'track_'].forEach(function(p){
+      var k = p + id;
       try { LS.removeItem(k); } catch(e){}
-      mirrorKv(k, k === 'addons_b' ? '[]' : '{}');
+      mirrorKv(k, p === 'addons_' ? '[]' : '{}');
     });
-    try { LS.removeItem('addons_sync_b'); } catch(e){}
-    addonsSeedDrop();
-    Object.keys(cloudDirty).forEach(function(k){ if (/_b$/.test(k)) delete cloudDirty[k]; });
-    saveCloudDirty();
+    ['addons_sync_' + id, 'addons_' + id + '_seed', 'prefs_' + id, 'prefs_' + id + '_at'].forEach(function(k){ try { LS.removeItem(k); } catch(e){} });
+    PER_PROFILE.forEach(function(k){ delete cloudDirty[k + '_' + id]; delete cloudRevs[k + '_' + id]; });
+    saveCloudDirty(); saveCloudRevs();
+    delete whoUnlocked[id];
+  }
+  /** A profile's documents off the ACCOUNT. Resolves true when every one is gone (or nobody is signed in). */
+  function cloudDropProfile(id){
+    if (!cloudLinked()) return Promise.resolve(true);
+    return Promise.all(PER_PROFILE.map(function(k){
+      return cloudApi('DELETE', '/v1/kv/' + k + '_' + id).then(function(){ return true; }, function(){ return false; });
+    })).then(function(r){ return r.every(function(ok){ return ok; }); });
+  }
+  // removals the account has not heard of yet (made offline): asked again on the next sync
+  function whoDrops(){
+    try { var a = JSON.parse(LS.getItem('who_drop') || '[]'); return Object.prototype.toString.call(a) === '[object Array]' ? a.filter(viewerIdOk) : []; }
+    catch(e){ return []; }
+  }
+  function whoDropSave(a){ try { if (a.length) LS.setItem('who_drop', JSON.stringify(a)); else LS.removeItem('who_drop'); } catch(e){} }
+  var whoDropBusy = false;
+  /** A slot that holds a profile again is left alone: whoever made that one cleared the slot first. */
+  function whoDropFlush(){
+    if (whoDropBusy || !cloudLinked()) return;
+    var q = whoDrops().filter(function(id){ return !viewerById(id); });
+    whoDropSave(q);
+    if (!q.length) return;
+    whoDropBusy = true;
+    var done = [];
+    q.reduce(function(p, id){
+      return p.then(function(){ return cloudDropProfile(id); }).then(function(ok){ if (ok) done.push(id); });
+    }, Promise.resolve()).then(function(){
+      whoDropBusy = false;
+      whoDropSave(whoDrops().filter(function(id){ return done.indexOf(id) < 0; }));
+    }, function(){ whoDropBusy = false; });
+  }
+  // which profile each slot held when this device last looked (`born`; 0 for one from before 11-14)
+  function whoBorn(){ try { var m = JSON.parse(LS.getItem('who_born') || '{}'); return (m && typeof m === 'object') ? m : {}; } catch(e){ return {}; } }
+  function whoBornSave(m){ try { LS.setItem('who_born', JSON.stringify(m)); } catch(e){} }
+  function whoBornNote(){ var m = {}; viewerList().forEach(function(v){ if (v.id !== 'a') m[v.id] = v.born || 0; }); whoBornSave(m); }
+  /** The list as it now stands against what this device knew: a profile that is gone, or that is another one in the
+      same slot now, leaves nothing behind here (its history, list, add-ons and settings). true when this device was
+      on a profile that is gone and has been moved to the first. */
+  function whoReconcile(){
+    var m = whoBorn(), have = {}, moved = false, fresh = false;
+    viewerList().forEach(function(v){ have[v.id] = v; });
+    WHO_REST.forEach(function(id){
+      var v = have[id], known = Object.prototype.hasOwnProperty.call(m, id);
+      if (!v){
+        if (!known) return;
+        if (viewer === id){ switchViewer('a', true, true); moved = true; }
+        profileWipe(id); delete m[id];
+        return;
+      }
+      var born = v.born || 0;
+      if (known && m[id] !== born){ profileWipe(id); if (viewer === id) fresh = true; }
+      m[id] = born;
+    });
+    whoBornSave(m);
+    if (fresh) viewerReload();
+    return moved;
+  }
+  /** Remove a profile for good: off the list, off this device, off the account. */
+  function profileRemove(id){
+    if (!viewerIdOk(id) || id === 'a') return;
+    if (viewer === id) switchViewer('a', true, true);
+    viewerSetList(viewerList().filter(function(x){ return x.id !== id; }));
+    profileWipe(id);
+    whoBornNote();
+    if (cloudLinked()){ var q = whoDrops(); if (q.indexOf(id) < 0) q.push(id); whoDropSave(q); whoDropFlush(); }
+  }
+  /** A new profile in the lowest free slot; done(id), or done(null) when it could not be made. Signed in, the slot's
+      old documents must be off the account first: a profile removed long ago, or by an older app, may have left some
+      there, and a new person must not inherit them. */
+  function profileCreate(done){
+    var id = null;
+    WHO_REST.forEach(function(x){ if (!id && !viewerById(x)) id = x; });
+    if (!id || viewerList().length >= WHO_MAX){ done(null); return; }
+    cloudDropProfile(id).then(function(ok){
+      if (!ok || viewerById(id)){ done(null); return; }
+      profileWipe(id);
+      whoDropSave(whoDrops().filter(function(x){ return x !== id; }));
+      viewerSetList(viewerList().concat([{ id: id, name: '', av: WHO_AV_DEF[id], born: Date.now() }]));
+      whoBornNote();
+      done(id);
+    });
+  }
+  /** This device's data now belongs to another account (signed into a different one): the other profiles — their
+      names, PINs, history, add-ons and settings — were the old account's and must not go up into the new one. Back on
+      the first profile, the lists empty until the new account's arrive. The first profile's own data merges as it
+      always has. */
+  function profilesReset(){
+    if (viewer !== 'a') switchViewer('a', true);   // (still signed into the old account: its unsent changes go there first)
+    WHO_REST.forEach(profileWipe);
     viewersDoc = { at: 0, list: [] }; saveViewers(false);
+    peopleDoc = { at: 0, list: [], x: {} }; savePeople(false);
+    whoBornSave({}); whoDropSave([]);
     whoUnlocked = {};
     whoRender();
   }
@@ -5035,31 +5260,43 @@
       var arr = null; try { arr = v ? JSON.parse(v) : null; } catch(e){}
       if (k !== addonsKey()){ done(); return; }
       if (arr && arr.length){ try { LS.setItem(k, JSON.stringify(arr)); } catch(e){} done(); return; }
-      if (k !== 'addons_b'){ done(); return; }
+      if (k === 'addons'){ done(); return; }
       // the copy only when the account has no list for this profile yet: one another device keeps is pulled as it is
       // (a copy merged into it brought the first profile's later add-ons along)
       if (!cloudLinked()){ profileAddonsSeed(false); done(); return; }
       cloudApi('GET', '/v1/kv').then(function(res){
         var keys = (res && res.keys) || {};
-        if (keys.addons_b){ try { LS.setItem('addons_b', '[]'); LS.setItem('addons_sync_b', '{}'); } catch(e){} addonsSeedDrop(); addonsSyncMeta = null; delete cloudRevs.addons_b; }
+        if (k !== addonsKey()) return;
+        if (keys[k]){ try { LS.setItem(k, '[]'); LS.setItem(addonsSyncKey(), '{}'); } catch(e){} addonsSeedDrop(); addonsSyncMeta = null; delete cloudRevs[k]; }
         else profileAddonsSeed(true);
-      }, function(){ profileAddonsSeed(false); }).then(done);
+      }, function(){ if (k === addonsKey()) profileAddonsSeed(false); }).then(done);
     });
   }
-  function switchViewer(id, quiet){
-    id = id === 'b' ? 'b' : 'a';
+  /** On to another profile: what this one changed is kept and sent up under its own names first, then the other's
+      things are read (storage, the mirrors after a wipe, the cloud) and everything showing them is drawn again.
+      `gone`: the profile being left no longer exists, so nothing of it is sent. */
+  function switchViewer(id, quiet, gone){
+    if (!viewerById(id)) id = 'a';
     if (id === viewer) return;
-    try { if (progCache) mirrorKv(vkey('progress'), JSON.stringify(progCache)); } catch(e){}
-    ['progress', 'library', 'addons', 'track'].forEach(function(k){
+    if (!gone){ try { if (progCache) mirrorKv(vkey('progress'), JSON.stringify(progCache)); } catch(e){} }
+    PER_PROFILE.forEach(function(k){
       clearTimeout(syncTimers[k]);
-      if (cloudLinked() && cloudDirty[vkey(k)]) cloudPush(k);
+      if (!gone && cloudLinked() && cloudDirty[vkey(k)]) cloudPush(k);
     });
     try { trackStop(false); trackAuthStop(); } catch(e){}   // what plays was the other profile's watching
     viewer = id; try { LS.setItem('viewer', id); } catch(e){}
+    viewerReload();
+    if (!quiet) setStatus('Watching as ' + viewerName(viewerCur()) + '.', 'ok', 2500);
+  }
+  /** Everything that is a profile's own, read again and drawn again: after a switch, or when the profile this device
+      is on was replaced by a new one somewhere else. */
+  function viewerReload(){
+    var id = viewer;
     progCache = null; libCache = null; upcomingCache = { at: 0, rows: null };
     trackCache = null; try { initPersistentTrack(); trackRender(); } catch(e){}
     addonsSyncMeta = null;
     initPersistentProgress(); initPersistentLibrary();
+    try { prefsSeed(); prefsApplyAll(); } catch(e){}        // this profile's settings
     // this profile's add-ons first (restored or seeded), then the cloud's copy of them and of its history
     profileAddonsLoad(function(){
       if (viewer !== id) return;
@@ -5077,16 +5314,48 @@
     try { var av = document.querySelector('.view.active'); if (av && av.id === 'view-library') renderLibraryTab(); } catch(e){}
     try { socialPublishSoon(); } catch(e){}
     whoRender();
-    if (!quiet) setStatus('Watching as ' + viewerName(viewerCur()) + '.', 'ok', 2500);
+  }
+  /** The profile this device is on now reads another add-on list (its own, or the first profile's). */
+  function addonsSourceChanged(){
+    var id = viewer;
+    addonsSyncMeta = null;
+    profileAddonsLoad(function(){
+      if (viewer !== id) return;
+      manifestCache = {};
+      try { discInvalidate(); } catch(e){}
+      try { guideInvalidate(); } catch(e){}
+      try { renderAddons(); } catch(e){}
+      try { buildHomeRows(true); } catch(e){}
+      if (cloudLinked()) cloudPullAll(true);
+    });
+  }
+  /** A list of profiles arrived from the account: what it removed or replaced is cleared here, the picker follows. */
+  function whoListArrived(addonsWas){
+    var was = viewer, moved = whoReconcile();
+    if (moved) whoForcedPin();
+    else if (viewer === was && addonsKey() !== addonsWas) addonsSourceChanged();
+    if (whoEditing && !viewerById(whoEditing)){ whoEditing = null; $id('who').classList.remove('editing'); }
+    if (whoOpen && !whoFrom && !whoEditing && !whoPinOn && viewerList().length < 2 && !whoNeedsPin(viewer)) whoClose(viewer);   // (no longer a choice at launch)
+    whoRender();
   }
   function mergeViewers(remote){
     var local = getViewers(), ra = Number(remote && remote.at) || 0;
     if (!remote || Object.prototype.toString.call(remote.list) !== '[object Array]') return { changed: false, localNewer: (local.at || 0) > 0 };
     if (ra > (local.at || 0)){
+      var k0 = addonsKey();
       viewersDoc = { at: ra, list: remote.list.slice(0, 2) }; saveViewers(false);
-      if (viewer === 'b' && viewerList().length < 2){ switchViewer('a', true); whoForcedPin(); }   // removed on another device
-      if (whoOpen && !whoFrom && !whoEditing && !whoPinOn && viewerList().length < 2 && !whoNeedsPin(viewer)) whoClose(viewer);   // (no longer a choice at launch)
-      whoRender();
+      whoListArrived(k0);
+      return { changed: true, localNewer: false };
+    }
+    return { changed: false, localNewer: (local.at || 0) > ra };
+  }
+  function mergePeople(remote){
+    var local = getPeople(), ra = Number(remote && remote.at) || 0;
+    if (!remote || typeof remote !== 'object') return { changed: false, localNewer: (local.at || 0) > 0 };
+    if (ra > (local.at || 0)){
+      var k0 = addonsKey();
+      peopleDoc = peopleNorm(remote); savePeople(false);
+      whoListArrived(k0);
       return { changed: true, localNewer: false };
     }
     return { changed: false, localNewer: (local.at || 0) > ra };
@@ -5097,7 +5366,7 @@
     var b = $id('railWho'); if (!b || !IS_TV) return;
     var v = viewerCur(), av = b.querySelector('.rw-av');
     av.setAttribute('style', whoMonoStyle(viewerAv(v)));
-    av.textContent = avLetter(viewerName(v));
+    av.innerHTML = whoFace(v);
     b.querySelector('span').textContent = viewerName(v);
     if (!b.__wired){ b.__wired = true; b.onclick = function(){ whoShow(b); }; }
   }
@@ -5105,8 +5374,9 @@
     railWhoRender();
     var sub = $id('setWhoSub'), btn = $id('setWhoOpen'); if (!sub || !btn) return;
     var l = viewerList();
-    sub.textContent = l.length < 2 ? 'Add a second profile for someone else in the house · Each keeps its own Continue Watching, resume points, My List and add-ons'
-      : 'Watching as ' + viewerName(viewerCur()) + ' · Each profile keeps its own Continue Watching, resume points, My List and add-ons';
+    sub.textContent = l.length < 2 ? 'Add up to six profiles for the people in the house · Each keeps its own Continue Watching, My List, add-ons and settings'
+      : 'Watching as ' + viewerName(viewerCur()) + ' · ' + l.length + ' profiles, each with its own Continue Watching, My List, add-ons and settings';
+    var askRow = $id('setWhoAskRow'); if (askRow) askRow.style.display = l.length < 2 ? 'none' : '';
     if (!btn.__wired){ btn.__wired = true; btn.onclick = function(){ whoShow(btn); }; }
     if (whoOpen && !whoEditing) whoDraw();
   }
@@ -5125,8 +5395,48 @@
     av = /^#[0-9a-f]{6}$/i.test(String(av || '')) ? av : '#636366';
     return 'background:' + whoRgba(av, .2) + ';border-color:' + whoRgba(av, .6) + ';color:' + av;
   }
-  var whoOpen = false, whoManaging = false, whoEditing = null, whoFrom = null, whoEdAv = '';
-  /** The picker: at launch with two profiles (whoBoot), and from Settings (from = the button to come back to). */
+  var WHO_PICS = [
+    ['planet', 'Planet', 'M 12 6.4 C 15.09 6.4 17.6 8.91 17.6 12 C 17.6 15.09 15.09 17.6 12 17.6 C 8.91 17.6 6.4 15.09 6.4 12 C 6.4 8.91 8.91 6.4 12 6.4 Z M 10.84 9.13 C 16.27 6.93 21.19 6.44 21.83 8.03 C 22.47 9.62 18.59 12.68 13.16 14.87 C 7.73 17.07 2.81 17.56 2.17 15.97 C 1.53 14.38 5.41 11.32 10.84 9.13 Z M 11.34 10.38 C 6.79 12.22 3.39 14.44 3.75 15.33 C 4.11 16.23 8.1 15.46 12.66 13.62 C 17.21 11.78 20.61 9.56 20.25 8.67 C 19.89 7.77 15.9 8.54 11.34 10.38 Z'],
+    ['moon', 'Moon', 'M 18.8 15.49 C 17.26 19.27 13.17 21.35 9.21 20.35 C 5.25 19.36 2.62 15.61 3.04 11.55 C 3.47 7.49 6.82 4.36 10.9 4.21 C 8.05 6.48 7.46 10.57 9.55 13.56 C 11.64 16.54 15.69 17.39 18.8 15.49 Z'],
+    ['star', 'Star', 'M 12 3.2 L 14.41 9.28 L 20.94 9.7 L 15.9 13.87 L 17.53 20.2 L 12 16.7 L 6.47 20.2 L 8.1 13.87 L 3.06 9.7 L 9.59 9.28 Z'],
+    ['rocket', 'Rocket', 'M 12 1.8 C 15.4 4.4 17 8.2 17 12.2 L 17 16.4 L 7 16.4 L 7 12.2 C 7 8.2 8.6 4.4 12 1.8 Z M 7 11.4 L 7 16.4 L 3.4 19.6 L 3.4 15.2 Z M 17 11.4 L 20.6 15.2 L 20.6 19.6 L 17 16.4 Z M 9.6 17.8 L 14.4 17.8 L 12 22.4 Z M 12 7.3 C 10.84 7.3 9.9 8.24 9.9 9.4 C 9.9 10.56 10.84 11.5 12 11.5 C 13.16 11.5 14.1 10.56 14.1 9.4 C 14.1 8.24 13.16 7.3 12 7.3 Z'],
+    ['sun', 'Sun', 'M 12 7.3 C 14.6 7.3 16.7 9.4 16.7 12 C 16.7 14.6 14.6 16.7 12 16.7 C 9.4 16.7 7.3 14.6 7.3 12 C 7.3 9.4 9.4 7.3 12 7.3 Z M 12 1.6 L 12 1.6 C 12.5 1.6 12.9 2 12.9 2.5 L 12.9 4.5 C 12.9 5 12.5 5.4 12 5.4 L 12 5.4 C 11.5 5.4 11.1 5 11.1 4.5 L 11.1 2.5 C 11.1 2 11.5 1.6 12 1.6 Z M 19.35 4.65 L 19.35 4.65 C 19.71 5 19.71 5.57 19.35 5.92 L 17.94 7.33 C 17.59 7.68 17.02 7.68 16.67 7.33 L 16.67 7.33 C 16.32 6.98 16.32 6.41 16.67 6.06 L 18.08 4.65 C 18.43 4.29 19 4.29 19.35 4.65 Z M 22.4 12 L 22.4 12 C 22.4 12.5 22 12.9 21.5 12.9 L 19.5 12.9 C 19 12.9 18.6 12.5 18.6 12 L 18.6 12 C 18.6 11.5 19 11.1 19.5 11.1 L 21.5 11.1 C 22 11.1 22.4 11.5 22.4 12 Z M 19.35 19.35 L 19.35 19.35 C 19 19.71 18.43 19.71 18.08 19.35 L 16.67 17.94 C 16.32 17.59 16.32 17.02 16.67 16.67 L 16.67 16.67 C 17.02 16.32 17.59 16.32 17.94 16.67 L 19.35 18.08 C 19.71 18.43 19.71 19 19.35 19.35 Z M 12 22.4 L 12 22.4 C 11.5 22.4 11.1 22 11.1 21.5 L 11.1 19.5 C 11.1 19 11.5 18.6 12 18.6 L 12 18.6 C 12.5 18.6 12.9 19 12.9 19.5 L 12.9 21.5 C 12.9 22 12.5 22.4 12 22.4 Z M 4.65 19.35 L 4.65 19.35 C 4.29 19 4.29 18.43 4.65 18.08 L 6.06 16.67 C 6.41 16.32 6.98 16.32 7.33 16.67 L 7.33 16.67 C 7.68 17.02 7.68 17.59 7.33 17.94 L 5.92 19.35 C 5.57 19.71 5 19.71 4.65 19.35 Z M 1.6 12 L 1.6 12 C 1.6 11.5 2 11.1 2.5 11.1 L 4.5 11.1 C 5 11.1 5.4 11.5 5.4 12 L 5.4 12 C 5.4 12.5 5 12.9 4.5 12.9 L 2.5 12.9 C 2 12.9 1.6 12.5 1.6 12 Z M 4.65 4.65 L 4.65 4.65 C 5 4.29 5.57 4.29 5.92 4.65 L 7.33 6.06 C 7.68 6.41 7.68 6.98 7.33 7.33 L 7.33 7.33 C 6.98 7.68 6.41 7.68 6.06 7.33 L 4.65 5.92 C 4.29 5.57 4.29 5 4.65 4.65 Z'],
+    ['bolt', 'Bolt', 'M 13.6 2.2 L 5.2 13.4 L 10.6 13.4 L 9.4 21.8 L 18.8 9.6 L 13 9.6 Z'],
+    ['flame', 'Flame', 'M 12.6 2.4 C 13.2 6.2 18.8 9 18.8 14.6 C 18.8 18.6 15.8 21.6 12 21.6 C 8.2 21.6 5.2 18.6 5.2 14.6 C 5.2 12 6.4 10.2 7.8 8.8 C 8.2 10.6 9 11.6 10.2 12.2 C 9.8 8.4 10.6 4.8 12.6 2.4 Z M 12.2 13.4 C 10.6 15.2 9.2 15.9 9.2 17.4 C 9.2 18.8 10.5 19.9 12.1 19.9 C 13.7 19.9 15 18.8 15 17.2 C 15 15.8 13.8 14.6 12.2 13.4 Z'],
+    ['drop', 'Drop', 'M 12 2.4 C 15.4 7 18.6 10.6 18.6 14.6 C 18.6 18.4 15.7 21.4 12 21.4 C 8.3 21.4 5.4 18.4 5.4 14.6 C 5.4 10.6 8.6 7 12 2.4 Z M 8.2 14.4 C 8.2 16.8 9.7 18.5 11.9 18.7 L 11.9 17.2 C 10.6 17 9.7 15.9 9.7 14.4 L 8.2 14.4 Z'],
+    ['leaf', 'Leaf', 'M 20.2 3.8 C 20.8 12.6 17.4 19.4 9.6 19.4 C 6.4 19.4 4.6 17.2 4.6 14.4 C 4.6 7.4 11.6 4 20.2 3.8 Z M 8.2 15.3 L 4.9 19.9 L 6 20.6 L 9.2 16.2 L 17.5 8.4 L 16.6 7.6 Z'],
+    ['peak', 'Mountain', 'M 2.2 20 L 9.2 7.4 L 12.6 13.4 L 14.9 9.8 L 21.8 20 Z M 17.4 3.3 C 18.67 3.3 19.7 4.33 19.7 5.6 C 19.7 6.87 18.67 7.9 17.4 7.9 C 16.13 7.9 15.1 6.87 15.1 5.6 C 15.1 4.33 16.13 3.3 17.4 3.3 Z M 7.3 14 L 8.1 15 L 9.1 13.9 L 9.9 14.9 L 10.9 13.7 L 9.2 10.6 Z'],
+    ['gem', 'Gem', 'M 7 3.6 L 17 3.6 L 21.6 9.2 L 12 21 L 2.4 9.2 Z M 5.6 8.4 L 9.2 8.4 L 10.6 5.4 L 8 5.4 Z M 14.8 8.4 L 18.4 8.4 L 16 5.4 L 13.4 5.4 Z M 12 17 L 13.4 10.2 L 10.6 10.2 Z'],
+    ['heart', 'Heart', 'M 12 20.6 C 5.2 15.6 2.6 12.2 2.6 8.7 C 2.6 5.7 4.9 3.6 7.6 3.6 C 9.4 3.6 11 4.5 12 6 C 13 4.5 14.6 3.6 16.4 3.6 C 19.1 3.6 21.4 5.7 21.4 8.7 C 21.4 12.2 18.8 15.6 12 20.6 Z'],
+    ['crown', 'Crown', 'M 3 7.2 L 7.6 11.4 L 12 4.6 L 16.4 11.4 L 21 7.2 L 19.4 16.6 L 4.6 16.6 Z M 5.7 18 L 18.3 18 C 18.91 18 19.4 18.49 19.4 19.1 L 19.4 19.3 C 19.4 19.91 18.91 20.4 18.3 20.4 L 5.7 20.4 C 5.09 20.4 4.6 19.91 4.6 19.3 L 4.6 19.1 C 4.6 18.49 5.09 18 5.7 18 Z'],
+    ['smile', 'Smile', 'M 12 2.8 C 17.08 2.8 21.2 6.92 21.2 12 C 21.2 17.08 17.08 21.2 12 21.2 C 6.92 21.2 2.8 17.08 2.8 12 C 2.8 6.92 6.92 2.8 12 2.8 Z M 8.7 8.3 C 8.01 8.3 7.45 9.06 7.45 10 C 7.45 10.94 8.01 11.7 8.7 11.7 C 9.39 11.7 9.95 10.94 9.95 10 C 9.95 9.06 9.39 8.3 8.7 8.3 Z M 15.3 8.3 C 14.61 8.3 14.05 9.06 14.05 10 C 14.05 10.94 14.61 11.7 15.3 11.7 C 15.99 11.7 16.55 10.94 16.55 10 C 16.55 9.06 15.99 8.3 15.3 8.3 Z M 15.86 13.52 C 15.04 14.87 13.58 15.7 12 15.7 C 10.42 15.7 8.96 14.87 8.14 13.52 L 7.11 14.48 C 7.99 16.38 9.9 17.6 12 17.6 C 14.1 17.6 16.01 16.38 16.89 14.48 Z'],
+    ['shades', 'Sunglasses', 'M 2.8 8.4 L 21.2 8.4 C 21.75 8.4 22.2 8.85 22.2 9.4 L 22.2 9.4 C 22.2 9.95 21.75 10.4 21.2 10.4 L 2.8 10.4 C 2.25 10.4 1.8 9.95 1.8 9.4 L 1.8 9.4 C 1.8 8.85 2.25 8.4 2.8 8.4 Z M 3 9.4 L 10.8 9.4 C 10.8 13.6 9.4 16.4 6.9 16.4 C 4.4 16.4 3 13.6 3 9.4 Z M 13.2 9.4 L 21 9.4 C 21 13.6 19.6 16.4 17.1 16.4 C 14.6 16.4 13.2 13.6 13.2 9.4 Z'],
+    ['ghost', 'Ghost', 'M 4.4 11.4 C 4.4 6.8 7.8 3.4 12 3.4 C 16.2 3.4 19.6 6.8 19.6 11.4 L 19.6 20.6 L 17.07 18.5 L 14.53 20.6 L 12 18.5 L 9.47 20.6 L 6.93 18.5 L 4.4 20.6 Z M 9.3 9.25 C 8.55 9.25 7.95 10.03 7.95 11 C 7.95 11.97 8.55 12.75 9.3 12.75 C 10.05 12.75 10.65 11.97 10.65 11 C 10.65 10.03 10.05 9.25 9.3 9.25 Z M 14.7 9.25 C 13.95 9.25 13.35 10.03 13.35 11 C 13.35 11.97 13.95 12.75 14.7 12.75 C 15.45 12.75 16.05 11.97 16.05 11 C 16.05 10.03 15.45 9.25 14.7 9.25 Z'],
+    ['alien', 'Alien', 'M 12 2.8 C 17.4 2.8 20.6 6.4 20.6 10.6 C 20.6 15.4 16 21.2 12 21.2 C 8 21.2 3.4 15.4 3.4 10.6 C 3.4 6.4 6.6 2.8 12 2.8 Z M 9.17 10.37 C 8 9.64 6.7 9.6 6.28 10.28 C 5.86 10.95 6.46 12.1 7.63 12.83 C 8.8 13.56 10.1 13.6 10.52 12.92 C 10.94 12.25 10.34 11.1 9.17 10.37 Z M 14.83 10.37 C 13.66 11.1 13.06 12.25 13.48 12.92 C 13.9 13.6 15.2 13.56 16.37 12.83 C 17.54 12.1 18.14 10.95 17.72 10.28 C 17.3 9.6 16 9.64 14.83 10.37 Z'],
+    ['robot', 'Robot', 'M 7.4 7.4 L 16.6 7.4 C 18.37 7.4 19.8 8.83 19.8 10.6 L 19.8 16.6 C 19.8 18.37 18.37 19.8 16.6 19.8 L 7.4 19.8 C 5.63 19.8 4.2 18.37 4.2 16.6 L 4.2 10.6 C 4.2 8.83 5.63 7.4 7.4 7.4 Z M 11.8 3.4 L 12.2 3.4 C 12.53 3.4 12.8 3.67 12.8 4 L 12.8 7.2 C 12.8 7.53 12.53 7.8 12.2 7.8 L 11.8 7.8 C 11.47 7.8 11.2 7.53 11.2 7.2 L 11.2 4 C 11.2 3.67 11.47 3.4 11.8 3.4 Z M 12 1.8 C 12.83 1.8 13.5 2.47 13.5 3.3 C 13.5 4.13 12.83 4.8 12 4.8 C 11.17 4.8 10.5 4.13 10.5 3.3 C 10.5 2.47 11.17 1.8 12 1.8 Z M 2.7 11.4 L 2.8 11.4 C 3.24 11.4 3.6 11.76 3.6 12.2 L 3.6 15.2 C 3.6 15.64 3.24 16 2.8 16 L 2.7 16 C 2.26 16 1.9 15.64 1.9 15.2 L 1.9 12.2 C 1.9 11.76 2.26 11.4 2.7 11.4 Z M 21.2 11.4 L 21.3 11.4 C 21.74 11.4 22.1 11.76 22.1 12.2 L 22.1 15.2 C 22.1 15.64 21.74 16 21.3 16 L 21.2 16 C 20.76 16 20.4 15.64 20.4 15.2 L 20.4 12.2 C 20.4 11.76 20.76 11.4 21.2 11.4 Z M 8.9 10.75 C 7.99 10.75 7.25 11.49 7.25 12.4 C 7.25 13.31 7.99 14.05 8.9 14.05 C 9.81 14.05 10.55 13.31 10.55 12.4 C 10.55 11.49 9.81 10.75 8.9 10.75 Z M 15.1 10.75 C 14.19 10.75 13.45 11.49 13.45 12.4 C 13.45 13.31 14.19 14.05 15.1 14.05 C 16.01 14.05 16.75 13.31 16.75 12.4 C 16.75 11.49 16.01 10.75 15.1 10.75 Z M 9.35 15.9 C 8.94 15.9 8.6 16.24 8.6 16.65 L 8.6 16.65 C 8.6 17.06 8.94 17.4 9.35 17.4 L 14.65 17.4 C 15.06 17.4 15.4 17.06 15.4 16.65 L 15.4 16.65 C 15.4 16.24 15.06 15.9 14.65 15.9 L 9.35 15.9 Z'],
+    ['cat', 'Cat', 'M 12 6.7 C 16.53 6.7 20.2 9.79 20.2 13.6 C 20.2 17.41 16.53 20.5 12 20.5 C 7.47 20.5 3.8 17.41 3.8 13.6 C 3.8 9.79 7.47 6.7 12 6.7 Z M 4.3 3.6 L 10 8.2 L 4.2 12.6 Z M 19.7 3.6 L 19.8 12.6 L 14 8.2 Z M 8.9 11.4 C 8.26 11.4 7.75 12.12 7.75 13 C 7.75 13.88 8.26 14.6 8.9 14.6 C 9.54 14.6 10.05 13.88 10.05 13 C 10.05 12.12 9.54 11.4 8.9 11.4 Z M 15.1 11.4 C 14.46 11.4 13.95 12.12 13.95 13 C 13.95 13.88 14.46 14.6 15.1 14.6 C 15.74 14.6 16.25 13.88 16.25 13 C 16.25 12.12 15.74 11.4 15.1 11.4 Z M 12 17.2 L 13.1 15.9 L 10.9 15.9 Z'],
+    ['paw', 'Paw', 'M 12 11.4 C 15.2 11.4 18.6 15 18.6 17.6 C 18.6 19.6 17.2 20.6 15.4 20.6 C 14 20.6 13.2 19.9 12 19.9 C 10.8 19.9 10 20.6 8.6 20.6 C 6.8 20.6 5.4 19.6 5.4 17.6 C 5.4 15 8.8 11.4 12 11.4 Z M 3.87 8.97 C 4.79 8.67 5.86 9.42 6.26 10.66 C 6.67 11.89 6.25 13.14 5.33 13.43 C 4.41 13.73 3.34 12.98 2.94 11.74 C 2.53 10.51 2.95 9.26 3.87 8.97 Z M 8.73 3.86 C 9.75 3.76 10.69 4.81 10.84 6.21 C 10.99 7.61 10.28 8.83 9.27 8.94 C 8.25 9.04 7.31 7.99 7.16 6.59 C 7.01 5.19 7.72 3.97 8.73 3.86 Z M 15.27 3.86 C 16.28 3.97 16.99 5.19 16.84 6.59 C 16.69 7.99 15.75 9.04 14.73 8.94 C 13.72 8.83 13.01 7.61 13.16 6.21 C 13.31 4.81 14.25 3.76 15.27 3.86 Z M 20.13 8.97 C 21.05 9.26 21.47 10.51 21.06 11.74 C 20.66 12.98 19.59 13.73 18.67 13.43 C 17.75 13.14 17.33 11.89 17.74 10.66 C 18.14 9.42 19.21 8.67 20.13 8.97 Z'],
+    ['popcorn', 'Popcorn', 'M 5.2 10.6 L 18.8 10.6 L 17.2 21.4 L 6.8 21.4 Z M 7.6 5 C 9.26 5 10.6 6.34 10.6 8 C 10.6 9.66 9.26 11 7.6 11 C 5.94 11 4.6 9.66 4.6 8 C 4.6 6.34 5.94 5 7.6 5 Z M 12 2.8 C 13.88 2.8 15.4 4.32 15.4 6.2 C 15.4 8.08 13.88 9.6 12 9.6 C 10.12 9.6 8.6 8.08 8.6 6.2 C 8.6 4.32 10.12 2.8 12 2.8 Z M 16.4 5 C 18.06 5 19.4 6.34 19.4 8 C 19.4 9.66 18.06 11 16.4 11 C 14.74 11 13.4 9.66 13.4 8 C 13.4 6.34 14.74 5 16.4 5 Z M 9.9 19.6 L 10.9 19.6 L 10.5 12.4 L 9.1 12.4 Z M 13.1 19.6 L 14.1 19.6 L 14.9 12.4 L 13.5 12.4 Z'],
+    ['clapper', 'Clapperboard', 'M 4.8 10.2 L 19.2 10.2 C 20.19 10.2 21 11.01 21 12 L 21 19 C 21 19.99 20.19 20.8 19.2 20.8 L 4.8 20.8 C 3.81 20.8 3 19.99 3 19 L 3 12 C 3 11.01 3.81 10.2 4.8 10.2 Z M 2.83 4.44 L 19.13 1.27 C 19.67 1.16 20.2 1.52 20.3 2.06 L 20.68 4.02 C 20.79 4.56 20.43 5.09 19.89 5.19 L 3.6 8.36 C 3.05 8.47 2.53 8.11 2.42 7.57 L 2.04 5.61 C 1.94 5.07 2.29 4.54 2.83 4.44 Z M 4.38 8.21 L 6.74 7.75 L 7.74 3.48 L 5.39 3.94 Z M 9.68 7.18 L 12.04 6.72 L 13.04 2.45 L 10.69 2.91 Z M 14.98 6.15 L 17.34 5.69 L 18.34 1.42 L 15.99 1.88 Z'],
+    ['gamepad', 'Controller', 'M 7.4 6.6 L 16.6 6.6 C 19.8 6.6 21.4 9 21.9 12.6 C 22.4 16.2 22.2 18.6 20.2 18.6 C 18.4 18.6 17.4 15.9 15.6 15.9 L 8.4 15.9 C 6.6 15.9 5.6 18.6 3.8 18.6 C 1.8 18.6 1.6 16.2 2.1 12.6 C 2.6 9 4.2 6.6 7.4 6.6 Z M 7.2 10.4 L 5.7 10.4 L 5.7 12 L 7.2 12 L 7.2 13.5 L 8.8 13.5 L 8.8 12 L 10.3 12 L 10.3 10.4 L 8.8 10.4 L 8.8 8.9 L 7.2 8.9 Z M 15 11.15 C 14.36 11.15 13.85 11.66 13.85 12.3 C 13.85 12.94 14.36 13.45 15 13.45 C 15.64 13.45 16.15 12.94 16.15 12.3 C 16.15 11.66 15.64 11.15 15 11.15 Z M 17.9 8.85 C 17.26 8.85 16.75 9.36 16.75 10 C 16.75 10.64 17.26 11.15 17.9 11.15 C 18.54 11.15 19.05 10.64 19.05 10 C 19.05 9.36 18.54 8.85 17.9 8.85 Z'],
+    ['note', 'Music', 'M 6.43 15.42 C 8.16 14.86 9.91 15.47 10.34 16.78 C 10.77 18.09 9.71 19.61 7.97 20.18 C 6.24 20.74 4.49 20.13 4.06 18.82 C 3.63 17.51 4.69 15.99 6.43 15.42 Z M 15.83 13.42 C 17.56 12.86 19.31 13.47 19.74 14.78 C 20.17 16.09 19.11 17.61 17.37 18.18 C 15.64 18.74 13.89 18.13 13.46 16.82 C 13.03 15.51 14.09 13.99 15.83 13.42 Z M 8.9 5.6 L 19.9 3.2 L 19.9 15.8 L 18.3 15.8 L 18.3 7.6 L 10.5 9.3 L 10.5 17.8 L 8.9 17.8 Z'],
+  ];
+  var whoPicIx = null;
+  /** A picture's drawing by its name ('' for none, or for a name this build does not have). */
+  function whoPicPath(id){
+    if (!whoPicIx){ whoPicIx = {}; WHO_PICS.forEach(function(p){ whoPicIx[p[0]] = p[2]; }); }
+    return (typeof id === 'string' && Object.prototype.hasOwnProperty.call(whoPicIx, id)) ? whoPicIx[id] : '';
+  }
+  /** What a profile shows in its circle: its picture, else the first letter of its name. */
+  function whoFace(v){
+    var d = whoPicPath(v && v.pic);
+    return d ? '<svg class="who-pic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="' + d + '"/></svg>' : esc(avLetter(viewerName(v)));
+  }
+  var WHO_NOTE = 'Each profile keeps its own Continue Watching, resume points, My List, add-ons and settings.';
+  var whoOpen = false, whoManaging = false, whoEditing = null, whoFrom = null, whoEdAv = '', whoEdPic = '', whoEdShare = false;
+  /** Ask who's watching when the app opens (this device's choice; a profile with a PIN always asks). */
+  function whoAsk(){ try { return LS.getItem('who_ask') !== '0'; } catch(e){ return true; } }
+  /** The picker: at launch with more than one profile (whoBoot), and from Settings (from = the button to come back to). */
   function whoShow(from){
     whoFrom = from || null; whoManaging = false; whoEditing = null; whoPinOn = null;
     $id('who').classList.add('on'); $id('who').classList.remove('editing', 'pin');
@@ -5142,10 +5452,12 @@
     // at launch the boot's own landing can take focus after this: put it back if it left the picker
     setTimeout(function(){ var a = document.activeElement; if (whoOpen && !(a && a.closest && a.closest('#who'))) put(); }, 400);
   }
+  var whoAdding = false;
   function whoDraw(){
     var l = viewerList(), box = $id('who'), row = $id('whoRow');
     if (!box || !row) return;
     if (whoManaging) box.classList.add('manage'); else box.classList.remove('manage');
+    if (l.length + (whoManaging && l.length < WHO_MAX ? 1 : 0) > 3) box.classList.add('many'); else box.classList.remove('many');
     // a redraw (a sync, the profile arriving) must not drop the remote's place: the lit tile is lit again after
     var ae = document.activeElement, lit = ae && ae.parentNode === row ? (ae.getAttribute('data-who') || '+') : null;
     row.innerHTML = '';
@@ -5153,7 +5465,7 @@
       var b = document.createElement('button'); b.type = 'button';
       b.className = 'who-tile focusable' + (v.id === viewer ? ' cur' : '');
       b.setAttribute('data-who', v.id);
-      b.innerHTML = '<span class="who-av"><span class="who-mono" style="' + whoMonoStyle(viewerAv(v)) + '">' + esc(avLetter(viewerName(v))) +
+      b.innerHTML = '<span class="who-av"><span class="who-mono" style="' + whoMonoStyle(viewerAv(v)) + '">' + whoFace(v) +
         '</span><span class="who-pen" aria-hidden="true">' + WHO_PEN + '</span></span><span class="n">' + esc(viewerName(v)) + '</span>' +
         (viewerLocked(v) ? '<span class="who-lk" aria-hidden="true">' + WHO_LOCK + '</span>' : '');
       b.setAttribute('aria-label', (whoManaging ? 'Edit ' + viewerName(v) : viewerName(v)) + (viewerLocked(v) ? ', PIN' : ''));
@@ -5163,12 +5475,17 @@
       };
       row.appendChild(b);
     });
-    if (whoManaging && l.length < 2){
+    if (whoManaging && l.length < WHO_MAX){
       var a = document.createElement('button'); a.type = 'button'; a.className = 'who-tile who-add focusable';
       a.innerHTML = '<span class="who-av"><span class="who-mono">' + WHO_PLUS + '</span></span><span class="n">Add Profile</span>';
       a.onclick = function(){
-        viewerSetList(viewerList().concat([{ id: 'b', name: '', av: '#0A84FF' }]));
-        whoRender(); whoEdit('b');
+        if (whoAdding) return;
+        whoAdding = true;
+        profileCreate(function(nid){
+          whoAdding = false;
+          if (!nid){ setStatus('Could not reach Nebula to add a profile. Try again.', 'err', 4000); return; }
+          whoRender(); whoEdit(nid);
+        });
       };
       row.appendChild(a);
     }
@@ -5177,18 +5494,30 @@
     m.textContent = whoManaging ? 'Done' : 'Manage Profiles';
     m.onclick = function(){ whoManaging = !whoManaging; whoDraw(); whoFocus(m); };
   }
-  /** A pencil pressed: the profile's name and colour; the second can be removed (its history is kept). */
+  /** A pencil pressed: the profile's name, picture and colour, whose add-ons it uses, its PIN; any but the first can
+      be removed, and everything of it goes with it. */
   function whoEdit(id){
-    var v = null; viewerList().forEach(function(x){ if (x.id === id) v = x; });
+    var v = viewerById(id);
     if (!v) return;
-    whoEditing = id; whoEdAv = viewerAv(v);
+    whoEditing = id; whoEdAv = viewerAv(v); whoEdPic = whoPicPath(v.pic) ? v.pic : ''; whoEdShare = !!v.share;
     $id('who').classList.add('editing');
-    var nm = $id('whoEdName'), mono = $id('whoEdMono'), avs = $id('whoEdAv');
+    var nm = $id('whoEdName'), mono = $id('whoEdMono'), avs = $id('whoEdAv'), pics = $id('whoEdPic'), sh = $id('whoEdShare'), note = $id('whoEdNote');
+    var first = viewerName(viewerById('a'));
     nm.value = v.name || ''; nm.placeholder = viewerName({ id: id, name: '' });
+    note.textContent = WHO_NOTE;
     var paint = function(){
+      var shown = nm.value.trim() || viewerName({ id: id, name: '' });
       mono.setAttribute('style', whoMonoStyle(whoEdAv));
-      mono.textContent = avLetter(nm.value.trim() || viewerName(v));
+      mono.innerHTML = whoFace({ id: id, name: shown, pic: whoEdPic });
       Array.prototype.forEach.call(avs.children, function(b){ b.className = 'swatch focusable' + (b.__av.toUpperCase() === whoEdAv.toUpperCase() ? ' on' : ''); });
+      Array.prototype.forEach.call(pics.children, function(b){
+        var on = b.__pic === whoEdPic;
+        b.className = 'who-popt focusable' + (on ? ' on' : '');
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        if (!b.__pic) b.textContent = avLetter(shown);
+      });
+      sh.innerHTML = '<span>Add-ons</span><b>' + esc(whoEdShare ? 'The same as ' + first : 'Its own list') + '</b>';
+      sh.setAttribute('aria-pressed', whoEdShare ? 'true' : 'false');
     };
     avs.innerHTML = '';
     AVATARS.forEach(function(a){
@@ -5196,12 +5525,24 @@
       b.onclick = function(){ whoEdAv = a; paint(); };
       avs.appendChild(b);
     });
+    pics.innerHTML = '';
+    [['', 'Letter', '']].concat(WHO_PICS).forEach(function(p){
+      var b = document.createElement('button'); b.type = 'button'; b.__pic = p[0]; b.title = p[1]; b.setAttribute('aria-label', p[1]);
+      if (p[0]) b.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="' + p[2] + '"/></svg>';
+      b.onclick = function(){ whoEdPic = p[0]; paint(); };
+      pics.appendChild(b);
+    });
+    sh.style.display = id === 'a' ? 'none' : '';
+    sh.onclick = function(){ whoEdShare = !whoEdShare; paint(); };
     nm.oninput = paint;
     nm.onkeydown = function(e){ if (e.keyCode === 13){ e.preventDefault(); $id('whoEdSave').click(); } };
     paint();
     $id('whoEdSave').onclick = function(){
-      var l2 = viewerList(); l2.forEach(function(x){ if (x.id === id){ x.name = nm.value.trim().slice(0, 24); x.av = whoEdAv; } });
-      viewerSetList(l2); whoEditDone(id);
+      var l2 = viewerList(), k0 = addonsKey();
+      l2.forEach(function(x){ if (x.id === id){ x.name = nm.value.trim().slice(0, 24); x.av = whoEdAv; x.pic = whoEdPic; x.share = (whoEdShare && id !== 'a') ? 1 : 0; } });
+      viewerSetList(l2);
+      if (addonsKey() !== k0) addonsSourceChanged();       // (the profile this device is on changed whose add-ons it uses)
+      whoEditDone(id);
     };
     var pinPaint = function(){
       var on = viewerLocked(viewerById(id));
@@ -5222,12 +5563,21 @@
       setStatus('PIN removed.', 'ok', 2500);
       whoFocus($id('whoEdPin'));
     };
-    var del = $id('whoEdDel');
-    del.style.display = id === 'b' ? '' : 'none';
+    // removing is for good, so it is asked twice: the button says what will go, a second press does it
+    var del = $id('whoEdDel'), armed = false;
+    var disarm = function(){ armed = false; del.textContent = 'Remove profile'; note.textContent = WHO_NOTE; };
+    del.style.display = id === 'a' ? 'none' : '';
+    disarm();
+    del.onblur = function(){ if (armed) disarm(); };
     del.onclick = function(){
-      if (viewer === 'b') switchViewer('a', true);
-      viewerSetList(viewerList().filter(function(x){ return x.id !== 'b'; }));
-      setStatus('Removed the second profile. Its history is kept if you add it again.', 'ok', 3500);
+      var name = viewerName(viewerById(id) || v);
+      if (!armed){
+        armed = true; del.textContent = 'Remove ' + name + ' for good';
+        note.textContent = 'Its Continue Watching, My List, add-ons and settings are deleted from every device. This cannot be undone.';
+        return;
+      }
+      profileRemove(id);
+      setStatus('Removed ' + name + '.', 'ok', 3000);
       whoEditDone('a');
       whoForcedPin();
     };
@@ -5249,7 +5599,7 @@
     $id('who').classList.add('pin');
     var v = viewerById(id) || { id: id };
     var mono = $id('whoPinMono');
-    mono.setAttribute('style', whoMonoStyle(viewerAv(v))); mono.textContent = avLetter(viewerName(v));
+    mono.setAttribute('style', whoMonoStyle(viewerAv(v))); mono.innerHTML = whoFace(v);
     var keys = $id('whoPinKeys');
     if (!keys.firstChild){
       WHO_PIN_KEYS.forEach(function(k){
@@ -5349,14 +5699,15 @@
     };
     whoFocus(IS_TV ? go : f);
   }
-  /** Moved onto the first profile without choosing it (the second removed, here or on another device): with a PIN
+  /** Moved onto the first profile without choosing it (the one in use removed, here or on another device): with a PIN
       it must be picked like at launch — the picker stays, Back does not keep it. */
   function whoForcedPin(){
     if (!whoNeedsPin(viewer)) return;
     if (!whoOpen) whoShow(null); else whoFrom = null;
   }
-  /** At launch: who's watching? — with two profiles, or when the one this device was on has a PIN. */
-  function whoBoot(){ if (viewerList().length === 2 || whoNeedsPin(viewer)){ bootHold(); whoShow(null); } }
+  /** At launch: who's watching? With more than one profile (unless this device was told to remember), or when the one
+      this device was on has a PIN. */
+  function whoBoot(){ if ((viewerList().length >= 2 && whoAsk()) || whoNeedsPin(viewer)){ bootHold(); whoShow(null); } }
   function whoClose(id){
     var from = whoFrom;
     whoOpen = false; whoManaging = false; whoEditing = null; whoFrom = null; whoPinOn = null;
@@ -5370,14 +5721,19 @@
   function whoMove(k){
     var cur = document.activeElement, all = Array.prototype.slice.call(document.querySelectorAll('#who .focusable')).filter(function(el){ return el.offsetParent !== null; });
     if (all.indexOf(cur) < 0){ var c0 = $id('whoRow').querySelector('.who-tile.cur') || all[0]; if (c0) c0.focus(); return; }
-    var r = cur.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, best = null, bd = 1e9;
+    // the nearest control that way: first among those in line with this one (their spans overlap: a wide row under a
+    // small button is straight below it, the button beside this one is straight across), else the nearest at an angle
+    var r = cur.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, best = null, bd = 1e9, inLine = false, side = k === 37 || k === 39;
     all.forEach(function(el){
       if (el === cur) return;
       var q = el.getBoundingClientRect(), x = q.left + q.width / 2 - cx, y = q.top + q.height / 2 - cy;
-      var along = k === 37 ? -x : k === 39 ? x : k === 38 ? -y : y, across = (k === 37 || k === 39) ? Math.abs(y) : Math.abs(x);
+      var along = k === 37 ? -x : k === 39 ? x : k === 38 ? -y : y;
       if (along <= 1) return;
-      var d = along + across * 2;
-      if (d < bd){ bd = d; best = el; }
+      var gap = side ? Math.max(0, q.top - r.bottom, r.top - q.bottom) : Math.max(0, q.left - r.right, r.left - q.right);
+      var off = Math.abs(side ? y : x), line = gap === 0;
+      if (inLine && !line) return;
+      var d = line ? along + off * 0.3 : along + (gap + off * 0.3) * 2;
+      if ((line && !inLine) || d < bd){ bd = d; best = el; inLine = line; }
     });
     if (best) best.focus();
   }
@@ -19067,8 +19423,8 @@
   // next boot even when the server's revisions look unchanged.
   var cloudDirty = {};
   try { cloudDirty = JSON.parse(LS.getItem('cloud_dirty')||'{}') || {}; } catch(e){}
-  var syncApplying = false, syncTimers = {}, lastPullAt = 0;
-  var SYNC_KEYS = ['addons','progress','library','sub_style','ratings','seekr','viewers','track'];
+  var syncApplying = false, syncTimers = {}, lastPullAt = 0, syncAt = 0;
+  var SYNC_KEYS = ['addons','progress','library','sub_style','ratings','seekr','viewers','people','track','settings'];
   function cloudLinked(){ return !!(cloudLink && cloudLink.gid && (cloudLink.token || cloudLink.secret)); }
   function saveCloudLink(){ try { if (cloudLink) LS.setItem('cloud_link', JSON.stringify(cloudLink)); else LS.removeItem('cloud_link'); } catch(e){} }
   function saveCloudRevs(){ try { LS.setItem('cloud_revs', JSON.stringify(cloudRevs)); } catch(e){} }
@@ -19143,6 +19499,8 @@
     if (key === 'seekr') return JSON.stringify(seekr);
     if (key === 'track') return JSON.stringify(getTrack());
     if (key === 'viewers') return JSON.stringify(getViewers());
+    if (key === 'people') return JSON.stringify(getPeople());
+    if (key === 'settings') return JSON.stringify(prefsDoc());
     return null;
   }
   function syncDocHasContent(key){
@@ -19154,6 +19512,8 @@
     if (key === 'seekr') return seekr.at > 0;
     if (key === 'track') return trackHasAny();
     if (key === 'viewers') return (getViewers().at || 0) > 0;
+    if (key === 'people') return (getPeople().at || 0) > 0;
+    if (key === 'settings') return Object.keys(prefsDoc().t).length > 0;
     return false;
   }
   function cloudPushSoon(key){
@@ -19306,6 +19666,8 @@
     if (key === 'seekr') return mergeSeekr(remote);
     if (key === 'track') return mergeTrack(remote);
     if (key === 'viewers') return mergeViewers(remote);
+    if (key === 'people') return mergePeople(remote);
+    if (key === 'settings') return mergeSettings(remote);
     return { changed: false, localNewer: false };
   }
   function cloudPullAll(force){
@@ -19342,12 +19704,14 @@
         work.push(job);
         return job;
       };
-      // the list of profiles first: a second profile removed elsewhere moves this device to the first before the
-      // per-profile names below are worked out (else the first's docs waited for the next pull)
-      return Promise.resolve(one('viewers')).then(function(){
-        SYNC_KEYS.forEach(function(key){ if (key !== 'viewers') one(key); });
+      // the lists of profiles first: a profile removed elsewhere moves this device to the first, and one replaced
+      // elsewhere is emptied here, before the per-profile names below are worked out (else the first's docs waited for
+      // the next pull, and a removed profile's unsent changes went back up)
+      return Promise.resolve(one('viewers')).then(function(){ return one('people'); }).then(function(){
+        whoDropFlush();
+        SYNC_KEYS.forEach(function(key){ if (key !== 'viewers' && key !== 'people') one(key); });
         return Promise.all(work);
-      });
+      }).then(function(){ syncAt = Date.now(); syncPanelRender(); });
     }).catch(function(){});
   }
   // ---------- profile (Nebula Profile: @handle + password, no email) ----------
@@ -19390,7 +19754,7 @@
     } else {
       // merge; newer local records push back on their own. Then who's watching, as at a launch: the account may hold two
       // profiles, or a PIN on the one this device is on
-      cloudPullAll(true).then(function(){ if (!whoOpen && (viewerList().length === 2 || whoNeedsPin(viewer))) whoShow(null); });
+      cloudPullAll(true).then(function(){ if (!whoOpen && (viewerList().length >= 2 || whoNeedsPin(viewer))) whoShow(null); });
       socialRefresh();
     }
     profileCardRender(); syncPanelRender();
@@ -19464,12 +19828,22 @@
   }
   function syncPanelRender(){
     var st = pfState(), el = $id('syncStatus'); if (!el) return;
+    var ago = syncAt ? Math.round((Date.now() - syncAt) / 60000) : -1;
     el.textContent = st === 'in'
-      ? 'Signed in as @' + profile.handle + '. Add-ons, progress, My List and subtitle style follow you to every device you sign in on.'
+      ? 'Signed in as @' + profile.handle + '. Your profiles and, for each of them, add-ons, progress, My List and settings follow you to every device you sign in on.' +
+        (ago < 0 ? '' : ago < 1 ? ' Synced just now.' : ago < 60 ? ' Synced ' + ago + ' min ago.' : '')
       : st === 'legacy' ? 'Syncing with a link code from an earlier version. Add a profile to sign in by @handle on new devices.'
-      : 'Add-ons, progress and your list stay on this device until you sign in with a profile.';
+      : 'Profiles, add-ons, progress, your list and settings stay on this device until you sign in.';
     $id('syncOpen').textContent = st === 'in' ? 'Manage profile' : (st === 'legacy' ? 'Add a profile' : 'Sign in');
+    var now = $id('syncNow'); if (now) now.style.display = cloudLinked() ? '' : 'none';
   }
+  $id('syncNow').onclick = function(){
+    var b = this; if (b.disabled) return;
+    b.disabled = true; b.textContent = 'Syncing…';
+    flushCloudNow();
+    var done = function(){ b.disabled = false; b.textContent = 'Sync now'; };
+    cloudPullAll(true).then(done, done);
+  };
   $id('syncOpen').onclick = function(){ show('profile'); };
   $id('setProfile').onclick = function(){ show('profile'); };
 
@@ -20222,13 +20596,83 @@
     });
   }
 
-  // ---------- preferences (device-local by design: a TV and a phone can differ) ----------
+  // ---------- preferences: each profile's own, and synced with the account since 2026-11-14 ----------
+  // What a person likes follows their profile to every device (`settings`, one stamp a key, the newest change of each
+  // key wins). What a SCREEN needs stays on that screen: PREFS_LOCAL (sizes, how this device handles picture and
+  // sound, the TV's autoplay, its connections) is never sent and never taken.
+  var PREFS_LOCAL = { zoom: 1, textSize: 1, cardSize: 1, rowDensity: 1, landscapeRows: 1, landscapeStart: 1, motion: 1, maxRes: 1, buffer: 1,
+    fit: 1, audDelay: 1, night: 1, engine: 1, relay: 1, scrubFrames: 1, fastRows: 1, welcome: 1, speedLast: 1, bestPlay: 1, apAim: 1,
+    apMax: 1, apBack: 1, apInstant: 1, apMin: 1, apPrio: 1, apRetry: 1, apStart: 1, apWait: 1, posterAddr: 1, ambient: 1 };
+  function prefsKey(){
+    var v = (typeof viewer === 'string') ? viewer : viewerStored();
+    return v === 'a' ? 'prefs_v1' : 'prefs_' + v;
+  }
+  function prefsAt(){ try { return JSON.parse(LS.getItem(prefsKey() + '_at') || '{}') || {}; } catch(e){ return {}; } }
+  /** A value a setting may hold when it comes from the account: plain, or a small list or table. */
+  function prefValOk(v){
+    if (v === null || typeof v === 'boolean' || typeof v === 'number') return true;
+    if (typeof v === 'string') return v.length <= 400;
+    if (typeof v === 'object'){ try { return JSON.stringify(v).length <= 6000; } catch(e){ return false; } }
+    return false;
+  }
+  /** What goes to the account: {v: {key: value}, t: {key: when it last changed}}. A key in `t` alone was put back to
+      its default. A value from before settings were synced carries the oldest stamp there is (1): it reaches a device
+      that has nothing for that key and never overrides one that has. */
+  function prefsDoc(){
+    var pr = getPrefs(), at = prefsAt(), d = { v: {}, t: {} };
+    Object.keys(pr).forEach(function(k){ if (!PREFS_LOCAL[k] && safeKey(k)){ d.v[k] = pr[k]; d.t[k] = Number(at[k]) || 1; } });
+    Object.keys(at).forEach(function(k){ if (!PREFS_LOCAL[k] && safeKey(k) && !d.t[k]) d.t[k] = Number(at[k]) || 1; });
+    return d;
+  }
+  function mergeSettings(remote){
+    var rv = (remote && typeof remote.v === 'object' && remote.v) || {}, rt = (remote && typeof remote.t === 'object' && remote.t) || {};
+    var pr = getPrefs(), at = prefsAt(), changed = false, localNewer = false;
+    Object.keys(rt).forEach(function(k){
+      if (!safeKey(k) || PREFS_LOCAL[k]) return;
+      var has = Object.prototype.hasOwnProperty.call(rv, k), mine = Object.prototype.hasOwnProperty.call(pr, k);
+      var ra = Number(rt[k]) || 0, la = Number(at[k]) || (mine ? 1 : 0);
+      if (has && !prefValOk(rv[k])) return;
+      if (ra > la){
+        if (has) pr[k] = rv[k]; else delete pr[k];
+        at[k] = ra; changed = true;
+      } else if (la > ra) localNewer = true;
+    });
+    Object.keys(pr).forEach(function(k){ if (!PREFS_LOCAL[k] && safeKey(k) && !rt[k]) localNewer = true; });
+    Object.keys(at).forEach(function(k){ if (!PREFS_LOCAL[k] && safeKey(k) && !rt[k]) localNewer = true; });
+    if (changed){
+      try { LS.setItem(prefsKey(), JSON.stringify(pr)); LS.setItem(prefsKey() + '_at', JSON.stringify(at)); } catch(e){}
+      prefsApplyAll();
+      try { buildHomeRows(); } catch(e){}
+    }
+    return { changed: changed, localNewer: localNewer };
+  }
+  /** A profile other than the first, the first time it is used on this device: it starts from the first profile's
+      settings as they are here (until 11-14 the two shared them), unstamped, so the account's own copy for this
+      profile wins wherever it says something. */
+  function prefsSeed(){
+    var k = prefsKey(); if (k === 'prefs_v1') return;
+    try { if (LS.getItem(k) === null) LS.setItem(k, LS.getItem('prefs_v1') || '{}'); } catch(e){}
+  }
+  /** Everything that follows the settings, after they changed underneath (another profile, a sync, a reset). */
+  function prefsApplyAll(){
+    applyPrefs(); settingsRender();
+    try { applyQualityPolicy(); applyBufferPolicy(); applyLangPrefs(); heroRestart(); } catch(e){}   // the player and the carousel follow at once
+    homeSig = null; try { rowMgr.items = null; } catch(e){}
+  }
   var PREF_ACCENTS = [
     ['Nebula Red', '#E50914'], ['White', '#F2F2F7'], ['Cobalt', '#0A84FF'],
     ['Emerald', '#30D158'], ['Violet', '#BF5AF2'], ['Amber', '#FF9F0A'], ['Rose', '#FF375F'],
   ];
-  function getPrefs(){ try { return JSON.parse(LS.getItem('prefs_v1') || '{}') || {}; } catch(e){ return {}; } }
-  function writePrefs(pr){ try { LS.setItem('prefs_v1', JSON.stringify(pr)); } catch(e){} }
+  function getPrefs(){ try { return JSON.parse(LS.getItem(prefsKey()) || '{}') || {}; } catch(e){ return {}; } }
+  /** Store the settings; every key that changed (or went) is stamped, and one that travels is sent. */
+  function writePrefs(pr){
+    var was = getPrefs(), at = prefsAt(), now = Date.now(), send = false;
+    var note = function(k){ if (PREFS_LOCAL[k]) return; at[k] = now; send = true; };
+    Object.keys(pr).forEach(function(k){ if (JSON.stringify(pr[k]) !== JSON.stringify(was[k])) note(k); });
+    Object.keys(was).forEach(function(k){ if (!Object.prototype.hasOwnProperty.call(pr, k)) note(k); });
+    try { LS.setItem(prefsKey(), JSON.stringify(pr)); if (send) LS.setItem(prefsKey() + '_at', JSON.stringify(at)); } catch(e){}
+    if (send) cloudPushSoon('settings');
+  }
   /** Write one key without repainting the console (a value the player notes for itself). */
   function notePref(k, v){ var pr = getPrefs(); pr[k] = v; writePrefs(pr); }
   function setPref(k, v){
@@ -20400,11 +20844,9 @@
   }
   /** Settings › Advanced › Reset all settings: preferences and subtitle style only — never add-ons, progress or the profile. */
   function resetAllSettings(){
-    try { LS.removeItem('prefs_v1'); } catch(e){}
+    writePrefs({});                             // (stamped key by key: the reset reaches this profile's other devices too)
     subStyle = normSubStyle(null); saveSubStyle(); applySubStyle();
-    applyPrefs(); settingsRender();
-    try { applyQualityPolicy(); applyBufferPolicy(); applyLangPrefs(); heroRestart(); } catch(e2){}   // the player and the carousel follow at once
-    homeSig = null; rowMgr.items = null;
+    prefsApplyAll();
     setStatus('Settings are back to their defaults.', 'ok');
     var f = $id('setReset'); if (f && (IS_TV || kbUsed)){ try { f.focus({ preventScroll: true }); } catch(e){ f.focus(); } }
   }
@@ -20570,6 +21012,10 @@
     segChips('setDetailGenres', [['Show', true], ['Hide', false]], pr.detailGenres !== false, function(v){ setPref('detailGenres', v); });
     // ---- playback ----
     segChips('setAutoplay', [['On', true], ['Off', false]], pr.autoplay !== false, function(v){ setPref('autoplay', v); });
+    segChips('setWhoAsk', [['Ask', 'ask'], ['Remember', 'keep']], whoAsk() ? 'ask' : 'keep', function(v){
+      try { LS.setItem('who_ask', v === 'keep' ? '0' : '1'); } catch(e){}
+      settingsRender();
+    });
     segChips('setUpnextAt', [['25 s before the end','25'], ['45 s','45'], ['60 s','60'], ['Only in the credits','credits']], upnextAtKey(), function(v){ setPref('upnextAt', v); });
     segChips('setCountdown', [['5 s',5], ['8 s',8], ['15 s',15]], countdownSecs(), function(v){ setPref('countdown', v); });
     segChips('setStill', [['Off','off'], ['After 3','3'], ['After 5','5']], pr.stillWatching === '3' || pr.stillWatching === '5' ? pr.stillWatching : 'off', function(v){ setPref('stillWatching', v); });
@@ -20979,6 +21425,7 @@
   // was on), unless that profile has a PIN
   var bootAsk = null; try { if (window.PalmSystem){ shelfNote(window.PalmSystem.launchParams); bootAsk = launchParse(window.PalmSystem.launchParams); } } catch(e){}
   shelfModeApply();
+  whoReconcile();      // (a first run of this build notes who exists; later ones clear what a removal made offline left)
   if (!bootAsk || whoNeedsPin(viewer)) whoBoot();
   // the early check above the boot screen hid it for a picker that is not coming (a title launched from the TV's home
   // screen, a storage wipe that took the second profile): it shows now, as it always did
