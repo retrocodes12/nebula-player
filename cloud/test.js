@@ -102,17 +102,45 @@ test('a bad join code 404s', async () => {
   assert.equal(r.status, 404);
 });
 
+const CAPS_IP = '203.0.113.77';      // these two write many keys: addresses of their own, or the suite's shared one runs dry
 test('value and key caps hold', async () => {
+  const g = await api('POST', '/v1/group', undefined, undefined, CAPS_IP);
+  const token = g.body.gid + '.' + g.body.secret;
+  const big = await api('PUT', '/v1/kv/big', { v: 'x'.repeat(301 * 1024) }, token, CAPS_IP);
+  assert.equal(big.status, 413);
+  for (let i = 0; i < 64; i++) {                    // 64 keys a group (12 until two profiles, 10-15; 20 until six, 11-14)
+    assert.equal((await api('PUT', '/v1/kv/k' + i, { v: '1' }, token, '203.0.113.' + (60 + (i >> 5)))).status, 200);   // (60 calls an address at once)
+  }
+  assert.equal((await api('PUT', '/v1/kv/overflow', { v: '1' }, token, CAPS_IP)).status, 507);
+  // rewriting an existing key is still allowed at the cap
+  assert.equal((await api('PUT', '/v1/kv/k0', { v: '2' }, token, CAPS_IP)).status, 200);
+});
+
+test('a key can be deleted: it leaves the list, makes room, and its numbers carry on when it is written again', async () => {
   const g = await api('POST', '/v1/group');
   const token = g.body.gid + '.' + g.body.secret;
-  const big = await api('PUT', '/v1/kv/big', { v: 'x'.repeat(301 * 1024) }, token);
-  assert.equal(big.status, 413);
-  for (let i = 0; i < 20; i++) {                    // 20 keys a group (12 until two profiles, 10-15)
-    assert.equal((await api('PUT', '/v1/kv/k' + i, { v: '1' }, token)).status, 200);
-  }
-  assert.equal((await api('PUT', '/v1/kv/overflow', { v: '1' }, token)).status, 507);
-  // rewriting an existing key is still allowed at the cap
-  assert.equal((await api('PUT', '/v1/kv/k0', { v: '2' }, token)).status, 200);
+  assert.equal((await api('PUT', '/v1/kv/progress_c', { v: '{"a":1}' }, token)).body.rev, 1);
+  assert.equal((await api('PUT', '/v1/kv/progress_c', { v: '{"a":2}' }, token)).body.rev, 2);
+  assert.equal((await api('DELETE', '/v1/kv/progress_c')).status, 401);
+  const other = await api('POST', '/v1/group', undefined, undefined, CAPS_IP);
+  assert.deepEqual((await api('DELETE', '/v1/kv/progress_c', undefined, other.body.gid + '.' + other.body.secret)).body, { ok: true, gone: false });
+  assert.equal((await api('GET', '/v1/kv/progress_c', undefined, token)).body.v, '{"a":2}');   // another account's call touched nothing
+  assert.deepEqual((await api('DELETE', '/v1/kv/progress_c', undefined, token)).body, { ok: true, gone: true });
+  assert.equal((await api('GET', '/v1/kv/progress_c', undefined, token)).status, 404);
+  assert.equal(Object.keys((await api('GET', '/v1/kv', undefined, token)).body.keys).length, 0);
+  assert.deepEqual((await api('DELETE', '/v1/kv/progress_c', undefined, token)).body, { ok: true, gone: false });   // again: nothing to do
+  assert.equal((await api('DELETE', '/v1/kv/__proto__', undefined, token)).status, 404);
+  assert.equal((await api('DELETE', '/v1/kv/UPPER', undefined, token)).status, 404);
+  // written again: revision 3, not 1 (a device that kept "1" must see a change)
+  assert.equal((await api('PUT', '/v1/kv/progress_c', { v: '{"b":1}' }, token)).body.rev, 3);
+  assert.equal((await api('PUT', '/v1/kv/progress_c', { v: '{"b":2}' }, token)).body.rev, 4);
+  // …and the number it stopped at is in the group's file, so it holds across a restart
+  assert.deepEqual((await api('DELETE', '/v1/kv/progress_c', undefined, token)).body, { ok: true, gone: true });
+  flushAll();
+  const onDisk = JSON.parse(require('fs').readFileSync(require('path').join(process.env.DATA_DIR, 'groups', g.body.gid + '.json'), 'utf8'));
+  assert.equal(onDisk.kvGone.progress_c, 4);
+  assert.equal(onDisk.kv.progress_c, undefined);
+  assert.equal((await api('PUT', '/v1/kv/progress_c', { v: '1' }, token, CAPS_IP)).body.rev, 5);
 });
 
 test('bad kv key shapes 404', async () => {
@@ -1713,10 +1741,13 @@ test('the rescue proxy never hands a host page back as a page on our origin', as
 test('one group\'s keys together are capped', async () => {
   const g = (await api('POST', '/v1/group')).body, t = g.gid + '.' + g.secret;
   const big = 'x'.repeat(290 * 1024);
-  for (let i = 0; i < 5; i++) assert.equal((await api('PUT', '/v1/kv/cap' + i, { v: big }, t)).status, 200);
-  assert.equal((await api('PUT', '/v1/kv/cap5', { v: big }, t)).status, 507);
+  for (let i = 0; i < 10; i++) assert.equal((await api('PUT', '/v1/kv/cap' + i, { v: big }, t)).status, 200);   // 3 MB a group (1.5 until six profiles, 11-14)
+  assert.equal((await api('PUT', '/v1/kv/cap10', { v: big }, t)).status, 507);
   assert.equal((await api('PUT', '/v1/kv/cap0', { v: 'small now' }, t)).status, 200);   // a key made smaller always fits
-  assert.equal((await api('PUT', '/v1/kv/cap5', { v: big }, t)).status, 200);           // …and frees room
+  assert.equal((await api('PUT', '/v1/kv/cap10', { v: big }, t)).status, 200);          // …and frees room
+  assert.equal((await api('PUT', '/v1/kv/cap11', { v: big }, t)).status, 507);
+  assert.equal((await api('DELETE', '/v1/kv/cap1', undefined, t)).status, 200);          // …and so does a key deleted
+  assert.equal((await api('PUT', '/v1/kv/cap11', { v: big }, t)).status, 200);
 });
 
 test('eviction takes idle groups but never a supporter', async () => {

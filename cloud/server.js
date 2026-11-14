@@ -17,6 +17,7 @@
 //   GET  /v1/kv                            → {keys:{k:{rev,at}}}       (auth)
 //   GET  /v1/kv/:key                       → {v, rev, at}              (auth)
 //   PUT  /v1/kv/:key {v}                   → {rev}                     (auth)
+//   DELETE /v1/kv/:key                     → {ok, gone}                (auth)  a removed profile's documents
 //   /v1/profile/*, /v1/tv/*, /v1/device    → profile.js
 //   /v1/social/*                           → friends, below
 //   /v1/support/*                          → support.js (supporter codes, the wall, the support link)
@@ -60,9 +61,10 @@ const GROUP_BURST = Number(process.env.GROUP_BURST || 6);   // per-IP burst for 
 // sign-up until the 400-day eviction; with it a fill takes hours of sustained effort (a real day brings a handful)
 const GROUP_ALL_PER_MIN = 10, GROUP_ALL_BURST = Number(process.env.GROUP_ALL_BURST || 300);
 const EMPTY_GROUP_MS = 7 * 24 * 3600_000;      // a group that never held anything (no data, profile, friends, devices) goes after a week
-const MAX_KEYS_PER_GROUP = 20;                  // (12 until 10-15: two profiles add viewers, progress_b, library_b)
+const MAX_KEYS_PER_GROUP = 64;                  // (12 until 10-15, 20 until 11-14: six profiles, each with its own history, list,
+                                                //  add-ons, tracking and settings, beside the account's shared keys)
 const MAX_VALUE_BYTES = 300 * 1024;
-const MAX_GROUP_KV_BYTES = 1536 * 1024;        // every key of one group together (a heavy real one is ~300 KB)
+const MAX_GROUP_KV_BYTES = 3072 * 1024;        // every key of one group together (a heavy real one is ~300 KB; six profiles' worth since 11-14)
 const IDLE_DROP_MS = 15 * 60_000;              // a group nobody asked for in this long leaves memory (its file stays)
 const MAX_IN_MEMORY = Number(process.env.MAX_IN_MEMORY || 1500);   // …and past this many, the least recently used go (a soft
                                                                    // cap: groups touched in the last minute are never dropped)
@@ -956,6 +958,21 @@ const server = http.createServer((req, res) => {
 
   const kvOne = /^\/v1\/kv\/([a-z_][a-z0-9_]{0,31})$/.exec(p);
   if (kvOne && !ownKeyOk(kvOne[1])) return json(res, 404, { error: 'no such key' });
+  if (kvOne && req.method === 'DELETE') {
+    if (!allow('kv', ip, 120, 60)) return json(res, 429, { error: 'rate limited' });
+    const a = auth(req);
+    if (!a) return json(res, 401, { error: 'unauthorized' });
+    const key = kvOne[1], rec = a.g.kv[key];
+    if (rec) {
+      // the revision is remembered: a key written again later carries on from it, so a device still holding the old
+      // number never mistakes the new document for the one it already has
+      if (!a.g.kvGone || typeof a.g.kvGone !== 'object') a.g.kvGone = {};
+      a.g.kvGone[key] = rec.rev;
+      delete a.g.kv[key];
+      persistSoon(a.gid);
+    }
+    return json(res, 200, { ok: true, gone: !!rec });
+  }
   if ((p === '/v1/kv' || kvOne) && (req.method === 'GET' || req.method === 'PUT')) {
     if (!allow('kv', ip, 120, 60)) return json(res, 429, { error: 'rate limited' });
     const a = auth(req);
@@ -980,7 +997,9 @@ const server = http.createServer((req, res) => {
       let total = Buffer.byteLength(body.v);
       for (const k of Object.keys(a.g.kv)) if (k !== key) total += Buffer.byteLength(a.g.kv[k].v || '');
       if (total > MAX_GROUP_KV_BYTES) return json(res, 507, { error: 'too large' });
-      const rev = (a.g.kv[key] ? a.g.kv[key].rev : 0) + 1;
+      const was = a.g.kvGone && ownKeyOk(key) && Number(a.g.kvGone[key]) || 0;   // (a key deleted before: its numbers go on)
+      const rev = (a.g.kv[key] ? a.g.kv[key].rev : was) + 1;
+      if (was) delete a.g.kvGone[key];
       a.g.kv[key] = { v: body.v, rev, at: Date.now() };
       persistSoon(a.gid);
       return json(res, 200, { rev });
