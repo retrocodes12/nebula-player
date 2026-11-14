@@ -1554,6 +1554,18 @@
   .det-chips span { background:transparent; border:1px solid rgba(255,255,255,.22); border-radius:var(--r-pill);
     padding:6px 14px; margin:0 8px 8px 0; font-size:calc(13px * var(--ts)); font-weight:500; color:var(--label); }
   .det-chips.cast span { border-color:var(--sep); color:var(--label2); font-weight:400; }
+  /* a cast member or a crew name is pressed: it opens that person's films and series (personOpen) */
+  .cast-p { background:transparent; border:1px solid var(--sep); border-radius:var(--r-pill); padding:6px 14px; margin:0 8px 8px 0;
+    font:inherit; font-size:calc(13px * var(--ts)); font-weight:400; color:var(--label2); cursor:pointer; outline:none; }
+  .cast-p:hover { color:var(--label); border-color:rgba(255,255,255,.42); }
+  .cast-p:focus-visible { color:var(--label); border-color:#fff; }
+  .crew-p { background:none; border:0; padding:0; margin:0; font:inherit; color:inherit; cursor:pointer; outline:none; border-bottom:1px solid transparent; }
+  .crew-p:hover { color:var(--label); border-bottom-color:rgba(255,255,255,.5); }
+  .crew-p:focus-visible { color:var(--label); border-bottom-color:#fff; }
+  .per-note { color:var(--label2); font-size:calc(15px * var(--ts)); line-height:1.5; max-width:56ch; }
+  .per-note:empty { display:none; }
+  .per-note .btn { margin-top:16px; }
+  html.tv .per-note { font-size:calc(21px * var(--ts)); }
   .det-castlbl { color:var(--label3); font-family:var(--mono); font-size:calc(11px * var(--ts)); font-weight:500;
     letter-spacing:.16em; margin:14px 0 8px; }
   /* the catalogue's score: a small mono plate in the facts line */
@@ -2086,6 +2098,15 @@
   html.tv .det-chips.cast { margin-top:14px; }
   html.tv .det-chips.cast span { display:flex; flex-direction:column; align-items:center; width:150px; margin:0 18px 14px 0; padding:0;
     border:0; background:none; text-align:center; white-space:normal; line-height:1.3; color:var(--label2); }
+  html.tv .det-chips.cast .cast-p { display:flex; flex-direction:column; align-items:center; width:150px; margin:0 18px 14px 0; padding:0;
+    border:0; border-radius:0; background:none; text-align:center; white-space:normal; line-height:1.3; color:var(--label2); font-size:inherit; }
+  html.tv .det-chips.cast .cast-p .cast-av { border:4px solid transparent; }
+  html.tv .det-chips.cast .cast-p:focus { color:var(--label); }
+  html.tv .det-chips.cast .cast-p:focus .cast-av { border-color:#fff; }
+  html.tv .crew-p:focus { color:#fff; border-bottom-color:#fff; }
+  /* the remote now comes down to the Universe row from the names above it, a short step: the lit card is drawn a
+     little larger than its box, so the page keeps a margin for it (engines without scroll-margin leave it as it was) */
+  html.tv .det-universe .card { scroll-margin-top:30px; scroll-margin-bottom:30px; }
   html.tv .cast-av { display:flex; align-items:center; justify-content:center; width:112px; height:112px; border-radius:50%; margin-bottom:12px;
     background:var(--surface2); color:var(--label); font-style:normal; font-weight:700; font-size:calc(42px * var(--ts)); }
   html.tv .page-title { font-size:calc(52px * var(--ts)); }
@@ -3533,6 +3554,13 @@
     <div class="scroller"><div id="catList" class="grid"></div></div>
   </div>
 
+  <!-- PERSON: the films and series of a cast member, a director or a writer (personOpen) -->
+  <div id="view-person" class="view cols">
+    <div class="topbar"><button class="focusable iconbtn" data-back title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="topbar-titles"><div class="topbar-kick" id="perKick"></div><div class="topbar-title" id="perTitle"></div></div></div>
+    <div id="perChips" class="chips"></div>
+    <div class="scroller"><div id="perList" class="grid"></div><div id="perNote" class="per-note" role="status"></div></div>
+  </div>
+
   <!-- EPISODES (series) -->
   <div id="view-episodes" class="view cols">
     <div class="topbar"><button class="focusable iconbtn" data-back title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="topbar-title" id="epTitle">Episodes</div></div>
@@ -4333,6 +4361,9 @@
         openDetail(prev.meta, prev.type);
         return;
       }
+      // a person's page: leaving it gives back the title it was opened from; coming back into it, the person
+      if (popped === 'person' && personBackOut(top)) return;
+      if (top === 'person'){ show(top, false); personBackInto(); return; }
       // after an episode hop the list underneath is the FIRST episode's: back lands on the streams of the one just watched
       if (top === 'streams' && was && was.id && lastStreamsReq && lastStreamsReq.id !== was.id){
         openStreams(was.type, was.id, ctx.streamTitle || was.name, false, true); return;
@@ -4365,7 +4396,7 @@
   var navTabNext = false;     // setTab → show(): this move is a tab, it fades through
   function setTab(t){
     stopPairing(); pfTvStop();
-    viewStack = [t]; detTrail = []; navTabNext = true;
+    viewStack = [t]; detTrail = []; personTrail = []; navTabNext = true;
     show(t, false);
     if (t === 'home') buildHomeRows(false);
   }
@@ -9234,15 +9265,158 @@
     $id('detGenres').innerHTML = g.slice(0, 6).map(function(x){ return '<span>' + esc(x) + '</span>'; }).join('');
     var cast = meta.cast || [];
     $id('detCastLbl').style.display = cast.length ? '' : 'none';
-    $id('detCastRow').innerHTML = cast.slice(0, 8).map(function(x){
-      return '<span><i class="cast-av" aria-hidden="true">' + esc(avLetter(String(x))) + '</i>' + esc(x) + '</span>';
-    }).join('');
+    // every name is pressed: it opens that person's films and series (personOpen), found through this title
+    var ptt = uniId(meta);
+    function who(name, cls, inner){
+      var b = document.createElement('button'); b.type = 'button'; b.className = cls + ' focusable';
+      b.innerHTML = inner; b.title = 'Films and series with ' + name;
+      b.onclick = function(){ personOpen(name, ptt); };
+      return b;
+    }
+    var castRow = $id('detCastRow'); castRow.innerHTML = '';
+    cast.slice(0, 8).forEach(function(x){
+      x = String(x);
+      castRow.appendChild(who(x, 'cast-p', '<i class="cast-av" aria-hidden="true">' + esc(avLetter(x)) + '</i>' + esc(x)));
+    });
     // Director · Writers from the catalogue (it sends them; the page used to drop them) — three names at most each
     function crew(v){ return (Array.isArray(v) ? v : (v ? String(v).split(/\s*,\s*/) : [])).filter(function(x){ return x && typeof x === 'string'; }); }
-    var dir = crew(meta.director), wri = crew(meta.writer), cr = [];
-    if (dir.length) cr.push('<div><b>' + (dir.length > 1 ? 'Directors' : 'Director') + '</b><span>' + esc(dir.slice(0, 3).join(', ')) + '</span></div>');
-    if (wri.length) cr.push('<div><b>' + (wri.length > 1 ? 'Writers' : 'Writer') + '</b><span>' + esc(wri.slice(0, 3).join(', ')) + '</span></div>');
-    $id('detCredits').innerHTML = cr.join('');
+    var dir = crew(meta.director), wri = crew(meta.writer), credits = $id('detCredits');
+    credits.innerHTML = '';
+    function crewLine(label, names){
+      if (!names.length) return;
+      var line = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span');
+      b.textContent = label;
+      names.slice(0, 3).forEach(function(n, i){
+        if (i) sp.appendChild(document.createTextNode(', '));
+        var btn = who(n, 'crew-p', esc(n)); btn.title = 'Films and series by ' + n;
+        sp.appendChild(btn);
+      });
+      line.appendChild(b); line.appendChild(sp); credits.appendChild(line);
+    }
+    crewLine(dir.length > 1 ? 'Directors' : 'Director', dir);
+    crewLine(wri.length > 1 ? 'Writers' : 'Writer', wri);
+  }
+  // ---------- people: the films and series of a cast member, a director or a writer ----------
+  // A name on a title page is pressed. The cloud says who that is ON THIS TITLE and what else they are credited on
+  // (GET /v1/person, from a public knowledge base, kept a week there); the page is a grid of ordinary cards, each
+  // opened from the viewer's own add-ons like any other. Posters come from the picture host by title id; a person is
+  // shown by name alone. One page for everyone: `personTrail` remembers who it was opened for at each depth, and the
+  // title it was opened from, so Back always lands where it left.
+  var personCache = {}, personCached = 0, personTrail = [], personSeq = 0, personShown = '';
+  var PER_KINDS = [['all', 'All'], ['movie', 'Films'], ['series', 'Series'], ['director', 'Directed'], ['writer', 'Written']];
+  function personKey(p){ return String(p.name).toLowerCase() + '|' + (p.tt || ''); }
+  function personFetch(p){
+    var k = personKey(p);
+    if (personCache[k]) return Promise.resolve(personCache[k]);
+    return fetch(CLOUD_BASE + '/v1/person?n=' + encodeURIComponent(p.name) + (p.tt ? '&t=' + encodeURIComponent(p.tt) : ''))
+      .then(function(r){
+        if (r.status === 404) return { none: true, items: [] };
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).then(function(j){
+        if (!j || Object.prototype.toString.call(j.items) !== '[object Array]') throw new Error('bad answer');
+        if (++personCached > 200){ personCache = {}; personCached = 1; }
+        personCache[k] = j;
+        return j;
+      });
+  }
+  /** A name pressed on a title page (`tt`: that title's id, when it has one). */
+  function personOpen(name, tt){
+    name = String(name || '').trim(); if (!name) return;
+    var from = (detCur && detCur.meta && $id('view-detail').classList.contains('active')) ? { meta: detCur.meta, type: detCur.type, addon: detCur.addon } : null;
+    personTrail.push({ name: name, tt: tt || '', from: from, kind: 'all', leftKey: '' });
+    show('person');
+    personDraw();
+  }
+  function personIs(x, kind){ return kind === 'all' || x.type === kind || (x.as && x.as.indexOf(kind) >= 0); }
+  /** The page for whoever is on top of the trail. */
+  function personDraw(){
+    var p = personTrail[personTrail.length - 1]; if (!p) return;
+    var seq = ++personSeq, list = $id('perList'), note = $id('perNote'), chips = $id('perChips');
+    personShown = '';
+    $id('perTitle').textContent = p.name; $id('perKick').textContent = '';
+    chips.innerHTML = ''; note.innerHTML = '';
+    list.innerHTML = skeletons(IS_TV ? 6 : 12);
+    personFetch(p).then(function(j){
+      if (seq !== personSeq) return;
+      var items = (j.items || []).filter(function(x){ return x && /^tt\d{5,10}$/.test(String(x.id || '')) && x.name; });
+      if (!items.length){
+        list.innerHTML = '';
+        note.textContent = 'No films or series found for ' + p.name + '.';
+        return;
+      }
+      personShown = personKey(p);
+      personFill(p, items, true);
+    }, function(){
+      if (seq !== personSeq) return;
+      list.innerHTML = '';
+      note.innerHTML = '<p>' + esc('Could not load the films and series of ' + p.name + '.') + '</p>';
+      var again = document.createElement('button'); again.type = 'button'; again.className = 'btn ghost focusable'; again.textContent = 'Try again';
+      again.onclick = personDraw;
+      note.appendChild(again);
+      if (IS_TV || kbUsed) try { again.focus(); } catch(e){}
+    });
+  }
+  /** `land`: the page has just been opened or come back to (the remote goes to a card), not refiltered. */
+  function personFill(p, items, land){
+    var list = $id('perList'), chips = $id('perChips');
+    var kinds = PER_KINDS.filter(function(k){
+      var n = items.filter(function(x){ return personIs(x, k[0]); }).length;
+      return k[0] === 'all' || (n > 0 && n < items.length);          // a filter that would change nothing is not offered
+    });
+    if (!kinds.some(function(k){ return k[0] === p.kind; })) p.kind = 'all';
+    chips.innerHTML = '';
+    if (kinds.length > 1) kinds.forEach(function(k){
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'chip focusable' + (p.kind === k[0] ? ' on' : '');
+      b.textContent = k[1]; b.setAttribute('data-kind', k[0]);
+      b.onclick = function(){
+        p.kind = k[0]; p.leftKey = '';
+        personFill(p, items);
+        if (IS_TV || kbUsed){ var c = chips.querySelector('[data-kind="' + k[0] + '"]'); if (c) try { c.focus(); } catch(e){} }
+      };
+      chips.appendChild(b);
+    });
+    var shown = items.filter(function(x){ return personIs(x, p.kind); });
+    $id('perKick').textContent = shown.length + (shown.length === 1 ? ' TITLE' : ' TITLES');
+    list.innerHTML = '';
+    shown.forEach(function(x){
+      var type = x.type === 'series' ? 'series' : 'movie';
+      var card = cardEl({ id: x.id, type: type, name: String(x.name), poster: 'https://images.metahub.space/poster/medium/' + x.id + '/img',
+        releaseInfo: x.year ? String(x.year) : '', posterShape: 'poster' });
+      var open = card.onclick;
+      card.onclick = function(){ p.leftKey = card.getAttribute('data-key') || ''; open(); };
+      list.appendChild(card);
+    });
+    $id('perNote').innerHTML = '';
+    // a first look lands on the first card; back from a title opened here, on that title's card (after show()'s own
+    // landing, which takes the first control of the page)
+    if (!land || !(IS_TV || kbUsed)) return;
+    setTimeout(function(){
+      if (!$id('view-person').classList.contains('active') || personTrail[personTrail.length - 1] !== p) return;
+      var c = (p.leftKey && list.querySelector('[data-key="' + p.leftKey + '"]')) || list.querySelector('.card');
+      if (c) try { c.focus(); } catch(e){}
+    }, 70);
+  }
+  /** Back INTO the person page from a title opened on it: the person it was opened for (another's may have been
+      drawn since, a level deeper). */
+  function personBackInto(){
+    var p = personTrail[personTrail.length - 1];
+    if (p && personShown !== personKey(p)) personDraw();
+    else if (p && p.leftKey && (IS_TV || kbUsed)) setTimeout(function(){
+      var c = $id('perList').querySelector('[data-key="' + p.leftKey + '"]');
+      if (c && $id('view-person').classList.contains('active')) try { c.focus(); } catch(e){}
+    }, 80);
+  }
+  /** Back OUT of the person page: true when the title page underneath had to be drawn again (another title was
+      opened from the person since). */
+  function personBackOut(top){
+    var p = personTrail.pop();
+    personSeq++;
+    if (top !== 'detail' || !p || !p.from || !p.from.meta) return false;
+    if (detCur && detCur.meta && detCur.meta.id === p.from.meta.id && detCur.type === p.from.type) return false;
+    ctx.addon = p.from.addon;
+    openDetail(p.from.meta, p.from.type);
+    return true;
   }
   /** Series pages carry their seasons + episodes inline — one scroll from the
       art to every episode, like the phone app. The separate episodes view
