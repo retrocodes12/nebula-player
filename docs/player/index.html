@@ -3735,7 +3735,7 @@
   // nothing has written storage yet: an empty one is a device opening Nebula for the first time (the usage counter, `hello`)
   var LS_FRESH = (function(){ try { return LS.length === 0; } catch(e){ return false; } })();
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.11.17.6';
+  var PLAYER_VERSION = '2026.11.17.7';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -9186,7 +9186,7 @@
   function streamTap(s, addon, here){
     if (dlPick && dlPick.id === ctx.playId){ dlFromRow(s, addon); return; }   // the page is picking a source to download
     autoRun = 0;
-    if (!here && extDefault() && linkOk(s.url)){ extOpen(s.url); return; }
+    if (!here && extDefault() && linkOk(s.url)){ extOpen(s.url, extStartAt(false)); return; }
     var go = function(){ ctx.pickedFrom = streamSig(s, addon); savePick(ctx.pickedFrom); ctx.playSig = ctx.pickedFrom; playStream(s); };
     if (resumeAskDue()) resumeAsk(go); else go();
   }
@@ -13829,19 +13829,31 @@
   /** What plays now may leave: its own address, and not a party guest's (the link is the host's). */
   function linkNowOk(){ return LINK_ON && !!(lastPlay && linkOk(lastPlay.url)) && !(party && !party.isHost); }
   /** The address that opens the other app on this stream. */
-  function extAddress(url){
+  /** [at]: the second the other app starts from, for an address with {t} (issue #11's follow-up: IINA takes
+      `&mpv_start={t}`). A live stream, or nothing to resume, is 0. */
+  function extAddress(url, at){
     var t = extApp(); if (!t) return '';
     if (t === 'ask'){
       // the phone's own chooser: any app that plays video (a fragment would end the intent early)
       var m = /^(https?):\/\/([^#]*)/i.exec(String(url));
       return m ? 'intent://' + m[2] + '#Intent;scheme=' + m[1].toLowerCase() + ';action=android.intent.action.VIEW;type=video/*;end' : '';
     }
-    return t.split('{enc}').join(encodeURIComponent(url)).split('{url}').join(url);
+    var sec = Math.max(0, Math.floor(+at || 0));
+    return t.split('{enc}').join(encodeURIComponent(url)).split('{url}').join(url).split('{t}').join(String(sec));
+  }
+  /** Where the other app should start: the second playing now (the player's Link, the failed play's pill), else the
+      title's saved place (a row press or its ⋯). */
+  function extStartAt(fromPlayer){
+    if (fromPlayer){
+      if (puiIsLive()) return 0;
+      try { return video.currentTime || 0; } catch(e){ return 0; }
+    }
+    return ctx.playId ? resumeAt(ctx.playType, ctx.playId) : 0;
   }
   /** Hands a stream to the other app, inside the viewer's own press (a browser opens an app only from one, and asks first). */
-  function extOpen(url){
+  function extOpen(url, at){
     if (!EXT_ON || !linkOk(url)) return false;
-    var a = extAddress(url);
+    var a = extAddress(url, at);
     if (!a){ setStatus('Set up another app first: Settings › Playback › Another app.', 'info', 6000); return false; }
     var l = document.createElement('a');
     l.href = a; l.rel = 'noopener noreferrer';
@@ -13880,7 +13892,7 @@
   function streamMoreSheet(s, addon, card){
     if (!LINK_ON || !linkOk(s.url)) return;
     var acts = [{ icon: 'play', label: extDefault() ? 'Play here' : 'Play', fn: function(){ streamTap(s, addon, true); } }];
-    if (EXT_ON) acts.push({ icon: 'out', label: 'Play in another app', fn: function(){ autoRun = 0; extOpen(s.url); } });
+    if (EXT_ON) acts.push({ icon: 'out', label: 'Play in another app', fn: function(){ autoRun = 0; extOpen(s.url, extStartAt(false)); } });
     acts.push({ icon: 'link', label: 'Copy stream link', fn: function(){ linkCopy(s.url); } });
     var nm = card && card.querySelector('.stream-name');
     openSheet({ title: (nm && nm.textContent) || cleanStreamName(s.name, addon && addon.name) || 'Stream', sub: (addon && addon.name) || '', actions: acts });
@@ -13890,7 +13902,7 @@
     var url = lastPlay ? lastPlay.url : '';
     if (EXT_ON) menuOpt('Play in another app', false, function(){
       closePuiMenu(true);
-      if (extOpen(url)) try { video.pause(); } catch(e){}
+      if (extOpen(url, extStartAt(true))) try { video.pause(); } catch(e){}
     });
     menuOpt('Copy stream link', false, function(){ closePuiMenu(true); linkCopy(url); });
     puiNote((EXT_ON ? (extApp() ? 'Another app: the one set in Settings › Playback. ' : 'Set up another app in Settings › Playback. ') : '') +
@@ -13921,7 +13933,7 @@
     });
     sub.textContent = ask ? 'This phone asks which of its apps plays each stream'
       : app ? 'Set · Your app opens each stream from this address'
-      : 'The address your video app opens: its own name://, then {url} where the stream link goes, or {enc} for it encoded. The app’s help pages give it';
+      : 'The address your video app opens: its own name://, then {url} where the stream link goes, or {enc} for it encoded, and {t} for the second to start from. The app’s help pages give it';
     var sig = (ask ? 'ask' : 'addr') + '|' + raw;
     if (box.getAttribute('data-sig') === sig) return;        // a field being typed in is left alone
     var had = box.contains(document.activeElement);

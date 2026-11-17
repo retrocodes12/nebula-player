@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.17.6",
+  "version": "2026.11.17.7",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "A stream can open in another app. On a computer's or a phone's browser, press a stream's ⋯ (or hold it, or right-click it) to play it in another app or copy its link, or set Settings › Playback › Play streams in. Handy for sound or files a browser cannot play."
+  "notes": "Another app can now pick up where you are. Add {t} to the app's address in Settings › Playback and it starts from the second playing now, or from your saved place when you pick a stream."
 }
