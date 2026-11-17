@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.17.4",
+  "version": "2026.11.17.6",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Settings in groups, with a search. On a computer the groups run down the left with one section beside them; on a phone they are cards, and a section opens with a way back. The TV keeps its layout with the group names added."
+  "notes": "A stream can open in another app. On a computer's or a phone's browser, press a stream's ⋯ (or hold it, or right-click it) to play it in another app or copy its link, or set Settings › Playback › Play streams in. Handy for sound or files a browser cannot play."
 }
