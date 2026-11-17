@@ -347,6 +347,56 @@
   .con-item.on { color:var(--label); background:rgba(255,255,255,.09); }
   html.tv .con-item.focusable:focus { color:var(--label); background:rgba(255,255,255,.09); box-shadow:0 0 0 3px #fff; }
   .con-item.focusable:focus-visible { color:var(--label); box-shadow:0 0 0 3px #fff; }
+  /* ---- Settings in groups (2026-11-17): You · Look · Watch · Services · System. A TV keeps its console; a computer
+     gets the same sidebar at its own size (html.setside); a phone a list of grouped cards that opens one section
+     (html.setlist, #setConsole.drill); both get a search over every row (#setConsole.searching) ---- */
+  .con-group { font-size:calc(12px * var(--ts)); font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--label3); margin:22px 0 10px 10px; }
+  .con-nav > .con-group:first-child { margin-top:0; }
+  .con-group.hid { display:none; }
+  html.tv .con-group { font-size:calc(14px * var(--ts)); margin:24px 0 12px 12px; }
+  .con-desc { display:none; }
+  #setSearchWrap, #setBack { display:none; }
+  html.setside #setSearchWrap, html.setlist #setSearchWrap { display:block; margin:4px 0 20px; max-width:1164px; }
+  #setSearch { width:100%; box-sizing:border-box; font:inherit; font-size:calc(15px * var(--ts)); color:var(--label);
+    background:var(--l1); border:1px solid var(--sep); border-radius:14px; padding:12px 16px; outline:none; }
+  #setSearch::placeholder { color:var(--label3); }
+  #setSearch:focus { border-color:rgba(255,255,255,.45); }
+  #setSearchNone { margin:14px 2px 0; }
+  .sr-miss, .con-sec.sr-none { display:none !important; }
+  #setConsole.searching .con-nav, #setConsole.searching #setBack, #setConsole.searching .con-mode { display:none !important; }
+  #setConsole.searching .con-pane, #setConsole.searching .con-sec { display:block !important; }
+  /* computers: the sections down the left, one shown at a time */
+  html.setside #setConsole { display:flex; align-items:flex-start; }
+  html.setside .con-nav { display:block; flex:0 0 260px; position:-webkit-sticky; position:sticky; top:12px; padding-right:30px; }
+  html.setside .con-item { font-size:calc(15px * var(--ts)); font-weight:500; padding:8px 10px; margin:0 0 2px; border-radius:12px; background:transparent; }
+  html.setside .con-item.on { background:rgba(255,255,255,.08); font-weight:600; }
+  html.setside .con-item > svg:first-child, html.setlist .con-item > svg:first-child { box-sizing:content-box; width:18px; height:18px; padding:8px;
+    margin-right:12px; border-radius:11px; color:var(--accent); background:rgba(255,255,255,.06); background:color-mix(in srgb, var(--accent) 16%, transparent); }
+  html.setside .con-item .con-chev { display:none; }
+  html.setside .con-pane { flex:1 1 auto; min-width:0; max-width:900px; }
+  html.setside .con-sec { display:none; }
+  html.setside .con-sec.on { display:block; margin-top:0; }
+  html.setside #setPane > .con-mode { margin-top:0; }
+  /* phones: grouped cards of sections; one opens with a way back */
+  html.setlist .con-nav { display:block; }
+  html.setlist .con-pane { display:none; }
+  html.setlist #setConsole.drill .con-nav { display:none; }
+  html.setlist #setConsole.drill .con-pane { display:block; }
+  html.setlist .con-sec { display:none; }
+  html.setlist .con-sec.on { display:block; margin-top:0; }
+  html.setlist .con-item { font-size:calc(16px * var(--ts)); font-weight:500; color:var(--label); padding:12px 14px; margin:0; border-radius:0;
+    background-color:var(--l1); background-image:linear-gradient(var(--sep), var(--sep)); background-repeat:no-repeat;
+    background-size:calc(100% - 64px) 1px; background-position:right top; }
+  html.setlist .con-group + .con-item { border-top-left-radius:18px; border-top-right-radius:18px; background-image:none; }
+  html.setlist .con-item:has(+ .con-group), html.setlist .con-item:last-child { border-bottom-left-radius:18px; border-bottom-right-radius:18px; }
+  html.setlist .con-item > span { white-space:normal; }
+  /* Essential hides Advanced, the first of System: the card's top goes to the row after it */
+  html.setlist #setConsole.ess .con-group + .con-item[data-lvl="all"] + .con-item { border-top-left-radius:18px; border-top-right-radius:18px; background-image:none; }
+  html.setlist .con-desc { display:block; font-size:calc(13px * var(--ts)); font-weight:400; color:var(--label2); margin-top:2px; letter-spacing:0; }
+  html.setlist .con-item.on { background-color:var(--l1); }
+  html.setlist #setConsole.drill #setBack { display:inline-flex; align-items:center; margin:0 0 12px -4px; }
+  html.setlist #view-settings:has(#setConsole.drill:not(.searching)) #setSearchWrap { display:none; }
   html.tv #view-settings { padding:26px 40px 26px 26px; }
   html.tv #view-settings .page-title { display:none; }
   html.tv #setConsole { display:flex; align-items:stretch; height:calc(100vh - 52px); background:rgba(255,255,255,.03);
@@ -3039,20 +3089,27 @@
   <div id="view-settings" class="view">
     <div class="scroller">
       <h1 class="page-title">Settings</h1>
+      <div id="setSearchWrap"><input id="setSearch" class="focusable" type="search" placeholder="Search settings" autocomplete="off" spellcheck="false" aria-label="Search settings"><p id="setSearchNone" class="con-sub" style="display:none">Nothing in Settings matches that.</p></div>
       <div id="setConsole" class="console">
         <div id="setNav" class="con-nav">
-          <button class="con-item focusable on" data-sec="profile" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Profile</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-          <button class="con-item focusable" data-sec="appearance" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z"/></svg><span>Appearance</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-          <button class="con-item focusable" data-sec="home" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg><span>Home</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-          <button class="con-item focusable" data-sec="playback" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z"/></svg><span>Playback</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-          <button class="con-item focusable" data-sec="streams" data-lvl="all" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="18.5" cy="17" r="2"/></svg><span>Streams</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-          <button class="con-item focusable" data-sec="addons" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg><span>Add-ons</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-          <button class="con-item focusable" data-sec="party" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.3 2.9-6 6.5-6s6.5 2.7 6.5 6"/><path d="M16 4.6a3.2 3.2 0 0 1 0 6.4M17.5 14.4c2.4.6 4 2.5 4 5.6"/></svg><span>Party</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-          <button class="con-item focusable hid" data-sec="support" id="setNavSupport" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.6-4.7-9.4-9.3C1.3 8 3.3 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.7 0 5.7 3.5 4.4 6.7-1.8 4.6-9.4 9.3-9.4 9.3Z"/></svg><span>Support Nebula</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-          <button class="con-item focusable" data-sec="advanced" data-lvl="all" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></svg><span>Advanced</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-          <button class="con-item focusable" data-sec="about" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>About</span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <div class="con-group">You</div>
+          <button class="con-item focusable on" data-sec="profile" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Profile<small class="con-desc">Your profile, who's watching and your devices</small></span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <button class="con-item focusable" data-sec="party" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.3 2.9-6 6.5-6s6.5 2.7 6.5 6"/><path d="M16 4.6a3.2 3.2 0 0 1 0 6.4M17.5 14.4c2.4.6 4 2.5 4 5.6"/></svg><span>Party<small class="con-desc">Watch in sync with friends using a code</small></span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <div class="con-group">Look</div>
+          <button class="con-item focusable" data-sec="appearance" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z"/></svg><span>Appearance<small class="con-desc">Accent, text, motion, cards and artwork</small></span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <button class="con-item focusable" data-sec="home" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg><span>Home<small class="con-desc">Featured, Continue Watching, rows and title pages</small></span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <div class="con-group">Watch</div>
+          <button class="con-item focusable" data-sec="playback" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z"/></svg><span>Playback<small class="con-desc">Player, next episode, languages and subtitles</small></span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <button class="con-item focusable" data-sec="streams" data-lvl="all" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="18.5" cy="17" r="2"/></svg><span>Streams<small class="con-desc">Cards, order, quality and picking by itself</small></span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <button class="con-item focusable" data-sec="addons" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg><span>Add-ons<small class="con-desc">Add, rank and manage your add-ons</small></span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <div class="con-group" id="setGrpServices">Services</div>
+          <button class="con-item focusable hid" data-sec="support" id="setNavSupport" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.6-4.7-9.4-9.3C1.3 8 3.3 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.7 0 5.7 3.5 4.4 6.7-1.8 4.6-9.4 9.3-9.4 9.3Z"/></svg><span>Support Nebula<small class="con-desc">Free, no ads. Chip in if you like</small></span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <div class="con-group">System</div>
+          <button class="con-item focusable" data-sec="advanced" data-lvl="all" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></svg><span>Advanced<small class="con-desc">Welcome message, reset, caches</small></span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <button class="con-item focusable" data-sec="about" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>About<small class="con-desc">Version, updates and privacy</small></span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
         </div>
         <div id="setPane" class="con-pane">
+      <button id="setBack" class="textbtn focusable" type="button">‹ All settings</button>
       <!-- how much of Settings to show: the common choices, or every option -->
       <div class="con-mode" id="setModeRow">
         <span class="setname">Essential · Everything<small>Essential keeps the common choices. Everything shows every option.</small></span>
@@ -3646,7 +3703,7 @@
   // nothing has written storage yet: an empty one is a device opening Nebula for the first time (the usage counter, `hello`)
   var LS_FRESH = (function(){ try { return LS.length === 0; } catch(e){ return false; } })();
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.11.17.2';
+  var PLAYER_VERSION = '2026.11.17.4';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -4354,6 +4411,7 @@
   }
   function goBack(){
     if (trailerState){ trailerClose(true); return; }      // a trailer is over the page: Back closes it, the page stays
+    if (setDrillBack()) return;                           // a phone's Settings section: back to the list
     if (amb.on){ ambStop(); return; }
     stopPairing(); pfTvStop();
     var was = null;
@@ -20167,6 +20225,7 @@
     var off = !supportVisible(), b = $id('setNavSupport'), s = $id('setSupport');
     if (b) b.classList.toggle('hid', off);
     if (s) s.classList.toggle('hid', off);
+    var g = $id('setGrpServices'); if (g) g.classList.toggle('hid', off);
   }
   /** Whatever the profile did (signed in, out, redeemed): the nav, the accent and the page follow. */
   function supportSync(){
@@ -21150,9 +21209,53 @@
     }
   }
   function setNavItems(){ return Array.prototype.filter.call(document.querySelectorAll('#setNav .con-item'), function(b){ return b.offsetParent !== null; }); }
+  // ---- Settings' layout (2026-11-17): a TV keeps its console; a computer the sidebar; a phone a list that opens one ----
+  function setLayout(){
+    var root = document.documentElement, side = !IS_TV && window.innerWidth >= 900, list = !IS_TV && !side;
+    root.classList.toggle('setside', side); root.classList.toggle('setlist', list);
+    if (!list) setDrill(false, true);
+  }
+  function setDrill(on, quiet){
+    var c = $id('setConsole'); if (!c) return;
+    c.classList.toggle('drill', !!on);
+    if (!quiet){ var v = $id('view-settings'), sc = v && v.querySelector('.scroller'); try { if (sc) sc.scrollTop = 0; v.scrollTop = 0; } catch(e){} }
+  }
+  /** Back on a phone with a section open: the list again (goBack asks first). */
+  function setDrillBack(){
+    var c = $id('setConsole'), v = $id('view-settings');
+    if (c && v && v.classList.contains('active') && c.classList.contains('drill') && !c.classList.contains('searching')){ setDrill(false); return true; }
+    return false;
+  }
+  /** Every word somewhere in a row (its name, its line, its choices) or in its section's title: the rest step aside. */
+  function setSearchRun(){
+    var inp = $id('setSearch'), c = $id('setConsole'); if (!inp || !c) return;
+    var q = String(inp.value || '').toLowerCase().split(/[\s,]+/).filter(function(w){ return w; });
+    c.classList.toggle('searching', q.length > 0);
+    var any = false;
+    Array.prototype.forEach.call(document.querySelectorAll('#setPane .con-sec'), function(sec){
+      var head = (((sec.querySelector('.con-title') || {}).textContent) || '') + ' ' + (((sec.querySelector('.con-sub') || {}).textContent) || '');
+      var hitSec = false;
+      Array.prototype.forEach.call(sec.querySelectorAll('.setrow, .pcard'), function(r){
+        var t = (r.textContent + ' ' + head).toLowerCase();
+        var hit = !q.length || q.every(function(w){ return t.indexOf(w) >= 0; });
+        r.classList.toggle('sr-miss', !hit);
+        if (hit) hitSec = true;
+      });
+      sec.classList.toggle('sr-none', q.length > 0 && !hitSec);
+      if (hitSec && !sec.classList.contains('hid')) any = true;
+    });
+    var none = $id('setSearchNone'); if (none) none.style.display = q.length && !any ? '' : 'none';
+  }
+  setLayout();
+  window.addEventListener('resize', setLayout);
   (function(){
+    var si = $id('setSearch'); if (si) si.addEventListener('input', setSearchRun);
+    var sb = $id('setBack'); if (sb) sb.onclick = function(){ setDrill(false); };
     Array.prototype.forEach.call(document.querySelectorAll('#setNav .con-item'), function(b){
-      b.onclick = function(){ setSection(b.getAttribute('data-sec'), false); };
+      b.onclick = function(){
+        setSection(b.getAttribute('data-sec'), false);
+        if (document.documentElement.classList.contains('setlist')) setDrill(true);
+      };
       // on a TV the pane follows the highlight, so it always shows what the lit row says
       b.addEventListener('focus', function(){ if (IS_TV) setSection(b.getAttribute('data-sec'), false); });
     });
