@@ -1401,10 +1401,19 @@
   #srcBtn.show { display:block; animation:upIn .28s var(--ease) both; }
   #pui.idle #srcBtn { bottom:94px; }
   @media (prefers-reduced-motion: reduce){ #srcBtn.show { animation:none; } }
+  /* a stream that failed or plays in silence: hand it to another app, or copy its link (extOffer). In the source offer's
+     place, one step above it when that shows too */
+  #extBtn { display:none; position:absolute; right:40px; bottom:212px; z-index:7; padding:11px 20px; font-size:calc(14px * var(--ts));
+    max-width:72vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:background .18s var(--ease), bottom .28s var(--ease); }
+  #extBtn.show { display:block; animation:upIn .28s var(--ease) both; }
+  #srcBtn.show ~ #extBtn { bottom:266px; }
+  #pui.idle #extBtn { bottom:94px; }
+  #pui.idle #srcBtn.show ~ #extBtn { bottom:148px; }
+  @media (prefers-reduced-motion: reduce){ #extBtn.show { animation:none; } }
   /* while a finger or the pointer scrubs, the up-next card and the pills (same corner, a higher layer) step out of the card's way */
-  body.scrubbing #upnext, body.scrubbing #skipBtn, body.scrubbing #srcBtn { visibility:hidden; }
+  body.scrubbing #upnext, body.scrubbing #skipBtn, body.scrubbing #srcBtn, body.scrubbing #extBtn { visibility:hidden; }
   /* the Up next card and the pills stay under the subtitles panel while it is open */
-  body.sp-on #upnext, body.sp-on #skipBtn, body.sp-on #srcBtn { visibility:hidden; }
+  body.sp-on #upnext, body.sp-on #skipBtn, body.sp-on #srcBtn, body.sp-on #extBtn { visibility:hidden; }
   /* the content advisory as a title starts (pgShow): a white line drawn downwards, then
      "Violence · Severe" rows one by one; it holds 5 s and leaves in reverse. Outside
      .pui-chrome — it stays when the controls sleep, and steps under the top buttons when they wake. */
@@ -2028,6 +2037,8 @@
     .qmenu, #upnext { right:16px; bottom:150px; }
     #skipBtn { right:16px; bottom:150px; }
     #srcBtn { right:16px; bottom:204px; }
+    #extBtn { right:16px; bottom:204px; }
+    #srcBtn.show ~ #extBtn { bottom:258px; }
     #pauseBoard { left:16px; top:72px; width:80%; }
     .pb-title { font-size:calc(26px * var(--ts)); }
     .pb-sub { font-size:calc(14px * var(--ts)); }
@@ -2055,6 +2066,8 @@
     .pui-shade-bot { height:210px; }
     #skipBtn, #upnext { bottom:112px; }
     #srcBtn { bottom:166px; }
+    #extBtn { bottom:166px; }
+    #srcBtn.show ~ #extBtn { bottom:220px; }
     /* no room between the transport and the rail here: the toast takes the free band under the top row */
     body.pui-on #status { top:80px; bottom:auto; }
     body.pui-on video::-webkit-media-text-track-container { transform:translateY(-150px) !important; }
@@ -2269,6 +2282,14 @@
   .rc-play { flex:0 0 auto; width:46px; height:46px; margin-left:12px; border-radius:50%; background:#fff; color:#000;
     display:flex; align-items:center; justify-content:center; transition:background .18s var(--ease); }
   .rc-play svg { width:18px; height:18px; margin-left:2px; }
+  /* a row's More (streamMoreSheet: play here, in another app, copy its link); never on a TV, which has no such row */
+  .s-more { flex:0 0 auto; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    color:var(--label2); transition:background .18s var(--ease), color .18s var(--ease); }
+  .s-more svg { width:18px; height:18px; }
+  .s-more:hover { background:var(--fill2); color:var(--label); }
+  .rc-top .s-more { margin:-6px -8px 0 8px; }
+  .stream.rc-line .s-more { margin-left:8px; }
+  html.tv .s-more { display:none; }
   @media (hover:hover){ .stream.rc:hover .rc-play { background:var(--accent); color:var(--on-accent); } }   /* a finger's hover would stay lit */
   html.tv .stream.rc.focusable:focus .rc-play { background:var(--accent); color:var(--on-accent); }
   .stream.rc.focusable:focus-visible .rc-play { background:var(--accent); color:var(--on-accent); }
@@ -2547,7 +2568,7 @@
   html.rm .card.focusable:focus-visible { transform:none; }
   html.rm .skel .thumb, html.rm .card-label.sk, html.rm .sk-line, html.rm .sk-box, html.rm .sk-blob, html.rm .sk-head, html.rm .sk-chip { animation:none; background:var(--l1); }
   html.rm .qmenu.open, html.rm #subPanel.open .sp-cols, html.rm .hf-art img, html.rm .hf-info { animation:none; }
-  html.rm #upnext.show, html.rm #skipBtn.show, html.rm #srcBtn.show, html.rm #pui.pb-on #pauseBoard { animation:none; }
+  html.rm #upnext.show, html.rm #skipBtn.show, html.rm #srcBtn.show, html.rm #extBtn.show, html.rm #pui.pb-on #pauseBoard { animation:none; }
   html.rm .hf-dot, html.rm .con-item, html.rm .navitem, html.rm .chip, html.rm .stream, html.rm .addon { transition:none; }
   /* Motion that flows (10-22, Android 1.98.0's pass; springs 11-10; html.mv = not a TV, not lite; Motion: Reduced and the
      system's reduced-motion setting turn it off). A page opened comes in from the side it came from and Back sends it the
@@ -2937,6 +2958,7 @@
           <button id="puiFit" class="focusable pui-btn" title="Picture size (v)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M6.5 12h4M6.5 12l1.8-1.8M6.5 12l1.8 1.8M17.5 12h-4M17.5 12l-1.8-1.8M17.5 12l-1.8 1.8"/></svg><span class="pl">Picture</span><span class="pv" id="puiFitVal">Fit</span></button>
           <button id="puiChap" class="focusable pui-btn" style="display:none" title="Chapters (c)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg><span class="pl">Chapters</span><span class="pv" id="puiChapVal"></span></button>
           <button id="puiStreams" class="focusable pui-btn" title="Another stream for this title" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h11M4 12h11M4 18h7"/><path d="M17 15l3 3-3 3M20 18h-5"/></svg><span class="pl">Streams</span><span class="pv" id="puiStreamsVal"></span></button>
+          <button id="puiLink" class="focusable pui-btn" title="Another app, or copy the stream link" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4.2 4.2 0 0 0 6 0l3.2-3.2a4.2 4.2 0 0 0-6-6L11.6 6.4"/><path d="M14 10a4.2 4.2 0 0 0-6 0l-3.2 3.2a4.2 4.2 0 0 0 6 6l1.6-1.6"/></svg><span class="pl">Link</span></button>
           <button id="puiSleep" class="focusable pui-btn" title="Sleep timer (z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 14.2A8 8 0 0 1 9.8 4.5a8 8 0 1 0 9.7 9.7z"/></svg><span class="pl">Sleep</span><span class="pv" id="puiSleepVal"></span></button>
           <button id="puiParty" class="focusable pui-btn" title="Watch party: watch together in sync"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.2 19a5.8 5.8 0 0 1 11.6 0"/><path d="M15.5 5.3a3.2 3.2 0 0 1 0 5.4M16.8 13.6a5.8 5.8 0 0 1 4 5.4"/></svg><span class="pl">Party</span></button>
         </div></div>
@@ -2994,6 +3016,7 @@
     <!-- offered over a recap or the opening titles; OK / Enter takes it when it has focus -->
     <button id="skipBtn" class="pui-btn focusable" type="button">Skip intro</button>
     <button id="srcBtn" class="pui-btn focusable" type="button"></button>
+    <button id="extBtn" class="pui-btn focusable" type="button"></button>
     <div id="pguide" aria-live="polite"><div class="pg-line"></div><div class="pg-rows"></div></div>
   </div>
 
@@ -3302,6 +3325,15 @@
         <div class="setrow" data-lvl="all">
           <span class="setname">Resolution cap<small>Never above this, whatever the connection allows</small></span>
           <span id="setMaxRes" class="seg"></span>
+        </div>
+        <!-- another app (an external player) for a stream this browser cannot play: computers' and phones' browsers only (extRowsRender) -->
+        <div class="setrow" id="rowExtPlay" style="display:none">
+          <span class="setname">Play streams in<small>Another app: a stream you pick opens in a video app on this device (an external player), for sound or files this browser cannot play · Hold or right-click a stream, or press its ⋯, for both</small></span>
+          <span id="setExtPlay" class="seg"></span>
+        </div>
+        <div class="setrow" id="rowExtApp" style="display:none">
+          <span class="setname">Another app<small id="setExtAppSub"></small></span>
+          <span class="seekr-ctl" id="setExtApp"></span>
         </div>
         <div class="setrow" id="setEngineRow" style="display:none">
           <span class="setname">Player<small id="setEngineSub">Full-format plays every file, every sound and subtitle track · Built-in uses the app’s streaming engine</small></span>
@@ -3703,7 +3735,7 @@
   // nothing has written storage yet: an empty one is a device opening Nebula for the first time (the usage counter, `hello`)
   var LS_FRESH = (function(){ try { return LS.length === 0; } catch(e){ return false; } })();
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.11.17.4';
+  var PLAYER_VERSION = '2026.11.17.5';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -7073,6 +7105,8 @@
     restart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 8-8 8.7 8.7 0 0 0-6 2.4L4 8.5"/><path d="M4 4v4.5h4.5"/></svg>',
     heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.3C7 16.6 3.2 13.3 3.2 9.4 3.2 6.9 5.2 5 7.6 5c1.6 0 3.2.8 4.4 2.4C13.2 5.8 14.8 5 16.4 5c2.4 0 4.4 1.9 4.4 4.4 0 3.9-3.8 7.2-8.8 10.9z"/></svg>',
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.2l2.8 2.8L16 9.6"/></svg>',
+    out: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v4.2A1.8 1.8 0 0 1 16.2 20H5.8A1.8 1.8 0 0 1 4 18.2V7.8A1.8 1.8 0 0 1 5.8 6H10"/></svg>',
+    link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4.2 4.2 0 0 0 6 0l3.2-3.2a4.2 4.2 0 0 0-6-6L11.6 6.4"/><path d="M14 10a4.2 4.2 0 0 0-6 0l-3.2 3.2a4.2 4.2 0 0 0 6 6l1.6-1.6"/></svg>',
     uncheck: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.4 8.4l7.2 7.2"/></svg>',
   };
   var sheetState = { el: null, scrim: null, prev: null, keys: null, rel: null, armed: true };
@@ -7368,7 +7402,8 @@
     });
     return card;
   }
-  function autoPickOn(){ var ap = getPrefs().autoPick; return ap === 'same' || ap === 'first' || shelfMode(); }
+  // (a device whose streams open in another app waits for the viewer's own press: an app opens only from one)
+  function autoPickOn(){ var ap = getPrefs().autoPick; return ((ap === 'same' || ap === 'first') && !extDefault()) || shelfMode(); }
   /** An Up next card: the next episode's still (the show's backdrop without one), "S2 E1", the show, the episode's name,
       and in the corner "Up next" — "New episode" when it came out after the last one was finished, or the day it airs. */
   function nextCard(r){
@@ -9016,7 +9051,9 @@
     if (id === 'custom') return scCustom(pr);
     return scDesign(id)[3] || SC_DESIGNS[0][3];
   }
-  function releaseCardHtml(s, raw, text, plate, f, name, spec, addonName, sc){
+  // a row's ⋯ (streamMoreSheet): drawn on computers and phones for a row with its own web address
+  var STREAM_MORE = '<span class="s-more" title="More: another app, copy the link"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="18.5" cy="12" r="1.8"/></svg></span>';
+  function releaseCardHtml(s, raw, text, plate, f, name, spec, addonName, sc, more){
     var file = rowFileName(s);
     // no file name: a first line that reads like a release ("The Dark Knight 2008 1080p BluRay x264") stands in for one
     var line1 = String(text || '').split('\n')[0].replace(RE_EMOJI, ' ').replace(/\s+/g, ' ').trim();
@@ -9053,9 +9090,9 @@
       // one line: the quality in front, marks and pills under the title (when asked for), size and play at the end
       var under = marks || langs || pillHtml ? '<span class="rc-under">' + (marks ? '<span class="sbadges">' + marks + '</span>' : '') + langs + pillHtml + '</span>' : '';
       if (sc.res && !res) res = '<span class="s-plate rc-noplate"></span>';
-      return '<span class="rc-row">' + res + head + under + '</span>' + specHtml + play + '</span>' + foot;
+      return '<span class="rc-row">' + res + head + under + '</span>' + specHtml + more + play + '</span>' + foot;
     }
-    return '<span class="rc-top">' + head + '</span>' + specHtml + '</span>' +
+    return '<span class="rc-top">' + head + '</span>' + specHtml + more + '</span>' +
       (res || marks || langs ? '<span class="rc-marks">' + res + (marks ? '<span class="sbadges">' + marks + '</span>' : '') + langs + '</span>' : '') +
       (pillHtml || play ? '<span class="rc-foot"><span class="rc-pills">' + pillHtml + '</span>' + play + '</span>' : '') + foot;
   }
@@ -9092,7 +9129,8 @@
       if (hp){ spec += '<i class="s-snd">sound through ' + esc(soundHelperName(hp)) + '</i>'; cls += ' snd'; }
       else { spec += '<i class="s-nosnd">no sound on this TV</i>'; cls += ' nosnd'; }
     }
-    var html = rel ? releaseCardHtml(s, raw, text, plate, f, name, spec, addonName, sc) :
+    var more = LINK_ON && linkOk(s.url) ? STREAM_MORE : '';
+    var html = rel ? releaseCardHtml(s, raw, text, plate, f, name, spec, addonName, sc, more) :
       (plate ? '<span class="s-plate"><b>' + plate.r + '</b>' + (plate.t ? '<i>' + plate.t + '</i>' : '') + '</span>'
              : '<span class="stream-play"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span>') +
       '<span class="s-main">' +
@@ -9102,7 +9140,7 @@
       '</span>' +
       (spec ? '<span class="s-spec">' + spec + '</span>' : '') +
       // the add-on's mark (Settings › Streams): its initial in a ring on a TV, or its name on every screen; CSS hides it elsewhere
-      (addonName ? '<span class="s-src" title="' + esc(addonName) + '">' + esc(getPrefs().addonMark === 'name' ? addonName : addonInitial(addonName)) + '</span>' : '');
+      (addonName ? '<span class="s-src" title="' + esc(addonName) + '">' + esc(getPrefs().addonMark === 'name' ? addonName : addonInitial(addonName)) + '</span>' : '') + more;
     return { cls: cls, html: html };
   }
   /** An add-on's whole answer in one pass: one string, parsed once (a card each, parsed one at a time, was ~4 ms a row on
@@ -9129,15 +9167,28 @@
     return cards;
   }
   function streamCardWire(card, s, addon){
-    // a hand-picked row is the one the next episodes follow (same source, same quality)
-    card.onclick=function(){
-      if (dlPick && dlPick.id === ctx.playId){ dlFromRow(s, addon); return; }   // the page is picking a source to download
-      autoRun = 0;
-      var go = function(){ ctx.pickedFrom = streamSig(s, addon); savePick(ctx.pickedFrom); ctx.playSig = ctx.pickedFrom; playStream(s); };
-      if (resumeAskDue()) resumeAsk(go); else go();
+    card.onclick=function(e){
+      // the row's ⋯ (a click on it may name the row itself as its target, so its place is checked too)
+      var m = card.querySelector('.s-more');
+      if (m && e && (m.contains(e.target) || (e.clientX && (function(r){ return e.clientX >= r.left - 4 && e.clientX <= r.right + 4 && e.clientY >= r.top - 4 && e.clientY <= r.bottom + 4; })(m.getBoundingClientRect())))){
+        streamMoreSheet(s, addon, card); return;
+      }
+      streamTap(s, addon, false);
     };
+    // right-click, or a finger held on the row: the same choices
+    if (LINK_ON && linkOk(s.url)) card.addEventListener('contextmenu', function(e){ e.preventDefault(); if (!sheetState.el) streamMoreSheet(s, addon, card); });
     card.__s = s; card.__a = addon;                // the row's own stream, for a mid-play switch to a sibling (stallCandidates)
     return card;
+  }
+
+  /** A row picked by hand: it plays here (or in another app when Settings says so), and it is the one the next episodes
+      follow (same source, same quality). [here]: this player whatever Settings says (the row's More › Play here). */
+  function streamTap(s, addon, here){
+    if (dlPick && dlPick.id === ctx.playId){ dlFromRow(s, addon); return; }   // the page is picking a source to download
+    autoRun = 0;
+    if (!here && extDefault() && linkOk(s.url)){ extOpen(s.url); return; }
+    var go = function(){ ctx.pickedFrom = streamSig(s, addon); savePick(ctx.pickedFrom); ctx.playSig = ctx.pickedFrom; playStream(s); };
+    if (resumeAskDue()) resumeAsk(go); else go();
   }
 
   // ---- same source, same quality: remember what was picked, find its twin ----
@@ -13373,7 +13424,9 @@
     var listed = !!(video.audioTracks && video.audioTracks.length);
     if (!hint && !listed) return;                       // a file that simply has no audio track is not a fault
     audioSilentNoted = true;
-    setStatus('No sound: this file’s audio' + (hint ? ' (' + hint + ')' : ' format') + ' cannot be decoded on this device. Pick a stream with AAC audio.', 'err', 9000);
+    setStatus('No sound: this file’s audio' + (hint ? ' (' + hint + ')' : ' format') + ' cannot be decoded on this ' + (IS_DESKTOP ? 'device' : 'browser') + '. Pick a stream with AAC audio' +
+      (EXT_ON ? ', or play this one in another app.' : '.'), 'err', 9000);
+    extOffer();
   }
   /** The few errors a person can act on get a sentence; the rest keep the code and the raw detail for diagnosis. */
   function playErrorLine(code, detail){
@@ -13444,6 +13497,7 @@
     stall.failSeq = seq;
     srcFailedNote(url);
     if (bestNext(seq, 'fail')) return;            // shelf mode / a launch: the next best plays instead of the error
+    extOffer();                                   // a computer's or a phone's browser: another app may play it
     if (code === 3016 && /^https?:\/\//i.test(url || '') && !/\.(mpd|m3u8)(\?|#|$)/i.test(url) && !(lastPlay && lastPlay.keys)){
       var host = ''; try { host = new URL(url).hostname.replace(/^www\./, ''); } catch(e){}
       var a = await hostAnswer(cleanUrl(url));
@@ -13736,6 +13790,170 @@
     ctx.rowFor = s.url;
     ctx.playFile = rowFileName(s);     // the file's own name, for a watch party's viewers to find it in their add-ons
     playUrl(s.url, extractClearKeys(s), ctx.streamTitle || (ctx.item && ctx.item.name) || s.name || 'Nebula', s.subtitles || []);
+  }
+
+  // ---------- another app, and a stream's own link (a computer's or a phone's browser; never a TV) ----------
+  // A browser cannot play every file: Chromium decodes no Dolby TrueHD or Atmos (the picture plays in silence) and Safari
+  // opens no MKV. So a stream can go to a video app on the same device instead, through the address that app answers to
+  // (its own scheme, which the viewer types in Settings › Playback; no app is named here), or its link can be copied
+  // (issue #11). The desktop app copies but opens no other app: its full-format player plays those files, and its shell
+  // hands only web pages to the system. A stream's link can carry the viewer's key to a paid service: it is never drawn
+  // on screen, and the copy says so.
+  var EXT_ON = !IS_TV && !IS_DESKTOP;              // another app
+  var LINK_ON = !IS_TV;                            // copying the link
+  var IS_ANDROID_WEB = EXT_ON && /Android/i.test(navigator.userAgent || '');
+  // schemes that would run something in this page or the browser itself, not hand the stream to an app
+  var EXT_BAD_SCHEME = /^(javascript|data|vbscript|file|blob|about|filesystem|view-source|intent|chrome|edge|opera|brave|nebula)$/i;
+  /** An address the viewer typed for their app: its own scheme, {url} or {enc} where the stream goes, nothing that breaks out. */
+  function extTemplateOk(t){
+    t = String(t || '');
+    var m = /^([a-z][a-z0-9+.\-]{0,31}):/i.exec(t);
+    return !!m && !EXT_BAD_SCHEME.test(m[1]) && t.length <= 400 && /\{(url|enc)\}/.test(t) && !/[\s<>"'`\\]/.test(t);
+  }
+  /** Settings › Playback › Another app: 'ask' (an Android browser: the phone asks which app), a checked address, or ''. */
+  function extApp(){
+    var v = String(getPrefs().extApp || '');
+    if (v === 'ask') return IS_ANDROID_WEB ? 'ask' : '';
+    return extTemplateOk(v) ? v : '';
+  }
+  /** Settings › Play streams in › Another app, with an app set: a picked stream leaves for it. */
+  function extDefault(){ return EXT_ON && getPrefs().extPlay === 'app' && !!extApp(); }
+  /** A stream's own web address: not a file kept by a computer (its key in the address) or by this desktop. */
+  function linkOk(url){
+    url = String(url || '');
+    if (!/^https?:\/\//i.test(url)) return false;
+    if (pcCopyKey(url)) return false;
+    if (url.indexOf(location.origin + '/dl/') === 0) return false;
+    return true;
+  }
+  /** What plays now may leave: its own address, and not a party guest's (the link is the host's). */
+  function linkNowOk(){ return LINK_ON && !!(lastPlay && linkOk(lastPlay.url)) && !(party && !party.isHost); }
+  /** The address that opens the other app on this stream. */
+  function extAddress(url){
+    var t = extApp(); if (!t) return '';
+    if (t === 'ask'){
+      // the phone's own chooser: any app that plays video (a fragment would end the intent early)
+      var m = /^(https?):\/\/([^#]*)/i.exec(String(url));
+      return m ? 'intent://' + m[2] + '#Intent;scheme=' + m[1].toLowerCase() + ';action=android.intent.action.VIEW;type=video/*;end' : '';
+    }
+    return t.split('{enc}').join(encodeURIComponent(url)).split('{url}').join(url);
+  }
+  /** Hands a stream to the other app, inside the viewer's own press (a browser opens an app only from one, and asks first). */
+  function extOpen(url){
+    if (!EXT_ON || !linkOk(url)) return false;
+    var a = extAddress(url);
+    if (!a){ setStatus('Set up another app first: Settings › Playback › Another app.', 'info', 6000); return false; }
+    var l = document.createElement('a');
+    l.href = a; l.rel = 'noopener noreferrer';
+    if (/^https?:/i.test(a)) l.target = '_blank';      // a web address the viewer chose opens beside the player, not over it
+    l.style.display = 'none';
+    document.body.appendChild(l);
+    try { l.click(); } catch(e){}
+    setTimeout(function(){ if (l.parentNode) l.parentNode.removeChild(l); }, 0);
+    setStatus('Opening the stream in your other app…', 'ok', 4000);
+    return true;
+  }
+  function copyText(t){
+    var prev = document.activeElement;
+    function old(){
+      var ta = document.createElement('textarea'), ok = false;
+      ta.value = t; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.left = '-9999px'; ta.style.top = '0';
+      document.body.appendChild(ta); ta.select();
+      try { ok = document.execCommand('copy'); } catch(e){}
+      ta.parentNode.removeChild(ta);
+      if (prev && prev.focus && prev !== document.body) try { prev.focus({ preventScroll: true }); } catch(e2){}
+      return ok;
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext !== false)
+        return navigator.clipboard.writeText(t).then(function(){ return true; }, function(){ return old(); });
+    } catch(e){}
+    return Promise.resolve(old());
+  }
+  function linkCopy(url){
+    if (!LINK_ON || !linkOk(url)) return;
+    copyText(url).then(function(ok){
+      setStatus(ok ? 'Stream link copied. It can carry your key to a paid service, so share it with care.' : 'This browser would not copy the link.', ok ? 'ok' : 'err', 6000);
+    });
+  }
+  /** A stream row's More: play here, in another app, copy its link. */
+  function streamMoreSheet(s, addon, card){
+    if (!LINK_ON || !linkOk(s.url)) return;
+    var acts = [{ icon: 'play', label: extDefault() ? 'Play here' : 'Play', fn: function(){ streamTap(s, addon, true); } }];
+    if (EXT_ON) acts.push({ icon: 'out', label: 'Play in another app', fn: function(){ autoRun = 0; extOpen(s.url); } });
+    acts.push({ icon: 'link', label: 'Copy stream link', fn: function(){ linkCopy(s.url); } });
+    var nm = card && card.querySelector('.stream-name');
+    openSheet({ title: (nm && nm.textContent) || cleanStreamName(s.name, addon && addon.name) || 'Stream', sub: (addon && addon.name) || '', actions: acts });
+  }
+  /** The player's Link menu. */
+  function linkMenuFill(){
+    var url = lastPlay ? lastPlay.url : '';
+    if (EXT_ON) menuOpt('Play in another app', false, function(){
+      closePuiMenu(true);
+      if (extOpen(url)) try { video.pause(); } catch(e){}
+    });
+    menuOpt('Copy stream link', false, function(){ closePuiMenu(true); linkCopy(url); });
+    puiNote((EXT_ON ? (extApp() ? 'Another app: the one set in Settings › Playback. ' : 'Set up another app in Settings › Playback. ') : '') +
+      'The link can carry your key to a paid service.');
+  }
+  /** A stream that would not play, or plays in silence: the pill offers it elsewhere. */
+  function extOffer(){
+    if (!linkNowOk()) return;
+    var b = $id('extBtn'); if (!b) return;
+    b.textContent = EXT_ON ? 'Play in another app' : 'Copy stream link';
+    b.classList.add('show');
+  }
+  function extHide(){
+    var b = $id('extBtn'); if (!b || !b.classList.contains('show')) return;
+    b.classList.remove('show');
+    if (document.activeElement === b) b.blur();
+  }
+  /** Settings › Playback: Play streams in, and the other app's address. */
+  function extRowsRender(){
+    var r1 = $id('rowExtPlay'), r2 = $id('rowExtApp'), box = $id('setExtApp'), sub = $id('setExtAppSub');
+    if (!r1 || !r2 || !box || !sub) return;
+    r1.style.display = r2.style.display = EXT_ON ? '' : 'none';
+    if (!EXT_ON) return;
+    var pr = getPrefs(), raw = String(pr.extApp || ''), ask = IS_ANDROID_WEB && raw === 'ask', app = extApp();
+    segChips('setExtPlay', [['This player', 'here'], ['Another app', 'app']], pr.extPlay === 'app' ? 'app' : 'here', function(v){
+      setPref('extPlay', v === 'app' ? 'app' : '');
+      if (v === 'app' && !extApp()) setStatus('Now set the app below: streams play here until it is set.', 'info', 6000);
+    });
+    sub.textContent = ask ? 'This phone asks which of its apps plays each stream'
+      : app ? 'Set · Your app opens each stream from this address'
+      : 'The address your video app opens: its own name://, then {url} where the stream link goes, or {enc} for it encoded. The app’s help pages give it';
+    var sig = (ask ? 'ask' : 'addr') + '|' + raw;
+    if (box.getAttribute('data-sig') === sig) return;        // a field being typed in is left alone
+    var had = box.contains(document.activeElement);
+    box.setAttribute('data-sig', sig);
+    box.innerHTML = '';
+    if (IS_ANDROID_WEB){
+      var seg = document.createElement('span'); seg.className = 'seg'; seg.id = 'setExtAsk';
+      [['Ask each time', 'ask'], ['An address', 'addr']].forEach(function(o){
+        seg.appendChild(prefChip(o[0], (ask ? 'ask' : 'addr') === o[1], function(){
+          setPref('extApp', o[1] === 'ask' ? 'ask' : (raw === 'ask' ? '' : raw));
+        }));
+      });
+      box.appendChild(seg);
+      if (ask) return;
+    }
+    var inp = document.createElement('input');
+    inp.id = 'setExtAppIn'; inp.className = 'focusable field'; inp.type = 'text'; inp.maxLength = 400;
+    inp.autocomplete = 'off'; inp.spellcheck = false; inp.placeholder = 'name://play?url={enc}';
+    inp.value = raw === 'ask' ? '' : raw;
+    var go = document.createElement('button');
+    go.id = 'setExtAppGo'; go.className = 'textbtn focusable'; go.type = 'button'; go.textContent = 'Save';
+    function save(){
+      var v = inp.value.trim();
+      if (!v){ setPref('extApp', ''); setStatus('Another app cleared.', 'ok'); return; }
+      if (!extTemplateOk(v)){ setStatus('That address will not work. It starts with the app’s own name:// and has {url} or {enc} where the link goes.', 'err', 8000); return; }
+      setPref('extApp', v);
+      setStatus(getPrefs().extPlay === 'app' ? 'Saved. A stream you pick now opens in your other app.' : 'Saved. Hold or right-click a stream to open it there.', 'ok', 5000);
+    }
+    go.onclick = save;
+    inp.addEventListener('keydown', function(e){ if (e.keyCode === 13){ e.preventDefault(); save(); } });
+    box.appendChild(inp); box.appendChild(go);
+    if (had) try { inp.focus(); } catch(e){}
   }
   /** Settings › languages → the player's own preferences (they decide the next track choice). */
   function applyLangPrefs(){
@@ -16693,7 +16911,7 @@
     if (subPanelEl){ subPanelEl.classList.remove('open'); document.body.classList.remove('sp-on'); }
     puiMenuEl.innerHTML = '';
     var t=document.createElement('div'); t.className='qtitle';
-    t.textContent = { quality:'Quality', audio:'Audio', speed:'Speed', sleep:'Sleep timer', fit:'Picture size', streams:'Streams', chapters:'Chapters' }[kind];
+    t.textContent = { quality:'Quality', audio:'Audio', speed:'Speed', sleep:'Sleep timer', fit:'Picture size', streams:'Streams', chapters:'Chapters', link:'Stream link' }[kind];
     puiMenuEl.appendChild(t);
     if (kind==='quality'){
       var tracks = videoTracks(), heights = distinctHeights(tracks);
@@ -16782,6 +17000,8 @@
       puiNote(FIT_NOTES[fm]);
     } else if (kind==='streams'){
       streamsMenuFill();
+    } else if (kind==='link'){
+      linkMenuFill();
     } else if (kind==='chapters'){
       var chNow = chapAt(video.currentTime);
       chap.list.forEach(function(c){ menuOpt(fmtT(c.t) + '  ·  ' + c.name, c === chNow, function(){ chapGo(c); }); });
@@ -17338,6 +17558,9 @@
     $id('puiAudio').style.display = '';
     $id('puiNext').style.display = nextEpisode() ? '' : 'none';
     $id('puiChap').style.display = (chap.list.length >= 2 && !puiIsLive()) ? '' : 'none';
+    var lk = $id('puiLink');
+    lk.style.display = linkNowOk() ? '' : 'none';
+    lk.title = EXT_ON ? 'Another app, or copy the stream link' : 'Copy the stream link';
     // picture-in-picture needs the element's own picture: not while the full-format player draws it
     $id('puiPip').style.display = (!player.mpv && document.pictureInPictureEnabled && HTMLVideoElement.prototype.requestPictureInPicture) ? '' : 'none';
   }
@@ -17401,6 +17624,12 @@
   $id('puiSleep').onclick = function(){ if (puiState.menu==='sleep') closePuiMenu(true); else openPuiMenu('sleep', this); };
   $id('puiChap').onclick = function(){ if (puiState.menu==='chapters') closePuiMenu(true); else openPuiMenu('chapters', this); };
   $id('puiStreams').onclick = function(){ if (puiState.menu==='streams') closePuiMenu(true); else openPuiMenu('streams', this); };
+  $id('puiLink').onclick = function(){ if (puiState.menu==='link') closePuiMenu(true); else openPuiMenu('link', this); };
+  // the failed play's pill: another app (the menu, with the copy beside it), or on the desktop the copy itself
+  $id('extBtn').onclick = function(){
+    if (!linkNowOk()){ extHide(); return; }
+    if (EXT_ON) openPuiMenu('link', this); else linkCopy(lastPlay.url);
+  };
 
   // ---- fullscreen ----
   // Hidden on webOS, where the app already owns the whole screen.
@@ -18442,7 +18671,7 @@
   // causes — and the row after this one in the list (a different source; one this connection carries, before one it does
   // not) goes on a pill like the skip's. One press switches with the second kept. A party viewer follows the host instead.
   var stall = { times: [], total: 0, seekAt: 0, playedAt: 0, sib: null, shownAt: 0, offered: false, busy: false };
-  function stallReset(){ stall.times = []; stall.total = 0; stall.seekAt = 0; stall.playedAt = 0; stall.offered = false; stall.busy = false; srcHide(); }
+  function stallReset(){ stall.times = []; stall.total = 0; stall.seekAt = 0; stall.playedAt = 0; stall.offered = false; stall.busy = false; srcHide(); extHide(); }
   function stallOnPlaying(){ if (!stall.playedAt) stall.playedAt = Date.now(); }
   function stallOnSeeking(){ stall.seekAt = Date.now(); }
   function stallOnWaiting(){
@@ -20940,7 +21169,7 @@
   // sound, the TV's autoplay, its connections) is never sent and never taken.
   var PREFS_LOCAL = { zoom: 1, textSize: 1, cardSize: 1, rowDensity: 1, landscapeRows: 1, landscapeStart: 1, motion: 1, maxRes: 1, buffer: 1,
     fit: 1, audDelay: 1, night: 1, engine: 1, relay: 1, scrubFrames: 1, fastRows: 1, welcome: 1, speedLast: 1, bestPlay: 1, apAim: 1,
-    apMax: 1, apBack: 1, apInstant: 1, apMin: 1, apPrio: 1, apRetry: 1, apStart: 1, apWait: 1, posterAddr: 1, ambient: 1 };
+    apMax: 1, apBack: 1, apInstant: 1, apMin: 1, apPrio: 1, apRetry: 1, apStart: 1, apWait: 1, posterAddr: 1, ambient: 1, extPlay: 1, extApp: 1 };
   function prefsKey(){
     var v = (typeof viewer === 'string') ? viewer : viewerStored();
     return v === 'a' ? 'prefs_v1' : 'prefs_' + v;
@@ -21417,6 +21646,7 @@
     segChips('setMaxRes', [['No cap','none'], ['720p','720'], ['1080p','1080'], ['1440p','1440']], pr.maxRes === '720' || pr.maxRes === '1080' || pr.maxRes === '1440' ? pr.maxRes : 'none', function(v){ setPref('maxRes', v); applyQualityPolicy(); });
     segChips('setBuffer', [['Auto','auto'], ['1 min',60], ['2 min',120], ['4 min',240]], bufferSecs() || 'auto', function(v){ setPref('buffer', v); applyBufferPolicy(); });
     engineRowRender();
+    extRowsRender();                   // Play streams in · Another app (a computer's or a phone's browser)
     relayRowsRender();                 // Play through your PC (TV) · Share with your TV (desktop)
     prefPicker('setAudioLang', 'Audio language', PREF_LANGS, pr.audioLang || '', function(v){ setPref('audioLang', v); applyLangPrefs(); });
     prefPicker('setSubLang', 'Subtitle language', PREF_LANGS, pr.subLang || '', function(v){ setPref('subLang', v); applyLangPrefs(); });
