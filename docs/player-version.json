@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.15.1",
+  "version": "2026.11.17.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Press a cast member, a director or a writer on a title page to see their films and series, with Films, Series, Directed and Written filters."
+  "notes": "When an add-on answers with a link instead of a stream, the Streams page shows it. A locked Nebula Sports channel lists its unlock and donation cards. On a computer a link opens in your browser and the streams are asked for again when you come back; on a TV it shows a code to scan with your phone."
 }
