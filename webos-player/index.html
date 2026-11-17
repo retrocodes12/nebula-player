@@ -662,6 +662,30 @@
     box-shadow:0 14px 32px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
   .stream.focusable:focus-visible { background:var(--l2); transform:scale(1.015);
     box-shadow:0 14px 32px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
+  /* a row that only opens a web page (streamLinksOf): the add-on's words as written, an arrow out where a plate would be;
+     on a TV, pressed, the page's address as a code to scan (.sl-qr) */
+  .slink { width:100%; min-width:0; display:flex; align-items:center; text-align:left; cursor:pointer; background:var(--l1);
+    border:0; border-radius:var(--r-tile); padding:14px 16px; color:var(--label); font:inherit;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.06); transition:background .18s var(--ease); }
+  .slink .sl-txt { flex:1 1 auto; min-width:0; }
+  .slink b { display:block; font-size:calc(15.5px * var(--ts)); font-weight:600; letter-spacing:-.015em; }
+  .slink small { display:block; margin-top:4px; font-size:calc(13px * var(--ts)); line-height:1.45; color:var(--label2); white-space:pre-line; }
+  .slink svg { flex:0 0 auto; width:18px; height:18px; margin-left:14px; color:var(--label2); }
+  .slink:hover { background:var(--l2); }
+  .slink.focusable:focus-visible { background:var(--l2); outline:none; box-shadow:inset 0 0 0 1px rgba(255,255,255,.22); }
+  html.tv .slink { border-radius:16px; padding:22px 26px; }
+  html.tv .slink b { font-size:calc(21px * var(--ts)); }
+  html.tv .slink small { font-size:calc(16px * var(--ts)); }
+  html.tv .slink.focusable:focus { background:var(--l2); outline:none; box-shadow:0 0 0 3px #fff; }
+  html.tv .slink.focusable:focus svg { color:var(--label); }
+  .sl-qr { display:flex; align-items:center; background:var(--l1); border-radius:16px; padding:22px 26px; }
+  .sl-code { flex:0 0 auto; background:#fff; border-radius:12px; padding:14px; margin-right:26px; }
+  .sl-code svg { display:block; width:200px; height:200px; }
+  .sl-say { min-width:0; }
+  .sl-say b { display:block; font-size:calc(19px * var(--ts)); font-weight:700; }
+  .sl-say p { margin:8px 0 0; font-size:calc(15px * var(--ts)); line-height:1.45; color:var(--label2); }
+  .sl-say i { display:block; margin-top:6px; font-style:normal; font-family:var(--mono); font-size:calc(13px * var(--ts)); color:var(--label3, var(--label2)); }
+  .sl-say .btn { margin-top:16px; }
   .stream-name { display:block; font-size:calc(15.5px * var(--ts)); font-weight:600; letter-spacing:-.015em;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .stream-sub { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
@@ -10701,6 +10725,68 @@
     var n = parseFloat(m[1].replace(',', '.')), u = m[2].toUpperCase();
     return n * (u.charAt(0) === 'G' ? 1073741824 : 1048576);
   }
+  // ---- rows that only open a web page (the protocol's externalUrl) ----
+  // A locked Nebula Sports channel answers with two: "Watch an ad to unlock Live TV (12 h)" and the donation card. They
+  // were dropped with every row that has no url, so the page said "No streams" and gave no way in. The Streams page alone
+  // shows them, under the add-on's rows that play (or on their own): a browser or the desktop opens the page and asks the
+  // add-ons again once the viewer is back; a TV shows the address as a code to scan with a phone, and Check again.
+  // Never counted as streams, never picked, never offered by the stall pill or a party.
+  var SL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>';
+  function streamLinksOf(arr){
+    var out = [];
+    (arr || []).forEach(function(s){
+      if (!s || s.url || s.infoHash) return;
+      var u = String(s.externalUrl || '').trim();
+      if (!/^https?:\/\//i.test(u)) return;
+      var name = String(s.name || '').trim(), text = String(s.title || s.description || '').trim();
+      if (!name && !text) return;
+      out.push({ name: name.slice(0, 200), text: text.slice(0, 600), url: u });
+    });
+    return out;
+  }
+  function streamLinksInto(box, links){
+    return links.map(function(l){
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'slink focusable';
+      b.innerHTML = '<span class="sl-txt"><b>' + esc(l.name || 'Open the page') + '</b>' + (l.text ? '<small>' + esc(l.text) + '</small>' : '') + '</span>' + SL_ICON;
+      b.onclick = function(){ streamLinkOpen(b, l); };
+      box.appendChild(b);
+      return b;
+    });
+  }
+  // a page a link row opened: {seq, req, left}; the list is asked again when the viewer comes back to it
+  var linkBack = null;
+  function streamLinkOpen(b, l){
+    var req = lastStreamsReq;
+    if (!IS_TV){
+      try { window.open(l.url, '_blank', 'noopener'); } catch(e){}   // the desktop shell hands https links to the browser
+      linkBack = { seq: openSeq, req: req, left: false };
+      return;
+    }
+    var nx = b.nextElementSibling;
+    if (nx && nx.classList.contains('sl-qr')){ nx.parentNode.removeChild(nx); return; }   // pressed again: the code goes
+    var q = document.createElement('div'); q.className = 'sl-qr';
+    var svg = ''; try { var qr = qrcode(0, 'M'); qr.addData(l.url); qr.make(); svg = qr.createSvgTag({ cellSize: 4, margin: 0 }); } catch(e){}
+    var host = ''; try { host = new URL(l.url).host; } catch(e){}
+    q.innerHTML = (svg ? '<div class="sl-code">' + svg + '</div>' : '') +
+      '<div class="sl-say"><b>Open on your phone</b><p>Point your phone’s camera at the code. When you are done there, choose Check again.</p>' +
+      (host ? '<i>' + esc(host) + '</i>' : '') + '<button type="button" class="btn focusable sl-again">Check again</button></div>';
+    b.parentNode.insertBefore(q, b.nextSibling);
+    var again = q.querySelector('.sl-again');
+    again.onclick = function(){ if (req) openStreams(req.type, req.id, req.title, ctx.startOver); };
+    try { again.focus(); } catch(e){}
+  }
+  function linkBackLeft(){ if (linkBack) linkBack.left = true; }
+  function linkBackCheck(){
+    if (!linkBack || !linkBack.left || document.hidden) return;
+    var lb = linkBack; linkBack = null;
+    if (lb.seq !== openSeq || !lb.req || !$id('view-streams').classList.contains('active')) return;
+    openStreams(lb.req.type, lb.req.id, lb.req.title, ctx.startOver);
+  }
+  window.addEventListener('blur', linkBackLeft);
+  window.addEventListener('focus', linkBackCheck);
+  document.addEventListener('visibilitychange', function(){ if (document.hidden) linkBackLeft(); else linkBackCheck(); });
+
   /** The floor first (rows that say nothing about resolution stay), then the order — a stable sort. */
   function streamsForList(streams){
     var pr = getPrefs(), min = RES_MIN[pr.minRes] || 0, sort = pr.streamSort || 'listed';
@@ -10895,7 +10981,7 @@
     // why a list can come back empty: `answered` add-ons that say they stream this answered (with nothing), `lost` could not
     // be asked at all (a manifest that did not load, or a streaming add-on's request that failed). A catalog-only origin is
     // still asked, but its refusal is no one's outage — a fresh install (catalogs + subtitles only) is not "offline".
-    var pending = order.length, total = 0, sections = 0, answered = 0, lost = 0;
+    var pending = order.length, total = 0, sections = 0, answered = 0, lost = 0, linkTotal = 0;
     // the add-ons still being asked, named above the list once rows are on screen (their own places may be far below)
     var waiting = [], waitSlow = false;
     var waitEl = $id('streamsWait'); waitEl.className = 's-waitline'; waitEl.innerHTML = '';
@@ -10935,6 +11021,14 @@
       pending--;
       if (pending) return;
       removeLoading();
+      if (!total && linkTotal){
+        // nothing plays, but an add-on left a link (a locked channel): the links are the page, the count says so
+        lcHide();
+        var lcnt = $id('shCount'), lline = 'Nothing plays here yet. See below.';
+        if ($id('view-streams').classList.contains('hero')){ lcnt.textContent = lline; clearStatus(); }
+        else setStatus(lline, 'info');
+        return;
+      }
       if (!total){
         lcHide();                                  // nothing to pick: the page says why
         var req = lastStreamsReq, live = /^(tv|channel|events?)$/.test(type);
@@ -10996,11 +11090,21 @@
           if (declares) answered++;
           if (seq !== openSeq) return;
           var streams = streamsForList((d.streams||[]).filter(function(s){ return s.url; }));
+          var links = streamLinksOf(d.streams);         // rows that only open a web page (a locked channel's cards)
           if (apMode === 'best' && declares) lcAnswered((a && a.name) || 'Add-on', streams.length);
           box.innerHTML = '';
           boxPending = false;
-          if (!streams.length){ bestEarly(); return; }
+          if (!streams.length && !links.length){ bestEarly(); return; }
           removeLoading();
+          if (!streams.length){
+            // links only: a block of their own, named when the page asks more than one add-on; no filter chip, no pick
+            linkTotal++;
+            if (order.length > 1) box.innerHTML = '<div class="rowhead"><span class="row-title">'+esc(a.name||'Add-on')+'</span></div>';
+            var lk = streamLinksInto(box, links);
+            bestEarly();
+            if (!sections && linkTotal === 1 && (IS_TV || kbUsed) && lastKeyAt <= openedAt){ try { lk[0].focus(); } catch(e){} }
+            return;
+          }
           sections++;
           box.setAttribute('data-an', a.name || 'Add-on');
           if (order.length > 1){
@@ -11008,6 +11112,7 @@
           }
           if (MV) box.classList.add('rin');     // its rows rise in one after another (html.mv)
           var cards = streamCardsInto(box, streams, a); total += cards.length;
+          if (links.length) streamLinksInto(box, links);   // its links under the rows that play
           bestEarly();
           // rows that came in go above the add-ons still being asked: a slow add-on high in the list kept the rows
           // that could already play below the fold (seen on his TV, 10-16) — and nothing above moves under the remote
