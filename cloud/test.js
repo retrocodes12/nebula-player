@@ -1084,6 +1084,32 @@ test('support: codes are issued by the admin, redeemed once by a profile, and sh
   assert.equal((await api('POST', '/v1/support/redeem', { code: c2 }, tok(b))).status, 404);
 });
 
+test('support: a code on a profile that is then deleted can be redeemed again; one whose tier was revoked first cannot', async () => {
+  const [c1, c2] = (await admin('POST', '/v1/support/codes', { n: 2, tier: 'plus', note: 'deleted profile' })).body.codes;
+  const a = await mkProfile('gone_ada', 'Ada G', 'password1');
+  assert.equal((await api('POST', '/v1/support/redeem', { code: c1 }, tok(a), '10.7.7.1')).status, 200);
+  assert.equal((await api('DELETE', '/v1/profile', { password: 'password1' }, tok(a))).status, 200);
+  const b = await mkProfile('gone_bob', 'Bob G', 'password1');
+  const again = await api('POST', '/v1/support/redeem', { code: c1 }, tok(b), '10.7.7.2');
+  assert.equal(again.status, 200, JSON.stringify(again.body));
+  assert.equal(again.body.supporter.tier, 'plus');
+  const row = (await admin('GET', '/v1/support/codes')).body.codes.find((c) => c.code === c1);
+  assert.equal(row.used.handle, 'gone_bob');
+  assert.deepEqual(row.freed.map((f) => f.handle), ['gone_ada']);
+  // a tier taken back by hand stays taken: deleting that profile afterwards frees nothing
+  const c = await mkProfile('gone_cy', 'Cy G', 'password1');
+  assert.equal((await api('POST', '/v1/support/redeem', { code: c2 }, tok(c), '10.7.7.3')).status, 200);
+  assert.equal((await admin('POST', '/v1/support/revoke', { handle: 'gone_cy' })).status, 200);
+  assert.equal((await api('DELETE', '/v1/profile', { password: 'password1' }, tok(c))).status, 200);
+  const d = await mkProfile('gone_dee', 'Dee G', 'password1');
+  assert.equal((await api('POST', '/v1/support/redeem', { code: c2 }, tok(d), '10.7.7.4')).status, 404);
+  // the same code twice on a live profile is still refused
+  assert.equal((await api('POST', '/v1/support/redeem', { code: c1 }, tok(d), '10.7.7.4')).status, 404);
+  // leave no supporter behind for the wall's counts below
+  assert.equal((await api('DELETE', '/v1/profile', { password: 'password1' }, tok(b))).status, 200);
+  assert.equal((await api('DELETE', '/v1/profile', { password: 'password1' }, tok(d))).status, 200);
+});
+
 test('support: the wall is opt-in, names come from the profile, count is every supporter; grant and revoke by handle', async () => {
   const a = await api('POST', '/v1/profile/signin', { handle: 'sup_ada', password: 'password1' });
   const b = await api('POST', '/v1/profile/signin', { handle: 'sup_bob', password: 'password1' });

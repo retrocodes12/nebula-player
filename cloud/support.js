@@ -299,6 +299,25 @@ module.exports = function attach(core) {
     const i = store.gids.indexOf(gid);
     if (i >= 0) { store.gids.splice(i, 1); persistStore(); wallAt = 0; }
   }
+  /** deleteGroup's call, made while the group `g` still exists (2026-11-17, a buyer deleted the profile a $5 code was on
+      and the code then answered "not found"): a profile deleted while it still held its supporter tier gives back every
+      code redeemed on it, so the buyer can redeem it on their next profile. The tier lives on one profile at a time and
+      this one is going, so nothing is gained by it. A code whose tier was taken back by hand (revoke) stays spent: only
+      a profile that is still a supporter frees anything. Each code keeps where it was before (`freed`, last five). */
+  function forget(gid, g) {
+    if (g && g.supporter) {
+      let freed = 0;
+      for (const c of Object.keys(store.codes)) {
+        const r = store.codes[c];
+        if (!r.used || r.used.gid !== gid) continue;
+        r.freed = (Array.isArray(r.freed) ? r.freed : []).concat([{ handle: r.used.handle, at: r.used.at, freedAt: Date.now() }]).slice(-5);
+        r.used = null;
+        freed++;
+      }
+      if (freed) persistStore();
+    }
+    drop(gid);
+  }
 
   // ---------- the wall ----------
   let wallCache = null, wallAt = 0;
@@ -518,7 +537,8 @@ module.exports = function attach(core) {
       if (p === '/v1/support/codes' && m === 'GET') {
         const codes = Object.keys(store.codes).map((c) => {
           const r = store.codes[c];
-          return { code: pretty(c), at: r.at, note: r.note || '', tier: cleanTier(r.tier), used: r.used ? { handle: r.used.handle, at: r.used.at } : null };
+          return { code: pretty(c), at: r.at, note: r.note || '', tier: cleanTier(r.tier), used: r.used ? { handle: r.used.handle, at: r.used.at } : null,
+            freed: Array.isArray(r.freed) ? r.freed.map((f) => ({ handle: f.handle, at: f.freedAt })) : [] };
         }).sort((a, b) => b.at - a.at);
         const supporters = [];
         for (const gid of store.gids) {
@@ -598,5 +618,5 @@ module.exports = function attach(core) {
     return true;
   }
 
-  return { handle, view, drop, flush, config, TIERS, markOf, rankOf };
+  return { handle, view, drop, forget, flush, config, TIERS, markOf, rankOf };
 };

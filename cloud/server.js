@@ -191,7 +191,7 @@ function deleteGroup(gid) {
     if (g.social.code) { delete socialCodes[g.social.code]; persistSocialCodes(); }
   }
   if (g && g.profile) profile.dropHandle(g.profile.handle);
-  support.drop(gid);
+  support.forget(gid, g);          // the wall entry goes; a code redeemed here is given back (support.js)
   if (dirty.has(gid)) { clearTimeout(dirty.get(gid)); dirty.delete(gid); }
   try { fs.unlinkSync(gPath(gid)); } catch (e) {}
   if (g) { groups.delete(gid); lastUse.delete(gid); groupCount--; }
