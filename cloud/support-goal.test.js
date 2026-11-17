@@ -98,12 +98,42 @@ test('an empty ledger means zero; missing configuration or failed/partial/malfor
     async () => ({ ok: false }),
     async () => ({ ok: true, json: async () => ({ payments: [] }) }),
     async () => response([receipt('invalid', { amountBeforeTax: '2' })]),
-    async () => response([receipt('non-usd', { currency: 'eur' })]),
+    async () => response([receipt('bad-currency', { currency: 'euro' })]),
     async (url) => Number(url.searchParams.get('page')) === 1 ? response([receipt('one')], 1, 2) : { ok: false },
     async () => response([receipt('one')], 1, 21),
   ]) {
     assert.equal((await attach({ config: () => ({ pay }), now: () => OCTOBER, fetchImpl }).get()).raisedCents, null);
   }
+});
+
+// 2026-11-17: one INR and one GBP receipt blanked the November meter (a non-USD receipt failed the whole ledger)
+const isFx = (url) => String(url).startsWith('https://api.frankfurter.dev/');
+const FX = { ok: true, json: async () => ({ amount: 1, base: 'USD', date: '2026-10-03', rates: { INR: 93.93, GBP: 0.75767 } }) };
+test('receipts in other currencies count at the day\'s rate, fetched once and only when one is there', async () => {
+  let fxCalls = 0;
+  const goal = attach({ config: () => ({ pay }), now: () => OCTOBER, fetchImpl: async (url) => {
+    if (isFx(url)) { fxCalls++; return FX; }
+    return response([receipt('usd'), receipt('inr', { currency: 'inr', amountBeforeTax: 188.99 }), receipt('gbp', { currency: 'GBP', amountBeforeTax: 1.99 })]);
+  } });
+  // 200 + 188.99 / 93.93 (= 2.01) + 1.99 / 0.75767 (= 2.63)
+  assert.equal((await goal.get()).raisedCents, 200 + 201 + 263);
+  assert.equal(fxCalls, 1);
+  let none = 0;
+  await attach({ config: () => ({ pay }), now: () => OCTOBER, fetchImpl: async (url) => {
+    if (isFx(url)) { none++; return FX; }
+    return response([receipt('usd')]);
+  } }).get();
+  assert.equal(none, 0, 'an all-dollar ledger never asks for rates');
+});
+
+test('a currency with no rate, or no rates at all, is left out instead of blanking the meter', async () => {
+  const ledger = () => response([receipt('usd'), receipt('jpy', { currency: 'jpy', amountBeforeTax: 300 }), receipt('inr', { currency: 'inr', amountBeforeTax: 188.99 })]);
+  assert.equal((await attach({ config: () => ({ pay }), now: () => OCTOBER,
+    fetchImpl: async (url) => isFx(url) ? FX : ledger() }).get()).raisedCents, 200 + 201);
+  assert.equal((await attach({ config: () => ({ pay }), now: () => OCTOBER,
+    fetchImpl: async (url) => isFx(url) ? { ok: false } : ledger() }).get()).raisedCents, 200);
+  assert.equal((await attach({ config: () => ({ pay }), now: () => OCTOBER,
+    fetchImpl: async (url) => { if (isFx(url)) throw new Error('down'); return ledger(); } }).get()).raisedCents, 200);
 });
 
 test('changing payment configuration clears cached revenue', async () => {

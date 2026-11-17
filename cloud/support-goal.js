@@ -8,6 +8,14 @@ const CACHE_MS = 5 * 60_000;
 const RETRY_MS = 60_000;
 const MAX_STALE_MS = 24 * 3600_000;
 const MAX_PAGES = 20;
+// 2026-11-17: the meter went blank because ONE November receipt was paid in INR and one in GBP; any non-USD receipt
+// threw and failed the whole ledger. The service gives no USD figure for those, so they are converted at the day's
+// ECB reference rate (Frankfurter, no key, nothing about the buyer sent). A currency with no rate there is left out
+// of the total rather than blanking the meter.
+const FX_URL = process.env.SUPPORT_FX_URL || 'https://api.frankfurter.dev/v1/latest?base=USD';
+const FX_TTL_MS = 12 * 3600_000;
+const FX_KEEP_MS = 7 * 24 * 3600_000;
+const FX_RETRY_MS = 10 * 60_000;
 
 function monthAt(at) {
   const d = new Date(at);
@@ -16,8 +24,9 @@ function monthAt(at) {
   return { month: new Date(start).toISOString().slice(0, 7), start, end };
 }
 
-/** Count only our USD receipts, less tax; refunds/disputes never fund the goal. */
-function sumPayments(payments, products, period, seen) {
+/** Count our receipts in US dollars, less tax; refunds/disputes never fund the goal. `rates` = units of a currency per
+    dollar ({INR: 93.9, GBP: 0.76}); a receipt in a currency with no rate is left out. */
+function sumPayments(payments, products, period, seen, rates) {
   let cents = 0;
   for (const p of payments) {
     if (!p || typeof p !== 'object') throw new Error('invalid payment');
@@ -27,10 +36,13 @@ function sumPayments(payments, products, period, seen) {
     const at = Date.parse(p.createdAt);
     if (!Number.isFinite(at)) throw new Error('invalid receipt date');
     if (at < period.start || at >= period.end || p.isRefunded || p.isDisputed || seen.has(p._id)) continue;
-    if (String(p.currency).toLowerCase() !== 'usd' || !Number.isFinite(p.amountBeforeTax) || p.amountBeforeTax < 0) {
+    const cur = typeof p.currency === 'string' ? p.currency.toUpperCase() : '';
+    if (!/^[A-Z]{3}$/.test(cur) || !Number.isFinite(p.amountBeforeTax) || p.amountBeforeTax < 0) {
       throw new Error('unsupported receipt amount');
     }
-    const amount = Math.round(p.amountBeforeTax * 100);
+    const rate = cur === 'USD' ? 1 : rates && rates[cur];
+    if (!(Number.isFinite(rate) && rate > 0)) continue;
+    const amount = Math.round(p.amountBeforeTax / rate * 100);
     if (!Number.isSafeInteger(amount) || !Number.isSafeInteger(cents + amount)) throw new Error('receipt amount too large');
     seen.add(p._id);
     cents += amount;
@@ -40,12 +52,33 @@ function sumPayments(payments, products, period, seen) {
 
 module.exports = function attach({ config, fetchImpl = fetch, now = Date.now }) {
   let cached = null, scope = '', nextTry = 0, inFlight = null;
+  let fx = null, fxNextTry = 0;          // {at, rates}: the last good day's rates
+
+  /** Units per dollar, fetched at most every 12 h; the last good set serves a week of outages; null when none. */
+  async function rates() {
+    const at = now();
+    if (fx && at - fx.at < FX_TTL_MS) return fx.rates;
+    if (at >= fxNextTry) {
+      fxNextTry = at + FX_RETRY_MS;
+      try {
+        const r = await fetchImpl(FX_URL, { signal: AbortSignal.timeout(8000) });
+        const b = r.ok ? await r.json() : null;
+        if (b && b.base === 'USD' && b.rates && typeof b.rates === 'object') {
+          const out = {};
+          for (const [k, v] of Object.entries(b.rates)) if (/^[A-Z]{3}$/.test(k) && Number.isFinite(v) && v > 0) out[k] = v;
+          fx = { at, rates: out };
+          return out;
+        }
+      } catch (e) { /* the last good set, below */ }
+    }
+    return fx && at - fx.at < FX_KEEP_MS ? fx.rates : null;
+  }
 
   async function load(pay, period) {
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), 10_000);
     const seen = new Set(), products = new Set(Object.values(pay.products));
-    let raisedCents = 0;
+    const all = [];
     try {
       for (let page = 1; page <= MAX_PAGES; page++) {
         const url = new URL(pay.api + '/payments');
@@ -58,10 +91,15 @@ module.exports = function attach({ config, fetchImpl = fetch, now = Date.now }) 
         if (!b || !Array.isArray(b.payments) || !pg || typeof pg.hasMore !== 'boolean' ||
             pg.currentPage !== page || !Number.isInteger(pg.totalPages) || pg.totalPages < 0 || pg.totalPages > MAX_PAGES ||
             pg.hasMore !== (page < pg.totalPages)) throw new Error('invalid ledger page');
-        raisedCents += sumPayments(b.payments, products, period, seen);
-        if (!Number.isSafeInteger(raisedCents)) throw new Error('total too large');
-        if (!pg.hasMore) return { month: period.month, targetCents: TARGET_CENTS, currency: 'USD', raisedCents,
-          updatedAt: new Date(now()).toISOString(), stale: false };
+        for (const p of b.payments) all.push(p);
+        if (!pg.hasMore) {
+          // rates only when a receipt of ours is in another currency
+          const foreign = all.some((p) => p && typeof p.currency === 'string' && p.currency.toLowerCase() !== 'usd');
+          const raisedCents = sumPayments(all, products, period, seen, foreign ? await rates() : null);
+          if (!Number.isSafeInteger(raisedCents)) throw new Error('total too large');
+          return { month: period.month, targetCents: TARGET_CENTS, currency: 'USD', raisedCents,
+            updatedAt: new Date(now()).toISOString(), stale: false };
+        }
       }
       throw new Error('ledger page limit');
     } finally { clearTimeout(timer); }
