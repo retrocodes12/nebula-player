@@ -22,12 +22,23 @@
   #msg.ok { color:#7CFC7C; } #msg.err { color:#ff6b6b; } #msg.info { color:#cbd5e1; }
   .bad { color:#ff6b6b; }
   code { color:#7b8290; word-break:break-all; }
+  ol.steps { color:#cbd5e1; padding-left:1.2rem; margin:0 0 1rem; line-height:1.6; }
+  ol.steps li { margin:.5rem 0; }
+  a.open { display:block; text-align:center; font-size:1.1rem; font-weight:700; padding:.9rem 1rem; border-radius:12px;
+    border:2px solid #E50914; color:#fff; text-decoration:none; margin-top:.3rem; }
 </style>
 </head>
 <body>
 <main>
-  <h1>Send add-on to your TV</h1>
-  <p class="sub">Paste your add-on's <b>manifest URL</b> and tap Send. It appears on the TV automatically.</p>
+  <h1 id="head">Send add-on to your TV</h1>
+  <p class="sub" id="lead">Paste your add-on's <b>manifest URL</b> and tap Send. It appears on the TV automatically.</p>
+  <div id="cfg" style="display:none">
+    <ol class="steps">
+      <li id="cfgOne"><a id="cfgLink" class="open" target="_blank" rel="noopener">Open its settings</a></li>
+      <li>Choose your settings, then copy the install link the page gives you.</li>
+      <li>Come back here, paste it below and tap <b>Send to TV</b>. It keeps its place on the TV.</li>
+    </ol>
+  </div>
 
   <div id="form">
     <label for="url">Add-on manifest URL</label>
@@ -50,6 +61,17 @@
     var i=p.indexOf('='); if(i>0) params[p.slice(0,i)] = decodeURIComponent(p.slice(i+1));
   });
   var topic = params.t, key = params.k;
+  // from a TV's Configure page: the add-on's name, and (when it fit in the code) its settings page
+  if (params.n && topic && key){
+    document.title = 'Change add-on settings · Nebula';
+    document.getElementById('head').textContent = 'Change ' + params.n + '\u2019s settings';
+    document.getElementById('lead').textContent = 'Its settings change, its place on the TV stays.';
+    document.getElementById('cfg').style.display = 'block';
+    var link = document.getElementById('cfgLink');
+    if (params.c && /^https?:\/\//i.test(params.c)){ link.href = params.c; link.textContent = 'Open ' + params.n + '\u2019s settings'; }
+    else document.getElementById('cfgOne').textContent = 'Open ' + params.n + '\u2019s settings page on its own site.';
+    document.getElementById('url').placeholder = 'Install link or https://…/manifest.json';
+  }
   var msg = document.getElementById('msg');
   function setMsg(t,k){ msg.textContent=t; msg.className=k||'info'; }
 
