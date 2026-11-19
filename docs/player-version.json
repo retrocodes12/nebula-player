@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.17.7",
+  "version": "2026.11.19.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Another app can now pick up where you are. Add {t} to the app's address in Settings › Playback and it starts from the second playing now, or from your saved place when you pick a stream."
+  "notes": "Volume and Mute in the player's Audio menu: drag the level or use the arrows, and it is kept on this device. Add-ons with settings get a Configure button in Add-ons, so you can change them without removing them. They keep their place in your list."
 }

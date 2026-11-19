@@ -522,6 +522,10 @@
   html.tv .addon-grip svg { width:22px; height:22px; }
   html.tv .addon-del { width:40px; height:40px; }
   html.tv .addon-del svg { width:17px; height:17px; }
+  /* Configure: shown only once the add-on's manifest says it has settings; a phone keeps the gear alone */
+  .addon-cfg { display:inline-flex; align-items:center; }
+  .addon-cfg svg { width:14px; height:14px; margin-right:6px; }
+  @media (max-width:560px){ .addon-cfg { padding:7px 10px; } .addon-cfg svg { margin-right:0; } .addon-cfg span { display:none; } }
   .addon-hint { color:var(--label2); font-size:calc(13px * var(--ts)); padding:0 2px 10px; line-height:1.45; }
   html.tv .addon-hint { font-size:calc(16px * var(--ts)); }
   .empty { color:var(--label2); padding:12px 2px; font-size:calc(15px * var(--ts)); }
@@ -1059,8 +1063,12 @@
   html.tv body.pui-on #status { bottom:190px; }
 
   /* ---- pairing / manual ---- */
-  #qrbox { background:#fff; padding:18px; border-radius:var(--r-tile); display:inline-block; }
-  #qrbox svg { width:290px; height:290px; display:block; }
+  #qrbox, #cfgQr { background:#fff; padding:18px; border-radius:var(--r-tile); display:inline-block; }
+  #qrbox svg, #cfgQr svg { width:290px; height:290px; display:block; }
+  .cfgside { flex:1 1 320px; max-width:560px; }
+  .cfgside .sub { margin:0 0 6px; }
+  #cfgForm { margin-top:18px; }
+  #cfgForm .row { margin-top:14px; }
   .pairwrap { display:flex; align-items:flex-start; flex-wrap:wrap; }
   .pairwrap > * { margin:0 2.5rem 1.5rem 0; }
   .pairsteps { max-width:520px; line-height:1.7; font-size:calc(15px * var(--ts)); color:var(--label2); }
@@ -1360,6 +1368,16 @@
   .qnote { color:rgba(235,235,245,.6); font-size:calc(12.5px * var(--ts)); line-height:1.45; padding:7px 12px 9px;
     white-space:normal; max-width:250px; }
   .qmenu.wide { min-width:292px; max-height:74vh; }
+  /* the Audio menu's volume: one row a pointer drags and the arrows step, its number in the mono register */
+  .qopt.qvol { display:flex; align-items:center; padding-right:12px; touch-action:none; outline:none; }
+  .qvbar { position:relative; flex:1 1 auto; height:6px; margin:0 12px 0 2px; border-radius:3px; background:rgba(255,255,255,.22); }
+  .qvfill { position:absolute; left:0; top:0; bottom:0; width:0; border-radius:3px; background:#fff; }
+  .qvfill::after { content:''; position:absolute; right:-7px; top:50%; width:14px; height:14px; margin-top:-7px; border-radius:50%; background:#fff;
+    box-shadow:0 1px 4px rgba(0,0,0,.45); }
+  .qvn { flex:0 0 auto; min-width:3.4em; text-align:right; font-family:var(--mono, ui-monospace, monospace); font-size:calc(12.5px * var(--ts));
+    color:rgba(235,235,245,.75); font-variant-numeric:tabular-nums; }
+  .qvol.muted .qvfill { background:rgba(255,255,255,.4); }
+  .qvol.muted .qvfill::after { background:#bbb; }
   .qprev { margin:2px 6px 8px; padding:16px 10px; border-radius:10px; text-align:center; overflow:hidden;
     background:var(--l3); box-shadow:inset 0 0 0 1px var(--sep); }
   .qprev-t { display:inline-block; padding:.06em .3em; line-height:1.3; border-radius:2px; white-space:normal; }
@@ -2388,7 +2406,7 @@
   html.tv .ep-sub { font-size:calc(16px * var(--ts)); }
   html.tv .empty { font-size:calc(19px * var(--ts)); }
   html.tv .sub { font-size:calc(19px * var(--ts)); }
-  html.tv #qrbox svg { width:360px; height:360px; }
+  html.tv #qrbox svg, html.tv #cfgQr svg { width:360px; height:360px; }
   html.tv .pui-top { padding:34px 44px; }
   html.tv .pui-round { width:58px; height:58px; }
   html.tv .pui-round svg { width:26px; height:26px; }
@@ -3637,6 +3655,23 @@
     </div>
   </div>
 
+  <!-- CONFIGURE AN ADD-ON (issue #14): its own settings page, then the new address takes the old one's place -->
+  <div id="view-addoncfg" class="view">
+    <div class="topbar"><button class="focusable iconbtn" data-back title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="topbar-title" id="cfgTitle">Configure</div></div>
+    <div class="pairwrap">
+      <div id="cfgQr" style="display:none"></div>
+      <div class="cfgside">
+        <p class="sub" id="cfgLead"></p>
+        <ol class="pairsteps" id="cfgSteps"></ol>
+        <div id="cfgForm">
+          <div class="lbl">New manifest URL or install link</div>
+          <input id="cfgUrl" class="focusable field" type="url" placeholder="https://…/manifest.json" autocomplete="off" spellcheck="false" />
+          <div class="row"><button id="cfgOpen" class="focusable btn ghost">Open its settings page</button><button id="cfgSave" class="focusable btn">Save</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- PROFILE: one identity across devices — @handle + password, no email. The
        body is built per state (signed out / old link code / signed in). -->
   <div id="view-profile" class="view">
@@ -3735,7 +3770,7 @@
   // nothing has written storage yet: an empty one is a device opening Nebula for the first time (the usage counter, `hello`)
   var LS_FRESH = (function(){ try { return LS.length === 0; } catch(e){ return false; } })();
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.11.17.7';
+  var PLAYER_VERSION = '2026.11.19.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -3853,6 +3888,7 @@
 
   // ---------- view + focus ----------
   function show(name, push){
+    if (name !== 'addoncfg') cfgState = null;         // a Configure answer that lands after leaving changes nothing
     if (dlPick && name !== 'streams' && name !== 'player'){ dlPick = null; dlSaveLine(); }
     // a phone the player turned sideways goes back as the player page closes (not on a next-episode hop);
     // back in the player later, the content advisory shows again
@@ -4618,7 +4654,10 @@
   function puiLabel(btn, text){ var l = btn && btn.querySelector('.pl'); if (l) l.textContent = text; else if (btn) btn.textContent = text; }
   function setMuted(on){
     video.muted = !!on;
+    // sound "on" at level 0 is still silence: bring it back at half (the level the viewer chose is kept on this device)
+    if (!on && VOL_SET_OK && Number(video.volume) === 0){ try { video.volume = 0.5; } catch(e){} notePref('vol', 0.5); }
     setStatus(on ? 'Muted.' : 'Sound on.', 'ok'); puiShow();
+    volPaint();
   }
   var SPEED_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2];
   function speedStep(dir){
@@ -4749,7 +4788,11 @@
         if (k===38){ movePuiMenu(-1); e.preventDefault(); }
         else if (k===40){ movePuiMenu(1); e.preventDefault(); }
         else if (k===13){ var a=document.activeElement; if(a&&a.classList.contains('qopt')) a.click(); e.preventDefault(); }
-        else if (k===37||k===39){ e.preventDefault(); }   // a list has no sideways
+        else if (k===37||k===39){                          // a list has no sideways, except the volume row
+          var va = document.activeElement;
+          if (va && va.classList && va.classList.contains('qvol')) volStep(k===39 ? 1 : -1);
+          e.preventDefault();
+        }
         return;
       }
       // a digit jumps to that tenth of the film — not while a menu has the keys, never on a live stream
@@ -6708,6 +6751,17 @@
         setStatus((arr[idx].name || 'Add-on') + (arr[idx].off ? ' is off. It feeds nothing until you switch it back on.' : ' is on.'), 'ok');
       };
       card.appendChild(tog);
+      // Configure (issue #14): its settings change, its place stays. Shown once its manifest says it has settings.
+      if (addonCfgPage(a.url)){
+        var cfg = document.createElement('button'); cfg.className = 'chip focusable addon-cfg'; cfg.style.display = 'none';
+        cfg.innerHTML = cfgSvg() + '<span>Configure</span>';
+        cfg.title = 'Change this add-on’s settings. It keeps its place';
+        cfg.setAttribute('aria-label', 'Configure ' + (a.name || 'this add-on'));
+        cfg.onkeydown = function(ev){ if (ev.keyCode === 13) ev.stopPropagation(); };   // Enter here configures, not "open"
+        cfg.onclick = function(ev){ ev.stopPropagation(); addonCfgOpen(a); };
+        card.insertBefore(cfg, tog);
+        getManifest(a.url).then(function(m){ if (addonConfigurable(m)) cfg.style.display = ''; }).catch(function(){});
+      }
       var del = document.createElement('button'); del.className='addon-del focusable'; del.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>'; del.title='Remove';
       del.onclick = function(ev){ ev.stopPropagation(); var arr=getAddons(); arr.splice(idx,1); saveAddons(arr); renderAddons(); focusFirst(); };
       card.appendChild(del);
@@ -6717,7 +6771,97 @@
 
   /** What people paste: the manifest URL, or the stremio:// install link add-on sites hand out — the same
       address behind a scheme only Stremio registers, so it is read as https. */
-  function addonUrlOf(raw){ return String(raw || '').trim().replace(/^stremio:\/\//i, 'https://'); }
+  function addonUrlOf(raw){
+    var s = String(raw || '').trim();
+    // the protocol's web install link carries the manifest in `addon=`
+    var w = /^https:\/\/(web\.stremio\.com|app\.strem\.io)\/.*[?&]addon=([^&]+)/i.exec(s);
+    if (w){ try { s = decodeURIComponent(w[2]); } catch(e){} }
+    return s.replace(/^stremio:\/\//i, 'https://');
+  }
+
+  // ---------- configure an add-on (issue #14) ----------
+  // An add-on's settings live in its address. Its own page at /configure (the protocol's rule: beside the manifest, path and
+  // query kept, so the page opens on the current settings) hands back a NEW address, and that one takes the old one's place:
+  // same rank, same On/Off, its Home rows and the carousel's pick carried over. A computer or a phone opens the page in a
+  // tab and the new link is pasted here; a TV shows a code, the phone opens the page and sends the link back over the
+  // pairing relay (the Add via phone path). Android has the same in its add-on menu (AddonConfigScreen.kt).
+  // read by renderAddons, which can run before this line does: kept behind functions, never bare vars
+  function cfgSvg(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>'; }
+  function cfgManifestRe(){ return /\/manifest\.json(?=$|[?#])/i; }
+  var cfgState = null;     // { url, name, page } while the Configure page is up
+  function addonConfigurable(m){ var h = m && m.behaviorHints; return !!(h && (h.configurable || h.configurationRequired)); }
+  function addonCfgPage(url){ var u = String(url || ''); return (/^https?:\/\//i.test(u) && cfgManifestRe().test(u)) ? u.replace(cfgManifestRe(), '/configure') : ''; }
+  /** The host, for saying where an add-on would move to without showing the keys its path may carry. */
+  function addonHost(u){ var h = /^https?:\/\/([^\/?#]+)/i.exec(String(u || '')); return h ? h[1].split('@').pop().toLowerCase() : ''; }
+  function addonCfgOpen(a){
+    var page = addonCfgPage(a.url);
+    if (!page){ setStatus('This add-on has no settings page.', 'err'); return; }
+    stopPairing();
+    cfgState = { url: a.url, name: a.name || 'Add-on', page: page };
+    $id('cfgTitle').textContent = 'Configure ' + cfgState.name;
+    $id('cfgLead').textContent = 'Only its settings change. It keeps its place in your list, its On or Off and its Home rows.';
+    $id('cfgUrl').value = '';
+    var steps = $id('cfgSteps'), qr = $id('cfgQr'), form = $id('cfgForm');
+    if (IS_TV){
+      form.style.display = 'none'; qr.style.display = '';
+      steps.innerHTML = '<li>On your phone, open the <b>Camera</b> and point it at this code.</li>' +
+        '<li>Tap the link. A small page opens with a button to this add-on’s settings.</li>' +
+        '<li>Choose your settings there, copy the install link it gives you, paste it on the small page and tap <b>Send to TV</b>.</li>' +
+        '<li>The add-on changes here by itself. Waiting…</li>';
+      startPairing({ replace: a.url, page: page, name: cfgState.name });
+    } else {
+      form.style.display = ''; qr.style.display = 'none';
+      steps.innerHTML = '<li>Press <b>Open its settings page</b>. It opens in a new tab.</li>' +
+        '<li>Choose your settings, then copy the install link the page gives you.</li>' +
+        '<li>Paste it below and press <b>Save</b>.</li>';
+    }
+    show('addoncfg');
+  }
+  /** A pasted (or sent) address: read it, ask first when it is another add-on or another host, then swap it in. */
+  async function addonCfgTake(raw){
+    var st = cfgState; if (!st) return;
+    var url = addonUrlOf(raw);
+    if (!/manifest\.json/i.test(url) || !/^https?:\/\//i.test(url)){ setStatus('Paste the new manifest URL or install link. It ends in /manifest.json.', 'err'); return; }
+    if (url === st.url){ setStatus('These settings are already saved.', 'ok'); return; }
+    setStatus('Reading the new settings…', 'info');
+    var m, was = null;
+    try { m = await getJson(url); } catch(err){ if (cfgState === st) setStatus('Couldn’t read the new settings: ' + err.message, 'err'); return; }
+    if (cfgState !== st) return;                         // left the page meanwhile
+    try { was = await getManifest(st.url); } catch(e){}
+    var host = addonHost(url), other = host !== addonHost(st.url) || !!(was && was.id && m && m.id && was.id !== m.id);
+    if (!other){ addonCfgSave(st, url, m); return; }
+    clearStatus();
+    openSheet({ title: 'Replace ' + st.name + '?', sub: ((m && m.name) || 'Another add-on') + ' from ' + host + ' will take its place.',
+      actions: [{ icon: 'check', label: 'Replace', fn: function(){ addonCfgSave(st, url, m); } },
+                { icon: 'out', label: 'Cancel', fn: function(){} }] });
+  }
+  /** The swap itself, by the same rules as Android's AddonConfig.replaced. */
+  function addonCfgSave(st, url, m){
+    if (cfgState !== st) return;
+    var arr = getAddons().filter(function(a){ return !(a.url === url && a.url !== st.url); });   // never listed twice
+    var fresh = { url: url, name: (m && m.name) || st.name, base: baseOf(url), logo: (m && (m.logo || m.icon)) || '' }, at = -1;
+    arr.forEach(function(a, i){ if (a.url === st.url) at = i; });
+    if (at < 0) arr.push(fresh);                        // a sync took the old one away meanwhile: the new one goes last
+    else { if (arr[at].off) fresh.off = true; arr[at] = fresh; }
+    addonRekeyPrefs(st.url, url);
+    noteAddonOrder();                                   // the order travels: the new address stands where the old one did
+    saveAddons(arr);
+    cfgState = null; stopPairing();
+    renderAddons();
+    goBack();
+    setStatus(fresh.name + ' uses its new settings.', 'ok');
+  }
+  /** Home rows (shown, order) and the carousel's source are keyed by the add-on's address: carry them to the new one. */
+  function addonRekeyPrefs(oldUrl, newUrl){
+    var pr = getPrefs(), p = oldUrl + '|', ch = false;
+    var mv = function(k){ if (typeof k === 'string' && k.indexOf(p) === 0){ ch = true; return newUrl + k.slice(oldUrl.length); } return k; };
+    if (pr.rowVis && typeof pr.rowVis === 'object'){
+      var nv = {}; Object.keys(pr.rowVis).forEach(function(k){ nv[mv(k)] = pr.rowVis[k]; }); pr.rowVis = nv;
+    }
+    if (Array.isArray(pr.rowOrder)) pr.rowOrder = pr.rowOrder.map(mv);
+    if (pr.heroSource) pr.heroSource = mv(pr.heroSource);
+    if (ch) writePrefs(pr);
+  }
   async function addAddonFromUrl(url){
     url = addonUrlOf(url);
     if (!/manifest\.json/.test(url)) throw new Error('Not a manifest URL');
@@ -6756,18 +6900,27 @@
     return o;
   }
   function stopPairing(){ if (pairTimer){ clearInterval(pairTimer); pairTimer = null; } }
-  function startPairing(){
+  /** `cfg` = { replace, page, name }: the Configure page's code (issue #14), the phone sends the add-on's new address. */
+  function startPairing(cfg){
     stopPairing();
+    cfg = (cfg && cfg.replace) ? cfg : null;           // the button's own click passes an event
     var topic = 'nuvio' + randStr(16, '0123456789abcdef');
     var key = randStr(24, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789');
     var pairUrl = PAIR_PAGE + '#t=' + topic + '&k=' + key;
-    var box = document.getElementById('qrbox'); box.innerHTML='';
-    try { var qr = qrcode(0, 'M'); qr.addData(pairUrl); qr.make(); box.innerHTML = qr.createSvgTag({ cellSize: 6, margin: 0 }); }
+    var box = document.getElementById(cfg ? 'cfgQr' : 'qrbox'); box.innerHTML='';
+    var draw = function(u){ var qr = qrcode(0, 'M'); qr.addData(u); qr.make(); box.innerHTML = qr.createSvgTag({ cellSize: 6, margin: 0 }); };
+    try {
+      // the settings page rides along so the phone can open it; an address too long for one code leaves it out
+      if (cfg){ try { draw(pairUrl + '&c=' + encodeURIComponent(cfg.page) + '&n=' + encodeURIComponent(cfg.name)); } catch(e1){ draw(pairUrl + '&n=' + encodeURIComponent(cfg.name)); } }
+      else draw(pairUrl);
+    }
     catch(e){ box.innerHTML = '<div style="color:#000">QR error</div>'; }
-    document.getElementById('pairUrlText').textContent = 'Or open on your phone: ' + pairUrl;
-    show('pair');
+    if (!cfg){
+      document.getElementById('pairUrlText').textContent = 'Or open on your phone: ' + pairUrl;
+      show('pair');
+    }
     setStatus('Waiting for your phone…','info');
-    pairDeadline = Date.now() + 180000;
+    pairDeadline = Date.now() + (cfg ? 600000 : 180000);   // choosing settings takes longer than pasting a link
     pairTimer = setInterval(async function(){
       if (Date.now() > pairDeadline){ stopPairing(); setStatus('Pairing timed out. Try again.','err'); return; }
       try {
@@ -6779,6 +6932,7 @@
           var msg; try { msg = JSON.parse(ln); } catch(e){ continue; }
           if (msg.event !== 'message' || !msg.message) continue;
           var url = xorDec(msg.message, key);
+          if (url && /manifest\.json/.test(url) && cfg){ stopPairing(); addonCfgTake(url); return; }
           if (url && /manifest\.json/.test(url)){
             stopPairing(); setStatus('Received add-on. Adding…','info');
             try { var m = await addAddonFromUrl(url); renderAddons(); setTab('addons');
@@ -16898,6 +17052,77 @@
     }
   }
 
+  // ---- volume (issue #13): a level and a mute switch at the foot of the Audio menu ----
+  // The player's own level, under the device's: kept on this device (pref `vol`, never synced) and put back on every
+  // play. A TV keeps the mute row alone (its remote owns the level, and a second one inside the app would read as a
+  // quiet TV); so does a browser that will not let a page set the level (an iPhone's).
+  var VOL_SET_OK = (function(){ try { var a = document.createElement('audio'); a.volume = 0.5; return Math.abs(a.volume - 0.5) < 0.01; } catch(e){ return false; } })();
+  var VOL_SLIDER = VOL_SET_OK && !IS_TV, VOL_STEP = 0.05;
+  function volNow(){ var v = Number(video.volume); return isFinite(v) ? Math.max(0, Math.min(1, v)) : 1; }
+  /** Set the level (0..1). Moving it up from silence also lifts a mute, as every player's slider does. */
+  function volSet(v){
+    v = Math.round(Math.max(0, Math.min(1, Number(v) || 0)) * 100) / 100;
+    try { video.volume = v; } catch(e){}
+    if (v > 0 && video.muted) video.muted = false;
+    volPaint();
+  }
+  function volKeep(){ notePref('vol', volNow()); }
+  function volStep(dir){
+    volSet(volNow() + dir * VOL_STEP); volKeep();
+    setStatus('Volume ' + Math.round(volNow() * 100) + '%', 'ok'); puiShow();
+  }
+  /** On every play: the level this device last chose (a stream starts muted only when the viewer muted it here). */
+  function volRestore(){
+    if (!VOL_SLIDER) return;
+    var v = getPrefs().vol;
+    if (typeof v === 'number' && v >= 0 && v <= 1 && Math.abs(volNow() - v) > 0.001){ try { video.volume = v; } catch(e){} }
+  }
+  function volPaint(force){
+    if (!puiMenuEl || (force !== true && puiState.menu !== 'audio')) return;
+    var v = volNow(), pct = Math.round(v * 100), off = !!video.muted;
+    Array.prototype.forEach.call(puiMenuEl.querySelectorAll('.qvol'), function(el){
+      el.setAttribute('aria-valuenow', String(pct));
+      el.setAttribute('aria-valuetext', off ? 'Muted' : pct + '%');
+      el.classList.toggle('muted', off || pct === 0);
+      var f = el.querySelector('.qvfill'); if (f) f.style.width = pct + '%';
+      var n = el.querySelector('.qvn'); if (n) n.textContent = off ? 'Muted' : pct + '%';
+    });
+    var mr = puiMenuEl.querySelector('.qmute'); if (mr) mr.classList.toggle('on', off);
+  }
+  function volMenuRows(){
+    var h = document.createElement('div'); h.className = 'qtitle qsub'; h.textContent = 'Volume'; puiMenuEl.appendChild(h);
+    if (VOL_SLIDER){
+      var s = document.createElement('div'), bar;
+      s.className = 'qopt qvol focusable'; s.tabIndex = 0;
+      s.setAttribute('role', 'slider'); s.setAttribute('aria-label', 'Volume');
+      s.setAttribute('aria-valuemin', '0'); s.setAttribute('aria-valuemax', '100');
+      s.title = 'Volume: drag, or use the left and right arrows';
+      s.innerHTML = '<span class="qvbar"><span class="qvfill"></span></span><span class="qvn"></span>';
+      bar = s.querySelector('.qvbar');
+      var at = function(ev){ var r = bar.getBoundingClientRect(); return r.width ? (ev.clientX - r.left) / r.width : volNow(); };
+      s.onpointerdown = function(ev){
+        if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+        ev.preventDefault();
+        try { s.setPointerCapture(ev.pointerId); } catch(e){}
+        try { s.focus({ preventScroll: true }); } catch(e){ s.focus(); }
+        volSet(at(ev));
+        s.onpointermove = function(e2){ volSet(at(e2)); puiShow(); };
+        s.onpointerup = s.onpointercancel = function(){ s.onpointermove = s.onpointerup = s.onpointercancel = null; volKeep(); };
+      };
+      s.onwheel = function(ev){ ev.preventDefault(); volStep(ev.deltaY < 0 ? 1 : -1); };
+      // OK on the row (the menu presses what is lit with a click of no pointer) mutes; a pointer's own click already set the level
+      s.onclick = function(ev){ if (!ev.detail) setMuted(!video.muted); };
+      puiMenuEl.appendChild(s);
+    }
+    var b = document.createElement('button'); b.className = 'qopt qmute focusable'; b.tabIndex = 0; b.textContent = 'Mute';
+    b.onclick = function(){ setMuted(!video.muted); };
+    b.onkeydown = function(ev){ if (ev.keyCode === 13){ setMuted(!video.muted); ev.preventDefault(); ev.stopPropagation(); } };
+    puiMenuEl.appendChild(b);
+    volPaint(true);                                   // the menu is still being built: its state is set after
+  }
+  // the level can move under an open menu (M, a media key, the full-format player's own answer)
+  try { video.addEventListener('volumechange', volPaint); } catch(e){}
+
   // ---- shared menu (quality / subtitles / audio / speed) ----
   /** A name for a native audio track: the file's own title ("Hindi 5.1") with the language in front when it
       lacks it, never the container's handler name ("SoundHandler"), the language alone otherwise. */
@@ -16998,6 +17223,7 @@
           puiNote('Its audio' + (hint ? ' (' + hint + ')' : '') + ' cannot be decoded on this device. There is no sound. Pick a stream with AAC audio.');
         } else puiNote('This stream carries one audio track.');
       }
+      volMenuRows();
     } else if (kind==='speed'){
       [0.5,0.75,1,1.25,1.5,2].forEach(function(rate){
         menuOpt(rate+'×', video.playbackRate===rate, function(){
@@ -17592,6 +17818,7 @@
     puiState.total = getPrefs().timeDisplay === 'total';   // Settings › Right time pill
     $id('puiTitle').textContent = title || '';
     audioSilentNoted = false; tvAudioPicked = false;
+    volRestore();
     $id('puiSub').textContent = '';
     $id('puiSrc').textContent = ''; $id('puiClock').textContent = '';
     $id('puiSpeedVal').textContent = '1×';
@@ -21181,7 +21408,7 @@
   // sound, the TV's autoplay, its connections) is never sent and never taken.
   var PREFS_LOCAL = { zoom: 1, textSize: 1, cardSize: 1, rowDensity: 1, landscapeRows: 1, landscapeStart: 1, motion: 1, maxRes: 1, buffer: 1,
     fit: 1, audDelay: 1, night: 1, engine: 1, relay: 1, scrubFrames: 1, fastRows: 1, welcome: 1, speedLast: 1, bestPlay: 1, apAim: 1,
-    apMax: 1, apBack: 1, apInstant: 1, apMin: 1, apPrio: 1, apRetry: 1, apStart: 1, apWait: 1, posterAddr: 1, ambient: 1, extPlay: 1, extApp: 1 };
+    apMax: 1, apBack: 1, apInstant: 1, apMin: 1, apPrio: 1, apRetry: 1, apStart: 1, apWait: 1, posterAddr: 1, ambient: 1, extPlay: 1, extApp: 1, vol: 1 };
   function prefsKey(){
     var v = (typeof viewer === 'string') ? viewer : viewerStored();
     return v === 'a' ? 'prefs_v1' : 'prefs_' + v;
@@ -21915,7 +22142,10 @@
   });
 
   // ---------- wire up ----------
-  document.getElementById('phoneBtn').onclick = startPairing;
+  document.getElementById('phoneBtn').onclick = function(){ startPairing(); };
+  $id('cfgOpen').onclick = function(){ if (cfgState) try { window.open(cfgState.page, '_blank', 'noopener'); } catch(e){} };
+  $id('cfgSave').onclick = function(){ addonCfgTake($id('cfgUrl').value); };
+  $id('cfgUrl').addEventListener('keydown', function(e){ if (e.keyCode === 13){ e.preventDefault(); addonCfgTake($id('cfgUrl').value); } });
   document.getElementById('addAddonBtn').onclick = addAddon;
   document.getElementById('manualBtn').onclick = function(){ show('manual'); };
   document.getElementById('mPlay').onclick = playManual;
