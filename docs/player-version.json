@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.19.2",
+  "version": "2026.11.22.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Volume and Mute in the player's Audio menu: drag the level or use the arrows, and it is kept on this device. Add-ons with settings get a Configure button in Add-ons, so you can change them without removing them. They keep their place in your list."
+  "notes": "Live channels and matches hold up better when the connection wobbles. A short drop no longer says Reconnecting or starts the stream over, live plays a little further behind the edge so it has more in hand, and after a pause to load it gathers a few seconds before going on."
 }
