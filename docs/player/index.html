@@ -11775,6 +11775,7 @@
     try { video.playbackRate = 1; } catch(e){}
   }
   var playSeq = 0, didRetry = false;
+  var LIVE_NET_CODES = { 1001: 1, 1002: 1, 1003: 1 }, LIVE_STUCK_MS = 20000, lastProgAt = 0;   // see handlePlaybackError
   var playStarting = false;              // between a play being asked for and its first picture (or its failure)
   // On a playback error, let Shaka retry the failed segments IN PLACE once
   // (retryStreaming — no reload, no jump to the live edge); if it errors again,
@@ -11802,6 +11803,12 @@
       playUrl(lastPlay.url, lastPlay.keys, lastPlay.title, lastPlay.subs, lastPlay.mime || undefined);
       return;
     }
+    // A LIVE stream's network error that the engine is already riding out: Shaka retries a live stream by itself after
+    // 1001/1002/1003 (its own failureCallback) and polls a manifest whose refresh failed again. Android's engine stays
+    // quiet through these. Here each one said "Reconnecting…" and a second before 0.4 s of progress reloaded the whole
+    // stream (a new licence, 5-10 s of black): his LG on TSN, 11-22, every few minutes while the server's manifest was
+    // slow. Only a picture stuck for LIVE_STUCK_MS goes on to the retry and the rescue below.
+    if (d && d.severity === 1 && LIVE_NET_CODES[code] && player && puiIsLive() && Date.now() - lastProgAt < LIVE_STUCK_MS) return;
     // RECOVERABLE (severity 1): one gentle in-place retry, reset after healthy playback
     if (d && d.severity === 1 && player && !didRetry){
       didRetry = true;
@@ -13672,7 +13679,7 @@
     }
     if (!initShaka()) return;
     var seq = ++playSeq;
-    didRetry = false;
+    didRetry = false; lastProgAt = Date.now();
     // what a stream row said (Dolby in its name, the add-on's headers) belongs to that row's address: a pasted link, a
     // local file or a party's stream played after it must not inherit it
     if (ctx.rowFor !== rawUrl){ ctx.playRow = ''; ctx.playHeaders = null; ctx.playAudHint = null; ctx.rowFor = ''; ctx.playFile = ''; }
@@ -13756,6 +13763,21 @@
     // …and the engine is told the ORIGINAL address it fetched, so a manifest's relative addresses still resolve
     player.getNetworkingEngine().registerResponseFilter(function(type, response){
       if (response && relayIsOwn(response.uri)) response.uri = relayOrig(response.uri);
+    });
+    // A live DASH stream plays where its manifest says, behind the edge: the sports add-on's ClearKey feeds say 2 s, so the
+    // TV played 3.7-6.2 s from the edge with 0.1-3.5 s in hand and stalled at any slow piece or slow manifest (measured
+    // 11-22, `liveerr`). A delay under LIVE_DASH_DELAY is raised to it (a longer one stands); HLS already keeps 3 pieces back.
+    player.getNetworkingEngine().registerResponseFilter(function(type, response){
+      if (type !== shaka.net.NetworkingEngine.RequestType.MANIFEST || !response || !response.data) return;
+      try {
+        var t = new TextDecoder().decode(response.data), m = /<MPD\b[^>]*>/.exec(t);
+        if (!m || !/\btype\s*=\s*["']dynamic["']/.test(m[0])) return;
+        var tag = m[0], d = /suggestedPresentationDelay\s*=\s*["']PT([\d.]+)S["']/.exec(tag), fixed = tag;
+        if (d && Number(d[1]) >= LIVE_DASH_DELAY) return;
+        if (d) fixed = tag.replace(d[0], 'suggestedPresentationDelay="PT' + LIVE_DASH_DELAY + 'S"');
+        else if (!/suggestedPresentationDelay/.test(tag)) fixed = tag.replace(/<MPD\b/, '<MPD suggestedPresentationDelay="PT' + LIVE_DASH_DELAY + 'S"');
+        if (fixed !== tag) response.data = new TextEncoder().encode(t.slice(0, m.index) + fixed + t.slice(m.index + tag.length)).buffer;
+      } catch(e){}
     });
     if (!clearKeys && /\.mpd(\?|#|$)/i.test(rawUrl)){ setStatus('Opening the stream…','info'); clearKeys = await resolveLaurlKeys(rawUrl); }
     if (seq !== playSeq) return;
@@ -16345,6 +16367,7 @@
     // Healthy playback (position advancing) re-arms the one-shot retry so a
     // much-later blip can be retried once more.
     if (!video.paused && video.currentTime > lastTickT + 0.4) didRetry = false;
+    if (video.paused || video.currentTime > lastTickT + 0.05) lastProgAt = Date.now();   // paused counts as fine: nothing is owed
     lastTickT = video.currentTime;
     try { webosAudioPick(); } catch(e){}
     try { audioSilenceCheck(); } catch(e){}
@@ -17517,13 +17540,15 @@
     try { live = !!(player.isLive && player.isLive()); } catch(e3){}
     try {
       // Auto on a live stream: the engine's 10 s is about one piece of a 10 s-segment feed, so one slow piece stalls the
-      // picture. Aim for 30 s (the live edge caps it) and fetch two pieces side by side.
+      // picture. Aim for 30 s (the live edge caps it) and fetch two pieces side by side. After a stall, gather LIVE_REBUFFER
+      // seconds before going on (the engine's own 0 went on with a fraction of a second in hand and stalled again at once;
+      // Android's engine waits for several seconds, 11-22).
       player.configure({ streaming: st ? { bufferingGoal: n, rebufferingGoal: st[0], segmentPrefetchLimit: st[1] }
-        : live ? { bufferingGoal: LIVE_AUTO_AHEAD, rebufferingGoal: d ? d.rebufferingGoal : 0, segmentPrefetchLimit: 2 }
+        : live ? { bufferingGoal: LIVE_AUTO_AHEAD, rebufferingGoal: LIVE_REBUFFER, segmentPrefetchLimit: 2 }
         : { bufferingGoal: d ? d.bufferingGoal : 10, rebufferingGoal: d ? d.rebufferingGoal : 0, segmentPrefetchLimit: d ? d.segmentPrefetchLimit : 1 } });
     } catch(e2){}
   }
-  var LIVE_AUTO_AHEAD = 30;
+  var LIVE_AUTO_AHEAD = 30, LIVE_REBUFFER = 3, LIVE_DASH_DELAY = 10;
   /** How many segments the engine fetches side by side (Buffer ahead's second dial); 0 outside the engine's own playback. */
   function bufferPrefetch(){
     try { if (player && player.getLoadMode && player.getLoadMode() === shaka.Player.LoadMode.MEDIA_SOURCE) return Number(player.getConfiguration().streaming.segmentPrefetchLimit) || 0; } catch(e){}
