@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.22.1",
+  "version": "2026.11.24.2",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Live channels and matches hold up better when the connection wobbles. A short drop no longer says Reconnecting or starts the stream over, live plays a little further behind the edge so it has more in hand, and after a pause to load it gathers a few seconds before going on."
+  "notes": "Settings, Home, Featured from can now take several rows at once: pick Chosen rows and tick the ones that should feed the carousel. When you are signed in, Settings marks the choices that stay on this device, and Profile lists what syncs."
 }

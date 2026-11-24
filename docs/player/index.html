@@ -147,6 +147,10 @@
   .setrow + .setrow { border-top:1px solid var(--sep); }
   .setname { flex:1 1 180px; font-size:calc(15px * var(--ts)); font-weight:600; }
   .setname small { display:block; color:var(--label2); font-weight:400; font-size:calc(12.5px * var(--ts)); margin-top:2px; }
+  /* a choice that stays on this device while the rest follow the profile: marked beside its name once signed in */
+  .set-dev { display:inline-block; vertical-align:middle; margin:-2px 0 0 9px; padding:2px 7px 1px; border:1px solid var(--sep); border-radius:6px;
+    font-family:var(--mono); font-style:normal; font-size:calc(10px * var(--ts)); font-weight:500; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--label3); white-space:nowrap; }
   .setrow .chip { margin:4px 8px 4px 0; }
   .swatch { width:36px; height:36px; border-radius:50%; border:0; cursor:pointer; margin:4px 10px 4px 0;
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.18); }
@@ -225,6 +229,7 @@
   html:not(.tv) #rowZoom { display:none; }   /* focus zoom only means something on a TV */
   html.tv .setname { font-size:calc(19px * var(--ts)); }
   html.tv .setname small { font-size:calc(16px * var(--ts)); }
+  html.tv .set-dev { font-size:calc(12.5px * var(--ts)); padding:3px 9px 2px; margin-left:12px; }
   html.tv .setrow { padding:18px 0; }
   html.tv .panel { padding:28px 34px 30px; max-width:1100px; }
   html.tv .swatch { width:46px; height:46px; }
@@ -556,6 +561,12 @@
   .hrm.off .hrm-name { color:var(--label2); font-weight:500; }
   .hrm.off .hrm-sub { opacity:.7; }
   .hrm.off .hrm-check { visibility:hidden; }
+  /* Settings › Home › Featured from › Chosen rows: the same checklist with no grips, on a line of its own inside the row */
+  .herolist { flex:1 1 100%; min-width:0; margin:8px 0 -6px; }
+  .herolist .hrm { padding-left:10px; }
+  .herolist .hrm + .hrm::before { left:10px; }
+  html.tv .herolist .hrm { padding-left:14px; }
+  html.tv .herolist .hrm + .hrm::before { left:14px; }
   .hrmlist.dragging .hrm { transition:transform .18s var(--ease); }
   .hrmlist.dragging .hrm.drag-src { transition:none; }
   .hrm.drag-src, .hrm.lifted { z-index:6; background:var(--l2); box-shadow:0 20px 44px rgba(0,0,0,.62); }
@@ -2732,7 +2743,7 @@
   html.tv #setConsole.ess .con-item[data-sec="streams"] { display:flex; }
   html.tv #setConsole.ess .con-sec.on[data-sec="streams"] { display:block; }
   html.tv #setConsole.ess .con-sec[data-sec="streams"] .setrow:not(.tvonly) { display:none; }
-  /* a stepper: ‹ value › for long lists (languages, the row that feeds the carousel) */
+  /* a value beside its control: a readout (this TV, the connection's speed) */
   .pstep { display:inline-flex; align-items:center; padding:3px; border-radius:var(--r-pill); border:1px solid var(--sep); }
   .pstep .chip, .setrow .pstep .chip { margin:0; border-color:transparent; padding:6px 13px; min-width:38px; text-align:center; }
   .pstep-v { flex:0 0 auto; min-width:120px; text-align:center; font-size:calc(13.5px * var(--ts)); font-weight:500; color:var(--label); padding:0 6px;
@@ -3174,6 +3185,10 @@
           <span class="setname">When Nebula opens<small>Ask who's watching, or go straight to the profile this device was last on · A profile with a PIN always asks</small></span>
           <span id="setWhoAsk" class="seg"></span>
         </div>
+        <!-- what follows the profile and what stays on a device: shown once this device is signed in (setDeviceMarks) -->
+        <div class="setrow" id="setSyncRow" style="display:none">
+          <span class="setname">What syncs<small>Follows your profile to every device you sign in on: add-ons, Home rows, Continue Watching, My List, ratings, the subtitle look and your settings</small><small>Stays on this device: the settings marked This device. They are about this screen and how it plays, such as sizes, the resolution cap and buffering</small><small>Nebula's Android, iPhone and Mac apps keep their own settings</small></span>
+        </div>
       </section>
       <section class="con-sec panel" data-sec="appearance">
         <h2 class="con-title">Appearance</h2>
@@ -3235,9 +3250,10 @@
           <span class="setname">Featured carousel<small>The full-bleed showcase at the top of Home</small></span>
           <span id="setHero" class="seg"></span>
         </div>
-        <div class="setrow" data-lvl="all">
-          <span class="setname">Featured from<small>Which rows feed the carousel</small></span>
-          <span id="setHeroSource" class="pstep"></span>
+        <div class="setrow" data-lvl="all" id="rowHeroSource">
+          <span class="setname">Featured from<small id="setHeroSourceSub">Which rows feed the carousel</small></span>
+          <span id="setHeroSource" class="seg"></span>
+          <div id="setHeroRows" class="hrmlist herolist" style="display:none"></div>
         </div>
         <div class="setrow" data-lvl="all">
           <span class="setname">Featured changes every<small>How often the carousel moves on by itself</small></span>
@@ -3770,7 +3786,7 @@
   // nothing has written storage yet: an empty one is a device opening Nebula for the first time (the usage counter, `hello`)
   var LS_FRESH = (function(){ try { return LS.length === 0; } catch(e){ return false; } })();
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.11.22.1';
+  var PLAYER_VERSION = '2026.11.24.2';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -6860,6 +6876,7 @@
     }
     if (Array.isArray(pr.rowOrder)) pr.rowOrder = pr.rowOrder.map(mv);
     if (pr.heroSource) pr.heroSource = mv(pr.heroSource);
+    if (Array.isArray(pr.heroRows)) pr.heroRows = pr.heroRows.map(mv);
     if (ch) writePrefs(pr);
   }
   async function addAddonFromUrl(url){
@@ -7642,18 +7659,35 @@
     var hs = $id('heroSide'); if (hs){ hs.className = ''; hs.innerHTML = ''; }
     heroState.spot = null; clearTimeout(spotTimer);
   }
+  /** Which rows feed the carousel: {mode: 'first' | 'all' | 'rows', keys}. `heroSource` holds 'first', 'all' or ONE
+      row's key, which is all a build from before 2026-11-24 reads; a choice of several rows lives beside it in
+      `heroRows`, whose first entry `heroSource` repeats (so such a build shows that one row). A list that does not hold
+      `heroSource` is older than a choice made on such a build: its one row wins. */
+  var HERO_ROWS_MAX = 8;
+  function heroPick(pr){
+    var src = (pr && typeof pr.heroSource === 'string' && pr.heroSource) || 'first';
+    if (src === 'first' || src === 'all') return { mode: src, keys: [] };
+    var list = Array.isArray(pr.heroRows) ? pr.heroRows.filter(function(k){ return typeof k === 'string' && k; }) : [];
+    return { mode: 'rows', keys: list.indexOf(src) !== -1 ? list.slice(0, HERO_ROWS_MAX) : [src] };
+  }
   /** A row's answer is offered to the carousel. Settings › Featured from decides which rows may feed it:
-      the first to answer (default), every row (two titles each, up to eight), or one row by name. */
+      the first to answer (default), every row (two titles each, up to eight), or the rows chosen by name
+      (one row gives five titles; several share the eight places, and a title two of them carry shows once). */
   function heroConsider(metas, a, m, c){
     var pr = getPrefs();
     if (pr.hero === false) return;
-    var src = pr.heroSource || 'first';
-    if (src !== 'first' && src !== 'all' && rowKey(a, c) !== src) return;
-    if (src !== 'all' && heroState.items.length) return;
-    var good = (metas||[]).filter(function(x){ return x && (x.background || x.poster) && x.name; }).slice(0, src === 'all' ? 2 : 5);
+    var pick = heroPick(pr), src = pick.mode, n = pick.keys.length;
+    if (src === 'rows' && pick.keys.indexOf(rowKey(a, c)) === -1) return;
+    var many = src === 'all' || n > 1;
+    if (!many && heroState.items.length) return;
+    var good = (metas||[]).filter(function(x){ return x && (x.background || x.poster) && x.name; });
+    if (src === 'rows' && n > 1) good = good.filter(function(x){
+      return !heroState.items.some(function(it){ return it.meta && it.meta.id && it.meta.id === x.id; });
+    });
+    good = good.slice(0, src === 'all' ? 2 : n > 4 ? 1 : n === 4 ? 2 : n === 3 ? 3 : n === 2 ? 4 : 5);
     if (!good.length) return;
     var items = good.map(function(x){ return { meta: x, addon: a, manifest: m, catalog: c }; });
-    if (src === 'all' && heroState.items.length){
+    if (many && heroState.items.length){
       if (heroState.items.length >= 8) return;
       heroState.items = heroState.items.concat(items).slice(0, 8);
       var h = $id('homeHero');   // the dots grow; never repaint under the remote's cursor
@@ -20666,6 +20700,7 @@
       : 'Profiles, add-ons, progress, your list and settings stay on this device until you sign in.';
     $id('syncOpen').textContent = st === 'in' ? 'Manage profile' : (st === 'legacy' ? 'Add a profile' : 'Sign in');
     var now = $id('syncNow'); if (now) now.style.display = cloudLinked() ? '' : 'none';
+    setDeviceMarks();
   }
   $id('syncNow').onclick = function(){
     var b = this; if (b.disabled) return;
@@ -21434,6 +21469,29 @@
   var PREFS_LOCAL = { zoom: 1, textSize: 1, cardSize: 1, rowDensity: 1, landscapeRows: 1, landscapeStart: 1, motion: 1, maxRes: 1, buffer: 1,
     fit: 1, audDelay: 1, night: 1, engine: 1, relay: 1, scrubFrames: 1, fastRows: 1, welcome: 1, speedLast: 1, bestPlay: 1, apAim: 1,
     apMax: 1, apBack: 1, apInstant: 1, apMin: 1, apPrio: 1, apRetry: 1, apStart: 1, apWait: 1, posterAddr: 1, ambient: 1, extPlay: 1, extApp: 1, vol: 1 };
+  /** The Settings rows whose answer stays on this device, by their control's id: each writes a PREFS_LOCAL key, or keeps
+      its answer outside the settings (the profile this device opens on, this computer's sharing). A function, not a
+      table: setDeviceMarks may run before this part of the script has. */
+  function setDeviceIds(){
+    return ['setTextSize', 'setZoom', 'setMotion', 'setCardSize', 'setPosterAddr', 'setAmbient', 'setRowDensity', 'setLandscape', 'setWhoAsk',
+      'setSideways', 'setMaxRes', 'setExtPlay', 'setExtApp', 'setEngine', 'setBuffer', 'setRelay', 'setShare', 'setScrub', 'setBestPlay',
+      'setApMax', 'setApPrio', 'setApMin', 'setApInstant', 'setApWait', 'setApRetry', 'setApStart', 'setApBack', 'setFastRows', 'setWelcome'];
+  }
+  /** Signed in, those rows say "This device" beside their name and Profile lists what follows the account. Signed out,
+      everything is this device's and nothing is marked. */
+  function setDeviceMarks(){
+    var on = cloudLinked(), note = $id('setSyncRow');
+    if (note) note.style.display = on ? '' : 'none';
+    setDeviceIds().forEach(function(id){
+      var el = $id(id), row = el && el.closest ? el.closest('.setrow') : null, name = row ? row.querySelector('.setname') : null;
+      if (!name) return;
+      var had = name.querySelector('.set-dev');
+      if (on && !had){
+        var m = document.createElement('i'); m.className = 'set-dev'; m.textContent = 'This device';
+        name.insertBefore(m, name.querySelector('small'));
+      } else if (!on && had) name.removeChild(had);
+    });
+  }
   function prefsKey(){
     var v = (typeof viewer === 'string') ? viewer : viewerStored();
     return v === 'a' ? 'prefs_v1' : 'prefs_' + v;
@@ -21625,17 +21683,6 @@
     host.appendChild(b);
     if (had) try { b.focus(); } catch(e){}
   }
-  /** A stepper — ‹ value › — for lists too long to lay out as chips. */
-  function stepper(id, opts, cur, fn){
-    var host = $id(id); if (!host) return;
-    host.innerHTML = '';
-    var idx = 0; opts.forEach(function(o, i){ if (o[1] === cur) idx = i; });
-    function go(d){ var n = (idx + d + opts.length) % opts.length; fn(opts[n][1]); }
-    var prev = prefChip('‹', false, function(){ go(-1); }); prev.title = 'Previous'; prev.setAttribute('aria-label', 'Previous');
-    var val = document.createElement('span'); val.className = 'pstep-v'; val.textContent = opts[idx] ? opts[idx][0] : '';
-    var next = prefChip('›', false, function(){ go(1); }); next.title = 'Next'; next.setAttribute('aria-label', 'Next');
-    host.appendChild(prev); host.appendChild(val); host.appendChild(next);
-  }
   /**
    * A preference with more answers than a stepper should carry. ‹ › is right for four seek
    * steps and unusable for fifty languages — a viewer wanting Vietnamese would hold › past
@@ -21652,16 +21699,71 @@
     pc.insertAdjacentHTML('beforeend', ' <span class="dp-c">' + CHEV_SVG + '</span>');   // (no "▾": an LG draws a box)
     host.appendChild(pc);
   }
-  /** The rows the carousel may be fed from: first to answer, all of them, or one by name. */
-  function heroSourceOpts(){
-    var opts = [['First row','first'], ['All rows','all']], pr = getPrefs();
-    (rowMgr.items || []).forEach(function(it){ if (rowVisible(pr, it.key, it.nat)) opts.push([it.name, it.key]); });
-    var cur = pr.heroSource || 'first';
-    if (cur !== 'first' && cur !== 'all' && !opts.some(function(o){ return o[1] === cur; })) opts.push(['A row', cur]);
-    return opts;
+  /** The rows Home shows, in its order: what the carousel can be fed from. */
+  function heroRowChoices(pr){
+    return (rowMgr.items || []).filter(function(it){ return rowVisible(pr, it.key, it.nat); });
+  }
+  /** Featured from: First row · All rows · Chosen rows. The last opens a checklist of Home's rows under the choice. */
+  function heroSourceSet(mode){
+    var pr = getPrefs();
+    if (mode === 'rows'){
+      if (heroPick(pr).mode === 'rows') return;
+      var rows = heroRowChoices(pr), have = {};
+      rows.forEach(function(it){ have[it.key] = 1; });
+      // the rows chosen the last time, where Home still shows them; else its first row
+      var keys = (Array.isArray(pr.heroRows) ? pr.heroRows : []).filter(function(k){ return have[k] === 1; }).slice(0, HERO_ROWS_MAX);
+      if (!keys.length && rows.length) keys = [rows[0].key];
+      if (!keys.length){ setStatus(rowMgr.items ? 'Home has no rows to choose from yet.' : 'Your rows are still loading. Try again in a moment.', 'info'); return; }
+      pr.heroRows = keys; pr.heroSource = keys[0];
+    } else pr.heroSource = mode;               // (`heroRows` stays: Chosen rows comes back with the same checks)
+    writePrefs(pr); homeSig = null;
+    settingsRender();
+  }
+  function heroRowToggle(key){
+    var pr = getPrefs(), on = {};
+    heroPick(pr).keys.forEach(function(k){ on[k] = 1; });
+    if (on[key] === 1) delete on[key]; else on[key] = 1;
+    // kept in Home's order; a row Home no longer shows drops out of the choice here
+    var keys = heroRowChoices(pr).map(function(it){ return it.key; }).filter(function(k){ return on[k] === 1; });
+    if (!keys.length){ setStatus('The carousel needs at least one row.', 'info'); return; }
+    if (keys.length > HERO_ROWS_MAX){ setStatus('The carousel takes up to ' + HERO_ROWS_MAX + ' rows.', 'info'); return; }
+    pr.heroRows = keys; pr.heroSource = keys[0];
+    writePrefs(pr); homeSig = null;
+    heroSourceRender();
   }
   function heroSourceRender(){
-    stepper('setHeroSource', heroSourceOpts(), getPrefs().heroSource || 'first', function(v){ setPref('heroSource', v); homeSig = null; });
+    var list = $id('setHeroRows'), sub = $id('setHeroSourceSub'); if (!list || !$id('setHeroSource')) return;
+    var pr = getPrefs(), pick = heroPick(pr);
+    segChips('setHeroSource', [['First row','first'], ['All rows','all'], ['Chosen rows','rows']], pick.mode, heroSourceSet);
+    if (pick.mode !== 'rows'){
+      list.style.display = 'none'; list.innerHTML = '';
+      if (sub) sub.textContent = 'Which rows feed the carousel';
+      return;
+    }
+    // the row with focus is about to be rebuilt: find it again by its key
+    var ae = document.activeElement, focusKey = (ae && ae.parentNode === list) ? ae.getAttribute('data-key') : null;
+    var rows = heroRowChoices(pr), live = 0;
+    list.style.display = ''; list.innerHTML = '';
+    if (!rowMgr.items){ list.innerHTML = '<div class="empty">Loading your add-ons…</div>'; return; }
+    rows.forEach(function(it){
+      var on = pick.keys.indexOf(it.key) !== -1; if (on) live++;
+      var row = document.createElement('div');
+      row.className = 'hrm focusable' + (on ? '' : ' off'); row.tabIndex = 0;
+      row.setAttribute('role', 'checkbox'); row.setAttribute('aria-checked', on ? 'true' : 'false');
+      row.setAttribute('data-key', it.key);
+      row.innerHTML = '<span class="hrm-txt"><span class="hrm-name">' + esc(it.name) + '</span><span class="hrm-sub">' + esc(it.sub) + '</span></span>' +
+        '<span class="hrm-check">' + CHECK_SVG + '</span>';
+      row.onclick = function(){ heroRowToggle(it.key); };
+      row.onkeydown = function(ev){ if (ev.keyCode === 13){ ev.preventDefault(); heroRowToggle(it.key); } };
+      list.appendChild(row);
+    });
+    if (!rows.length) list.innerHTML = '<div class="empty">Home has no rows to choose from yet.</div>';
+    if (sub) sub.textContent = (rows.length && !live) ? 'None of the chosen rows is on Home now. Choose from the rows below'
+      : 'Which rows feed the carousel' + (live > 1 ? ' · ' + live + ' chosen' : '');
+    if (focusKey){
+      var again = [].slice.call(list.children).filter(function(r){ return r.getAttribute('data-key') === focusKey; })[0];
+      if (again){ try { again.focus({ preventScroll: true }); } catch(e){ again.focus(); } }
+    }
   }
   /** Subtitle appearance in Settings, the same stepper rows the player's panel draws (plus the sample line). */
   function subStyleSettingsBuild(){
@@ -21970,6 +22072,7 @@
       ? an + ' add-on' + (an === 1 ? '' : 's') + (offN ? ' · ' + (an - offN) + ' on · ' + offN + ' off' : '') + ' · Add, remove and rank them'
       : 'None yet. Add one and its catalogs fill Home';
     profileCardRender();
+    setDeviceMarks();
     if (keepGrp){
       var grp = $id(keepGrp), again = null;
       if (grp) Array.prototype.forEach.call(grp.children, function(c){ if (!again && (c.title || c.textContent || '') === keepLbl) again = c; });
@@ -22039,7 +22142,7 @@
     var reset = $id('setRowsReset'); if (reset) reset.style.display = (pr.rowOrder || pr.rowVis) ? '' : 'none';
     items.forEach(function(it){ it.oi = rowOrderIndex(pr, it.key, it.ai, it.nat); });
     items.sort(function(x, y){ return x.oi - y.oi; });
-    heroSourceRender();                        // the "Featured from" stepper lists these rows
+    heroSourceRender();                        // "Featured from" › Chosen rows lists these rows
     // the row that has focus is about to be rebuilt — find it again by key
     var ae = document.activeElement, focusKey = null, onGrip = false;
     if (ae && list.contains(ae)){
