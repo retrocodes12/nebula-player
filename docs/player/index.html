@@ -3786,7 +3786,7 @@
   // nothing has written storage yet: an empty one is a device opening Nebula for the first time (the usage counter, `hello`)
   var LS_FRESH = (function(){ try { return LS.length === 0; } catch(e){ return false; } })();
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.11.24.2';
+  var PLAYER_VERSION = '2026.11.25.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -7659,16 +7659,24 @@
     var hs = $id('heroSide'); if (hs){ hs.className = ''; hs.innerHTML = ''; }
     heroState.spot = null; clearTimeout(spotTimer);
   }
-  /** Which rows feed the carousel: {mode: 'first' | 'all' | 'rows', keys}. `heroSource` holds 'first', 'all' or ONE
-      row's key, which is all a build from before 2026-11-24 reads; a choice of several rows lives beside it in
-      `heroRows`, whose first entry `heroSource` repeats (so such a build shows that one row). A list that does not hold
-      `heroSource` is older than a choice made on such a build: its one row wins. */
+  /** Which rows feed the carousel: {mode: 'first' | 'all' | 'rows', keys}. Three settings hold it. `heroMode` says
+      which of the three (since 2026.11.25); `heroRows` is the list for 'rows'; `heroSource` is what a build from before
+      2026-11-24 reads: 'first', 'all' or ONE row's key (the list's first entry, so such a build shows that row).
+      `heroMode` is short on purpose: a row's key carries its add-on's whole address, and an address too long to be taken
+      from the account left the other device on First row. When `heroSource` changed after `heroMode` did, a build that
+      knows only `heroSource` chose since, and its word is the newer one. Without `heroMode` (2026.11.24.2 wrote none):
+      a list that holds `heroSource` is the choice, one that does not is older than that one row. */
   var HERO_ROWS_MAX = 8;
   function heroPick(pr){
-    var src = (pr && typeof pr.heroSource === 'string' && pr.heroSource) || 'first';
+    pr = pr || {};
+    var src = (typeof pr.heroSource === 'string' && pr.heroSource) || 'first';
+    var list = Array.isArray(pr.heroRows) ? pr.heroRows.filter(function(k){ return typeof k === 'string' && k; }).slice(0, HERO_ROWS_MAX) : [];
+    var mode = (pr.heroMode === 'first' || pr.heroMode === 'all' || pr.heroMode === 'rows') ? pr.heroMode : '';
+    if (mode){ var at = prefsAt(); if ((Number(at.heroSource) || 0) > (Number(at.heroMode) || 0)) mode = ''; }
+    if (mode === 'first' || mode === 'all') return { mode: mode, keys: [] };
+    if (mode === 'rows' && list.length) return { mode: 'rows', keys: list };
     if (src === 'first' || src === 'all') return { mode: src, keys: [] };
-    var list = Array.isArray(pr.heroRows) ? pr.heroRows.filter(function(k){ return typeof k === 'string' && k; }) : [];
-    return { mode: 'rows', keys: list.indexOf(src) !== -1 ? list.slice(0, HERO_ROWS_MAX) : [src] };
+    return { mode: 'rows', keys: list.indexOf(src) !== -1 ? list : [src] };
   }
   /** A row's answer is offered to the carousel. Settings › Featured from decides which rows may feed it:
       the first to answer (default), every row (two titles each, up to eight), or the rows chosen by name
@@ -8028,7 +8036,7 @@
     cust.textContent = 'Customise Home'; cust.onclick = openRowManager;
     foot.appendChild(cust); wrap.appendChild(foot);
     renderContinue();
-    var pr = getPrefs();
+    var pr = getPrefs(), heroWant = pr.hero === false ? null : heroPick(pr);
     var manifestsLeft = addons.length, catsLeft = 0, rowsShown = 0, hidden = 0, wanted = 0;
     function settle(){
       if (seq !== homeSeq || manifestsLeft || catsLeft || rowsShown) return;
@@ -8050,7 +8058,14 @@
         var all = (m.catalogs||[]).filter(catalogBrowsable), cats = [];
         all.forEach(function(c, ci){
           if (rowVisible(pr, rowKey(a, c), ci)) cats.push({ c: c, oi: rowOrderIndex(pr, rowKey(a, c), ai, ci) });
-          else hidden++;
+          else {
+            hidden++;
+            // chosen for the carousel (Settings › Featured from) without being a row of Home: asked for the carousel alone
+            if (heroWant && heroWant.mode === 'rows' && heroWant.keys.indexOf(rowKey(a, c)) !== -1)
+              getJson(a.base + '/catalog/' + encodeURIComponent(c.type) + '/' + encodeURIComponent(c.id) + '.json').then(function(d){
+                if (seq === homeSeq) heroConsider((d && d.metas) || [], a, m, c);
+              }).catch(function(){});
+          }
         });
         wanted += cats.length; catsLeft += cats.length;
         cats.forEach(function(it){
@@ -21500,8 +21515,10 @@
   /** A value a setting may hold when it comes from the account: plain, or a small list or table. */
   function prefValOk(v){
     if (v === null || typeof v === 'boolean' || typeof v === 'number') return true;
-    if (typeof v === 'string') return v.length <= 400;
-    if (typeof v === 'object'){ try { return JSON.stringify(v).length <= 6000; } catch(e){ return false; } }
+    // (400 and 6000 until 2026.11.25: a row's key carries its add-on's address, and with a configured add-on one key
+    // passed 400 and a list of rows 6000, so Home's rows and the carousel's choice never reached the other device)
+    if (typeof v === 'string') return v.length <= 2000;
+    if (typeof v === 'object'){ try { return JSON.stringify(v).length <= 60000; } catch(e){ return false; } }
     return false;
   }
   /** What goes to the account: {v: {key: value}, t: {key: when it last changed}}. A key in `t` alone was put back to
@@ -21546,7 +21563,14 @@
   function prefsApplyAll(){
     applyPrefs(); settingsRender();
     try { applyQualityPolicy(); applyBufferPolicy(); applyLangPrefs(); heroRestart(); } catch(e){}   // the player and the carousel follow at once
-    homeSig = null; try { rowMgr.items = null; } catch(e){}
+    homeSig = null;
+    // The catalogs' list is let go (another profile has other add-ons). With Settings open on the lists drawn from it
+    // (Rows, Featured from) it is gathered again in place instead: left empty, a press there was refused and the next
+    // repaint showed "no catalogs" (2026-11-25, after a sync from another device)
+    try {
+      var sv = $id('view-settings');
+      if (sv && sv.classList.contains('active')) renderRowManager(); else rowMgr.items = null;
+    } catch(e){}
   }
   var PREF_ACCENTS = [
     ['Nebula Red', '#E50914'], ['White', '#F2F2F7'], ['Cobalt', '#0A84FF'],
@@ -21699,35 +21723,49 @@
     pc.insertAdjacentHTML('beforeend', ' <span class="dp-c">' + CHEV_SVG + '</span>');   // (no "▾": an LG draws a box)
     host.appendChild(pc);
   }
-  /** The rows Home shows, in its order: what the carousel can be fed from. */
-  function heroRowChoices(pr){
-    return (rowMgr.items || []).filter(function(it){ return rowVisible(pr, it.key, it.nat); });
+  /** What the carousel can be fed from: every catalog of the add-ons that are on, in the order of Settings › Rows,
+      whether Home shows it as a row or not. The choice here never touches Rows, and Rows never touches the choice. */
+  function heroRowChoices(){ return rowMgr.items || []; }
+  /** The list of catalogs is let go when the settings change underneath (a sync from another device, another profile)
+      while the checklist drawn from it may still be on screen: gather it again before acting on a press. */
+  function heroRowsReady(fn){
+    if (rowMgr.items){ fn(); return; }
+    renderRowManager().then(function(){ if (rowMgr.items) fn(); });
   }
-  /** Featured from: First row · All rows · Chosen rows. The last opens a checklist of Home's rows under the choice. */
+  /** Featured from: First row · All rows · Chosen rows. The last opens a checklist of the catalogs under the choice. */
   function heroSourceSet(mode){
+    if (mode === 'rows'){ heroRowsReady(function(){ heroSourceStore('rows'); }); return; }
+    heroSourceStore(mode);
+  }
+  function heroSourceStore(mode){
     var pr = getPrefs();
     if (mode === 'rows'){
       if (heroPick(pr).mode === 'rows') return;
-      var rows = heroRowChoices(pr), have = {};
+      var rows = heroRowChoices(), have = {};
       rows.forEach(function(it){ have[it.key] = 1; });
-      // the rows chosen the last time, where Home still shows them; else its first row
+      // the ones chosen the last time, where they still exist; else the first row Home shows
       var keys = (Array.isArray(pr.heroRows) ? pr.heroRows : []).filter(function(k){ return have[k] === 1; }).slice(0, HERO_ROWS_MAX);
-      if (!keys.length && rows.length) keys = [rows[0].key];
-      if (!keys.length){ setStatus(rowMgr.items ? 'Home has no rows to choose from yet.' : 'Your rows are still loading. Try again in a moment.', 'info'); return; }
+      if (!keys.length){
+        var first = rows.filter(function(it){ return rowVisible(pr, it.key, it.nat); })[0] || rows[0];
+        if (first) keys = [first.key];
+      }
+      if (!keys.length){ setStatus('Your add-ons have no catalogs to choose from yet.', 'info'); return; }
       pr.heroRows = keys; pr.heroSource = keys[0];
     } else pr.heroSource = mode;               // (`heroRows` stays: Chosen rows comes back with the same checks)
+    pr.heroMode = mode;
     writePrefs(pr); homeSig = null;
     settingsRender();
   }
-  function heroRowToggle(key){
+  function heroRowToggle(key){ heroRowsReady(function(){ heroRowStore(key); }); }
+  function heroRowStore(key){
     var pr = getPrefs(), on = {};
     heroPick(pr).keys.forEach(function(k){ on[k] = 1; });
     if (on[key] === 1) delete on[key]; else on[key] = 1;
-    // kept in Home's order; a row Home no longer shows drops out of the choice here
-    var keys = heroRowChoices(pr).map(function(it){ return it.key; }).filter(function(k){ return on[k] === 1; });
+    // kept in the order of Rows; a catalog that no longer exists drops out of the choice here
+    var keys = heroRowChoices().map(function(it){ return it.key; }).filter(function(k){ return on[k] === 1; });
     if (!keys.length){ setStatus('The carousel needs at least one row.', 'info'); return; }
     if (keys.length > HERO_ROWS_MAX){ setStatus('The carousel takes up to ' + HERO_ROWS_MAX + ' rows.', 'info'); return; }
-    pr.heroRows = keys; pr.heroSource = keys[0];
+    pr.heroRows = keys; pr.heroSource = keys[0]; pr.heroMode = 'rows';
     writePrefs(pr); homeSig = null;
     heroSourceRender();
   }
@@ -21742,9 +21780,14 @@
     }
     // the row with focus is about to be rebuilt: find it again by its key
     var ae = document.activeElement, focusKey = (ae && ae.parentNode === list) ? ae.getAttribute('data-key') : null;
-    var rows = heroRowChoices(pr), live = 0;
+    var rows = heroRowChoices(), live = 0;
     list.style.display = ''; list.innerHTML = '';
-    if (!rowMgr.items){ list.innerHTML = '<div class="empty">Loading your add-ons…</div>'; return; }
+    if (!rowMgr.items){
+      list.innerHTML = '<div class="empty">Loading your add-ons…</div>';
+      // let go under an open Settings (prefsApplyAll): nobody else would gather it again
+      var sv = $id('view-settings'); if (sv && sv.classList.contains('active') && !rowMgr.busy) renderRowManager();
+      return;
+    }
     rows.forEach(function(it){
       var on = pick.keys.indexOf(it.key) !== -1; if (on) live++;
       var row = document.createElement('div');
@@ -21757,9 +21800,9 @@
       row.onkeydown = function(ev){ if (ev.keyCode === 13){ ev.preventDefault(); heroRowToggle(it.key); } };
       list.appendChild(row);
     });
-    if (!rows.length) list.innerHTML = '<div class="empty">Home has no rows to choose from yet.</div>';
-    if (sub) sub.textContent = (rows.length && !live) ? 'None of the chosen rows is on Home now. Choose from the rows below'
-      : 'Which rows feed the carousel' + (live > 1 ? ' · ' + live + ' chosen' : '');
+    if (!rows.length) list.innerHTML = '<div class="empty">Your add-ons have no catalogs to choose from yet.</div>';
+    if (sub) sub.textContent = (rows.length && !live) ? 'None of the chosen ones is there any more. Choose from the list below'
+      : 'Any of your catalogs can feed the carousel, a row of Home or not' + (live > 1 ? ' · ' + live + ' chosen' : '');
     if (focusKey){
       var again = [].slice.call(list.children).filter(function(r){ return r.getAttribute('data-key') === focusKey; })[0];
       if (again){ try { again.focus({ preventScroll: true }); } catch(e){ again.focus(); } }
@@ -22086,11 +22129,12 @@
   // switching it back on returns it to where it was.
   var CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" ' +
     'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.6 4.5L19 7.5"/></svg>';
-  var rowMgr = { seq: 0, items: null, p: null };
+  var rowMgr = { seq: 0, items: null, p: null, busy: false };
   function rowMgrRows(){ return [].slice.call(document.querySelectorAll('#setRows .hrm')); }
   /** A move rewrites the whole arrangement — the list on screen IS the order. */
   function commitRowMove(from, to){
     var items = rowMgr.items || [];
+    if (!items[from]) return from;             // the list was let go under the drag: nothing to move
     if (to < 0) to = 0; if (to >= items.length) to = items.length - 1;
     if (from === to) return from;
     items.splice(to, 0, items.splice(from, 1)[0]);
@@ -22117,9 +22161,11 @@
     var list = $id('setRows'); if (!list) return Promise.resolve();
     var seq = ++rowMgr.seq, addons = activeAddons();
     if (!rowMgr.items && addons.length) list.innerHTML = '<div class="empty">Loading your add-ons…</div>';
+    rowMgr.busy = true;
     rowMgr.p = Promise.all(addons.map(function(a){ return getManifest(a.url).catch(function(){ return null; }); }))
       .then(function(ms){
         if (seq !== rowMgr.seq) return;
+        rowMgr.busy = false;
         var items = [];
         addons.forEach(function(a, ai){
           var m = ms[ai]; if (!m) return;
@@ -22138,6 +22184,8 @@
   }
   function rowMgrPaint(){
     var list = $id('setRows'); if (!list) return;
+    // let go under an open Settings and not gathered yet: gather, which paints (never "no catalogs" over a full list)
+    if (!rowMgr.items && activeAddons().length){ if (!rowMgr.busy) renderRowManager(); return; }
     var pr = getPrefs(), items = rowMgr.items || [];
     var reset = $id('setRowsReset'); if (reset) reset.style.display = (pr.rowOrder || pr.rowVis) ? '' : 'none';
     items.forEach(function(it){ it.oi = rowOrderIndex(pr, it.key, it.ai, it.nat); });

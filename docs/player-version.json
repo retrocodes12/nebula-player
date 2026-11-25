@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.24.2",
+  "version": "2026.11.25.1",
   "url": "https://play.rifflehq.in/",
   "windows": "https://github.com/retrocodes12/nebula-desktop/releases/latest",
-  "notes": "Settings, Home, Featured from can now take several rows at once: pick Chosen rows and tick the ones that should feed the carousel. When you are signed in, Settings marks the choices that stay on this device, and Profile lists what syncs."
+  "notes": "Fixes for Featured from, Chosen rows: ticks no longer get stuck after another of your devices syncs, any catalog can be chosen whether Home shows it or not, and choosing never changes Home's rows. The choice, and Home's rows, now reach your other devices when an add-on's address is long."
 }
