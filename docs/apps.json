@@ -1,6 +1,6 @@
 {
   "paging": {
-    "count": 3,
+    "count": 4,
     "next": null
   },
   "packages": [
@@ -28,6 +28,27 @@
       "shortDescription": "Add-on browser + player: library, sync, calendar. Add add-ons by phone QR.",
       "fullDescriptionUrl": "",
       "version": "1.136.1"
+    },
+    {
+      "id": "com.nebula.player.native",
+      "title": "Nebula Beta (native)",
+      "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-webos-native/main/webos/largeIcon.png",
+      "manifestUrl": "https://play.rifflehq.in/ipk/com.nebula.player.native.manifest.json",
+      "manifest": {
+        "id": "com.nebula.player.native",
+        "version": "0.2.0",
+        "type": "native",
+        "title": "Nebula Beta",
+        "appDescription": "A beta of Nebula drawn natively on the TV, without a browser: smoother menus, its own buffering engine, live channels and protected streams played by the app itself, a dropped stream picked up again at the same second, and the Magic Remote's pointer on every screen. It reads the same Nebula Profile as the regular app (add-ons, Continue Watching, My List, settings) and installs beside it, so both can stay on the TV. Sign in with the code it shows, from your phone.",
+        "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-webos-native/main/webos/largeIcon.png",
+        "sourceUrl": "https://github.com/retrocodes12/nebula-webos-native",
+        "rootRequired": false,
+        "ipkUrl": "https://play.rifflehq.in/ipk/com.nebula.player.native_0.2.0_arm.ipk",
+        "ipkHash": {
+          "sha256": "3b000ef3d0a8747e378d9b94bab24f5da2d816b7dbd08c1e17623a21d7955521"
+        },
+        "ipkSize": 6220850
+      }
     },
     {
       "id": "com.nuvio.clearkey.player",

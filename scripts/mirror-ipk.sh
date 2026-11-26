@@ -7,7 +7,7 @@
 # truth, and this mirrors every package the live feed (apps.json) serves from /ipk/ — fetched from
 # the release, checked against the feed's size and sha256 — plus each one's manifest at the name
 # its manifestUrl gives. Since 1.79.0 that is two packages: com.nebula.player and the old
-# com.nuvio.clearkey.player id. Only the packages the feed names are kept; older ones go.
+# com.nuvio.clearkey.player id; since 2026-11-26 also the native beta com.nebula.player.native. Only the packages the feed names are kept; older ones go.
 set -euo pipefail
 ROOT=/var/www/nebula-play
 python3 - "$ROOT" <<'PY'
@@ -35,7 +35,11 @@ for pkg in feed['packages']:
     if os.path.exists(path) and os.path.getsize(path) == size and sha(path) == want:
         print('ipk already mirrored: ' + name)
     else:
-        src = 'https://github.com/retrocodes12/nebula-player/releases/download/player-v%s/%s' % (ver, name)
+        # the native beta (com.nebula.player.native) is released from its own repository
+        if pkg['id'] == 'com.nebula.player.native':
+            src = 'https://github.com/retrocodes12/nebula-webos-native/releases/download/v%s/%s' % (ver, name)
+        else:
+            src = 'https://github.com/retrocodes12/nebula-player/releases/download/player-v%s/%s' % (ver, name)
         data = urllib.request.urlopen(src, timeout=90).read()
         if len(data) != size or hashlib.sha256(data).hexdigest() != want:
             sys.exit('the release package does not match the feed (size %d vs %d): %s' % (len(data), size, src))
