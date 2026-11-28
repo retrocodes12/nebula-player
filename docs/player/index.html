@@ -369,6 +369,12 @@
   #setSearch:focus { border-color:rgba(255,255,255,.45); }
   #setSearchNone { margin:14px 2px 0; }
   .sr-miss, .con-sec.sr-none { display:none !important; }
+  /* the kind filters (issue #19): chips under the search once signed in; the "This device" mark on a row is a way in */
+  .set-chips { display:flex; flex-wrap:wrap; margin:12px 0 0; }
+  .set-chips .chip { margin:0 8px 6px 0; }
+  .set-dev { cursor:pointer; }
+  .set-dev:hover { color:var(--label); border-color:rgba(255,255,255,.4); }
+  /* (filtered by kind, #setConsole.fk, the Essential rules stand aside: see "#setConsole.ess:not(.fk)" further down) */
   #setConsole.searching .con-nav, #setConsole.searching #setBack, #setConsole.searching .con-mode { display:none !important; }
   #setConsole.searching .con-pane, #setConsole.searching .con-sec { display:block !important; }
   /* computers: the sections down the left, one shown at a time */
@@ -414,6 +420,9 @@
   html.tv .con-sec { display:none; }
   html.tv .con-sec.on { display:block; margin:0; }
   .con-sec.hid, html.tv .con-sec.hid.on { display:none; }   /* Support, before there is a way to support */
+  /* a TV filtered by kind (the list's "This device" / "Synced" entries): every section that holds such a row, one under the other */
+  html.tv #setConsole.flt .con-sec:not(.hid) { display:block; margin:0 0 30px; }
+  html.tv #setConsole.flt .con-mode { display:none; }
   html.tv .con-pane .panel { background:transparent; border:0; border-radius:0; padding:0; margin:0; max-width:none; }
   html.tv .con-title { font-size:calc(40px * var(--ts)); letter-spacing:-.028em; }
   html.tv .con-sub { font-size:calc(19px * var(--ts)); margin:6px 0 22px; }
@@ -578,6 +587,55 @@
   html.tv .hrm-name { font-size:calc(19px * var(--ts)); }
   html.tv .hrm-sub { font-size:calc(14px * var(--ts)); }
   html.tv .hrm-check, html.tv .hrm-check svg { width:28px; height:28px; }
+  /* Settings › Home › Rows as two lists (issue #18): the catalogs that are not on Home on the left, a press adds one; Home's
+     rows in order on the right, a grip to move one and a press to take it off. Each list scrolls by itself and has its own
+     filter (not on a TV). No flex gap anywhere: a TV's engine is Chromium 68 */
+  .rowsduo { display:flex; align-items:flex-start; margin:0 0 8px; }
+  .rd-pane { flex:1 1 0; min-width:0; }
+  .rd-pane + .rd-pane { margin-left:22px; }
+  .rd-head { display:flex; align-items:baseline; margin:0 2px 8px; }
+  .rd-n { font-family:var(--mono); font-size:calc(11px * var(--ts)); font-weight:500; color:var(--label3); margin-left:8px; }
+  .rd-find { display:block; width:100%; box-sizing:border-box; font:inherit; font-size:calc(14px * var(--ts)); color:var(--label);
+    background:var(--l1); border:1px solid var(--sep); border-radius:11px; padding:8px 12px; margin:0 0 8px; outline:none; }
+  .rd-find::placeholder { color:var(--label3); }
+  .rd-find:focus { border-color:rgba(255,255,255,.45); }
+  .rd-list { position:relative; margin:0; max-height:436px; overflow-y:auto; overscroll-behavior:contain;
+    border:1px solid var(--sep); border-radius:14px; padding:4px; }
+  .rd-list .empty { padding:12px 10px; font-size:calc(14px * var(--ts)); }
+  .rd-off .hrm, .hrm.nogrip { padding-left:10px; }
+  .rd-off .hrm + .hrm::before, .hrm.nogrip + .hrm::before, .hrm + .hrm.nogrip::before { left:10px; }
+  .hrm-act { flex:0 0 auto; width:22px; height:22px; color:var(--label3); display:flex; align-items:center; justify-content:center; }
+  .hrm-act svg { width:18px; height:18px; }
+  .hrm.off .hrm-act { color:var(--accent); }
+  .hrm:hover .hrm-act { color:var(--label); }
+  .rd-off .hrm.off .hrm-name { color:var(--label); }
+  .hrm.rd-new { animation:rdNew 1.4s var(--ease); }
+  @keyframes rdNew { from { background:rgba(255,255,255,.2); } to { background:rgba(255,255,255,0); } }
+  .rowsduo.none .rd-off, .rowsduo.none .rd-head { display:none; }
+  .rowsduo.none .rd-list { border:0; padding:0; max-height:none; }
+  /* one under the other where two side by side would be too narrow: Home's rows first */
+  html.setlist .rd-pane + .rd-pane { margin:0 0 18px; }
+  html.setlist .rowsduo { display:flex; flex-direction:column-reverse; align-items:stretch; }
+  html.setlist .rd-pane { flex:none; }
+  html.setlist .rd-list { max-height:none; overflow:visible; }
+  @media (max-width:1099px){
+    html.setside .rowsduo { flex-direction:column-reverse; align-items:stretch; }
+    html.setside .rd-pane { flex:none; }
+    html.setside .rd-pane + .rd-pane { margin:0 0 18px; }
+    html.setside .rd-list { max-height:300px; }
+  }
+  html.tv .rd-find { display:none !important; }
+  html.tv .rd-pane + .rd-pane { margin-left:30px; }
+  html.tv .rd-head { margin:0 4px 12px; }
+  html.tv .rd-n { font-size:calc(14px * var(--ts)); }
+  html.tv .rd-list { max-height:520px; padding:6px; border-radius:18px; scrollbar-width:none; }
+  html.tv .rd-list::-webkit-scrollbar { display:none; }
+  html.tv .rd-off .hrm, html.tv .hrm.nogrip { padding-left:14px; }
+  html.tv .rd-off .hrm + .hrm::before, html.tv .hrm.nogrip + .hrm::before, html.tv .hrm + .hrm.nogrip::before { left:14px; }
+  html.tv .hrm-act, html.tv .hrm-act svg { width:26px; height:26px; }
+  html.lite .rd-list { background-color:var(--con); }
+  @media (prefers-reduced-motion: reduce){ .hrm.rd-new { animation:none; } }
+  html.rm .hrm.rd-new { animation:none; }
   /* the way into the arrangement, centred under the last row */
   .home-foot { display:flex; justify-content:center; padding:26px 0 10px; }
   /* recent searches sit above the "one search" intro on the idle Search page */
@@ -1142,6 +1200,22 @@
     max-height:calc(100vh - 200px); overflow-y:auto; overscroll-behavior:contain;
     background:rgba(20,20,25,.96); border:1px solid rgba(255,255,255,.14); border-radius:20px; padding:18px 20px; }
   #partyCard.open { display:block; }
+  #partyCard .pc-dock { margin-right:8px; }
+  #partyCard .pc-dock.on { background:var(--label); color:#000; }
+  /* beside the picture instead of over it (issue #21, body.pdock: a computer or a tablet, never a TV). The picture and
+     everything drawn over it (#pui: the controls, Up next, reactions, menus) take the screen less the panel's width; the
+     panel is a column down the right edge and its chat takes whatever height is left. */
+  body { --pdw:340px; }
+  @media (min-width:1500px){ body { --pdw:400px; } }
+  body.playing.pdock #video, body.playing.pdock #mpvView { width:calc(100% - var(--pdw)); }
+  body.playing.pdock #pui { right:var(--pdw); }
+  body.playing.pdock #partyCard.open { position:fixed; top:0; right:0; bottom:0; width:var(--pdw); max-width:none; max-height:none;
+    box-sizing:border-box; display:flex; flex-direction:column; border:0; border-left:1px solid rgba(255,255,255,.14); border-radius:0;
+    background:#0c0c0f; padding:18px 18px 16px; cursor:auto; }
+  body.playing.pdock #partyCard.open > * { flex:0 0 auto; }
+  body.playing.pdock #partyCard.open > .pc-chat { flex:1 1 60px; min-height:60px; max-height:none; }
+  body.playing.pdock #partyCard.open > [hidden] { display:none; }
+  body.playing.pdock #status { left:calc((100% - var(--pdw)) / 2); }   /* a toast stays over the picture's middle */
   #partyCard .pc-head { display:flex; align-items:center; margin:0 0 10px; }
   #partyCard .pc-title { font-size:calc(15px * var(--ts)); font-weight:700; margin:0; flex:1; min-width:0; }
   #partyCard .pc-seats { font-family:var(--mono); font-size:calc(11px * var(--ts)); color:var(--label3); margin-right:10px; letter-spacing:.04em; }
@@ -1471,11 +1545,19 @@
   html.tv .pg-line { width:4px; }
   html.tv .pg-rows { margin-left:14px; }
   html.tv .pg-row { height:calc(32px * var(--ts)); margin-top:calc(3px * var(--ts)); font-size:calc(20px * var(--ts)); }
-  /* the row that matches what you picked last time — same source, same quality */
-  .stream.usual { box-shadow:inset 0 0 0 1px rgba(255,255,255,.16); }
-  .s-usual { display:block; font-family:var(--mono); font-size:calc(10px * var(--ts)); font-weight:500; letter-spacing:.14em;
-    text-transform:uppercase; color:var(--accent); margin-bottom:3px; }
-  html.tv .s-usual { font-size:calc(12px * var(--ts)); }
+  /* the row this title played last, or the twin of the last hand-pick (issue #20): a block of its own at the head of the
+     list (#streamLast), named, the rest under "Others" */
+  .stream.usual { box-shadow:inset 0 0 0 1px rgba(255,255,255,.22); }
+  .s-lasthead, .s-resthead { font-family:var(--mono); font-size:calc(11px * var(--ts)); font-weight:500; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--label3); }
+  .s-lasthead { margin:4px 2px 0; }
+  .s-lasthead b { font-weight:500; color:var(--accent); }
+  .s-lasthead small { font-size:inherit; margin-left:10px; }
+  .s-lasthead small::before { content:'·'; margin-right:10px; }
+  .s-lasthead small:empty { display:none; }
+  .s-resthead { margin:14px 2px 0; }
+  .streamsec.s-gone { display:none !important; }
+  html.tv .s-lasthead, html.tv .s-resthead { font-size:calc(14px * var(--ts)); }
   /* pause board: leave a film paused for a moment and it tells you what you're
      looking at — title, episode, synopsis, what's left — the way a TV box does.
      Any key or the pointer clears it; the transport stays where it was. */
@@ -2394,6 +2476,7 @@
     .sc-prev .stream { zoom:.6; }
   }
   html.sc-rel .streamsec .rowhead { display:none; }   /* the add-on is a pill on every card */
+  html.sc-rel .s-lasthead small { display:none; }
   .stream.rc.nwr .rc-head, .stream.rc.nosnd .rc-head { opacity:.7; }
   .stream.rc.slow .rc-head { opacity:.8; }
   html.tv #streamList .stream.rc { padding:24px 28px 20px; border-radius:20px; }
@@ -2588,6 +2671,7 @@
   html.am-hide .s-src { display:none; }
   html.am-hide .streamsec .rowhead { display:none; }
   html.am-name .streamsec .rowhead { display:none; }
+  html.am-hide .s-lasthead small, html.am-name .s-lasthead small { display:none; }
   /* motion "Reduced": the same as the system's reduced-motion setting */
   html.rm .view.active { animation:none; }
   html.rm .view.leaving { display:none; animation:none; }
@@ -2729,7 +2813,7 @@
   @media (hover:hover) and (pointer:fine){ html:not(.tv) .rowpg { display:flex; } }
   body.playing .rowpg { display:none; }
   /* the Settings console: Essential hides the rows (and whole sections) marked for Everything */
-  #setConsole.ess [data-lvl="all"] { display:none; }
+  #setConsole.ess:not(.fk) [data-lvl="all"], #setConsole.ess.fk .con-item[data-lvl="all"] { display:none; }   /* (.fk: filtered by kind, issue #19: a kind is all of its rows, Essential or not) */
   .con-mode { display:flex; align-items:center; flex-wrap:wrap; padding:6px 0 14px; margin:18px 0 0; max-width:860px; border-bottom:1px solid var(--sep); }
   html.tv .con-mode { max-width:none; }
   .con-mode .setname { font-size:calc(15px * var(--ts)); }
@@ -2738,11 +2822,11 @@
   html.tv .con-mode .setname { font-size:calc(19px * var(--ts)); }
   .setrow.tvonly { display:none; }
   html.tv .setrow.tvonly { display:flex; }
-  html.tv #setConsole.ess .setrow.tvonly[data-lvl="all"] { display:none; }
+  html.tv #setConsole.ess:not(.fk) .setrow.tvonly[data-lvl="all"] { display:none; }
   /* Essential on a TV keeps Streams for Autoplay the best stream alone — the list's own rows stay Everything */
   html.tv #setConsole.ess .con-item[data-sec="streams"] { display:flex; }
   html.tv #setConsole.ess .con-sec.on[data-sec="streams"] { display:block; }
-  html.tv #setConsole.ess .con-sec[data-sec="streams"] .setrow:not(.tvonly) { display:none; }
+  html.tv #setConsole.ess:not(.fk) .con-sec[data-sec="streams"] .setrow:not(.tvonly) { display:none; }
   /* a value beside its control: a readout (this TV, the connection's speed) */
   .pstep { display:inline-flex; align-items:center; padding:3px; border-radius:var(--r-pill); border:1px solid var(--sep); }
   .pstep .chip, .setrow .pstep .chip { margin:0; border-color:transparent; padding:6px 13px; min-width:38px; text-align:center; }
@@ -3017,6 +3101,7 @@
     <div id="pinfo"><div class="pi-kick">Playback info</div><div id="pinfoRows"></div></div>
     <div id="partyCard">
       <div class="pc-head"><p class="pc-title">Watch together</p><span class="pc-seats" id="pcSeats"></span>
+        <button id="pcDock" class="focusable pui-round pc-x pc-dock" title="Put it beside the picture" aria-label="Put it beside the picture" type="button" style="display:none"></button>
         <button id="pcClose" class="focusable pui-round pc-x" title="Close" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
       <div class="pc-ask" id="pcAsk" hidden><p id="pcAskText"></p>
         <div class="pc-row"><button id="pcAskYes" class="focusable btn" type="button">Switch</button><button id="pcAskNo" class="focusable btn ghost" type="button">Not now</button></div></div>
@@ -3141,7 +3226,7 @@
   <div id="view-settings" class="view">
     <div class="scroller">
       <h1 class="page-title">Settings</h1>
-      <div id="setSearchWrap"><input id="setSearch" class="focusable" type="search" placeholder="Search settings" autocomplete="off" spellcheck="false" aria-label="Search settings"><p id="setSearchNone" class="con-sub" style="display:none">Nothing in Settings matches that.</p></div>
+      <div id="setSearchWrap"><input id="setSearch" class="focusable" type="search" placeholder="Search settings" autocomplete="off" spellcheck="false" aria-label="Search settings"><div id="setChips" class="set-chips" role="group" aria-label="Show only" style="display:none"></div><p id="setSearchNone" class="con-sub" style="display:none">Nothing in Settings matches that.</p></div>
       <div id="setConsole" class="console">
         <div id="setNav" class="con-nav">
           <div class="con-group">You</div>
@@ -3159,6 +3244,10 @@
           <div class="con-group">System</div>
           <button class="con-item focusable" data-sec="advanced" data-lvl="all" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></svg><span>Advanced<small class="con-desc">Welcome message, reset, caches</small></span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
           <button class="con-item focusable" data-sec="about" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>About<small class="con-desc">Version, updates and privacy</small></span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+                  <!-- a TV has no search field: its two kind filters (issue #19) are entries of this list, shown once signed in -->
+          <div class="con-group" id="setGrpFlt" style="display:none">Show only</div>
+          <button class="con-item focusable" data-sec="f:dev" id="setNavDev" type="button" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span>This device<small class="con-desc">The settings that stay on this device</small></span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          <button class="con-item focusable" data-sec="f:sync" id="setNavSync" type="button" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.3L4 9"/><path d="M4 4v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.3L20 15"/><path d="M20 20v-5h-5"/></svg><span>Synced<small class="con-desc">The settings that follow your profile</small></span><svg class="con-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
         </div>
         <div id="setPane" class="con-pane">
       <button id="setBack" class="textbtn focusable" type="button">‹ All settings</button>
@@ -3299,7 +3388,20 @@
           <span class="setname">Rows<small>Choose which catalogs make up Home, and the order they come in</small></span>
           <button id="setRowsReset" class="textbtn focusable" style="display:none">Reset</button>
         </div>
-        <div id="setRows" class="hrmlist"></div>
+        <!-- two lists (issue #18): what is not on Home, and Home's rows in order. The filter fields stay outside the lists,
+             which are repainted on every change -->
+        <div id="setRowsDuo" class="rowsduo">
+          <div class="rd-pane rd-off">
+            <div class="rd-head"><span class="lbl">Available</span><span class="rd-n" id="rdOffN"></span></div>
+            <input id="rdOffFind" class="rd-find focusable" type="search" placeholder="Filter by catalog or add-on" autocomplete="off" spellcheck="false" aria-label="Filter the available catalogs" style="display:none">
+            <div id="setRowsOff" class="hrmlist rd-list" aria-label="Catalogs that are not on Home"></div>
+          </div>
+          <div class="rd-pane rd-on">
+            <div class="rd-head"><span class="lbl">On Home</span><span class="rd-n" id="rdOnN"></span></div>
+            <input id="rdOnFind" class="rd-find focusable" type="search" placeholder="Filter by catalog or add-on" autocomplete="off" spellcheck="false" aria-label="Filter Home's rows" style="display:none">
+            <div id="setRows" class="hrmlist rd-list" aria-label="Home's rows, in order"></div>
+          </div>
+        </div>
         <div class="setrow" data-lvl="all">
           <span class="setname">Cast on title pages<small>The people in it, as chips under the description</small></span>
           <span id="setDetailCast" class="seg"></span>
@@ -3786,7 +3888,7 @@
   // nothing has written storage yet: an empty one is a device opening Nebula for the first time (the usage counter, `hello`)
   var LS_FRESH = (function(){ try { return LS.length === 0; } catch(e){ return false; } })();
   var player = null, viewStack = ['home'], ctx = {};
-  var PLAYER_VERSION = '2026.11.25.1';
+  var PLAYER_VERSION = '2026.11.28.1';
 
   // Where our own site files (pair.html, party.json, player-version.json) live.
   // Served over http(s) the player is self-contained — any mirror works from its
@@ -4264,7 +4366,7 @@
       }
       if (!pui || pui.className === 'idle') return [];
       // an open party card holds the remote the way a menu does (Back closes it)
-      var scope = puiState.menu === 'subs' ? subPanelEl : (puiState.menu ? puiMenuEl : (partyCardOpen() ? $id('partyCard') : pui));
+      var scope = puiState.menu === 'subs' ? subPanelEl : (puiState.menu ? puiMenuEl : (partyCardHolds() ? $id('partyCard') : pui));
       return Array.prototype.slice.call(scope.querySelectorAll('.focusable')).filter(function(el){ return el.offsetParent !== null; });
     }
     var v = document.querySelector('.view.active');
@@ -4350,6 +4452,37 @@
     groups[ni].forEach(function(x){ var r = x.getBoundingClientRect(), d = Math.abs(r.left + r.width / 2 - mid); if (d < bd){ bd = d; best = x; } });
     return best;
   }
+  /** Settings › Home › Rows (issue #18), two lists that scroll by themselves: a row scrolled out of one lies, by its
+      geometry, over whatever the page draws under the lists, so the nearest-by-geometry search is not asked here.
+      ↑/↓: the row (or the grip) before or after it in ITS list; at either end, out of both lists (`leave` picks among
+      what is not in a list). ←/→ between the lists: the row of the other one nearest in height, whatever is or is not on
+      the same line. Returns the element, null to stay, or undefined when the press is not this function's. */
+  function rowsDuoStep(list, cur, dx, dy, leave){
+    var rdl = cur && cur.closest ? cur.closest('.rd-list') : null;
+    if (!rdl) return undefined;
+    if (dy && !dx){
+      var kind = cur.classList.contains('addon-grip') ? '.addon-grip' : '.hrm';
+      var col = Array.prototype.filter.call(rdl.querySelectorAll(kind), function(e){ return list.indexOf(e) >= 0; });
+      var nr = col[col.indexOf(cur) + (dy > 0 ? 1 : -1)];
+      if (nr) return nr;
+      return leave(list.filter(function(e){ return !e.closest || !e.closest('.rd-list'); })) || null;
+    }
+    if (dx && !dy){
+      var onGrip = cur.classList.contains('addon-grip'), hasGrip = !onGrip && !!cur.querySelector('.addon-grip');
+      var hop = (rdl.id === 'setRowsOff' && dx > 0) ? $id('setRows') : (rdl.id === 'setRows' && dx < 0 && (onGrip || !hasGrip)) ? $id('setRowsOff') : null;
+      if (!hop) return undefined;
+      var cr0 = cur.getBoundingClientRect(), cy0 = (cr0.top + cr0.bottom) / 2, hb = hop.getBoundingClientRect(), near = null, nd = 1e9;
+      Array.prototype.forEach.call(hop.querySelectorAll('.hrm'), function(r){
+        if (list.indexOf(r) < 0) return;
+        var rr = r.getBoundingClientRect(), seen = rr.bottom > hb.top + 2 && rr.top < hb.bottom - 2;
+        var d = Math.abs((rr.top + rr.bottom) / 2 - cy0) + (seen ? 0 : 5000);     // a row in view before one scrolled out
+        if (d < nd){ nd = d; near = r; }
+      });
+      if (near) return near.querySelector('.addon-grip') || near;
+      return dx > 0 ? null : undefined;            // nothing on Home: Right stays. No catalog left over: Left goes on as anywhere
+    }
+    return undefined;
+  }
   // geometric 2-D navigation (works for both lists and the poster grid)
   function moveFocus2D(dx, dy){
     var list = focusables(); if(!list.length) return;
@@ -4374,6 +4507,11 @@
         var nx = cards[cards.indexOf(cur) + (dy > 0 ? 1 : -1)];
         if (nx) return nx;
       }
+    }
+    // Settings › Home › Rows (issue #18) has its own steps (a TV's settings console asks rowsDuoStep itself)
+    if (browsing){
+      var rds = rowsDuoStep(list, cur, dx, dy, function(outside){ return pickNearest(outside, cur, dx, dy); });
+      if (rds !== undefined) return rds;
     }
     var sp = (IS_TV && browsing && dy && !dx && spotOn() && $id('homeRows').contains(cur)) ? spotStep(list, cur, dy) : undefined;
     var best = sp !== undefined ? sp : (IS_TV && browsing) ? tvBrowseStep(list, cur, dx, dy) : pickNearest(list, cur, dx, dy);
@@ -4495,6 +4633,7 @@
   }
   function goBack(){
     if (trailerState){ trailerClose(true); return; }      // a trailer is over the page: Back closes it, the page stays
+    if (setFilterBack()) return;                          // Settings filtered by kind: everything again
     if (setDrillBack()) return;                           // a phone's Settings section: back to the list
     if (amb.on){ ambStop(); return; }
     stopPairing(); pfTvStop();
@@ -4723,7 +4862,7 @@
       var isBack = (k===461 || k===10009 || (k===8 && !inInput) || e.key==='GoBack' || e.key==='BrowserBack');   // 10009: a Samsung remote's Back
       if (isBack){
         if (scrubState.on){ scrubCancel(); puiShow(); }
-        else if (partyCardOpen()){ partyCardToggle(false); var pb0 = $id('puiPartyBadge'); if (pb0 && (IS_TV || kbUsed)) pb0.focus(); puiShow(); }    // a pending jump is its own layer; the controls stay
+        else if (partyCardHolds()){ partyCardToggle(false); var pb0 = $id('puiPartyBadge'); if (pb0 && (IS_TV || kbUsed)) pb0.focus(); puiShow(); }    // a pending jump is its own layer; the controls stay
         else if (upnextState.open){ dismissUpNext(); }
         else if (puiState.menu){ closePuiMenu(true); }
         // while a stream is still starting there is nothing to peel: Back means "not this one" — nor once it would not play
@@ -4759,7 +4898,7 @@
       if (!inInput && !mod && !e.shiftKey){
         if (k===27){                                          // Esc peels one layer at a time
           if (scrubState.on){ scrubCancel(); puiShow(); }
-          else if (partyCardOpen()) partyCardToggle(false);
+          else if (partyCardHolds()) partyCardToggle(false);
           else if (puiState.menu) closePuiMenu(true);
           else if (upnextState.open) dismissUpNext();
           else if (pui.className !== 'idle') puiIdle();
@@ -4816,6 +4955,11 @@
         if (!puiIsLive()){ puiSeekPct((e.key.charCodeAt(0) - 48) / 10); puiShow(); }
         e.preventDefault(); return;
       }
+      // the party panel beside the picture (issue #21) is used with the controls asleep: a message being typed keeps every
+      // key but ↑/↓ (nothing wakes, nothing seeks, no letter is taken for a shortcut), and OK presses the panel's lit button
+      var dae = document.activeElement;
+      if (partyDockOn() && dae && $id('partyCard').contains(dae) &&
+          ((inInput && dae.id === 'pcChatIn' && k !== 38 && k !== 40) || (!inInput && k === 13))) return;
       if (pui.className === 'idle'){
         // controls hidden: arrows seek straight away (the jump says how far, the controls stay asleep), anything else wakes
         // the UI. On a TV ←/→ open the preview on the rail instead — the bubble moves, OK jumps, Back drops it
@@ -4909,6 +5053,19 @@
           if (k===39){ setSection(sae.getAttribute('data-sec'), true); e.preventDefault(); return; }
         } else if (paneEl.contains(sae)){
           var paneList = Array.prototype.filter.call(paneEl.querySelectorAll('.focusable'), function(x){ return x.offsetParent !== null; });
+          // Home › Rows: its two lists step by their own rules (out of a list's end: the pane's next row, as anywhere here)
+          var dstep = rowsDuoStep(paneList, sae, k===39 ? 1 : k===37 ? -1 : 0, k===40 ? 1 : k===38 ? -1 : 0, function(outside){
+            // the row of the pane just above or below the two lists: the Rows line over them, the next setting under them
+            var duoEl = $id('setRowsDuo'), db = duoEl.getBoundingClientRect(), sr = sae.getBoundingClientRect(), pick = null, pd = 1e9;
+            outside.forEach(function(x){
+              var r = x.getBoundingClientRect(), d = k===40 ? r.top - db.bottom : db.top - r.bottom;
+              if (d < -2) return;
+              d += Math.abs(r.left - sr.left) / 100;      // on one line: the control nearest across
+              if (d < pd){ pd = d; pick = x; }
+            });
+            return pick;
+          });
+          if (dstep !== undefined){ if (dstep) focusReveal(dstep); e.preventDefault(); return; }
           if (k===38 || k===40){
             // the next ROW's control (nearest across), never the geometrically nearest — a short segmented
             // control must not be skipped for the long one under it
@@ -5357,7 +5514,7 @@
       try { LS.removeItem(k); } catch(e){}
       mirrorKv(k, p === 'addons_' ? '[]' : '{}');
     });
-    ['addons_sync_' + id, 'addons_' + id + '_seed', 'prefs_' + id, 'prefs_' + id + '_at'].forEach(function(k){ try { LS.removeItem(k); } catch(e){} });
+    ['addons_sync_' + id, 'addons_' + id + '_seed', 'prefs_' + id, 'prefs_' + id + '_at', 'played_' + id].forEach(function(k){ try { LS.removeItem(k); } catch(e){} });
     PER_PROFILE.forEach(function(k){ delete cloudDirty[k + '_' + id]; delete cloudRevs[k + '_' + id]; });
     saveCloudDirty(); saveCloudRevs();
     delete whoUnlocked[id];
@@ -9386,11 +9543,19 @@
 
   /** A row picked by hand: it plays here (or in another app when Settings says so), and it is the one the next episodes
       follow (same source, same quality). [here]: this player whatever Settings says (the row's More › Play here). */
+  var apClick = false;                             // the press arriving now is the player's own (openStreams' autoPickNow)
   function streamTap(s, addon, here){
+    var auto = apClick; apClick = false;
     if (dlPick && dlPick.id === ctx.playId){ dlFromRow(s, addon); return; }   // the page is picking a source to download
     autoRun = 0;
     if (!here && extDefault() && linkOk(s.url)){ extOpen(s.url, extStartAt(false)); return; }
-    var go = function(){ ctx.pickedFrom = streamSig(s, addon); savePick(ctx.pickedFrom); ctx.playSig = ctx.pickedFrom; playStream(s); };
+    var go = function(){
+      var sig = streamSig(s, addon); sig.tid = titleKey(ctx.playType, ctx.playId);
+      ctx.pickedFrom = sig; savePick(sig); ctx.playSig = sig;
+      playedNote(sig.tid, sig);                    // this title's own last play, for its list next time
+      if (!auto){ ctx.handPick = sig; handSave(sig); }   // "last time" is a row a person chose, never the player's own fallback
+      playStream(s);
+    };
     if (resumeAskDue()) resumeAsk(go); else go();
   }
 
@@ -9463,19 +9628,23 @@
       words: sigWords(cleanStreamName(s.name, addon && addon.name) + ' ' + (text.split('\n')[0] || ''))
     };
   }
-  /** How much `s` resembles the row picked last time; higher is closer. */
-  function streamScore(s, sig, addon){
+  /** How much `s` resembles the row picked last time; higher is closer. [loose]: the pick was made on ANOTHER title
+      (issue #20), so its file and its torrent cannot be this title's and say nothing, and the site a release was found
+      on changes from film to film: the same one is a small plus, another one no minus. */
+  function streamScore(s, sig, addon, loose){
     var c = streamSig(s, addon), sc = 0, i;
     if (sig.binge && c.binge && sig.binge === c.binge) sc += 100;
     // the same file pattern is the same release, whatever the add-on calls its group; the same
     // torrent (a season pack) even more so. A different named file is a different release.
-    if (sig.hash && c.hash && sig.hash === c.hash) sc += 200;
-    if (sig.file && c.file) sc += (sig.file === c.file) ? 150 : -20;
+    if (!loose){
+      if (sig.hash && c.hash && sig.hash === c.hash) sc += 200;
+      if (sig.file && c.file) sc += (sig.file === c.file) ? 150 : -20;
+    }
     if (sig.res){
       if (!c.res) sc -= 10;
       else sc += (sig.res === c.res) ? 40 : -15 * Math.abs(RES_RANK[sig.res] - RES_RANK[c.res]);
     }
-    if (sig.provider && c.provider) sc += (sig.provider === c.provider) ? 30 : -10;
+    if (sig.provider && c.provider) sc += (sig.provider === c.provider) ? (loose ? 15 : 30) : (loose ? 0 : -10);
     var shared = 0;
     for (i = 0; i < sig.badges.length; i++) if (c.badges.indexOf(sig.badges[i]) >= 0) shared++;
     sc += shared * 6 - (sig.badges.length - shared) * 3 - (c.badges.length - shared);
@@ -9486,21 +9655,25 @@
     return sc;
   }
   /** What an identical row would score against `sig` — a twin gets most of it. */
-  function sigMax(sig){
+  function sigMax(sig, loose){
+    // (another title's twin: the quality, the marks and the words; an add-on's group or the site are a plus, not the bar)
+    if (loose) return (sig.res ? 40 : 0) + sig.badges.length * 6 + 12;
     return (sig.binge ? 100 : 0) + (sig.res ? 40 : 0) + (sig.provider ? 30 : 0) + sig.badges.length * 6 + 12;
   }
-  function isTwin(s, sig, addon){
+  function isTwin(s, sig, addon, loose){
     // a row naming another file is another release, however alike the rest reads (one torrent aside)
-    if (sig.file){ var c = streamSig(s, addon); if (c.file && c.file !== sig.file && !(sig.hash && sig.hash === c.hash)) return false; }
-    return streamScore(s, sig, addon) >= 0.6 * sigMax(sig);
+    if (!loose && sig.file){ var c = streamSig(s, addon); if (c.file && c.file !== sig.file && !(sig.hash && sig.hash === c.hash)) return false; }
+    // (another title's twin is the same quality or nothing: marks alone never carry a 1080p row to a 4K pick)
+    if (loose && sig.res && streamSig(s, addon).res !== sig.res) return false;
+    return streamScore(s, sig, addon, loose) >= 0.6 * sigMax(sig, loose);
   }
   /** The stream in `streams` closest to `sig` (the list's first when nothing was picked). */
-  function matchStream(streams, sig, addon){
+  function matchStream(streams, sig, addon, loose){
     if (!streams || !streams.length) return null;
     if (!sig) return streams[0];
     var best = streams[0], bestSc = -1e9;
     for (var i = 0; i < streams.length; i++){
-      var sc = streamScore(streams[i], sig, addon) - i * 0.01;   // earlier rows win ties
+      var sc = streamScore(streams[i], sig, addon, loose) - i * 0.01;   // earlier rows win ties
       if (sc > bestSc){ best = streams[i]; bestSc = sc; }
     }
     return best;
@@ -9522,6 +9695,53 @@
   function loadPick(){
     try { var p = JSON.parse(LS.getItem('pick_v1') || 'null'); return (p && p.addonUrl && p.words) ? p : null; }
     catch(e){ return null; }
+  }
+  // ---- what a stream list marks and "Same as last time" plays (issue #20) ----
+  // Two memories beside the one above, which stays what it was (the row playing now, for the next episode). `hand_v1`: the
+  // last row picked BY HAND, with the title it was picked on (sig.tid). A row the player chose by itself never lands here:
+  // a title with no twin plays its first row, and that row used to become "last time" for every title after it.
+  // `played_*`: per profile, the row each title last played, by hand or not, so the same film (or the same show) is found
+  // again whatever was watched since. Device-local like the pick: a TV and a phone choose differently.
+  function sigOk(p){ return !!(p && p.addonUrl && p.words && typeof p.words === 'object' && Object.prototype.toString.call(p.badges) === '[object Array]'); }
+  function handSave(sig){ try { LS.setItem('hand_v1', JSON.stringify(sig)); } catch(e){} }
+  /** The last hand-pick. A device coming from an older build has none: the pick it holds (no title on it) is taken over
+      ONCE, here, because from now on the player's own choices keep landing in pick_v1 and would be read as a hand's. */
+  function handLoad(){
+    var had = null; try { had = LS.getItem('hand_v1'); } catch(e){}
+    try { var p = JSON.parse(had || 'null'); if (sigOk(p)) return p; } catch(e2){}
+    if (had !== null) return null;
+    var o = loadPick(); o = sigOk(o) ? o : null;
+    try { LS.setItem('hand_v1', JSON.stringify(o)); } catch(e3){}
+    return o;
+  }
+  var PLAYED_MAX = 80;
+  function playedKey(id){ id = id || viewer; return id === 'a' ? 'played_v1' : 'played_' + id; }
+  /** The title a row belongs to: the show for an episode, the WHOLE id for anything else (a channel's or an event's id
+      may hold colons too, and seriesIdOf would fold every one of an add-on's into its first two parts). */
+  function titleKey(type, id){ return /^(series|anime)$/.test(String(type || '')) ? seriesIdOf(id) : String(id || ''); }
+  function playedAll(){
+    try { var o = JSON.parse(LS.getItem(playedKey()) || '{}'); return (o && typeof o === 'object' && Object.prototype.toString.call(o) === '[object Object]') ? o : {}; }
+    catch(e){ return {}; }
+  }
+  function playedOf(tid){ var e = tid ? playedAll()[tid] : null; return (e && sigOk(e.s)) ? e.s : null; }
+  function playedNote(tid, sig){
+    if (!tid || !sigOk(sig)) return;
+    var all = playedAll(); all[tid] = { s: sig, at: Date.now() };
+    var ks = Object.keys(all);
+    if (ks.length > PLAYED_MAX){
+      ks.sort(function(x, y){ return (all[x].at || 0) - (all[y].at || 0); });
+      for (var i = 0; i < ks.length - PLAYED_MAX; i++) delete all[ks[i]];
+    }
+    try { LS.setItem(playedKey(), JSON.stringify(all)); } catch(e){}
+  }
+  /** The remembered rows a list of `tid` looks for, best first: this title's own last play, then the last hand-pick.
+      own: the row was this title's; loose: it was another title's, so only the loose match is tried (see streamScore).
+      A pick from an older build names no title: the exact match first, the loose one after, like a title's own. */
+  function pickCands(tid){
+    var out = [], own = playedOf(tid), hp = ctx.handPick;
+    if (own) out.push({ sig: own, own: true, loose: false });
+    if (hp && !(own && hp.tid === tid)) out.push({ sig: hp, own: hp.tid === tid, loose: !!hp.tid && hp.tid !== tid });
+    return out;
   }
   var openSeq = 0, seriesSeq = 0;
   function openItem(meta){
@@ -10979,10 +11199,14 @@
   }
   function updateStreamFilters(){
     var bar = $id('streamFilters'), list = $id('streamList');
-    var secs = Array.prototype.filter.call(list.querySelectorAll('.streamsec'), function(b){
-      return b.querySelectorAll('.stream:not(.skel)').length > 0;
+    // one chip an add-on: the block of the remembered row (#streamLast, issue #20) carries its add-on's name too
+    var names = [];
+    Array.prototype.forEach.call(list.querySelectorAll('.streamsec'), function(b){
+      if (!b.querySelectorAll('.stream:not(.skel)').length) return;
+      var n = b.getAttribute('data-an') || 'Add-on';
+      if (names.indexOf(n) < 0) names.push(n);
     });
-    if (secs.length < 2){ bar.style.display = 'none'; bar.innerHTML = ''; return; }
+    if (names.length < 2){ bar.style.display = 'none'; bar.innerHTML = ''; return; }
     bar.style.display = '';
     bar.innerHTML = '';
     function chip(label, on, fn){
@@ -10998,8 +11222,7 @@
     rf.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>';
     var cur = list.getAttribute('data-filter') || '';
     chip('All', !cur, function(){ list.setAttribute('data-filter', ''); applyStreamFilter(); });
-    secs.forEach(function(b){
-      var an = b.getAttribute('data-an') || 'Add-on';
+    names.forEach(function(an){
       chip(an, cur === an, function(){ list.setAttribute('data-filter', an); applyStreamFilter(); });
     });
   }
@@ -11009,6 +11232,14 @@
     Array.prototype.forEach.call(list.querySelectorAll('.streamsec'), function(b){
       b.style.display = (!cur || b.getAttribute('data-an') === cur) ? '' : 'none';
     });
+    // "Others" stands only between the remembered row and rows that show
+    var last = $id('streamLast'), rest = $id('streamRest');
+    if (rest){
+      var others = Array.prototype.some.call(list.querySelectorAll('.streamsec:not(.s-lastsec)'), function(b){
+        return b.style.display !== 'none' && !!b.querySelector('.stream:not(.skel), .slink, .s-wait');
+      });
+      rest.style.display = (last && last.style.display !== 'none' && others) ? '' : 'none';
+    }
     updateStreamFilters();
   }
   /** Above the streams of a picked-up title: where it will resume, and a way to
@@ -11247,11 +11478,75 @@
     // the player choosing for you (Settings › Streams): the twin of the last pick, or the first row, once every
     // add-on has answered or the wait runs out — never once the remote or the pointer has moved on the list
     // (never on the way BACK to a list: Back is the viewer choosing, and the pick would replay what they just left)
-    var apMode = pick === 'best' ? 'best' : (!noAuto && (pr.autoPick === 'same' || pr.autoPick === 'first')) ? pr.autoPick : '', apTimer = null, apDone = false;
+    var apMode = pick === 'best' ? 'best' : (!noAuto && (pr.autoPick === 'same' || pr.autoPick === 'first')) ? pr.autoPick : '', apTimer = null, apDone = false, apHeld = false;
+    // the rows this list remembers (issue #20: this title's own last play, then the last hand-pick), which add-ons have
+    // had their say, and the row marked so far (rank 3 = this title's own row, 2 = close to it, 1 = another title's twin)
+    var cands = pickCands(titleKey(type, id)), fin = {}, usual = { card: null, rank: 0, home: null, par: null, next: null, idx: 0 };
+    /** The add-on a remembered row came from that is still being asked, when its row would beat the one marked ('' = none). */
+    function sameWaiting(){
+      for (var i = 0; i < cands.length; i++){
+        var u = cands[i].sig.addonUrl;
+        if ((cands[i].own ? 3 : 1) > usual.rank && !fin[u] && order.some(function(a){ return a.url === u; })) return cands[i].sig.addonName || 'an add-on';
+      }
+      return '';
+    }
+    /** A remembered row goes to the head of the list in a block of its own, the rest under "Others". A better one (this
+        title's own row over another title's twin) takes the place and the first returns to the head of its add-on's rows. */
+    function usualSet(card, rank, box, a){
+      if (!card || rank <= usual.rank) return false;
+      // a remote or a keyboard already on another row: that row keeps its place on screen while the block goes in above
+      var ae = document.activeElement, keep = (ae && ae !== card && list.contains(ae)) ? ae : null, y0 = keep ? keep.getBoundingClientRect().top : 0;
+      if (usual.card){
+        // back where it stood among its add-on's rows
+        usual.card.classList.remove('usual');
+        if (usual.next && usual.next.parentNode === usual.par) usual.par.insertBefore(usual.card, usual.next); else usual.par.appendChild(usual.card);
+        usual.home.classList.remove('s-gone');
+      }
+      usual.card = card; usual.rank = rank; usual.home = box; usual.par = card.parentNode; usual.next = card.nextSibling;
+      usual.idx = Array.prototype.indexOf.call(box.querySelectorAll('.stream:not(.skel)'), card);
+      var sec = $id('streamLast');
+      if (!sec){
+        sec = document.createElement('div'); sec.className = 'streamsec s-lastsec'; sec.id = 'streamLast';
+        sec.innerHTML = '<div class="s-lasthead"><b></b><small></small></div>';
+        list.insertBefore(sec, list.firstChild);
+        var rest = document.createElement('div'); rest.className = 's-resthead'; rest.id = 'streamRest'; rest.textContent = 'Others';
+        list.insertBefore(rest, sec.nextSibling);
+      }
+      var an = (a && a.name) || 'Add-on';
+      sec.querySelector('.s-lasthead b').textContent = rank === 3 ? 'Last played' : 'Same as last time';
+      sec.querySelector('.s-lasthead small').textContent = an;
+      sec.setAttribute('data-an', an);             // the add-on's filter chip keeps the block, another's hides it
+      card.classList.add('usual');
+      sec.appendChild(card);
+      if (!box.querySelector('.stream')) box.classList.add('s-gone');   // it was that add-on's only row: no bare heading stays behind
+      applyStreamFilter();
+      if (keep){ var dy = keep.getBoundingClientRect().top - y0; if (dy) list.parentNode.scrollTop += dy; }
+      return true;
+    }
+    /** Every row in the add-ons' own order: the remembered one counted where it stood, not at the head of the list
+        ("First stream" is the top of that order, whatever was played last). */
+    function rowsInOrder(){
+      var out = [];
+      Array.prototype.forEach.call(list.querySelectorAll('.streamsec:not(.s-lastsec)'), function(b){
+        var rs = Array.prototype.slice.call(b.querySelectorAll('.stream:not(.skel)'));
+        if (usual.card && b === usual.home) rs.splice(Math.min(Math.max(usual.idx, 0), rs.length), 0, usual.card);
+        out = out.concat(rs);
+      });
+      return out;
+    }
     function autoPickNow(final){
       if (apDone || seq !== openSeq) return;
       // a launch's pick with nothing on the list yet keeps waiting for the add-ons still asked (to 90 s), card up
       if (apMode === 'best' && !final && !list.querySelector('.stream:not(.skel)')) return;
+      // "Same as last time" with the add-on that row came from still being asked: the first row of a faster add-on is not
+      // "the same". The pick waits for its answer (the add-on's own `then` below calls back), 25 s from opening at most
+      if (apMode === 'same' && !final && lastKeyAt <= openedAt && lastPointerAt <= openedAt){
+        var wn = sameWaiting();
+        if (wn){
+          if (!apHeld){ apHeld = true; setStatus('Waiting for ' + wn + ', where your last stream came from…', 'info'); }
+          return;
+        }
+      }
       apDone = true; clearTimeout(apTimer);
       // (a pick another app asked for minds only the keys: an LG remote's pointer wakes when the remote is merely picked up)
       if (lastKeyAt > openedAt || (apMode !== 'best' && lastPointerAt > openedAt)){ lcHide(); return; }
@@ -11264,20 +11559,26 @@
       }
       // never a row this connection cannot carry, nor one the add-on says will not play here, while another is there
       // (a launch's pick with only not-ready debrid rows leaves the list to the viewer)
-      if (!row && apMode !== 'best') row = list.querySelector('.stream:not(.skel):not(.slow):not(.nwr):not(.nosnd)') || list.querySelector('.stream:not(.skel):not(.nosnd)') || list.querySelector('.stream:not(.skel)');
+      if (!row && apMode !== 'best'){
+        var ord = rowsInOrder(), has = function(r, names){ return names.some(function(c){ return r.classList.contains(c); }); };
+        row = ord.filter(function(r){ return !has(r, ['slow', 'nwr', 'nosnd']); })[0] || ord.filter(function(r){ return !has(r, ['nosnd']); })[0] || ord[0] || null;
+      }
       if (!row){
         lcHide();
         if (apMode === 'best' && apPrefs().min && list.querySelector('.stream:not(.skel)')) setStatus('No stream here reaches your lowest quality. Pick one from the list.', 'info', 6000);
         return;
       }
-      if (apMode === 'best') lcPick(row); else setStatus('Playing the best stream for you.', 'info');
-      row.click();
+      if (apMode === 'best') lcPick(row);
+      else setStatus(row === usual.card ? (usual.rank === 3 ? 'Playing the stream you played last time.' : 'Playing the same kind of stream as last time.') : 'Playing the best stream for you.', 'info');
+      apClick = true;                              // streamTap: this press is the player's own, it is nobody's "last time"
+      try { row.click(); } finally { apClick = false; }
     }
     // 'best' waits for every add-on (its pick is the best of all of them), but not for ever
     // (Settings › Wait for add-ons: Quick picks at 8 s, Balanced at 25 s, All once everyone has answered — 90 s at most)
     var apw = apMode === 'best' ? apPrefs().wait : '';
     if (apMode && apw !== 'all') apTimer = setTimeout(autoPickNow, apMode === 'best' ? (apw === 'quick' ? 8000 : 25000) : pickWaitSecs() * 1000);
     if (apMode === 'best') setTimeout(function(){ autoPickNow(true); }, 90000);
+    if (apMode === 'same') setTimeout(function(){ if (apHeld) autoPickNow(true); }, 25000);
     if (apMode === 'best' && apPrefs().prio !== 'quality') bwEnsure();   // the speed this pick weighs rows by, tested beside the add-ons' answers
     if (apMode === 'best'){
       var lim = ctx.item && (ctx.item.id === id || ctx.item.id === seriesIdOf(id)) ? ctx.item : null;
@@ -11435,28 +11736,27 @@
           // the D-pad lands on the first row (not the topbar's Back button)
           var driving = IS_TV || kbUsed, untouched = lastKeyAt <= openedAt;
           if (sections === 1 && driving && untouched){ try { cards[0].focus(); } catch(e){} }
-          // the row that matches the last hand-pick from this add-on is marked and,
-          // if the remote has not moved since the list opened, takes the focus
-          var pf = ctx.pickedFrom;
-          if (pf && pf.addonUrl === a.url){
-            var twin = matchStream(streams, pf, a);
-            if (twin && isTwin(twin, pf, a)){
-              var uc = cards[streams.indexOf(twin)];
-              uc.classList.add('usual');
-              var nm = uc.querySelector('.stream-name');
-              if (nm){ var tag = document.createElement('span'); tag.className = 's-usual'; tag.textContent = 'Same as last time'; nm.parentNode.insertBefore(tag, nm); }
-              // it heads its section — buried at row 30 of 40 it would help nobody
-              var first = box.querySelector('.stream');
-              if (first && first !== uc) first.parentNode.insertBefore(uc, first);   // its group's head on a TV (.sgrp)
-              if (driving && untouched){ try { uc.focus(); } catch(e){} }
-            }
+          // a remembered row of this add-on's heads the whole list under its own heading (usualSet): "Last played" for
+          // this title's own row, "Same as last time" for one close to it or for the twin of a row picked on another
+          // title. If the remote has not moved since the list opened, it takes the focus
+          for (var ci = 0; ci < cands.length; ci++){
+            var cd = cands[ci]; if (cd.sig.addonUrl !== a.url) continue;
+            var tw = cd.loose ? null : matchStream(streams, cd.sig, a), rk = 0;
+            if (tw && isTwin(tw, cd.sig, a)) rk = cd.own ? 3 : 1;
+            else { tw = matchStream(streams, cd.sig, a, true); if (tw && isTwin(tw, cd.sig, a, true)) rk = cd.own ? 2 : 1; }
+            if (rk && usualSet(cards[streams.indexOf(tw)], rk, box, a) && driving && untouched){ try { usual.card.focus(); } catch(e){} }
           }
         });
       }).catch(function(){
         if (!known || declares) lost++;
         if (boxPending){ box.innerHTML = ''; boxPending = false; }   // never leave it shimmering
         if (waitName){ if (apMode === 'best') lcAnswered(waitName, 0); waitDone(waitName); waitName = null; bestEarly(); }
-      }).then(done);
+      }).then(function(){
+        fin[a.url] = 1;
+        // "Same as last time" was waiting for this add-on: its row is marked now (or it had none), the pick goes ahead
+        if (apHeld && !apDone && seq === openSeq && !sameWaiting()) setTimeout(function(){ autoPickNow(true); }, 300);
+        done();
+      });
     });
   }
 
@@ -11618,6 +11918,7 @@
     lcRetry(c, why);
     ctx.swapAt = 0; ctx.swapName = '';
     ctx.pickedFrom = streamSig(c.s, c.a); savePick(ctx.pickedFrom); ctx.playSig = ctx.pickedFrom;
+    playedNote(titleKey(curPlay.type, curPlay.id), ctx.pickedFrom);
     playStream(c.s);
     return true;
   }
@@ -16510,7 +16811,8 @@
     pauseBoardHide();
     clearTimeout(puiState.idleTimer);
     puiState.idleTimer = setTimeout(function(){
-      if (!video.paused && !puiState.menu && !upnextState.open && !scrubState.on && !partyCardOpen()) puiIdle();
+      // (a party panel over the picture keeps the controls up; one beside the picture lets them go: that is its point)
+      if (!video.paused && !puiState.menu && !upnextState.open && !scrubState.on && !partyCardHolds()) puiIdle();
     }, controlsHideMs());                // Settings › Controls hide after
     pauseBoardArm();
   }
@@ -16519,7 +16821,9 @@
     closePuiMenu(false);
     document.body.classList.remove('pui-on');
     if (mp) mpvSubLift();
-    if (document.activeElement && pui.contains(document.activeElement)) document.activeElement.blur();
+    // (a message being typed in the panel beside the picture keeps its field)
+    var pae = document.activeElement, pdc = partyDockOn() ? $id('partyCard') : null;
+    if (pae && pui.contains(pae) && !(pdc && pdc.contains(pae))) pae.blur();
     pui.className = 'idle';
     if (skipState.kind) skipFocus();     // with the chrome asleep, OK is the skip
   }
@@ -19146,6 +19450,7 @@
     ctx.swapName = srcName(c);
     ctx.startOver = false; ctx.resumeChosen = true;
     ctx.pickedFrom = streamSig(c.s, c.a); savePick(ctx.pickedFrom); ctx.playSig = ctx.pickedFrom;
+    if (curPlay) playedNote(titleKey(curPlay.type, curPlay.id), ctx.pickedFrom);
     setStatus('Switching to ' + ctx.swapName + '…', 'info');
     playStream(c.s);
   }
@@ -19817,7 +20122,7 @@
   }
   function partyCardRender(){
     var card = $id('partyCard'); if (!card) return;
-    if (!party){ card.classList.remove('open'); return; }
+    if (!party){ card.classList.remove('open'); partyDockApply(); return; }
     $id('pcCode').textContent = party.code;
     $id('pcGet').hidden = !partyOfferable();
     $id('pcLink').textContent = partyInviteUrl(party.code);
@@ -19851,8 +20156,41 @@
       if (IS_TV || kbUsed){ var f0 = card.querySelector(party.ask ? '#pcAskYes' : '.focusable'); if (f0) f0.focus(); }
     }
     else card.classList.remove('open');
+    partyDockApply();
   }
   function partyCardOpen(){ var c = $id('partyCard'); return !!(c && c.classList.contains('open')); }
+  // ---- the panel beside the picture (issue #21) ----
+  // A button in the panel's head puts it down the right edge and the picture takes the rest, so nothing of the film is
+  // covered while people chat. Kept per device (pref partyDock, never synced). Not on a TV (an LG draws its picture on a
+  // plane of its own, and nobody has seen that plane follow a narrower box) nor on a screen too small for both.
+  var DOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M15 5v14"/></svg>';
+  function partyDockCan(){ return !IS_TV && window.innerWidth >= 900 && window.innerHeight >= 480; }
+  function partyDockOn(){ return document.body.classList.contains('pdock'); }
+  /** The open panel holds the remote and the keys the way a menu does, unless it stands beside the picture. */
+  function partyCardHolds(){ return partyCardOpen() && !partyDockOn(); }
+  function partyDockApply(){
+    var can = partyDockCan(), wish = getPrefs().partyDock === true;
+    var want = !!party && can && wish && partyCardOpen(), was = partyDockOn();
+    document.body.classList.toggle('pdock', want);
+    var b = $id('pcDock');
+    if (b){
+      b.style.display = can ? '' : 'none';
+      if (!b.firstChild) b.innerHTML = DOCK_SVG;
+      b.classList.toggle('on', wish && can);
+      var say = wish ? 'Put it back over the picture' : 'Put it beside the picture';
+      b.title = say; b.setAttribute('aria-label', say); b.setAttribute('aria-pressed', wish ? 'true' : 'false');
+    }
+    if (was !== want){
+      try { pgsPlace(); } catch(e){}               // picture subtitles follow the picture's new box
+      var log = $id('pcChat'); if (log) log.scrollTop = log.scrollHeight;
+      if (document.body.className.indexOf('playing') !== -1) puiShow();   // the controls' hide timer starts again under the new rule
+    }
+  }
+  function partyDockToggle(){
+    var pr = getPrefs(); pr.partyDock = !(pr.partyDock === true); writePrefs(pr);
+    partyDockApply();
+  }
+  window.addEventListener('resize', function(){ if (party || partyDockOn()) partyDockApply(); });
   function partyBadge(){
     var b = $id('puiPartyBadge'), btn = $id('puiParty');
     if (!party){ b.style.display='none'; puiLabel(btn, 'Party'); return; }
@@ -20193,6 +20531,7 @@
   $id('puiPartyBadge').onclick = function(){ partyCardToggle(); };
   $id('puiPartyBadge').addEventListener('keydown', function(e){ if (e.keyCode === 13){ e.preventDefault(); partyCardToggle(); } });
   $id('pcClose').onclick = function(){ partyCardToggle(false); };
+  $id('pcDock').onclick = function(){ partyDockToggle(); };
   $id('pcChatSend').onclick = function(){ partyChatSend(); };
   $id('pcChatIn').addEventListener('keydown', function(e){ if (e.keyCode === 13){ e.preventDefault(); e.stopPropagation(); partyChatSend(); } });
   if (IS_WEBOS){
@@ -20215,7 +20554,11 @@
   video.addEventListener('play', function(){ sleepState.fired = false; puiSyncPlayIcon(); puiShow(); });
   video.addEventListener('playing', mediaKeysOn);
   video.addEventListener('pause', function(){ puiSyncPlayIcon(); puiShow(); });
-  pui.addEventListener('mousemove', function(){ if (document.body.className.indexOf('playing') !== -1) puiShow(); });
+  pui.addEventListener('mousemove', function(e){
+    // (the pointer over the panel beside the picture is not on the picture: the controls stay asleep)
+    if (partyDockOn() && e.target && $id('partyCard').contains(e.target)) return;
+    if (document.body.className.indexOf('playing') !== -1) puiShow();
+  });
   pui.addEventListener('click', function(e){
     var cls = e.target && e.target.className ? String(e.target.className) : '';
     if (e.target === pui || cls.indexOf('pui-shade') !== -1){
@@ -21038,6 +21381,8 @@
       if (others.length) h += '<div class="lbl" style="margin-top:' + (founders.length ? 12 : 20) + 'px">Thanks to</div><p class="sup-wall" id="supWall">' + esc(joinNames(others)) + '</p>';
     }
     body.innerHTML = h;
+    // (these rows are new: under a Settings search or a kind filter they get their kind and their place again)
+    try { if ($id('setConsole').classList.contains('searching') || $id('setConsole').classList.contains('flt')){ setDeviceMarks(); setSearchRun(); } } catch(e0){}
     if (isSupporter()){
       segChips('supWallSeg', [['Show', true], ['Hide', false]], !!profile.wall, function(v){
         cloudApi('PUT', '/v1/support', { wall: v }).then(function(r){
@@ -21483,7 +21828,7 @@
   // sound, the TV's autoplay, its connections) is never sent and never taken.
   var PREFS_LOCAL = { zoom: 1, textSize: 1, cardSize: 1, rowDensity: 1, landscapeRows: 1, landscapeStart: 1, motion: 1, maxRes: 1, buffer: 1,
     fit: 1, audDelay: 1, night: 1, engine: 1, relay: 1, scrubFrames: 1, fastRows: 1, welcome: 1, speedLast: 1, bestPlay: 1, apAim: 1,
-    apMax: 1, apBack: 1, apInstant: 1, apMin: 1, apPrio: 1, apRetry: 1, apStart: 1, apWait: 1, posterAddr: 1, ambient: 1, extPlay: 1, extApp: 1, vol: 1 };
+    apMax: 1, apBack: 1, apInstant: 1, apMin: 1, apPrio: 1, apRetry: 1, apStart: 1, apWait: 1, posterAddr: 1, ambient: 1, extPlay: 1, extApp: 1, vol: 1, partyDock: 1 };
   /** The Settings rows whose answer stays on this device, by their control's id: each writes a PREFS_LOCAL key, or keeps
       its answer outside the settings (the profile this device opens on, this computer's sharing). A function, not a
       table: setDeviceMarks may run before this part of the script has. */
@@ -21492,20 +21837,80 @@
       'setSideways', 'setMaxRes', 'setExtPlay', 'setExtApp', 'setEngine', 'setBuffer', 'setRelay', 'setShare', 'setScrub', 'setBestPlay',
       'setApMax', 'setApPrio', 'setApMin', 'setApInstant', 'setApWait', 'setApRetry', 'setApStart', 'setApBack', 'setFastRows', 'setWelcome'];
   }
+  /** The rows that are neither (issue #19): a button, a link, a readout or a note, by their control's (or their own) id.
+      EVERY OTHER ROW OF THE PANE IS A SETTING THAT FOLLOWS THE PROFILE: a new row that does not must be listed here or in
+      setDeviceIds (rig feat1821 "chips" presses every synced row's control and wants its stamp to move). */
+  function setPlainIds(){
+    return ['setWhoOpen', 'setSyncRow', 'setApDev', 'setApSpeed', 'setAddonsOpen', 'setPlayUrl', 'setPartyJoin', 'setReset', 'setClearCache', 'setUpdRow', 'setKb'];
+  }
+  function setRowOfId(id){ var el = $id(id); return !el ? null : (el.classList.contains('setrow') ? el : (el.closest ? el.closest('.setrow') : null)); }
   /** Signed in, those rows say "This device" beside their name and Profile lists what follows the account. Signed out,
-      everything is this device's and nothing is marked. */
+      everything is this device's and nothing is marked. Every row also carries its kind (data-k: 'dev', 'sync' or ''),
+      which the kind filters read. */
   function setDeviceMarks(){
     var on = cloudLinked(), note = $id('setSyncRow');
     if (note) note.style.display = on ? '' : 'none';
+    Array.prototype.forEach.call(document.querySelectorAll('#setPane .setrow'), function(r){ r.setAttribute('data-k', 'sync'); });
+    setPlainIds().forEach(function(id){ var r = setRowOfId(id); if (r) r.setAttribute('data-k', ''); });
+    // (Support Nebula's rows are drawn by supportRender, some after this ran: a code to type, a vote, none of them a setting)
+    Array.prototype.forEach.call(document.querySelectorAll('#setPane .con-sec[data-sec="support"] .setrow'), function(r){ r.setAttribute('data-k', ''); });
     setDeviceIds().forEach(function(id){
-      var el = $id(id), row = el && el.closest ? el.closest('.setrow') : null, name = row ? row.querySelector('.setname') : null;
+      var row = setRowOfId(id), name = row ? row.querySelector('.setname') : null;
+      if (row) row.setAttribute('data-k', 'dev');
       if (!name) return;
       var had = name.querySelector('.set-dev');
       if (on && !had){
         var m = document.createElement('i'); m.className = 'set-dev'; m.textContent = 'This device';
+        m.title = 'Show every setting that stays on this device';
         name.insertBefore(m, name.querySelector('small'));
       } else if (!on && had) name.removeChild(had);
     });
+    setFilterChips();
+  }
+  // ---- Settings by kind (issue #19): only what stays on this device, or only what follows the profile ----
+  // Signed in only (signed out everything is the device's). A computer and a phone: chips under the search field, which
+  // narrow together with its words; the "This device" mark on a row switches the filter on. A TV has no search field:
+  // its section list ends with "This device" and "Synced", which show their rows the way a section shows its own.
+  var setFilter = '';                              // '' | 'dev' | 'sync'
+  function setFilterOn(){ return (cloudLinked() && (setFilter === 'dev' || setFilter === 'sync')) ? setFilter : ''; }
+  function setFilterChips(){
+    var on = cloudLinked(), box = $id('setChips'), cur = setFilterOn();
+    if (!on && setFilter){ setFilter = ''; setSearchRun(); }
+    if (box){
+      box.style.display = (on && !IS_TV) ? '' : 'none';
+      if (on && !IS_TV){
+        if (!box.firstChild){
+          [['All', ''], ['This device', 'dev'], ['Synced', 'sync']].forEach(function(o){
+            var b = document.createElement('button'); b.type = 'button'; b.className = 'chip focusable';
+            b.textContent = o[0]; b.setAttribute('data-k', o[1]);
+            b.onclick = function(){ setFilterSet(o[1]); };
+            box.appendChild(b);
+          });
+        }
+        Array.prototype.forEach.call(box.children, function(b){
+          var lit = b.getAttribute('data-k') === cur;
+          b.classList.toggle('on', lit); b.setAttribute('aria-pressed', lit ? 'true' : 'false');
+        });
+      }
+    }
+    ['setGrpFlt', 'setNavDev', 'setNavSync'].forEach(function(id){ var e = $id(id); if (e) e.style.display = (on && IS_TV) ? '' : 'none'; });
+    // signed out with one of the TV's two entries open: back to a section
+    if (IS_TV && !on){
+      var lit2 = document.querySelector('#setNav .con-item.on');
+      if (lit2 && /^f:/.test(lit2.getAttribute('data-sec') || '')) setSection(setSecCur || 'profile', false);
+    }
+  }
+  function setFilterSet(k){
+    setFilter = (k === 'dev' || k === 'sync') ? k : '';
+    setFilterChips(); setSearchRun();
+    var v = $id('view-settings'), sc = v && v.querySelector('.scroller');
+    try { v.scrollTop = 0; if (sc) sc.scrollTop = 0; } catch(e){}
+  }
+  /** Back with a kind filter on (a computer, a phone): everything again. goBack asks first. */
+  function setFilterBack(){
+    var v = $id('view-settings');
+    if (IS_TV || !v || !v.classList.contains('active') || !setFilterOn()) return false;
+    setFilterSet(''); return true;
   }
   function prefsKey(){
     var v = (typeof viewer === 'string') ? viewer : viewerStored();
@@ -21838,11 +22243,21 @@
   // ---- settings console: which section is open (a TV shows one at a time; elsewhere all stack) ----
   var setSecCur = 'profile';
   function setSection(sec, focusPane){
-    setSecCur = sec;
+    // a TV's "This device" / "Synced" entries (data-sec "f:dev", "f:sync", issue #19) are not sections: they switch the
+    // kind filter on, any real section switches it off. setSecCur stays the last real section
+    var fk = /^f:/.test(sec) ? sec.slice(2) : '';
+    if (!fk) setSecCur = sec;
     Array.prototype.forEach.call(document.querySelectorAll('#setNav .con-item'), function(b){ b.classList.toggle('on', b.getAttribute('data-sec') === sec); });
     Array.prototype.forEach.call(document.querySelectorAll('#setPane .con-sec'), function(x){ x.classList.toggle('on', x.getAttribute('data-sec') === sec); });
+    // (a computer or a phone has no such entries: a section opened from elsewhere, Home's "Arrange rows" say, while a
+    // kind filter is on, opens with everything showing again)
+    if ((setFilter || '') !== fk && (IS_TV || !fk)){
+      setFilter = fk; setSearchRun();
+      if (IS_TV){ var pn = $id('setPane'); if (pn) pn.scrollTop = 0; } else setFilterChips();
+    }
     if (focusPane){
-      var pane = document.querySelector('#setPane .con-sec.on'), f = pane && pane.querySelector('.focusable');
+      var pane = fk ? $id('setPane') : document.querySelector('#setPane .con-sec.on'), f = null;
+      if (pane) Array.prototype.some.call(pane.querySelectorAll('.focusable'), function(x){ if (x.offsetParent !== null && (!fk || x.closest('.setrow'))){ f = x; return true; } return false; });
       if (f){ try { f.focus({ preventScroll: true }); } catch(e){ f.focus(); } try { f.scrollIntoView({ block: 'nearest' }); } catch(e2){} }
     }
   }
@@ -21868,26 +22283,40 @@
   function setSearchRun(){
     var inp = $id('setSearch'), c = $id('setConsole'); if (!inp || !c) return;
     var q = String(inp.value || '').toLowerCase().split(/[\s,]+/).filter(function(w){ return w; });
-    c.classList.toggle('searching', q.length > 0);
+    // the kind filter (issue #19) narrows with the words. On a TV it has a look of its own (.flt: the section list stays)
+    var fk = setFilterOn();
+    c.classList.toggle('searching', q.length > 0 || (!!fk && !IS_TV));
+    c.classList.toggle('flt', !!fk && IS_TV);
+    c.classList.toggle('fk', !!fk);
     var any = false;
     Array.prototype.forEach.call(document.querySelectorAll('#setPane .con-sec'), function(sec){
       var head = (((sec.querySelector('.con-title') || {}).textContent) || '') + ' ' + (((sec.querySelector('.con-sub') || {}).textContent) || '');
       var hitSec = false;
       Array.prototype.forEach.call(sec.querySelectorAll('.setrow, .pcard'), function(r){
         var t = (r.textContent + ' ' + head).toLowerCase();
-        var hit = !q.length || q.every(function(w){ return t.indexOf(w) >= 0; });
+        var hit = (!q.length || q.every(function(w){ return t.indexOf(w) >= 0; })) && (!fk || r.getAttribute('data-k') === fk);
         r.classList.toggle('sr-miss', !hit);
-        if (hit) hitSec = true;
+        // (a kind's section counts only for a row this device shows: a phone-only row is no reason to title a section on a TV)
+        if (hit && (!fk || getComputedStyle(r).display !== 'none')) hitSec = true;
       });
-      sec.classList.toggle('sr-none', q.length > 0 && !hitSec);
+      sec.classList.toggle('sr-none', (q.length > 0 || !!fk) && !hitSec);
       if (hitSec && !sec.classList.contains('hid')) any = true;
     });
-    var none = $id('setSearchNone'); if (none) none.style.display = q.length && !any ? '' : 'none';
+    // Home's two lists stand under the "Rows" line and go with it
+    var duo = $id('setRowsDuo'), rline = setRowOfId('setRowsReset');
+    if (duo && rline) duo.classList.toggle('sr-miss', rline.classList.contains('sr-miss'));
+    var none = $id('setSearchNone'); if (none) none.style.display = (q.length || fk) && !any ? '' : 'none';
   }
   setLayout();
   window.addEventListener('resize', setLayout);
   (function(){
     var si = $id('setSearch'); if (si) si.addEventListener('input', setSearchRun);
+    // the "This device" mark on a row: every setting of that kind (a TV: its list's entry)
+    var sp0 = $id('setPane'); if (sp0) sp0.addEventListener('click', function(e){
+      var t = e.target; if (!t || !t.classList || !t.classList.contains('set-dev')) return;
+      e.preventDefault(); e.stopPropagation();
+      if (IS_TV) setSection('f:dev', false); else setFilterSet('dev');
+    });
     var sb = $id('setBack'); if (sb) sb.onclick = function(){ setDrill(false); };
     Array.prototype.forEach.call(document.querySelectorAll('#setNav .con-item'), function(b){
       b.onclick = function(){
@@ -22124,30 +22553,58 @@
   }
 
   // ---------- Home rows manager (Settings → Home → Rows) ----------
-  // One list, in Home's order: every browsable catalog of every add-on, a check
-  // on the ones Home shows. A row switched off keeps its place in the order, so
-  // switching it back on returns it to where it was.
+  // Two lists since issue #18. AVAILABLE (#setRowsOff): every browsable catalog Home does not show, by add-on; a press
+  // puts it on Home, at the end. ON HOME (#setRows): Home's rows in Home's order; the grip moves one (drag, or OK and the
+  // arrows on a remote), a press takes it off. Both are repainted whole on every change (and on a sync from another
+  // device, prefsApplyAll), so their filter fields live outside them and the focus is found again by key, else by place.
   var CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" ' +
     'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.6 4.5L19 7.5"/></svg>';
-  var rowMgr = { seq: 0, items: null, p: null, busy: false };
+  var ROW_ADD_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+  var ROW_OFF_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+  var rowMgr = { seq: 0, items: null, p: null, busy: false, moved: '' };   // moved: the key that just changed lists (shown, lit a moment)
   function rowMgrRows(){ return [].slice.call(document.querySelectorAll('#setRows .hrm')); }
-  /** A move rewrites the whole arrangement — the list on screen IS the order. */
-  function commitRowMove(from, to){
+  /** Every catalog in Home's order (in place: the Featured-from checklist reads the same list). */
+  function rowMgrSort(pr){
     var items = rowMgr.items || [];
-    if (!items[from]) return from;             // the list was let go under the drag: nothing to move
-    if (to < 0) to = 0; if (to >= items.length) to = items.length - 1;
+    items.forEach(function(it){ it.oi = rowOrderIndex(pr, it.key, it.ai, it.nat); });
+    items.sort(function(x, y){ return x.oi - y.oi; });
+    return items;
+  }
+  /** Home's rows, in order. */
+  function rowMgrOn(pr){ return rowMgrSort(pr).filter(function(it){ return rowVisible(pr, it.key, it.nat); }); }
+  /** The whole arrangement written out: Home's rows as given, then every other catalog in the order it had. */
+  function rowOrderWrite(pr, on){
+    var seen = {}; on.forEach(function(it){ seen[it.key] = 1; });
+    pr.rowOrder = on.map(function(it){ return it.key; })
+      .concat((rowMgr.items || []).filter(function(it){ return !seen[it.key]; }).map(function(it){ return it.key; }));
+  }
+  /** A move among Home's rows (the indexes are places in the On Home list) rewrites the whole arrangement. */
+  function commitRowMove(from, to){
+    if (!rowMgr.items) return from;            // the list was let go under the drag: nothing to move
+    var pr = getPrefs(), on = rowMgrOn(pr);
+    if (!on[from]) return from;
+    if (to < 0) to = 0; if (to >= on.length) to = on.length - 1;
     if (from === to) return from;
-    items.splice(to, 0, items.splice(from, 1)[0]);
-    var pr = getPrefs(); pr.rowOrder = items.map(function(it){ return it.key; });
+    on.splice(to, 0, on.splice(from, 1)[0]);
+    rowOrderWrite(pr, on);
     writePrefs(pr); homeSig = null;            // Home rebuilds next time it is shown
     return to;
   }
-  var ROW_DRAG = { rows: rowMgrRows, wrap: 'setRows', cls: 'hrmlist', scroller: 'view-settings',
+  var ROW_DRAG = { rows: rowMgrRows, wrap: 'setRows', cls: 'hrmlist rd-list', scroller: 'view-settings',
     move: commitRowMove, render: function(){ rowMgrPaint(); }, label: 'Reorder this row' };
+  /** A press on a row: off Home, or on to it at the end (the arrangement is written out then, so "the end" holds). */
   function toggleRow(it){
-    var pr = getPrefs(); pr.rowVis = pr.rowVis || {};
-    pr.rowVis[it.key] = !rowVisible(pr, it.key, it.nat);
+    if (!rowMgr.items) return;
+    var pr = getPrefs(), was = rowVisible(pr, it.key, it.nat);
+    pr.rowVis = pr.rowVis || {};
+    if (!was){
+      var on = rowMgrOn(pr).filter(function(x){ return x.key !== it.key; });
+      on.push(it);
+      pr.rowVis[it.key] = true;
+      rowOrderWrite(pr, on);
+    } else pr.rowVis[it.key] = false;
     writePrefs(pr); homeSig = null;
+    rowMgr.moved = it.key;
     rowMgrPaint();
   }
   function resetRows(){
@@ -22160,7 +22617,10 @@
   function renderRowManager(){
     var list = $id('setRows'); if (!list) return Promise.resolve();
     var seq = ++rowMgr.seq, addons = activeAddons();
-    if (!rowMgr.items && addons.length) list.innerHTML = '<div class="empty">Loading your add-ons…</div>';
+    if (!rowMgr.items && addons.length){
+      var duo0 = $id('setRowsDuo'); if (duo0) duo0.classList.add('none');   // (classList: the Settings search keeps .sr-miss on it)
+      list.innerHTML = '<div class="empty">Loading your add-ons…</div>';
+    }
     rowMgr.busy = true;
     rowMgr.p = Promise.all(addons.map(function(a){ return getManifest(a.url).catch(function(){ return null; }); }))
       .then(function(ms){
@@ -22182,57 +22642,122 @@
       });
     return rowMgr.p;
   }
+  function rowFindWords(id){ var el = $id(id); return String((el && el.value) || '').toLowerCase().split(/\s+/).filter(function(w){ return w; }); }
+  function rowFindHit(it, q){
+    if (!q.length) return true;
+    var t = (it.name + ' ' + it.sub).toLowerCase();
+    return q.every(function(w){ return t.indexOf(w) >= 0; });
+  }
+  function rowMgrRow(it, on){
+    var row = document.createElement('div');
+    row.className = 'hrm focusable' + (on ? '' : ' off'); row.tabIndex = 0;
+    row.setAttribute('role', 'button');
+    row.setAttribute('aria-label', on ? 'Take ' + it.name + ' off Home' : 'Add ' + it.name + ' to Home');
+    row.title = on ? 'Take it off Home' : 'Add it to Home';
+    row.setAttribute('data-key', it.key);
+    var txt = document.createElement('span'); txt.className = 'hrm-txt';
+    txt.innerHTML = '<span class="hrm-name">' + esc(it.name) + '</span><span class="hrm-sub">' + esc(it.sub) + '</span>';
+    row.appendChild(txt);
+    var act = document.createElement('span'); act.className = 'hrm-act'; act.innerHTML = on ? ROW_OFF_SVG : ROW_ADD_SVG;
+    row.appendChild(act);
+    row.onclick = function(){ toggleRow(it); };
+    row.onkeydown = function(ev){ if (ev.keyCode === 13){ ev.preventDefault(); toggleRow(it); } };
+    return row;
+  }
   function rowMgrPaint(){
-    var list = $id('setRows'); if (!list) return;
+    var list = $id('setRows'), offList = $id('setRowsOff'), duo = $id('setRowsDuo'); if (!list || !offList || !duo) return;
     // let go under an open Settings and not gathered yet: gather, which paints (never "no catalogs" over a full list)
     if (!rowMgr.items && activeAddons().length){ if (!rowMgr.busy) renderRowManager(); return; }
-    var pr = getPrefs(), items = rowMgr.items || [];
+    var pr = getPrefs(), items = rowMgrSort(pr);
     var reset = $id('setRowsReset'); if (reset) reset.style.display = (pr.rowOrder || pr.rowVis) ? '' : 'none';
-    items.forEach(function(it){ it.oi = rowOrderIndex(pr, it.key, it.ai, it.nat); });
-    items.sort(function(x, y){ return x.oi - y.oi; });
     heroSourceRender();                        // "Featured from" › Chosen rows lists these rows
-    // the row that has focus is about to be rebuilt — find it again by key
-    var ae = document.activeElement, focusKey = null, onGrip = false;
-    if (ae && list.contains(ae)){
+    // the row that has focus is about to be rebuilt: found again by key, else by its place in its list
+    var ae = document.activeElement, focusKey = null, onGrip = false, focusList = null, focusAt = -1;
+    [list, offList].forEach(function(l){
+      if (!ae || !l.contains(ae)) return;
       var host = ae;
-      while (host && host !== list && !(host.classList && host.classList.contains('hrm'))) host = host.parentNode;
-      if (host && host !== list){ focusKey = host.getAttribute('data-key'); onGrip = ae !== host; }
-    }
+      while (host && host !== l && !(host.classList && host.classList.contains('hrm'))) host = host.parentNode;
+      if (host && host !== l){
+        focusKey = host.getAttribute('data-key'); onGrip = ae !== host; focusList = l;
+        focusAt = Array.prototype.indexOf.call(l.querySelectorAll('.hrm'), host);
+      }
+    });
     if (liftSpec === ROW_DRAG){ liftIdx = null; liftSpec = null; }
-    list.innerHTML = '';
+    var topOn = list.scrollTop, topOff = offList.scrollTop;
+    list.innerHTML = ''; offList.innerHTML = '';
+    var fOn = $id('rdOnFind'), fOff = $id('rdOffFind');
     if (!items.length){
+      duo.classList.add('none');
+      if (fOn) fOn.style.display = 'none'; if (fOff) fOff.style.display = 'none';
       list.innerHTML = '<div class="empty">' + (getAddons().length
         ? 'Nothing to arrange yet. Your add-ons have no catalogs.'
         : 'Add an add-on first. Its catalogs become rows here.') + '</div>';
       return;
     }
-    items.forEach(function(it, idx){
-      var on = rowVisible(pr, it.key, it.nat);
-      var row = document.createElement('div');
-      row.className = 'hrm focusable' + (on ? '' : ' off'); row.tabIndex = 0;
-      row.setAttribute('role', 'checkbox'); row.setAttribute('aria-checked', on ? 'true' : 'false');
-      row.setAttribute('data-key', it.key);
-      if (items.length > 1) row.appendChild(gripFor(ROW_DRAG, idx));
-      var txt = document.createElement('span'); txt.className = 'hrm-txt';
-      txt.innerHTML = '<span class="hrm-name">' + esc(it.name) + '</span><span class="hrm-sub">' + esc(it.sub) + '</span>';
-      row.appendChild(txt);
-      var chk = document.createElement('span'); chk.className = 'hrm-check'; chk.innerHTML = CHECK_SVG;
-      row.appendChild(chk);
-      row.onclick = function(){ toggleRow(it); };
-      row.onkeydown = function(ev){ if (ev.keyCode === 13){ ev.preventDefault(); toggleRow(it); } };
+    duo.classList.remove('none');
+    var on = [], off = [];
+    items.forEach(function(it){ (rowVisible(pr, it.key, it.nat) ? on : off).push(it); });
+    off.sort(function(x, y){ return (x.ai - y.ai) || (x.nat - y.nat); });      // by add-on, then the add-on's own order
+    var qOn = rowFindWords('rdOnFind'), qOff = rowFindWords('rdOffFind');
+    // filters once there is enough to filter (both together: side by side the two lists start on one line)
+    var finds = items.length > 6 || qOn.length || qOff.length;
+    if (fOn) fOn.style.display = finds ? '' : 'none';
+    if (fOff) fOff.style.display = finds ? '' : 'none';
+    $id('rdOnN').textContent = String(on.length); $id('rdOffN').textContent = String(off.length);
+    // (a filtered list shows some of Home's rows: a move among those would not say where the others go, so no grips then)
+    var grips = on.length > 1 && !qOn.length;
+    on.forEach(function(it, idx){
+      if (!rowFindHit(it, qOn)) return;
+      var row = rowMgrRow(it, true);
+      if (grips) row.insertBefore(gripFor(ROW_DRAG, idx), row.firstChild); else row.className += ' nogrip';
       list.appendChild(row);
     });
+    off.forEach(function(it){ if (rowFindHit(it, qOff)) offList.appendChild(rowMgrRow(it, false)); });
+    if (!list.firstChild) list.innerHTML = '<div class="empty">' + (qOn.length ? 'No row of Home matches that.'
+      : 'Home has no rows. Add one from the available catalogs.') + '</div>';
+    if (!offList.firstChild) offList.innerHTML = '<div class="empty">' + (qOff.length ? 'No available catalog matches that.'
+      : 'Every catalog is on Home.') + '</div>';
+    list.scrollTop = topOn; offList.scrollTop = topOff;
+    // the drag follows whatever scrolls: the list itself where it has a height of its own, else the page
+    ROW_DRAG.scroller = list.scrollHeight > list.clientHeight + 1 ? 'setRows' : 'view-settings';
+    var byKey = function(l, k){ return Array.prototype.filter.call(l.querySelectorAll('.hrm'), function(r){ return r.getAttribute('data-key') === k; })[0] || null; };
+    // the row that just changed lists: brought into view inside its new list (the page itself stays put) and lit a moment
+    if (rowMgr.moved){
+      var mv = byKey(list, rowMgr.moved) || byKey(offList, rowMgr.moved), ml = mv && mv.parentNode;
+      rowMgr.moved = '';
+      if (mv){
+        mv.className += ' rd-new';
+        if (ml.scrollHeight > ml.clientHeight + 1){
+          if (mv.offsetTop < ml.scrollTop) ml.scrollTop = Math.max(0, mv.offsetTop - 4);
+          else if (mv.offsetTop + mv.offsetHeight > ml.scrollTop + ml.clientHeight) ml.scrollTop = mv.offsetTop + mv.offsetHeight - ml.clientHeight + 4;
+        }
+      }
+    }
     if (focusKey){
-      var again = rowMgrRows().filter(function(r){ return r.getAttribute('data-key') === focusKey; })[0];
-      if (again){ var g = onGrip ? again.querySelector('.addon-grip') : null; try { (g || again).focus({ preventScroll: true }); } catch(e){ (g || again).focus(); } }
+      // still in its list (a move, a sync): the same row. Gone to the other list (a press): the row that took its place,
+      // so a remote goes on down the list; an emptied list hands the focus to the row where it went
+      var again = byKey(focusList, focusKey), rs = focusList.querySelectorAll('.hrm');
+      if (!again) again = rs[Math.min(focusAt, rs.length - 1)] || byKey(focusList === list ? offList : list, focusKey);
+      if (again){
+        var g = (onGrip && again.getAttribute('data-key') === focusKey) ? again.querySelector('.addon-grip') : null;
+        try { (g || again).focus({ preventScroll: true }); } catch(e){ (g || again).focus(); }
+        // (kept in view inside its own list only)
+        var fl = again.parentNode;
+        if (fl.scrollHeight > fl.clientHeight + 1){
+          if (again.offsetTop < fl.scrollTop) fl.scrollTop = Math.max(0, again.offsetTop - 4);
+          else if (again.offsetTop + again.offsetHeight > fl.scrollTop + fl.clientHeight) fl.scrollTop = again.offsetTop + again.offsetHeight - fl.clientHeight + 4;
+        }
+      }
     }
   }
   (function(){
     var r = $id('setRowsReset'); if (r) r.onclick = resetRows;
+    ['rdOnFind', 'rdOffFind'].forEach(function(id){ var f = $id(id); if (f) f.addEventListener('input', function(){ if (rowMgr.items) rowMgrPaint(); }); });
   })();
   applyPrefs();
   settingsRender();
   ctx.pickedFrom = loadPick();
+  ctx.handPick = handLoad();
 
   syncPanelRender();
   (function(){
