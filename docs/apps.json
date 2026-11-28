@@ -11,23 +11,23 @@
       "manifestUrl": "https://play.rifflehq.in/ipk/webosbrew.manifest.json",
       "manifest": {
         "id": "com.nebula.player",
-        "version": "1.136.1",
+        "version": "1.137.0",
         "type": "web",
         "title": "Nebula",
         "appDescription": "Nebula: add-on browser + player for webOS. An Apple TV-style player (glass controls, thick rounded scrubber, remaining time), a pause board that shows what is playing and what is next, a playback-info HUD, subtitle timing nudges, a picture-quality policy, a live-edge button, a sleep timer (by minutes or when the episode ends), Start over for anything in progress, Surprise me on series pages, a featured hero board, a TV guide of the live and upcoming events your add-ons list, a Home you arrange yourself (pick the rows and their order), recent searches, a full keyboard shortcut set with a ? sheet on computers, full-bleed title pages with logo art and cast (press a name for that person's films and series), My List with an upcoming-episode calendar, resume and Continue Watching, next-episode autoplay that keeps your source and quality (the next stream is chosen before this one ends), a Nebula Profile that carries your add-ons, progress and My List to every device (sign the TV in with a code from your phone, no email), up to six who's-watching profiles with their own pictures, add-ons and settings, friends by @handle, subtitle appearance controls, and search across every catalogue. Opens full on first run. Plays and decrypts every format.",
         "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
         "sourceUrl": "https://github.com/retrocodes12/nebula-player",
         "rootRequired": false,
-        "ipkUrl": "https://play.rifflehq.in/ipk/com.nebula.player_1.136.1_all.ipk",
+        "ipkUrl": "https://play.rifflehq.in/ipk/com.nebula.player_1.137.0_all.ipk",
         "ipkHash": {
-          "sha256": "4cc528544ee82e94d6af70cf707f0fe105d90a9d3bccc38c4da1d7418e2e20a9"
+          "sha256": "3667c8c67ca3c4ff9521cce40563996c387af547f24669c27c4a3e552810bd63"
         },
-        "ipkSize": 1428808
+        "ipkSize": 1440240
       },
       "pool": "main",
       "shortDescription": "Add-on browser + player: library, sync, calendar. Add add-ons by phone QR.",
       "fullDescriptionUrl": "",
-      "version": "1.136.1"
+      "version": "1.137.0"
     },
     {
       "id": "com.nebula.player.native",
@@ -57,23 +57,23 @@
       "manifestUrl": "https://play.rifflehq.in/ipk/com.nuvio.clearkey.player.manifest.json",
       "manifest": {
         "id": "com.nuvio.clearkey.player",
-        "version": "1.136.1",
+        "version": "1.137.0",
         "type": "web",
         "title": "Nebula (old version)",
         "appDescription": "The previous install of Nebula. Install \"Nebula\" from this repository, sign in with your Nebula Profile, then delete this one: it stops getting updates.",
         "iconUri": "https://raw.githubusercontent.com/retrocodes12/nebula-player/main/webos/largeIcon.png",
         "sourceUrl": "https://github.com/retrocodes12/nebula-player",
         "rootRequired": false,
-        "ipkUrl": "https://play.rifflehq.in/ipk/com.nuvio.clearkey.player_1.136.1_all.ipk",
+        "ipkUrl": "https://play.rifflehq.in/ipk/com.nuvio.clearkey.player_1.137.0_all.ipk",
         "ipkHash": {
-          "sha256": "3032d4f3fa1fd2f19966194088e5a976a04c593a3c20b7d589236940e8af0065"
+          "sha256": "4bc4a245095126b4ea30b85006a64cf58c68181e03ec1775c36b0e7c3f0a880d"
         },
-        "ipkSize": 1428864
+        "ipkSize": 1440302
       },
       "pool": "main",
       "shortDescription": "The previous install. Install Nebula above, sign in, then delete this one.",
       "fullDescriptionUrl": "",
-      "version": "1.136.1"
+      "version": "1.137.0"
     },
     {
       "id": "com.nuvio.clearkey.app",
